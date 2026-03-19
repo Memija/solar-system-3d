@@ -202,16 +202,6 @@ export class CelestialBody {
             this.cloudMesh.rotation.y += 0.55 * deltaTime; // Slightly faster than surface
         }
 
-        // Update Atmosphere
-        if (this.atmosphereMesh && this.parent.parent && (this.parent.parent as any).camera) {
-            // We need access to camera for viewVector
-            // Since we don't have direct access to camera here easily without passing it down,
-            // we can try to find it or pass it in update.
-            // For now, let's assume the camera position relative to the planet is what matters.
-            // Actually, the shader needs viewVector = cameraPosition - planetPosition
-            // We can update this if we pass camera to update.
-        }
-
         // Update Shader Time
         if (this.shaderMaterial) {
             this.shaderMaterial.uniforms.time.value += deltaTime;
