@@ -296,6 +296,23 @@ export const SolarSystemData: CelestialBodyData[] = [
         ]
     },
     {
+        name: "Eris",
+        radius: 0.36,
+        distance: 780,
+        period: 558,
+        color: 0xcccccc,
+        texture: 'textures/ceres.png', // Fallback texture since there is no eris.png
+        description: "Eris is the most massive and second-largest known dwarf planet in the Solar System. It is a trans-Neptunian object (TNO) in the scattered disk and has a high-eccentricity orbit.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Eris_and_dysnomia2.jpg/800px-Eris_and_dysnomia2.jpg",
+        images: [
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Eris_and_dysnomia2.jpg/800px-Eris_and_dysnomia2.jpg"
+        ],
+        links: [
+            { title: "NASA: Eris Overview", url: "https://science.nasa.gov/dwarf-planets/eris" },
+            { title: "Wikipedia: Eris", url: "https://en.wikipedia.org/wiki/Eris_(dwarf_planet)" }
+        ]
+    },
+    {
         name: "Haumea",
         radius: 0.30,
         distance: 740,
