@@ -32,7 +32,7 @@ export class SceneManager {
         // Controls initialized in init()
         this.clock = new THREE.Clock();
         this.planets = [];
-        this.timeScale = 1.0;
+        this.timeScale = 1;
         this.showOrbits = true;
         this.showMoons = true;
         this.focusedBody = null;
@@ -124,7 +124,7 @@ export class SceneManager {
             map: texture,
             side: THREE.BackSide,
             transparent: true,
-            opacity: 1.0
+            opacity: 1
         });
 
         const skybox = new THREE.Mesh(geometry, material);
@@ -149,7 +149,7 @@ export class SceneManager {
                 ]
             },
             {
-                name: "Canopus", ra: 6.40, dec: -52.70, color: 0xffffff,
+                name: "Canopus", ra: 6.4, dec: -52.7, color: 0xffffff,
                 description: "The brightest star in the southern constellation of Carina and the second-brightest star in the night sky. It is essentially white when seen with the naked eye.",
                 imageUrl: "https://cdn.esahubble.org/archives/images/screen/heic0702a.jpg",
                 images: ["https://cdn.esahubble.org/archives/images/screen/heic0702a.jpg"],
@@ -170,14 +170,14 @@ export class SceneManager {
                 links: [{ title: "Wikipedia: Vega", url: "https://en.wikipedia.org/wiki/Vega" }]
             },
             {
-                name: "Capella", ra: 5.27, dec: 46.00, color: 0xfff5f5,
+                name: "Capella", ra: 5.27, dec: 46, color: 0xfff5f5,
                 description: "The brightest star in the constellation of Auriga, the sixth-brightest in the night sky, and the third-brightest in the Northern Celestial Hemisphere after Arcturus and Vega.",
                 imageUrl: "https://cdn.esahubble.org/archives/images/screen/heic0711a.jpg",
                 images: ["https://cdn.esahubble.org/archives/images/screen/heic0711a.jpg"],
                 links: [{ title: "Wikipedia: Capella", url: "https://en.wikipedia.org/wiki/Capella" }]
             },
             {
-                name: "Rigel", ra: 5.24, dec: -8.20, color: 0xa3c2ff,
+                name: "Rigel", ra: 5.24, dec: -8.2, color: 0xa3c2ff,
                 description: "A blue supergiant star in the constellation of Orion. It is the brightest star in Orion and the seventh-brightest star in the night sky.",
                 imageUrl: "https://cdn.esahubble.org/archives/images/screen/heic1509a.jpg",
                 images: ["https://cdn.esahubble.org/archives/images/screen/heic1509a.jpg"],
@@ -205,7 +205,7 @@ export class SceneManager {
                 links: [{ title: "Wikipedia: Altair", url: "https://en.wikipedia.org/wiki/Altair" }]
             },
             {
-                name: "Aldebaran", ra: 4.60, dec: 16.51, color: 0xff8c00,
+                name: "Aldebaran", ra: 4.6, dec: 16.51, color: 0xff8c00,
                 description: "A giant star located in the zodiac constellation Taurus. It is the brightest star in Taurus and generally the fourteenth-brightest star in the night sky.",
                 imageUrl: "https://cdn.esahubble.org/archives/images/screen/potw1726a.jpg",
                 images: ["https://cdn.esahubble.org/archives/images/screen/potw1726a.jpg"],
@@ -296,7 +296,7 @@ export class SceneManager {
         canvas.height = 64;
 
         context.font = 'Bold 32px Arial';
-        context.fillStyle = 'rgba(255, 255, 255, 1.0)';
+        context.fillStyle = 'rgba(255, 255, 255, 1)';
         context.textAlign = 'center';
         context.fillText(text, 128, 48);
 
@@ -313,7 +313,7 @@ export class SceneManager {
         const sunData = SolarSystemData.find(d => d.name === "Sun");
         if (sunData) {
             // We already created the Sun mesh manually in init(), so we just wrap it
-            const sunMesh = this.scene.children.find(c => (c as THREE.Mesh).geometry && (c as THREE.Mesh).geometry.type === 'SphereGeometry' && (c as THREE.Mesh).material === this.sunMaterial) as THREE.Mesh;
+            const sunMesh = this.scene.children.find(c => (c as THREE.Mesh).geometry?.type === 'SphereGeometry' && (c as THREE.Mesh).material === this.sunMaterial) as THREE.Mesh;
             if (sunMesh) {
                 sunMesh.userData = sunData; // Attach data
                 // Create a mock CelestialBody for the Sun
@@ -353,7 +353,7 @@ export class SceneManager {
             this.sunMaterial.uniforms.time.value = this.clock.getElapsedTime();
         }
 
-        if (this.surfaceViewBody && this.surfaceViewBody.mesh) {
+        if (this.surfaceViewBody?.mesh) {
             const planetPos = new THREE.Vector3();
             this.surfaceViewBody.mesh.getWorldPosition(planetPos);
 
@@ -364,7 +364,7 @@ export class SceneManager {
             this.camera.position.copy(camPos);
             this.camera.lookAt(0, 0, 0);
             this.controls.enabled = false;
-        } else if (this.focusedBody && this.focusedBody.mesh) {
+        } else if (this.focusedBody?.mesh) {
             const pos = new THREE.Vector3();
             this.focusedBody.mesh.getWorldPosition(pos);
 
@@ -403,7 +403,7 @@ export class SceneManager {
 
 
 
-        if (target && target.mesh) {
+        if (target?.mesh) {
             this.focusedBody = target;
             this.surfaceViewBody = null;
 
@@ -472,7 +472,7 @@ export class SceneManager {
 
     setSurfaceView(name: string) {
         const target = this.planets.find(p => p.data.name === name);
-        if (target && target.mesh) {
+        if (target?.mesh) {
             this.surfaceViewBody = target;
             this.focusedBody = null;
             this.previousBodyPosition = null;

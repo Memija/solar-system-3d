@@ -52,14 +52,9 @@ export class Modal {
         return modal;
     }
 
-    public show(data: CelestialBodyData | MoonData | StarData | any) {
-        if (!this.contentElement) return;
-
-        // --- Image Gallery ---
-        let galleryHtml = '';
+    private getGalleryHtml(data: CelestialBodyData | MoonData | StarData): string {
         if (data.images && data.images.length > 0) {
-            // Create a simple carousel structure
-            galleryHtml = `
+            return `
                 <div class="gallery-container" style="position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 8px; margin: 10px 0; background: #000;">
                     ${data.images.map((img: string, index: number) => `
                         <img src="${img}" class="gallery-img" data-index="${index}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: ${index === 0 ? 1 : 0}; transition: opacity 0.5s;">
@@ -72,13 +67,14 @@ export class Modal {
                 </div>
             `;
         } else if (data.imageUrl) {
-            galleryHtml = `<img src="${data.imageUrl}" alt="${data.name}" style="width: 100%; border-radius: 8px; margin: 10px 0;">`;
+            return `<img src="${data.imageUrl}" alt="${data.name}" style="width: 100%; border-radius: 8px; margin: 10px 0;">`;
         }
+        return '';
+    }
 
-        // --- Links Section ---
-        let linksHtml = '';
+    private getLinksHtml(data: CelestialBodyData | MoonData | StarData): string {
         if (data.links && data.links.length > 0) {
-            linksHtml = `
+            return `
                 <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
                     <h4 style="margin: 0 0 5px 0; font-size: 0.9em; color: #aaa;">Learn More:</h4>
                     <ul style="list-style: none; padding: 0; margin: 0;">
@@ -91,30 +87,23 @@ export class Modal {
                 </div>
             `;
         }
+        return '';
+    }
 
-        // --- Stats Section ---
-        let extraInfo = '';
-        if (data.ra !== undefined && data.dec !== undefined) {
-            extraInfo = `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
-        } else {
-            extraInfo = `
-                <p><strong>Radius:</strong> ${data.radius} (relative)</p>
-                <p><strong>Distance:</strong> ${data.distance} AU</p>
-                <p><strong>Period:</strong> ${data.period} years</p>
+    private getExtraInfo(data: CelestialBodyData | MoonData | StarData): string {
+        if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
+            return `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
+        } else if ('radius' in data) {
+            return `
+                <p><strong>Radius:</strong> ${(data as CelestialBodyData).radius} (relative)</p>
+                <p><strong>Distance:</strong> ${(data as CelestialBodyData).distance} AU</p>
+                <p><strong>Period:</strong> ${(data as CelestialBodyData).period} years</p>
             `;
         }
+        return '';
+    }
 
-        this.contentElement.innerHTML = `
-            <h2 style="margin-top: 0; border-bottom: 1px solid #666; padding-bottom: 10px;">${data.name}</h2>
-            ${galleryHtml}
-            <p style="line-height: 1.5; font-size: 0.95em;">${data.description || 'No description available.'}</p>
-            <div style="margin-top: 10px; font-size: 0.9em; color: #aaa;">
-                ${extraInfo}
-            </div>
-            ${linksHtml}
-        `;
-
-        // --- Gallery Logic ---
+    private setupGalleryLogic(data: CelestialBodyData | MoonData | StarData) {
         if (data.images && data.images.length > 1) {
             let currentIndex = 0;
             const images = this.contentElement.querySelectorAll('.gallery-img') as NodeListOf<HTMLElement>;
@@ -137,7 +126,26 @@ export class Modal {
                 showImage(currentIndex);
             };
         }
+    }
 
+    public show(data: CelestialBodyData | MoonData | StarData) {
+        if (!this.contentElement) return;
+
+        const galleryHtml = this.getGalleryHtml(data);
+        const linksHtml = this.getLinksHtml(data);
+        const extraInfo = this.getExtraInfo(data);
+
+        this.contentElement.innerHTML = `
+            <h2 style="margin-top: 0; border-bottom: 1px solid #666; padding-bottom: 10px;">${data.name}</h2>
+            ${galleryHtml}
+            <p style="line-height: 1.5; font-size: 0.95em;">${data.description || 'No description available.'}</p>
+            <div style="margin-top: 10px; font-size: 0.9em; color: #aaa;">
+                ${extraInfo}
+            </div>
+            ${linksHtml}
+        `;
+
+        this.setupGalleryLogic(data);
         this.modalElement.style.display = 'block';
     }
 

@@ -61,7 +61,7 @@ export class UIManager {
         gui.domElement.style.left = '20px';
 
         const params = {
-            timeSpeed: 1.0,
+            timeSpeed: 1,
             showOrbits: true,
             showMoons: true
         };
@@ -156,7 +156,7 @@ export class UIManager {
 
                 // Add other stars
                 this.sceneManager.starMeshes.forEach(mesh => {
-                    if (mesh.userData && mesh.userData.name) {
+                    if (mesh.userData?.name) {
                         const option = document.createElement('option');
                         option.value = mesh.userData.name;
                         option.textContent = mesh.userData.name;
@@ -176,7 +176,7 @@ export class UIManager {
             } else if (selectedType === 'Constellation') {
                 if (this.sceneManager.constellationManager) {
                     this.sceneManager.constellationManager.constellationMeshes.forEach(group => {
-                        if (group.userData && group.userData.name) {
+                        if (group.userData?.name) {
                             const option = document.createElement('option');
                             option.value = group.userData.name;
                             option.textContent = group.userData.name;
@@ -240,6 +240,68 @@ export class UIManager {
         }
     }
 
+    private handlePlanetsAndMoonsIntersection(): boolean {
+        const interactableObjects: THREE.Object3D[] = [];
+
+        this.sceneManager.planets.forEach(p => {
+            if (p.mesh) interactableObjects.push(p.mesh);
+            if (p.cloudMesh) interactableObjects.push(p.cloudMesh);
+            if (p.atmosphereMesh) interactableObjects.push(p.atmosphereMesh);
+        });
+
+        const intersects = this.raycaster.intersectObjects(interactableObjects);
+
+        if (intersects.length > 0) {
+            for (const intersect of intersects) {
+                const selectedObject = intersect.object;
+
+                const foundBody = this.sceneManager.planets.find(p =>
+                    p.mesh === selectedObject ||
+                    p.cloudMesh === selectedObject ||
+                    p.atmosphereMesh === selectedObject
+                );
+
+                if (foundBody) {
+                    this.showModal(foundBody.data);
+                    this.sceneManager.focusOnBody(foundBody.data.name);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private handleStarsIntersection(): boolean {
+        if (!this.sceneManager.starMeshes) return false;
+
+        const starIntersects = this.raycaster.intersectObjects(this.sceneManager.starMeshes);
+        if (starIntersects.length > 0) {
+            const selectedStar = starIntersects[0].object;
+            if (selectedStar.userData?.name) {
+                this.showModal(selectedStar.userData);
+                this.sceneManager.focusOnStar(selectedStar);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private handleConstellationsIntersection(): boolean {
+        if (!this.sceneManager.constellationManager) return false;
+
+        const constellationObjects = this.sceneManager.constellationManager.getInteractableObjects();
+        const constellationIntersects = this.raycaster.intersectObjects(constellationObjects);
+
+        if (constellationIntersects.length > 0) {
+            const selectedObj = constellationIntersects[0].object;
+            if (selectedObj.userData?.type === 'ConstellationStar' || selectedObj.userData?.type === 'ConstellationLine') {
+                this.showModal(selectedObj.userData);
+                return true;
+            }
+        }
+        return false;
+    }
+
     onClick(clientX: number, clientY: number) {
         try {
             // Calculate NDC from click coordinates
@@ -250,67 +312,9 @@ export class UIManager {
             // Raycast
             this.raycaster.setFromCamera(this.mouse, this.sceneManager.camera);
 
-            // 1. Check Planets and Moons
-            const interactableObjects: THREE.Object3D[] = [];
-
-            this.sceneManager.planets.forEach(p => {
-                if (p.mesh) interactableObjects.push(p.mesh);
-                if (p.cloudMesh) interactableObjects.push(p.cloudMesh);
-                if (p.atmosphereMesh) interactableObjects.push(p.atmosphereMesh);
-            });
-
-            const intersects = this.raycaster.intersectObjects(interactableObjects);
-
-            if (intersects.length > 0) {
-                // Iterate through all intersections to find the first valid body
-                for (const intersect of intersects) {
-                    const selectedObject = intersect.object;
-                    let foundBody = null;
-
-                    // Check planets (mesh, clouds, atmosphere)
-                    foundBody = this.sceneManager.planets.find(p =>
-                        p.mesh === selectedObject ||
-                        p.cloudMesh === selectedObject ||
-                        p.atmosphereMesh === selectedObject
-                    );
-
-
-
-                    if (foundBody) {
-                        this.showModal(foundBody.data);
-                        this.sceneManager.focusOnBody(foundBody.data.name);
-                        return; // Stop after finding the first valid body
-                    }
-                }
-            }
-
-            // 2. Check Stars
-            if (this.sceneManager.starMeshes) {
-                const starIntersects = this.raycaster.intersectObjects(this.sceneManager.starMeshes);
-                if (starIntersects.length > 0) {
-                    const selectedStar = starIntersects[0].object;
-                    if (selectedStar.userData && selectedStar.userData.name) {
-                        // Show Modal instead of simple info
-                        this.showModal(selectedStar.userData);
-                        this.sceneManager.focusOnStar(selectedStar);
-                    }
-                    return;
-                }
-            }
-
-            // 3. Check Constellations
-            if (this.sceneManager.constellationManager) {
-                const constellationObjects = this.sceneManager.constellationManager.getInteractableObjects();
-                const constellationIntersects = this.raycaster.intersectObjects(constellationObjects);
-
-                if (constellationIntersects.length > 0) {
-                    const selectedObj = constellationIntersects[0].object;
-                    if (selectedObj.userData && (selectedObj.userData.type === 'ConstellationStar' || selectedObj.userData.type === 'ConstellationLine')) {
-                        this.showModal(selectedObj.userData);
-                        return;
-                    }
-                }
-            }
+            if (this.handlePlanetsAndMoonsIntersection()) return;
+            if (this.handleStarsIntersection()) return;
+            if (this.handleConstellationsIntersection()) return;
 
             // Nothing clicked
             this.hideInfo();
