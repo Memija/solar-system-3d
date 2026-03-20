@@ -59,10 +59,10 @@ export const MajorConstellations: ConstellationData[] = [
         ],
         stars: [
             { name: "Betelgeuse", ra: 5.92, dec: 7.41 },
-            { name: "Rigel", ra: 5.24, dec: -8.20 },
+            { name: "Rigel", ra: 5.24, dec: -8.2 },
             { name: "Bellatrix", ra: 5.42, dec: 6.35 },
-            { name: "Mintaka", ra: 5.53, dec: -0.30 },
-            { name: "Alnilam", ra: 5.60, dec: -1.20 },
+            { name: "Mintaka", ra: 5.53, dec: -0.3 },
+            { name: "Alnilam", ra: 5.6, dec: -1.2 },
             { name: "Alnitak", ra: 5.68, dec: -1.94 },
             { name: "Saiph", ra: 5.79, dec: -9.67 }
         ],
@@ -87,7 +87,7 @@ export const MajorConstellations: ConstellationData[] = [
             { name: "Caph", ra: 0.15, dec: 59.15 },
             { name: "Gamma Cas", ra: 0.93, dec: 60.72 },
             { name: "Ruchbah", ra: 1.43, dec: 60.23 },
-            { name: "Segin", ra: 1.90, dec: 63.67 }
+            { name: "Segin", ra: 1.9, dec: 63.67 }
         ],
         connections: [[0, 1], [0, 2], [2, 3], [3, 4]],
         color: 0xff00ff
@@ -124,10 +124,10 @@ export const MajorConstellations: ConstellationData[] = [
         ],
         stars: [
             { name: "Antares", ra: 16.49, dec: -26.43 },
-            { name: "Graffias", ra: 16.09, dec: -19.80 },
-            { name: "Dschubba", ra: 16.00, dec: -22.62 },
-            { name: "Sargas", ra: 17.62, dec: -43.00 },
-            { name: "Shaula", ra: 17.56, dec: -37.10 },
+            { name: "Graffias", ra: 16.09, dec: -19.8 },
+            { name: "Dschubba", ra: 16, dec: -22.62 },
+            { name: "Sargas", ra: 17.62, dec: -43 },
+            { name: "Shaula", ra: 17.56, dec: -37.1 },
             { name: "Wei", ra: 16.84, dec: -25.11 } // Approximate hook start
         ],
         connections: [[0, 2], [2, 1], [0, 5], [5, 3], [3, 4]], // Simplified hook
@@ -144,7 +144,7 @@ export const MajorConstellations: ConstellationData[] = [
             { title: "Wikipedia: Crux", url: "https://en.wikipedia.org/wiki/Crux" }
         ],
         stars: [
-            { name: "Acrux", ra: 12.44, dec: -63.10 },
+            { name: "Acrux", ra: 12.44, dec: -63.1 },
             { name: "Mimosa", ra: 12.79, dec: -59.68 },
             { name: "Gacrux", ra: 12.52, dec: -57.11 },
             { name: "Delta Cru", ra: 12.25, dec: -58.75 }
@@ -200,7 +200,7 @@ export const MajorConstellations: ConstellationData[] = [
             { title: "Wikipedia: Taurus", url: "https://en.wikipedia.org/wiki/Taurus_(constellation)" }
         ],
         stars: [
-            { name: "Aldebaran", ra: 4.60, dec: 16.51 },
+            { name: "Aldebaran", ra: 4.6, dec: 16.51 },
             { name: "Elnath", ra: 5.43, dec: 28.61 },
             { name: "Alcyone", ra: 3.79, dec: 24.11 } // Pleiades
         ],

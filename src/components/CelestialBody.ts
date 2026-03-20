@@ -56,34 +56,32 @@ export class CelestialBody {
             });
             material = sunMaterial;
             this.shaderMaterial = sunMaterial;
-        } else {
+        } else if (texturePath && this.data.name === 'Earth') {
             // Planets and Moons
-            if (texturePath && this.data.name === 'Earth') {
-                const texture = textureLoader.load(texturePath);
-                texture.colorSpace = THREE.SRGBColorSpace;
+            const texture = textureLoader.load(texturePath);
+            texture.colorSpace = THREE.SRGBColorSpace;
 
-                // Improve texture quality
-                texture.anisotropy = 16;
+            // Improve texture quality
+            texture.anisotropy = 16;
 
-                material = new THREE.MeshStandardMaterial({
-                    map: texture,
-                    roughness: 0.8,
-                    metalness: 0.1,
-                    color: 0xffffff
-                });
+            material = new THREE.MeshStandardMaterial({
+                map: texture,
+                roughness: 0.8,
+                metalness: 0.1,
+                color: 0xffffff
+            });
 
-                // Adjust for Gas Giants
-                if (['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name)) {
-                    (material as THREE.MeshStandardMaterial).roughness = 1.0;
-                    (material as THREE.MeshStandardMaterial).metalness = 0.0;
-                }
-            } else {
-                material = new THREE.MeshStandardMaterial({
-                    color: this.data.color,
-                    roughness: 0.8,
-                    metalness: 0.1
-                });
+            // Adjust for Gas Giants
+            if (['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name)) {
+                (material as THREE.MeshStandardMaterial).roughness = 1;
+                (material as THREE.MeshStandardMaterial).metalness = 0;
             }
+        } else {
+            material = new THREE.MeshStandardMaterial({
+                color: this.data.color,
+                roughness: 0.8,
+                metalness: 0.1
+            });
         }
 
         this.mesh = new THREE.Mesh(geometry, material);
@@ -112,7 +110,7 @@ export class CelestialBody {
             const atmosphereMaterial = new THREE.ShaderMaterial({
                 uniforms: {
                     c: { value: 0.3 },
-                    p: { value: 5.0 },
+                    p: { value: 5 },
                     glowColor: { value: new THREE.Color(0x00aaff) },
                     viewVector: { value: new THREE.Vector3() }
                 },

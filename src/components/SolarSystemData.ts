@@ -114,7 +114,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Earth",
-        radius: 2.0,
+        radius: 2,
         distance: 130,
         period: 1,
         color: 0x0000ff,
@@ -220,7 +220,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Uranus",
-        radius: 6.0,
+        radius: 6,
         distance: 520,
         period: 84,
         color: 0x00ffff,
@@ -314,7 +314,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Haumea",
-        radius: 0.30,
+        radius: 0.3,
         distance: 740,
         period: 284,
         color: 0xaaaaaa,
