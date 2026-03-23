@@ -3,6 +3,13 @@ export interface LinkData {
     url: string;
 }
 
+export interface RingData {
+    innerRadius: number;
+    outerRadius: number;
+    color: number;
+    opacity?: number;
+}
+
 export interface MoonData {
     name: string;
     radius: number;
@@ -14,6 +21,7 @@ export interface MoonData {
     imageUrl?: string;
     images?: string[];
     links?: LinkData[];
+    rings?: RingData[];
 }
 
 export interface CelestialBodyData {
@@ -28,6 +36,7 @@ export interface CelestialBodyData {
     images?: string[];
     links?: LinkData[];
     moons?: MoonData[];
+    rings?: RingData[];
     ra?: number; // For stars
     dec?: number; // For stars
 }
@@ -216,6 +225,10 @@ export const SolarSystemData: CelestialBodyData[] = [
         ],
         moons: [
             { name: "Titan", radius: 0.4, distance: 15, period: 0.044, color: 0xffaa00 }
+        ],
+        rings: [
+            { innerRadius: 11, outerRadius: 21, color: 0xe6e6cd, opacity: 0.8 },
+            { innerRadius: 21.5, outerRadius: 23, color: 0xcdcdb4, opacity: 0.6 }
         ]
     },
     {
@@ -235,6 +248,10 @@ export const SolarSystemData: CelestialBodyData[] = [
         links: [
             { title: "NASA: Uranus Overview", url: "https://science.nasa.gov/uranus" },
             { title: "Wikipedia: Uranus", url: "https://en.wikipedia.org/wiki/Uranus" }
+        ],
+        rings: [
+            { innerRadius: 9.5, outerRadius: 9.7, color: 0x99ccff, opacity: 0.4 },
+            { innerRadius: 10, outerRadius: 12, color: 0x99ccff, opacity: 0.1 }
         ]
     },
     {

@@ -14,6 +14,7 @@ export class CelestialBody {
     cloudMesh?: THREE.Mesh;
     atmosphereMesh?: THREE.Mesh;
     shaderMaterial?: THREE.ShaderMaterial;
+    ringMeshes: THREE.Mesh[];
 
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
         this.data = data;
@@ -23,6 +24,7 @@ export class CelestialBody {
         this.angle = Math.random() * Math.PI * 2;
         this.moons = [];
         this.orbitGroup = new THREE.Group(); // Initialize here to satisfy TS
+        this.ringMeshes = [];
 
         this.init();
     }
@@ -146,6 +148,11 @@ export class CelestialBody {
         // Create Orbit Line
         this.createOrbit();
 
+        // Create Rings
+        if ('rings' in this.data && this.data.rings) {
+            this.createRings();
+        }
+
         // Create Moons
         if ('moons' in this.data && this.data.moons) {
             this.data.moons.forEach(moonData => {
@@ -153,6 +160,40 @@ export class CelestialBody {
                 this.moons.push(moon);
             });
         }
+    }
+
+    createRings() {
+        if (!('rings' in this.data) || !this.data.rings) return;
+
+        this.data.rings.forEach(ringData => {
+            const geometry = new THREE.RingGeometry(ringData.innerRadius, ringData.outerRadius, 64);
+            const material = new THREE.MeshBasicMaterial({
+                color: ringData.color,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: ringData.opacity !== undefined ? ringData.opacity : 0.8
+            });
+            const ringMesh = new THREE.Mesh(geometry, material);
+
+            // Rings are typically aligned with the planet's equator
+            // By default, RingGeometry is in the XY plane. We need it in the XZ plane for typical orbit.
+            ringMesh.rotation.x = Math.PI / 2;
+
+            // Specific tilt for Uranus
+            if (this.data.name === 'Uranus') {
+                ringMesh.rotation.y = Math.PI / 2;
+            } else if (this.data.name === 'Saturn') {
+                // Saturn's axial tilt is about 26.7 degrees
+                ringMesh.rotation.x = Math.PI / 2 - THREE.MathUtils.degToRad(26.7);
+            }
+
+            if (this.mesh) {
+                this.mesh.add(ringMesh);
+            } else {
+                this.orbitGroup.add(ringMesh);
+            }
+            this.ringMeshes.push(ringMesh);
+        });
     }
 
     createOrbit() {
@@ -192,8 +233,21 @@ export class CelestialBody {
 
         // Rotate planet on its axis
         if (this.mesh) {
-            this.mesh.rotation.y += 0.5 * deltaTime;
+            if (this.data.name === 'Uranus') {
+                // Uranus rotates on its side
+                this.mesh.rotation.x += 0.5 * deltaTime;
+            } else {
+                this.mesh.rotation.y += 0.5 * deltaTime;
+            }
         }
+
+        // Rotate Rings
+        // Note: since rings are now a child of the mesh, they inherit its rotation automatically.
+        // We can just add a slight local rotation if needed, or leave it to inherit.
+        this.ringMeshes.forEach(ring => {
+             // Rotate around local Z axis since they were rotated 90deg on X
+             ring.rotation.z += 0.2 * deltaTime;
+        });
 
         // Rotate Clouds independently
         if (this.cloudMesh) {

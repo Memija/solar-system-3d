@@ -22,6 +22,8 @@ export class SceneManager {
     starMeshes: THREE.Object3D[];
     constellationManager: ConstellationManager;
     previousBodyPosition: THREE.Vector3 | null;
+    asteroidBelt: THREE.InstancedMesh | null;
+    showAsteroids: boolean;
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -40,6 +42,8 @@ export class SceneManager {
         this.sunMaterial = null;
         this.starMeshes = [];
         this.previousBodyPosition = null;
+        this.asteroidBelt = null;
+        this.showAsteroids = true;
 
         this.constellationManager = new ConstellationManager(this.scene);
 
@@ -109,8 +113,56 @@ export class SceneManager {
         // Planets
         this.createPlanets();
 
+        // Asteroid Belt
+        this.createAsteroidBelt();
+
         // Resize handling
         window.addEventListener('resize', () => this.onWindowResize());
+    }
+
+    createAsteroidBelt() {
+        const numAsteroids = 2000;
+        // Mars is at distance 170, Jupiter is at 280
+        const minDistance = 200;
+        const maxDistance = 250;
+
+        const geometry = new THREE.DodecahedronGeometry(0.5, 0); // Low poly asteroid
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x888888,
+            roughness: 0.9,
+            metalness: 0.1
+        });
+
+        this.asteroidBelt = new THREE.InstancedMesh(geometry, material, numAsteroids);
+
+        const dummy = new THREE.Object3D();
+
+        for (let i = 0; i < numAsteroids; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = minDistance + Math.random() * (maxDistance - minDistance);
+
+            // Add some variation to Y
+            const yOffset = (Math.random() - 0.5) * 10;
+
+            const x = Math.cos(angle) * distance;
+            const z = Math.sin(angle) * distance;
+
+            dummy.position.set(x, yOffset, z);
+
+            // Random rotation
+            dummy.rotation.x = Math.random() * Math.PI;
+            dummy.rotation.y = Math.random() * Math.PI;
+            dummy.rotation.z = Math.random() * Math.PI;
+
+            // Random scale
+            const scale = 0.5 + Math.random();
+            dummy.scale.set(scale, scale, scale);
+
+            dummy.updateMatrix();
+            this.asteroidBelt.setMatrixAt(i, dummy.matrix);
+        }
+
+        this.scene.add(this.asteroidBelt);
     }
 
     createStarfield() {
@@ -353,6 +405,11 @@ export class SceneManager {
             this.sunMaterial.uniforms.time.value = this.clock.getElapsedTime();
         }
 
+        // Rotate asteroid belt slowly
+        if (this.asteroidBelt && this.showAsteroids) {
+            this.asteroidBelt.rotation.y -= 0.05 * deltaTime;
+        }
+
         if (this.surfaceViewBody?.mesh) {
             const planetPos = new THREE.Vector3();
             this.surfaceViewBody.mesh.getWorldPosition(planetPos);
@@ -395,6 +452,13 @@ export class SceneManager {
     toggleMoons(visible: boolean) {
         this.showMoons = visible;
         this.planets.forEach(planet => planet.toggleMoons(visible));
+    }
+
+    toggleAsteroids(visible: boolean) {
+        this.showAsteroids = visible;
+        if (this.asteroidBelt) {
+            this.asteroidBelt.visible = visible;
+        }
     }
 
     focusOnBody(name: string) {
