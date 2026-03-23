@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import { SceneManager } from './SceneManager.js';
 import { Modal } from './Modal.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData } from './SolarSystemData.js';
 
 export class UIManager {
     sceneManager: SceneManager;
     raycaster: THREE.Raycaster;
     mouse: THREE.Vector2;
-    selectedBody: any;
+    selectedBody: CelestialBodyData | MoonData | StarData | ConstellationData | null;
     uiContainer: HTMLElement;
     infoPanel: HTMLElement;
     modal: Modal;
@@ -63,7 +64,8 @@ export class UIManager {
         const params = {
             timeSpeed: 1,
             showOrbits: true,
-            showMoons: true
+            showMoons: true,
+            showAsteroids: true
         };
 
         // Simulation Controls
@@ -76,6 +78,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showMoons').name('Show Moons').onChange(val => {
             this.sceneManager.toggleMoons(val);
+        });
+        simFolder.add(params, 'showAsteroids').name('Show Asteroids').onChange(val => {
+            this.sceneManager.toggleAsteroids(val);
         });
         simFolder.open();
 
@@ -323,7 +328,7 @@ export class UIManager {
         }
     }
 
-    showModal(data: any) {
+    showModal(data: CelestialBodyData | MoonData | StarData | ConstellationData) {
         this.modal.show(data);
         this.infoPanel.style.display = 'none'; // Ensure simple info is hidden
     }

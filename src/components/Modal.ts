@@ -1,4 +1,4 @@
-import { CelestialBodyData, MoonData, StarData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData } from './SolarSystemData.js';
 
 export class Modal {
     container: HTMLElement;
@@ -52,7 +52,7 @@ export class Modal {
         return modal;
     }
 
-    private getGalleryHtml(data: CelestialBodyData | MoonData | StarData): string {
+    private getGalleryHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData): string {
         if (data.images && data.images.length > 0) {
             return `
                 <div class="gallery-container" style="position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 8px; margin: 10px 0; background: #000;">
@@ -72,7 +72,7 @@ export class Modal {
         return '';
     }
 
-    private getLinksHtml(data: CelestialBodyData | MoonData | StarData): string {
+    private getLinksHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData): string {
         if (data.links && data.links.length > 0) {
             return `
                 <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
@@ -90,7 +90,7 @@ export class Modal {
         return '';
     }
 
-    private getExtraInfo(data: CelestialBodyData | MoonData | StarData): string {
+    private getExtraInfo(data: CelestialBodyData | MoonData | StarData | ConstellationData): string {
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
             return `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
         } else if ('radius' in data) {
@@ -103,7 +103,7 @@ export class Modal {
         return '';
     }
 
-    private setupGalleryLogic(data: CelestialBodyData | MoonData | StarData) {
+    private setupGalleryLogic(data: CelestialBodyData | MoonData | StarData | ConstellationData) {
         if (data.images && data.images.length > 1) {
             let currentIndex = 0;
             const images = this.contentElement.querySelectorAll('.gallery-img') as NodeListOf<HTMLElement>;
@@ -128,7 +128,7 @@ export class Modal {
         }
     }
 
-    public show(data: CelestialBodyData | MoonData | StarData) {
+    public show(data: CelestialBodyData | MoonData | StarData | ConstellationData) {
         if (!this.contentElement) return;
 
         const galleryHtml = this.getGalleryHtml(data);
