@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CelestialBody } from './CelestialBody.js';
 import { SolarSystemData, StarData } from './SolarSystemData.js';
-import { vertexShader, fragmentShader } from './SunShader.js';
 import { ConstellationManager } from './ConstellationManager.js';
 
 export class SceneManager {
@@ -18,12 +17,12 @@ export class SceneManager {
     showMoons: boolean;
     focusedBody: CelestialBody | null;
     surfaceViewBody: CelestialBody | null;
-    sunMaterial: THREE.ShaderMaterial | null;
     starMeshes: THREE.Object3D[];
     constellationManager: ConstellationManager;
     previousBodyPosition: THREE.Vector3 | null;
     asteroidBelt: THREE.InstancedMesh | null;
     showAsteroids: boolean;
+    showLabels: boolean;
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -39,11 +38,11 @@ export class SceneManager {
         this.showMoons = true;
         this.focusedBody = null;
         this.surfaceViewBody = null;
-        this.sunMaterial = null;
         this.starMeshes = [];
         this.previousBodyPosition = null;
         this.asteroidBelt = null;
         this.showAsteroids = true;
+        this.showLabels = true;
 
         this.constellationManager = new ConstellationManager(this.scene);
 
@@ -90,19 +89,6 @@ export class SceneManager {
 
         const pointLight = new THREE.PointLight(0xffffff, 2.5, 0, 0); // Stronger Sun light
         this.scene.add(pointLight);
-
-        // Sun Mesh
-        const sunGeometry = new THREE.SphereGeometry(25, 64, 64); // Reduced from 109 to 25 to match data
-        const sunMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 0 }
-            },
-            vertexShader: vertexShader,
-            fragmentShader: fragmentShader
-        });
-        this.sunMaterial = sunMaterial;
-        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-        this.scene.add(sun);
 
         // Starfield
         this.createStarfield();
@@ -361,24 +347,7 @@ export class SceneManager {
     }
 
     createPlanets() {
-        // Add Sun manually to planets array for UI interaction
-        const sunData = SolarSystemData.find(d => d.name === "Sun");
-        if (sunData) {
-            // We already created the Sun mesh manually in init(), so we just wrap it
-            const sunMesh = this.scene.children.find(c => (c as THREE.Mesh).geometry?.type === 'SphereGeometry' && (c as THREE.Mesh).material === this.sunMaterial) as THREE.Mesh;
-            if (sunMesh) {
-                sunMesh.userData = sunData; // Attach data
-                // Create a mock CelestialBody for the Sun
-                const sunBody = new CelestialBody(sunData, this.scene);
-                sunBody.mesh = sunMesh;
-                // Override update to do nothing for Sun (it's static)
-                sunBody.update = () => { };
-                this.planets.push(sunBody);
-            }
-        }
-
         SolarSystemData.forEach(data => {
-            if (data.name === "Sun") return; // Skip Sun as it's created manually
             const planet = new CelestialBody(data, this.scene);
             this.planets.push(planet);
         });
@@ -400,10 +369,6 @@ export class SceneManager {
                 (planet.atmosphereMesh.material as THREE.ShaderMaterial).uniforms.viewVector.value.subVectors(this.camera.position, planet.orbitGroup.position);
             }
         });
-
-        if (this.sunMaterial) {
-            this.sunMaterial.uniforms.time.value = this.clock.getElapsedTime();
-        }
 
         // Rotate asteroid belt slowly
         if (this.asteroidBelt && this.showAsteroids) {
@@ -461,11 +426,23 @@ export class SceneManager {
         }
     }
 
+    toggleLabels(visible: boolean) {
+        this.showLabels = visible;
+        this.planets.forEach(planet => planet.toggleLabels(visible));
+    }
+
     focusOnBody(name: string) {
-        // Check planets
-        let target = this.planets.find(p => p.data.name === name);
+        // Find planet or moon
+        let target: CelestialBody | undefined;
 
+        const findTarget = (body: CelestialBody) => {
+            if (body.data.name === name) {
+                target = body;
+            }
+            body.moons.forEach(findTarget);
+        };
 
+        this.planets.forEach(findTarget);
 
         if (target?.mesh) {
             this.focusedBody = target;
@@ -535,7 +512,17 @@ export class SceneManager {
     }
 
     setSurfaceView(name: string) {
-        const target = this.planets.find(p => p.data.name === name);
+        let target: CelestialBody | undefined;
+
+        const findTarget = (body: CelestialBody) => {
+            if (body.data.name === name) {
+                target = body;
+            }
+            body.moons.forEach(findTarget);
+        };
+
+        this.planets.forEach(findTarget);
+
         if (target?.mesh) {
             this.surfaceViewBody = target;
             this.focusedBody = null;

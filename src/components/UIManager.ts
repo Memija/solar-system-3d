@@ -65,7 +65,8 @@ export class UIManager {
             timeSpeed: 1,
             showOrbits: true,
             showMoons: true,
-            showAsteroids: true
+            showAsteroids: true,
+            showLabels: true
         };
 
         // Simulation Controls
@@ -81,6 +82,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showAsteroids').name('Show Asteroids').onChange(val => {
             this.sceneManager.toggleAsteroids(val);
+        });
+        simFolder.add(params, 'showLabels').name('Show Labels').onChange(val => {
+            this.sceneManager.toggleLabels(val);
         });
         simFolder.open();
 
@@ -247,28 +251,36 @@ export class UIManager {
 
     private handlePlanetsAndMoonsIntersection(): boolean {
         const interactableObjects: THREE.Object3D[] = [];
+        const bodyMap = new Map<THREE.Object3D, CelestialBodyData | MoonData>();
 
-        this.sceneManager.planets.forEach(p => {
-            if (p.mesh) interactableObjects.push(p.mesh);
-            if (p.cloudMesh) interactableObjects.push(p.cloudMesh);
-            if (p.atmosphereMesh) interactableObjects.push(p.atmosphereMesh);
-        });
+        const addBodyToInteractables = (body: import('./CelestialBody.js').CelestialBody) => {
+            if (body.mesh) {
+                interactableObjects.push(body.mesh);
+                bodyMap.set(body.mesh, body.data);
+            }
+            if (body.cloudMesh) {
+                interactableObjects.push(body.cloudMesh);
+                bodyMap.set(body.cloudMesh, body.data);
+            }
+            if (body.atmosphereMesh) {
+                interactableObjects.push(body.atmosphereMesh);
+                bodyMap.set(body.atmosphereMesh, body.data);
+            }
+            body.moons.forEach(moon => addBodyToInteractables(moon));
+        };
+
+        this.sceneManager.planets.forEach(p => addBodyToInteractables(p));
 
         const intersects = this.raycaster.intersectObjects(interactableObjects);
 
         if (intersects.length > 0) {
             for (const intersect of intersects) {
                 const selectedObject = intersect.object;
+                const foundData = bodyMap.get(selectedObject);
 
-                const foundBody = this.sceneManager.planets.find(p =>
-                    p.mesh === selectedObject ||
-                    p.cloudMesh === selectedObject ||
-                    p.atmosphereMesh === selectedObject
-                );
-
-                if (foundBody) {
-                    this.showModal(foundBody.data);
-                    this.sceneManager.focusOnBody(foundBody.data.name);
+                if (foundData) {
+                    this.showModal(foundData);
+                    this.sceneManager.focusOnBody(foundData.name);
                     return true;
                 }
             }
