@@ -91,27 +91,23 @@ export class Modal {
     }
 
     private getExtraInfo(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
+        let info = '';
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
-            return `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
+            info += `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
         }
 
         if ('semiMajorAxis' in data) {
             const comet = data as CometData;
-            return `
-                <p><strong>Semi-Major Axis:</strong> ${comet.semiMajorAxis} AU</p>
-                <p><strong>Eccentricity:</strong> ${comet.eccentricity}</p>
-                <p><strong>Orbital Period:</strong> ${comet.period} years</p>
-            `;
+            info += `<p><strong>Semi-Major Axis:</strong> ${comet.semiMajorAxis} AU</p>
+                     <p><strong>Eccentricity:</strong> ${comet.eccentricity}</p>
+                     <p><strong>Orbital Period:</strong> ${comet.period} years</p>`;
+        } else if ('radius' in data) {
+            info += `<p><strong>Radius:</strong> ${(data as CelestialBodyData).radius} (relative)</p>
+                     <p><strong>Distance:</strong> ${(data as CelestialBodyData).distance} AU</p>
+                     <p><strong>Period:</strong> ${(data as CelestialBodyData).period} years</p>`;
         }
 
-        if ('radius' in data) {
-            return `
-                <p><strong>Radius:</strong> ${(data as CelestialBodyData).radius} (relative)</p>
-                <p><strong>Distance:</strong> ${(data as CelestialBodyData).distance} AU</p>
-                <p><strong>Period:</strong> ${(data as CelestialBodyData).period} years</p>
-            `;
-        }
-        return '';
+        return info;
     }
 
     private setupGalleryLogic(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {

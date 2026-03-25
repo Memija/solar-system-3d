@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 import { CelestialBodyData, MoonData } from './SolarSystemData.js';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
+import { createSpriteLabel } from './LabelHelper.js';
 
 export class CelestialBody {
     data: CelestialBodyData | MoonData;
@@ -170,21 +171,8 @@ export class CelestialBody {
     createLabel() {
         if (this.data.name === 'Sun') return;
 
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (!context) return;
-
-        canvas.width = 256;
-        canvas.height = 64;
-
-        context.font = 'Bold 32px Arial';
-        context.fillStyle = 'rgba(255, 255, 255, 1)';
-        context.textAlign = 'center';
-        context.fillText(this.data.name, 128, 48);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
-        const sprite = new THREE.Sprite(material);
+        const sprite = createSpriteLabel(this.data.name);
+        if (!sprite) return;
 
         // Scale label size based on planet radius to be visible
         // Base scale + offset based on radius
