@@ -106,7 +106,7 @@ export class Comet {
                 color: { value: new THREE.Color(0xaaddff) }, // Ice/dust blue-white
                 sunDirection: { value: new THREE.Vector3(1, 0, 0) }, // Updated each frame
                 time: { value: 0 },
-                tailVisibility: { value: 1.0 }
+                tailVisibility: { value: 1 }
             },
             vertexShader: `
                 uniform vec3 sunDirection;
@@ -246,11 +246,6 @@ export class Comet {
             const worldPos = new THREE.Vector3();
             this.orbitGroup.getWorldPosition(worldPos);
 
-            // Convert sun direction back to local space of the orbit group so the particles move correctly
-            // Sun is at 0,0,0. Direction away from sun in world space is normalize(worldPos - (0,0,0))
-            const dirAwayFromSunWorld = worldPos.clone().normalize();
-
-            // To get local direction, we inverse transform this vector by the orbitGroup's world rotation matrix
             // However, a simpler way: the tail particles are in orbitGroup space.
             // In baseGroup space, the sun is at (0,0,0) and comet is at (x,0,z).
             // So vector away from sun in baseGroup space is (x,0,z).
@@ -261,12 +256,12 @@ export class Comet {
 
             // Tail intensity based on distance to sun (closer = brighter/longer)
             // Distance squared = x*x + z*z
-            const dist = Math.sqrt(x*x + z*z);
+            const dist = Math.sqrt((x * x) + (z * z));
             // Example: max tail at perihelion (dist = a*(1-e)), min at aphelion (dist = a*(1+e))
             const perihelion = this.a * (1 - this.e);
 
             // Rough fade logic:
-            const tailVisibility = Math.max(0, 1 - (dist - perihelion) / (this.a * 1.5));
+            const tailVisibility = Math.max(0, 1 - ((dist - perihelion) / (this.a * 1.5)));
             material.uniforms.tailVisibility.value = tailVisibility;
             // Also need to pass this to shader if we want length to change, but opacity fade is good enough for now
         }

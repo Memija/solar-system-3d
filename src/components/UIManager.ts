@@ -283,7 +283,7 @@ export class UIManager {
         this.sceneManager.planets.forEach(p => addBodyToInteractables(p));
 
         this.sceneManager.comets.forEach(comet => {
-            if (comet.mesh && comet.mesh.visible) {
+            if (comet.mesh?.visible) {
                 interactableObjects.push(comet.mesh);
                 bodyMap.set(comet.mesh, comet.data);
             }

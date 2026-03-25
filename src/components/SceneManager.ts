@@ -477,9 +477,7 @@ export class SceneManager {
 
         this.planets.forEach(findTarget);
 
-        if (!target) {
-            target = this.comets.find(c => c.data.name === name);
-        }
+        target = target || this.comets.find(c => c.data.name === name);
 
         if (target?.mesh) {
             this.focusedBody = target;

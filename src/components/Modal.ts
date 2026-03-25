@@ -93,14 +93,18 @@ export class Modal {
     private getExtraInfo(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
             return `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
-        } else if ('semiMajorAxis' in data) {
+        }
+
+        if ('semiMajorAxis' in data) {
             const comet = data as CometData;
             return `
                 <p><strong>Semi-Major Axis:</strong> ${comet.semiMajorAxis} AU</p>
                 <p><strong>Eccentricity:</strong> ${comet.eccentricity}</p>
                 <p><strong>Orbital Period:</strong> ${comet.period} years</p>
             `;
-        } else if ('radius' in data) {
+        }
+
+        if ('radius' in data) {
             return `
                 <p><strong>Radius:</strong> ${(data as CelestialBodyData).radius} (relative)</p>
                 <p><strong>Distance:</strong> ${(data as CelestialBodyData).distance} AU</p>
