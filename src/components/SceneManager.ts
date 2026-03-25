@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CelestialBody } from './CelestialBody.js';
-import { SolarSystemData, StarData } from './SolarSystemData.js';
+import { SolarSystemData, StarData, CometDataList } from './SolarSystemData.js';
 import { ConstellationManager } from './ConstellationManager.js';
+import { Comet } from './Comet.js';
 
 export class SceneManager {
     container: HTMLElement;
@@ -12,10 +13,12 @@ export class SceneManager {
     controls!: OrbitControls;
     clock: THREE.Clock;
     planets: CelestialBody[];
+    comets: Comet[];
     timeScale: number;
     showOrbits: boolean;
     showMoons: boolean;
-    focusedBody: CelestialBody | null;
+    showComets: boolean;
+    focusedBody: CelestialBody | Comet | null;
     surfaceViewBody: CelestialBody | null;
     starMeshes: THREE.Object3D[];
     constellationManager: ConstellationManager;
@@ -33,9 +36,11 @@ export class SceneManager {
         // Controls initialized in init()
         this.clock = new THREE.Clock();
         this.planets = [];
+        this.comets = [];
         this.timeScale = 1;
         this.showOrbits = true;
         this.showMoons = true;
+        this.showComets = true;
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.starMeshes = [];
@@ -98,6 +103,9 @@ export class SceneManager {
 
         // Planets
         this.createPlanets();
+
+        // Comets
+        this.createComets();
 
         // Asteroid Belt
         this.createAsteroidBelt();
@@ -353,6 +361,13 @@ export class SceneManager {
         });
     }
 
+    createComets() {
+        CometDataList.forEach(data => {
+            const comet = new Comet(data, this.scene);
+            this.comets.push(comet);
+        });
+    }
+
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
@@ -369,6 +384,12 @@ export class SceneManager {
                 (planet.atmosphereMesh.material as THREE.ShaderMaterial).uniforms.viewVector.value.subVectors(this.camera.position, planet.orbitGroup.position);
             }
         });
+
+        if (this.showComets) {
+            this.comets.forEach(comet => {
+                comet.update(deltaTime);
+            });
+        }
 
         // Rotate asteroid belt slowly
         if (this.asteroidBelt && this.showAsteroids) {
@@ -412,6 +433,17 @@ export class SceneManager {
     toggleOrbits(visible: boolean) {
         this.showOrbits = visible;
         this.planets.forEach(planet => planet.toggleOrbit(visible));
+        this.comets.forEach(comet => comet.toggleOrbit(visible));
+    }
+
+    toggleComets(visible: boolean) {
+        this.showComets = visible;
+        this.comets.forEach(comet => {
+            comet.mesh.visible = visible;
+            if (comet.orbitLine) comet.orbitLine.visible = visible && this.showOrbits;
+            if (comet.tailParticles) comet.tailParticles.visible = visible;
+            if (comet.labelSprite) comet.labelSprite.visible = visible && this.showLabels;
+        });
     }
 
     toggleMoons(visible: boolean) {
@@ -429,11 +461,12 @@ export class SceneManager {
     toggleLabels(visible: boolean) {
         this.showLabels = visible;
         this.planets.forEach(planet => planet.toggleLabels(visible));
+        this.comets.forEach(comet => comet.toggleLabels(visible));
     }
 
     focusOnBody(name: string) {
-        // Find planet or moon
-        let target: CelestialBody | undefined;
+        // Find planet or moon or comet
+        let target: CelestialBody | Comet | undefined;
 
         const findTarget = (body: CelestialBody) => {
             if (body.data.name === name) {
@@ -443,6 +476,8 @@ export class SceneManager {
         };
 
         this.planets.forEach(findTarget);
+
+        target = target || this.comets.find(c => c.data.name === name);
 
         if (target?.mesh) {
             this.focusedBody = target;
