@@ -63,6 +63,56 @@ export interface ConstellationData {
     links?: LinkData[];
 }
 
+export interface CometData {
+    name: string;
+    radius: number;
+    semiMajorAxis: number;
+    eccentricity: number;
+    period: number;
+    inclination: number; // in degrees
+    argumentOfPeriapsis: number; // in degrees
+    color: number;
+    texture?: string;
+    description?: string;
+    imageUrl?: string;
+    images?: string[];
+    links?: LinkData[];
+}
+
+export const CometDataList: CometData[] = [
+    {
+        name: "Halley's Comet",
+        radius: 0.1,
+        semiMajorAxis: 180, // roughly scaled for visibility
+        eccentricity: 0.967,
+        period: 75.3,
+        inclination: 162.2,
+        argumentOfPeriapsis: 111.3,
+        color: 0xffffff,
+        description: "Halley's Comet or Comet Halley, officially designated 1P/Halley, is a short-period comet visible from Earth every 75-76 years. Halley is the only known short-period comet that is regularly visible to the naked eye from Earth.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Lspn_comet_halley.jpg/800px-Lspn_comet_halley.jpg",
+        links: [
+            { title: "NASA: Halley's Comet", url: "https://solarsystem.nasa.gov/asteroids-comets-and-meteors/comets/1p-halley/in-depth/" },
+            { title: "Wikipedia: Halley's Comet", url: "https://en.wikipedia.org/wiki/Halley%27s_Comet" }
+        ]
+    },
+    {
+        name: "Hale-Bopp",
+        radius: 0.3,
+        semiMajorAxis: 300,
+        eccentricity: 0.995,
+        period: 2500,
+        inclination: 89.4,
+        argumentOfPeriapsis: 130.6,
+        color: 0xccffff,
+        description: "Comet Hale-Bopp (formally designated C/1995 O1) was perhaps the most widely observed comet of the 20th century and one of the brightest seen for many decades. It was visible to the naked eye for a record 18 months.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Comet_Hale-Bopp_1995O1.jpg/800px-Comet_Hale-Bopp_1995O1.jpg",
+        links: [
+            { title: "Wikipedia: Comet Hale-Bopp", url: "https://en.wikipedia.org/wiki/Comet_Hale-Bopp" }
+        ]
+    }
+];
+
 export const SolarSystemData: CelestialBodyData[] = [
     {
         name: "Sun",

@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import { SceneManager } from './SceneManager.js';
 import { Modal } from './Modal.js';
-import { CelestialBodyData, MoonData, StarData, ConstellationData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData } from './SolarSystemData.js';
 
 export class UIManager {
     sceneManager: SceneManager;
     raycaster: THREE.Raycaster;
     mouse: THREE.Vector2;
-    selectedBody: CelestialBodyData | MoonData | StarData | ConstellationData | null;
+    selectedBody: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | null;
     uiContainer: HTMLElement;
     infoPanel: HTMLElement;
     modal: Modal;
@@ -66,6 +66,7 @@ export class UIManager {
             showOrbits: true,
             showMoons: true,
             showAsteroids: true,
+            showComets: true,
             showLabels: true
         };
 
@@ -82,6 +83,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showAsteroids').name('Show Asteroids').onChange(val => {
             this.sceneManager.toggleAsteroids(val);
+        });
+        simFolder.add(params, 'showComets').name('Show Comets').onChange(val => {
+            this.sceneManager.toggleComets(val);
         });
         simFolder.add(params, 'showLabels').name('Show Labels').onChange(val => {
             this.sceneManager.toggleLabels(val);
@@ -103,8 +107,8 @@ export class UIManager {
         // I will keep it to be safe, or I could remove just the target dropdown if I'm sure.
         // Given the user said "broke the old camera related menu", they probably miss the buttons.
         // I'll keep the target dropdown too to ensure full restoration.
-        const planetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake'];
-        cameraFolder.add(cameraControls, 'target', planetNames).name('Target Body');
+        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp"];
+        cameraFolder.add(cameraControls, 'target', targetNames).name('Target Body');
 
         cameraFolder.add(cameraControls, 'focus').name('Attach Camera');
         cameraFolder.add(cameraControls, 'surfaceView').name('View from Surface');
@@ -131,7 +135,7 @@ export class UIManager {
         typeSelect.style.borderRadius = '4px';
         typeSelect.style.cursor = 'pointer';
 
-        const types = ['Star', 'Planet', 'Constellation'];
+        const types = ['Star', 'Planet', 'Constellation', 'Comet'];
         types.forEach(type => {
             const option = document.createElement('option');
             option.value = type;
@@ -193,6 +197,13 @@ export class UIManager {
                         }
                     });
                 }
+            } else if (selectedType === 'Comet') {
+                this.sceneManager.comets.forEach(comet => {
+                    const option = document.createElement('option');
+                    option.value = comet.data.name;
+                    option.textContent = comet.data.name;
+                    bodySelect.appendChild(option);
+                });
             }
         };
 
@@ -251,7 +262,7 @@ export class UIManager {
 
     private handlePlanetsAndMoonsIntersection(): boolean {
         const interactableObjects: THREE.Object3D[] = [];
-        const bodyMap = new Map<THREE.Object3D, CelestialBodyData | MoonData>();
+        const bodyMap = new Map<THREE.Object3D, CelestialBodyData | MoonData | CometData>();
 
         const addBodyToInteractables = (body: import('./CelestialBody.js').CelestialBody) => {
             if (body.mesh) {
@@ -270,6 +281,13 @@ export class UIManager {
         };
 
         this.sceneManager.planets.forEach(p => addBodyToInteractables(p));
+
+        this.sceneManager.comets.forEach(comet => {
+            if (comet.mesh && comet.mesh.visible) {
+                interactableObjects.push(comet.mesh);
+                bodyMap.set(comet.mesh, comet.data);
+            }
+        });
 
         const intersects = this.raycaster.intersectObjects(interactableObjects);
 
@@ -340,7 +358,7 @@ export class UIManager {
         }
     }
 
-    showModal(data: CelestialBodyData | MoonData | StarData | ConstellationData) {
+    showModal(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {
         this.modal.show(data);
         this.infoPanel.style.display = 'none'; // Ensure simple info is hidden
     }

@@ -1,4 +1,4 @@
-import { CelestialBodyData, MoonData, StarData, ConstellationData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData } from './SolarSystemData.js';
 
 export class Modal {
     container: HTMLElement;
@@ -52,7 +52,7 @@ export class Modal {
         return modal;
     }
 
-    private getGalleryHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData): string {
+    private getGalleryHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
         if (data.images && data.images.length > 0) {
             return `
                 <div class="gallery-container" style="position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 8px; margin: 10px 0; background: #000;">
@@ -72,7 +72,7 @@ export class Modal {
         return '';
     }
 
-    private getLinksHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData): string {
+    private getLinksHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
         if (data.links && data.links.length > 0) {
             return `
                 <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
@@ -90,9 +90,16 @@ export class Modal {
         return '';
     }
 
-    private getExtraInfo(data: CelestialBodyData | MoonData | StarData | ConstellationData): string {
+    private getExtraInfo(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
             return `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
+        } else if ('semiMajorAxis' in data) {
+            const comet = data as CometData;
+            return `
+                <p><strong>Semi-Major Axis:</strong> ${comet.semiMajorAxis} AU</p>
+                <p><strong>Eccentricity:</strong> ${comet.eccentricity}</p>
+                <p><strong>Orbital Period:</strong> ${comet.period} years</p>
+            `;
         } else if ('radius' in data) {
             return `
                 <p><strong>Radius:</strong> ${(data as CelestialBodyData).radius} (relative)</p>
@@ -103,7 +110,7 @@ export class Modal {
         return '';
     }
 
-    private setupGalleryLogic(data: CelestialBodyData | MoonData | StarData | ConstellationData) {
+    private setupGalleryLogic(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {
         if (data.images && data.images.length > 1) {
             let currentIndex = 0;
             const images = this.contentElement.querySelectorAll('.gallery-img') as NodeListOf<HTMLElement>;
@@ -128,7 +135,7 @@ export class Modal {
         }
     }
 
-    public show(data: CelestialBodyData | MoonData | StarData | ConstellationData) {
+    public show(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {
         if (!this.contentElement) return;
 
         const galleryHtml = this.getGalleryHtml(data);
