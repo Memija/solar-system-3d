@@ -29,6 +29,7 @@ export class SceneManager {
     asteroidBelt: THREE.InstancedMesh | null;
     showAsteroids: boolean;
     showLabels: boolean;
+    showInfos: boolean;
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -53,6 +54,7 @@ export class SceneManager {
         this.asteroidBelt = null;
         this.showAsteroids = true;
         this.showLabels = true;
+        this.showInfos = true;
 
         this.constellationManager = new ConstellationManager(this.scene);
 
@@ -504,6 +506,11 @@ export class SceneManager {
         this.planets.forEach(planet => planet.toggleLabels(visible));
         this.comets.forEach(comet => comet.toggleLabels(visible));
         this.spacecrafts.forEach(sc => sc.toggleLabels(visible));
+    }
+
+    toggleInfos(visible: boolean) {
+        this.showInfos = visible;
+        this.planets.forEach(planet => planet.toggleInfo(visible));
     }
 
     focusOnBody(name: string) {

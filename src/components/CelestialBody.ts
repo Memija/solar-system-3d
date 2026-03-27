@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import { CelestialBodyData, MoonData } from './SolarSystemData.js';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
-import { createSpriteLabel } from './LabelHelper.js';
+import { createSpriteLabel, createInfoLabel, updateInfoLabel } from './LabelHelper.js';
 
 export class CelestialBody {
     data: CelestialBodyData | MoonData;
@@ -17,6 +17,8 @@ export class CelestialBody {
     shaderMaterial?: THREE.ShaderMaterial;
     ringMeshes: THREE.Mesh[];
     labelSprite: THREE.Sprite | null;
+    infoSprite: THREE.Sprite | null;
+    lastUpdate?: number;
 
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
         this.data = data;
@@ -28,6 +30,7 @@ export class CelestialBody {
         this.orbitGroup = new THREE.Group(); // Initialize here to satisfy TS
         this.ringMeshes = [];
         this.labelSprite = null;
+        this.infoSprite = null;
 
         this.init();
     }
@@ -158,6 +161,7 @@ export class CelestialBody {
 
         // Create Labels
         this.createLabel();
+        this.createInfoLabel();
 
         // Create Moons
         if ('moons' in this.data && this.data.moons) {
@@ -184,6 +188,27 @@ export class CelestialBody {
 
         this.orbitGroup.add(sprite);
         this.labelSprite = sprite;
+    }
+
+    createInfoLabel() {
+        if (this.data.name === 'Sun') return;
+
+        const speedMultiplier = 0.5;
+        const speed = this.data.period === 0 ? 0 : (1 / this.data.period) * speedMultiplier;
+        const speedText = speed.toFixed(2) + ' km/s'; // Dummy formatting, representing speed
+        const distText = this.data.distance + ' Mkm'; // Dummy formatting for distance
+
+        const sprite = createInfoLabel(speedText, distText);
+        if (!sprite) return;
+
+        const labelScale = Math.max(this.data.radius * 3, 5);
+        sprite.scale.set(labelScale * 4, labelScale, 1);
+
+        // Position it below the planet name label
+        sprite.position.y = this.data.radius + labelScale / 2 - 1.5;
+
+        this.orbitGroup.add(sprite);
+        this.infoSprite = sprite;
     }
 
     createRings() {
@@ -245,7 +270,7 @@ export class CelestialBody {
     update(deltaTime: number) {
         // Update position
         const speedMultiplier = 0.5;
-        const speed = (1 / this.data.period) * speedMultiplier;
+        const speed = this.data.period === 0 ? 0 : (1 / this.data.period) * speedMultiplier;
 
         this.angle += speed * deltaTime;
 
@@ -283,6 +308,20 @@ export class CelestialBody {
             this.shaderMaterial.uniforms.time.value += deltaTime;
         }
 
+        if (this.infoSprite && this.infoSprite.visible) {
+            // Rate limit updates to ~4 times per second to prevent severe performance drop
+            if (!this.lastUpdate || performance.now() - this.lastUpdate > 250) {
+                // Recompute stats
+                const speedText = speed.toFixed(2) + ' km/s';
+                // Current actual distance from center (Sun/parent)
+                const currentDist = this.orbitGroup.position.length();
+                const distText = currentDist.toFixed(1) + ' Mkm';
+
+                updateInfoLabel(this.infoSprite, speedText, distText);
+                this.lastUpdate = performance.now();
+            }
+        }
+
         // Update moons
         this.moons.forEach(moon => moon.update(deltaTime));
     }
@@ -308,5 +347,12 @@ export class CelestialBody {
             this.labelSprite.visible = visible;
         }
         this.moons.forEach(moon => moon.toggleLabels(visible));
+    }
+
+    toggleInfo(visible: boolean) {
+        if (this.infoSprite) {
+            this.infoSprite.visible = visible;
+        }
+        this.moons.forEach(moon => moon.toggleInfo(visible));
     }
 }
