@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CelestialBody } from './CelestialBody.js';
-import { SolarSystemData, StarData, CometDataList } from './SolarSystemData.js';
+import { SolarSystemData, StarData, CometDataList, SpacecraftDataList } from './SolarSystemData.js';
 import { ConstellationManager } from './ConstellationManager.js';
 import { Comet } from './Comet.js';
+import { Spacecraft } from './Spacecraft.js';
 
 export class SceneManager {
     container: HTMLElement;
@@ -14,11 +15,13 @@ export class SceneManager {
     clock: THREE.Clock;
     planets: CelestialBody[];
     comets: Comet[];
+    spacecrafts: Spacecraft[];
     timeScale: number;
     showOrbits: boolean;
     showMoons: boolean;
     showComets: boolean;
-    focusedBody: CelestialBody | Comet | null;
+    showSpacecrafts: boolean;
+    focusedBody: CelestialBody | Comet | Spacecraft | null;
     surfaceViewBody: CelestialBody | null;
     starMeshes: THREE.Object3D[];
     constellationManager: ConstellationManager;
@@ -37,10 +40,12 @@ export class SceneManager {
         this.clock = new THREE.Clock();
         this.planets = [];
         this.comets = [];
+        this.spacecrafts = [];
         this.timeScale = 1;
         this.showOrbits = true;
         this.showMoons = true;
         this.showComets = true;
+        this.showSpacecrafts = true;
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.starMeshes = [];
@@ -107,8 +112,11 @@ export class SceneManager {
         // Comets
         this.createComets();
 
-        // Asteroid Belt
+        // Asteroids
         this.createAsteroidBelt();
+
+        // Spacecrafts
+        this.createSpacecrafts();
 
         // Resize handling
         window.addEventListener('resize', () => this.onWindowResize());
@@ -368,6 +376,23 @@ export class SceneManager {
         });
     }
 
+    createSpacecrafts() {
+        SpacecraftDataList.forEach(data => {
+            let parentObject: THREE.Object3D = this.scene;
+
+            if (data.targetBody) {
+                // Find target planet to attach orbit to
+                const targetPlanet = this.planets.find(p => p.data.name === data.targetBody);
+                if (targetPlanet) {
+                    parentObject = targetPlanet.orbitGroup;
+                }
+            }
+
+            const spacecraft = new Spacecraft(data, parentObject);
+            this.spacecrafts.push(spacecraft);
+        });
+    }
+
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
@@ -388,6 +413,12 @@ export class SceneManager {
         if (this.showComets) {
             this.comets.forEach(comet => {
                 comet.update(deltaTime);
+            });
+        }
+
+        if (this.showSpacecrafts) {
+            this.spacecrafts.forEach(spacecraft => {
+                spacecraft.update(deltaTime);
             });
         }
 
@@ -434,6 +465,7 @@ export class SceneManager {
         this.showOrbits = visible;
         this.planets.forEach(planet => planet.toggleOrbit(visible));
         this.comets.forEach(comet => comet.toggleOrbit(visible));
+        this.spacecrafts.forEach(sc => sc.toggleOrbit(visible));
     }
 
     toggleComets(visible: boolean) {
@@ -451,6 +483,15 @@ export class SceneManager {
         this.planets.forEach(planet => planet.toggleMoons(visible));
     }
 
+    toggleSpacecrafts(visible: boolean) {
+        this.showSpacecrafts = visible;
+        this.spacecrafts.forEach(sc => {
+            sc.mesh.visible = visible;
+            if (sc.orbitLine) sc.orbitLine.visible = visible && this.showOrbits;
+            if (sc.labelSprite) sc.labelSprite.visible = visible && this.showLabels;
+        });
+    }
+
     toggleAsteroids(visible: boolean) {
         this.showAsteroids = visible;
         if (this.asteroidBelt) {
@@ -462,11 +503,12 @@ export class SceneManager {
         this.showLabels = visible;
         this.planets.forEach(planet => planet.toggleLabels(visible));
         this.comets.forEach(comet => comet.toggleLabels(visible));
+        this.spacecrafts.forEach(sc => sc.toggleLabels(visible));
     }
 
     focusOnBody(name: string) {
-        // Find planet or moon or comet
-        let target: CelestialBody | Comet | undefined;
+        // Find planet or moon or comet or spacecraft
+        let target: CelestialBody | Comet | Spacecraft | undefined;
 
         const findTarget = (body: CelestialBody) => {
             if (body.data.name === name) {
@@ -478,6 +520,7 @@ export class SceneManager {
         this.planets.forEach(findTarget);
 
         target = target || this.comets.find(c => c.data.name === name);
+        target = target || this.spacecrafts.find(s => s.data.name === name);
 
         if (target?.mesh) {
             this.focusedBody = target;
@@ -487,8 +530,9 @@ export class SceneManager {
             target.mesh.getWorldPosition(pos);
             this.controls.target.copy(pos);
 
-            // Adjust camera distance based on radius
-            const distance = target.data.radius * 5;
+            // Adjust camera distance based on radius (Spacecraft have smaller 'models')
+            const radius = 'radius' in target.data ? target.data.radius : 0.5;
+            const distance = radius * 5;
             this.camera.position.set(pos.x + distance, pos.y + distance * 0.5, pos.z + distance);
 
             // Initialize previous position for tracking

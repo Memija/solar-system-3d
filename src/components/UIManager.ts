@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import { SceneManager } from './SceneManager.js';
 import { Modal } from './Modal.js';
-import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData.js';
 
 export class UIManager {
     sceneManager: SceneManager;
     raycaster: THREE.Raycaster;
     mouse: THREE.Vector2;
-    selectedBody: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | null;
+    selectedBody: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData | null;
     uiContainer: HTMLElement;
     infoPanel: HTMLElement;
     modal: Modal;
@@ -67,6 +67,7 @@ export class UIManager {
             showMoons: true,
             showAsteroids: true,
             showComets: true,
+            showSpacecrafts: true,
             showLabels: true
         };
 
@@ -86,6 +87,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showComets').name('Show Comets').onChange(val => {
             this.sceneManager.toggleComets(val);
+        });
+        simFolder.add(params, 'showSpacecrafts').name('Show Spacecraft').onChange(val => {
+            this.sceneManager.toggleSpacecrafts(val);
         });
         simFolder.add(params, 'showLabels').name('Show Labels').onChange(val => {
             this.sceneManager.toggleLabels(val);
@@ -107,7 +111,7 @@ export class UIManager {
         // I will keep it to be safe, or I could remove just the target dropdown if I'm sure.
         // Given the user said "broke the old camera related menu", they probably miss the buttons.
         // I'll keep the target dropdown too to ensure full restoration.
-        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp"];
+        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp", "ISS (International Space Station)", "Hubble Space Telescope", "Voyager 1"];
         cameraFolder.add(cameraControls, 'target', targetNames).name('Target Body');
 
         cameraFolder.add(cameraControls, 'focus').name('Attach Camera');
@@ -135,7 +139,7 @@ export class UIManager {
         typeSelect.style.borderRadius = '4px';
         typeSelect.style.cursor = 'pointer';
 
-        const types = ['Star', 'Planet', 'Constellation', 'Comet'];
+        const types = ['Star', 'Planet', 'Constellation', 'Comet', 'Spacecraft'];
         types.forEach(type => {
             const option = document.createElement('option');
             option.value = type;
@@ -204,6 +208,13 @@ export class UIManager {
                     option.textContent = comet.data.name;
                     bodySelect.appendChild(option);
                 });
+            } else if (selectedType === 'Spacecraft') {
+                this.sceneManager.spacecrafts.forEach(sc => {
+                    const option = document.createElement('option');
+                    option.value = sc.data.name;
+                    option.textContent = sc.data.name;
+                    bodySelect.appendChild(option);
+                });
             }
         };
 
@@ -262,7 +273,7 @@ export class UIManager {
 
     private handlePlanetsAndMoonsIntersection(): boolean {
         const interactableObjects: THREE.Object3D[] = [];
-        const bodyMap = new Map<THREE.Object3D, CelestialBodyData | MoonData | CometData>();
+        const bodyMap = new Map<THREE.Object3D, CelestialBodyData | MoonData | CometData | SpacecraftData>();
 
         const addBodyToInteractables = (body: import('./CelestialBody.js').CelestialBody) => {
             if (body.mesh) {
@@ -289,12 +300,27 @@ export class UIManager {
             }
         });
 
-        const intersects = this.raycaster.intersectObjects(interactableObjects);
+        this.sceneManager.spacecrafts.forEach(sc => {
+            if (sc.mesh?.visible) {
+                interactableObjects.push(sc.mesh);
+                bodyMap.set(sc.mesh, sc.data);
+            }
+        });
+
+        const intersects = this.raycaster.intersectObjects(interactableObjects, true); // true for recursive (since spacecraft is a Group)
 
         if (intersects.length > 0) {
             for (const intersect of intersects) {
-                const selectedObject = intersect.object;
-                const foundData = bodyMap.get(selectedObject);
+                // Because we use recursive intersection (true), intersect.object might be a child mesh of the Spacecraft group
+                // We need to trace up to see if it's in our bodyMap
+                let currentObj: THREE.Object3D | null = intersect.object;
+                let foundData = null;
+
+                while (currentObj && currentObj !== this.sceneManager.scene) {
+                    foundData = bodyMap.get(currentObj);
+                    if (foundData) break;
+                    currentObj = currentObj.parent;
+                }
 
                 if (foundData) {
                     this.showModal(foundData);
@@ -358,7 +384,7 @@ export class UIManager {
         }
     }
 
-    showModal(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {
+    showModal(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData) {
         this.modal.show(data);
         this.infoPanel.style.display = 'none'; // Ensure simple info is hidden
     }

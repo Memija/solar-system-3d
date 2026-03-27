@@ -52,6 +52,66 @@ export interface StarData {
     links?: LinkData[];
 }
 
+export interface SpacecraftData {
+    name: string;
+    targetBody?: string; // If undefined, it orbits the Sun or escapes
+    distance: number; // distance from targetBody
+    period: number; // orbital period
+    inclination?: number;
+    color: number;
+    description?: string;
+    imageUrl?: string;
+    images?: string[];
+    links?: LinkData[];
+    escaping?: boolean; // For Voyager 1
+    speed?: number; // For escaping spacecraft
+}
+
+export const SpacecraftDataList: SpacecraftData[] = [
+    {
+        name: "ISS (International Space Station)",
+        targetBody: "Earth",
+        distance: 2.5, // slightly larger than Earth's radius of 2
+        period: 0.05, // fast orbit
+        inclination: 51.6,
+        color: 0xffffff,
+        description: "The International Space Station (ISS) is a modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project involving five participating space agencies.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/800px-International_Space_Station_after_undocking_of_STS-132.jpg",
+        links: [
+            { title: "NASA: ISS", url: "https://www.nasa.gov/mission_pages/station/main/index.html" },
+            { title: "Wikipedia: ISS", url: "https://en.wikipedia.org/wiki/International_Space_Station" }
+        ]
+    },
+    {
+        name: "Hubble Space Telescope",
+        targetBody: "Earth",
+        distance: 2.8,
+        period: 0.06,
+        inclination: 28.5,
+        color: 0xcccccc,
+        description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation. It is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/HST-SM4.jpeg/800px-HST-SM4.jpeg",
+        links: [
+            { title: "NASA: Hubble", url: "https://www.nasa.gov/mission_pages/hubble/main/index.html" },
+            { title: "Wikipedia: Hubble", url: "https://en.wikipedia.org/wiki/Hubble_Space_Telescope" }
+        ]
+    },
+    {
+        name: "Voyager 1",
+        distance: 800, // Starts far out
+        period: 0, // Not orbiting
+        color: 0xaaaaaa,
+        escaping: true,
+        speed: 1.5,
+        description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, Voyager 1 launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Voyager_spacecraft_model.png/800px-Voyager_spacecraft_model.png",
+        links: [
+            { title: "NASA: Voyager", url: "https://voyager.jpl.nasa.gov/" },
+            { title: "Wikipedia: Voyager 1", url: "https://en.wikipedia.org/wiki/Voyager_1" }
+        ]
+    }
+];
+
 export interface ConstellationData {
     name: string;
     stars: StarData[];
