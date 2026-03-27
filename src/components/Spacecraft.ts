@@ -143,16 +143,16 @@ export class Spacecraft {
     createOrbit() {
         const segments = 128;
         const geometry = new THREE.BufferGeometry();
-        const vertices = [];
+        const positions = new Float32Array((segments + 1) * 3);
 
         for (let i = 0; i <= segments; i++) {
             const theta = (i / segments) * Math.PI * 2;
-            const x = Math.cos(theta) * this.data.distance;
-            const z = Math.sin(theta) * this.data.distance;
-            vertices.push(x, 0, z);
+            positions[i * 3] = Math.cos(theta) * this.data.distance;
+            positions[i * 3 + 1] = 0;
+            positions[i * 3 + 2] = Math.sin(theta) * this.data.distance;
         }
 
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         const material = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
