@@ -68,7 +68,8 @@ export class UIManager {
             showAsteroids: true,
             showComets: true,
             showSpacecrafts: true,
-            showLabels: true
+            showLabels: true,
+            showInfos: true
         };
 
         // Simulation Controls
@@ -93,6 +94,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showLabels').name('Show Labels').onChange(val => {
             this.sceneManager.toggleLabels(val);
+        });
+        simFolder.add(params, 'showInfos').name('Show Info').onChange(val => {
+            this.sceneManager.toggleInfos(val);
         });
         simFolder.open();
 
