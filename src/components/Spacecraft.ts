@@ -16,7 +16,12 @@ export class Spacecraft {
         this.data = data;
         this.parent = parent;
         this.orbitLine = null;
-        this.angle = Math.random() * Math.PI * 2;
+
+        // Secure random angle
+        const randomArray = new Uint32Array(1);
+        crypto.getRandomValues(randomArray);
+        this.angle = (randomArray[0] / (0xFFFFFFFF + 1)) * Math.PI * 2;
+
         this.baseGroup = new THREE.Group();
         this.orbitGroup = new THREE.Group();
         this.mesh = new THREE.Group();
@@ -54,74 +59,85 @@ export class Spacecraft {
             metalness: 0.8
         });
 
+        const panelMat = new THREE.MeshStandardMaterial({ color: 0x224488, metalness: 0.9, roughness: 0.2 });
+
         // Simple representations based on name
-        if (this.data.name.includes("ISS")) {
-            // Central cylinder
-            const bodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 16);
-            const body = new THREE.Mesh(bodyGeo, material);
-            body.rotation.z = Math.PI / 2;
-            this.mesh.add(body);
-
-            // Solar panels
-            const panelGeo = new THREE.BoxGeometry(0.2, 0.01, 0.6);
-            const panelMat = new THREE.MeshStandardMaterial({ color: 0x224488, metalness: 0.9, roughness: 0.2 });
-
-            const panel1 = new THREE.Mesh(panelGeo, panelMat);
-            panel1.position.set(0.1, 0, 0);
-            this.mesh.add(panel1);
-
-            const panel2 = new THREE.Mesh(panelGeo, panelMat);
-            panel2.position.set(-0.1, 0, 0);
-            this.mesh.add(panel2);
-
-            // Scale it down slightly
-            this.mesh.scale.set(0.5, 0.5, 0.5);
-
-        } else if (this.data.name.includes("Hubble")) {
-            const bodyGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.3, 16);
-            const body = new THREE.Mesh(bodyGeo, material);
-            this.mesh.add(body);
-
-            const apertureGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.1, 16);
-            const apertureMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-            const aperture = new THREE.Mesh(apertureGeo, apertureMat);
-            aperture.position.y = 0.2;
-            this.mesh.add(aperture);
-
-            const panelGeo = new THREE.BoxGeometry(0.4, 0.01, 0.1);
-            const panelMat = new THREE.MeshStandardMaterial({ color: 0x224488, metalness: 0.9, roughness: 0.2 });
-            const panel = new THREE.Mesh(panelGeo, panelMat);
-            this.mesh.add(panel);
-
-            this.mesh.scale.set(0.5, 0.5, 0.5);
-
-        } else if (this.data.name.includes("Voyager")) {
-            // Dish
-            const dishGeo = new THREE.ConeGeometry(0.2, 0.1, 16);
-            const dish = new THREE.Mesh(dishGeo, material);
-            dish.rotation.x = -Math.PI / 2;
-            this.mesh.add(dish);
-
-            // Body
-            const bodyGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const body = new THREE.Mesh(bodyGeo, material);
-            body.position.z = 0.1;
-            this.mesh.add(body);
-
-            // Boom
-            const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.4);
-            const boom = new THREE.Mesh(boomGeo, material);
-            boom.position.set(0.2, 0, 0.1);
-            boom.rotation.z = Math.PI / 4;
-            this.mesh.add(boom);
-
-            this.mesh.scale.set(2, 2, 2); // Make Voyager a bit bigger so it's visible far away
+        const name = this.data.name;
+        if (name.includes("ISS")) {
+            this.createISSModel(material, panelMat);
+        } else if (name.includes("Hubble")) {
+            this.createHubbleModel(material, panelMat);
+        } else if (name.includes("Voyager")) {
+            this.createVoyagerModel(material);
         } else {
             // Generic box
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
             const mesh = new THREE.Mesh(geo, material);
             this.mesh.add(mesh);
         }
+    }
+
+    private createISSModel(material: THREE.MeshStandardMaterial, panelMat: THREE.MeshStandardMaterial) {
+        // Central cylinder
+        const bodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 16);
+        const body = new THREE.Mesh(bodyGeo, material);
+        body.rotation.z = Math.PI / 2;
+        this.mesh.add(body);
+
+        // Solar panels
+        const panelGeo = new THREE.BoxGeometry(0.2, 0.01, 0.6);
+
+        const panel1 = new THREE.Mesh(panelGeo, panelMat);
+        panel1.position.set(0.1, 0, 0);
+        this.mesh.add(panel1);
+
+        const panel2 = new THREE.Mesh(panelGeo, panelMat);
+        panel2.position.set(-0.1, 0, 0);
+        this.mesh.add(panel2);
+
+        // Scale it down slightly
+        this.mesh.scale.set(0.5, 0.5, 0.5);
+    }
+
+    private createHubbleModel(material: THREE.MeshStandardMaterial, panelMat: THREE.MeshStandardMaterial) {
+        const bodyGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.3, 16);
+        const body = new THREE.Mesh(bodyGeo, material);
+        this.mesh.add(body);
+
+        const apertureGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.1, 16);
+        const apertureMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const aperture = new THREE.Mesh(apertureGeo, apertureMat);
+        aperture.position.y = 0.2;
+        this.mesh.add(aperture);
+
+        const panelGeo = new THREE.BoxGeometry(0.4, 0.01, 0.1);
+        const panel = new THREE.Mesh(panelGeo, panelMat);
+        this.mesh.add(panel);
+
+        this.mesh.scale.set(0.5, 0.5, 0.5);
+    }
+
+    private createVoyagerModel(material: THREE.MeshStandardMaterial) {
+        // Dish
+        const dishGeo = new THREE.ConeGeometry(0.2, 0.1, 16);
+        const dish = new THREE.Mesh(dishGeo, material);
+        dish.rotation.x = -Math.PI / 2;
+        this.mesh.add(dish);
+
+        // Body
+        const bodyGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+        const body = new THREE.Mesh(bodyGeo, material);
+        body.position.z = 0.1;
+        this.mesh.add(body);
+
+        // Boom
+        const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.4);
+        const boom = new THREE.Mesh(boomGeo, material);
+        boom.position.set(0.2, 0, 0.1);
+        boom.rotation.z = Math.PI / 4;
+        this.mesh.add(boom);
+
+        this.mesh.scale.set(2, 2, 2); // Make Voyager a bit bigger so it's visible far away
     }
 
     createOrbit() {
