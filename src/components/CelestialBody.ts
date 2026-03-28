@@ -20,6 +20,10 @@ export class CelestialBody {
     infoSprite: THREE.Sprite | null;
     lastUpdate?: number;
 
+    meteorParticles: THREE.LineSegments | null;
+    meteorVelocities: THREE.Vector3[];
+    showMeteors: boolean;
+
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
         this.data = data;
         this.parent = parent;
@@ -31,6 +35,9 @@ export class CelestialBody {
         this.ringMeshes = [];
         this.labelSprite = null;
         this.infoSprite = null;
+        this.meteorParticles = null;
+        this.meteorVelocities = [];
+        this.showMeteors = false;
 
         this.init();
     }
@@ -149,6 +156,9 @@ export class CelestialBody {
 
             this.atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
             this.orbitGroup.add(this.atmosphereMesh);
+
+            // 4. Meteor Shower
+            this.createMeteors();
         }
 
         // Create Orbit Line
@@ -245,6 +255,124 @@ export class CelestialBody {
         });
     }
 
+    createMeteors() {
+        const particleCount = 200;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 6); // 2 points per line (start and end)
+        const colors = new Float32Array(particleCount * 6);
+
+        for (let i = 0; i < particleCount; i++) {
+            this.meteorVelocities.push(new THREE.Vector3());
+            this.resetMeteor(i, positions, colors, true);
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        this.meteorParticles = new THREE.LineSegments(geometry, material);
+        this.meteorParticles.visible = this.showMeteors;
+        this.orbitGroup.add(this.meteorParticles);
+    }
+
+    resetMeteor(index: number, positions: Float32Array, colors: Float32Array, initial: boolean = false) {
+        // Spawn distance: 1.5 to 3 times Earth's radius
+        const radius = this.data.radius;
+        const spawnDist = radius * (1.5 + Math.random() * 1.5);
+
+        // Random direction from center
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+
+        const x = spawnDist * Math.sin(phi) * Math.cos(theta);
+        const y = spawnDist * Math.sin(phi) * Math.sin(theta);
+        const z = spawnDist * Math.cos(phi);
+
+        // Initial position
+        const i6 = index * 6;
+        positions[i6] = x;
+        positions[i6 + 1] = y;
+        positions[i6 + 2] = z;
+
+        // Velocity (towards the planet center + some randomness)
+        const posVec = new THREE.Vector3(x, y, z);
+        const dir = posVec.clone().normalize().negate();
+
+        // Add random scatter to direction
+        dir.x += (Math.random() - 0.5) * 0.5;
+        dir.y += (Math.random() - 0.5) * 0.5;
+        dir.z += (Math.random() - 0.5) * 0.5;
+        dir.normalize();
+
+        // Speed: 2 to 5
+        const speed = 2 + Math.random() * 3;
+        this.meteorVelocities[index].copy(dir.multiplyScalar(speed));
+
+        // Tail position (initially same as head)
+        positions[i6 + 3] = x;
+        positions[i6 + 4] = y;
+        positions[i6 + 5] = z;
+
+        // Colors: Head is bright white/yellow, Tail is fading orange/red
+        // Head
+        colors[i6] = 1;
+        colors[i6 + 1] = 1;
+        colors[i6 + 2] = 0.8;
+        // Tail
+        colors[i6 + 3] = 1;
+        colors[i6 + 4] = 0.4;
+        colors[i6 + 5] = 0;
+    }
+
+    updateMeteors(deltaTime: number) {
+        if (!this.meteorParticles || !this.showMeteors) return;
+
+        const positions = this.meteorParticles.geometry.attributes.position.array as Float32Array;
+        const colors = this.meteorParticles.geometry.attributes.color.array as Float32Array;
+        const radius = this.data.radius;
+
+        for (let i = 0; i < this.meteorVelocities.length; i++) {
+            const i6 = i * 6;
+
+            // Current head position
+            const hx = positions[i6];
+            const hy = positions[i6 + 1];
+            const hz = positions[i6 + 2];
+
+            // Move head
+            const vel = this.meteorVelocities[i];
+            const nx = hx + vel.x * deltaTime * 10;
+            const ny = hy + vel.y * deltaTime * 10;
+            const nz = hz + vel.z * deltaTime * 10;
+
+            // Update positions
+            // Tail becomes old head
+            positions[i6 + 3] = hx;
+            positions[i6 + 4] = hy;
+            positions[i6 + 5] = hz;
+
+            // New head
+            positions[i6] = nx;
+            positions[i6 + 1] = ny;
+            positions[i6 + 2] = nz;
+
+            // Check if it hit the atmosphere/planet or flew away
+            const distSq = nx*nx + ny*ny + nz*nz;
+            // Reset if inside planet or too far
+            if (distSq < radius * radius * 1.05 || distSq > radius * radius * 25) {
+                this.resetMeteor(i, positions, colors);
+            }
+        }
+
+        this.meteorParticles.geometry.attributes.position.needsUpdate = true;
+    }
+
     createOrbit() {
         if (this.data.distance === 0) return; // Sun or center
 
@@ -322,8 +450,18 @@ export class CelestialBody {
             }
         }
 
+        this.updateMeteors(deltaTime);
+
         // Update moons
         this.moons.forEach(moon => moon.update(deltaTime));
+    }
+
+    toggleMeteors(visible: boolean) {
+        this.showMeteors = visible;
+        if (this.meteorParticles) {
+            this.meteorParticles.visible = visible;
+        }
+        this.moons.forEach(moon => moon.toggleMeteors(visible));
     }
 
     toggleOrbit(visible: boolean) {
