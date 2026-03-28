@@ -29,7 +29,7 @@ export class CelestialBody {
         this.parent = parent;
         this.mesh = null;
         this.orbitLine = null;
-        this.angle = Math.random() * Math.PI * 2;
+        this.angle = THREE.MathUtils.seededRandom() * Math.PI * 2;
         this.moons = [];
         this.orbitGroup = new THREE.Group(); // Initialize here to satisfy TS
         this.ringMeshes = [];
@@ -263,7 +263,7 @@ export class CelestialBody {
 
         for (let i = 0; i < particleCount; i++) {
             this.meteorVelocities.push(new THREE.Vector3());
-            this.resetMeteor(i, positions, colors, true);
+            this.resetMeteor(i, positions, colors);
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -281,14 +281,14 @@ export class CelestialBody {
         this.orbitGroup.add(this.meteorParticles);
     }
 
-    resetMeteor(index: number, positions: Float32Array, colors: Float32Array, initial: boolean = false) {
+    resetMeteor(index: number, positions: Float32Array, colors: Float32Array) {
         // Spawn distance: 1.5 to 3 times Earth's radius
         const radius = this.data.radius;
-        const spawnDist = radius * (1.5 + Math.random() * 1.5);
+        const spawnDist = radius * (1.5 + THREE.MathUtils.seededRandom() * 1.5);
 
         // Random direction from center
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(Math.random() * 2 - 1);
+        const theta = THREE.MathUtils.seededRandom() * Math.PI * 2;
+        const phi = Math.acos(THREE.MathUtils.seededRandom() * 2 - 1);
 
         const x = spawnDist * Math.sin(phi) * Math.cos(theta);
         const y = spawnDist * Math.sin(phi) * Math.sin(theta);
@@ -305,13 +305,13 @@ export class CelestialBody {
         const dir = posVec.clone().normalize().negate();
 
         // Add random scatter to direction
-        dir.x += (Math.random() - 0.5) * 0.5;
-        dir.y += (Math.random() - 0.5) * 0.5;
-        dir.z += (Math.random() - 0.5) * 0.5;
+        dir.x += (THREE.MathUtils.seededRandom() - 0.5) * 0.5;
+        dir.y += (THREE.MathUtils.seededRandom() - 0.5) * 0.5;
+        dir.z += (THREE.MathUtils.seededRandom() - 0.5) * 0.5;
         dir.normalize();
 
         // Speed: 2 to 5
-        const speed = 2 + Math.random() * 3;
+        const speed = 2 + THREE.MathUtils.seededRandom() * 3;
         this.meteorVelocities[index].copy(dir.multiplyScalar(speed));
 
         // Tail position (initially same as head)
@@ -371,6 +371,7 @@ export class CelestialBody {
         }
 
         this.meteorParticles.geometry.attributes.position.needsUpdate = true;
+        this.meteorParticles.geometry.attributes.color.needsUpdate = true;
     }
 
     createOrbit() {
