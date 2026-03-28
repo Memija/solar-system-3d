@@ -21,6 +21,7 @@ export class SceneManager {
     showMoons: boolean;
     showComets: boolean;
     showSpacecrafts: boolean;
+    showMeteors: boolean;
     focusedBody: CelestialBody | Comet | Spacecraft | null;
     surfaceViewBody: CelestialBody | null;
     starMeshes: THREE.Object3D[];
@@ -47,6 +48,7 @@ export class SceneManager {
         this.showMoons = true;
         this.showComets = true;
         this.showSpacecrafts = true;
+        this.showMeteors = false;
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.starMeshes = [];
@@ -483,6 +485,15 @@ export class SceneManager {
     toggleMoons(visible: boolean) {
         this.showMoons = visible;
         this.planets.forEach(planet => planet.toggleMoons(visible));
+    }
+
+    toggleMeteors(visible: boolean) {
+        this.showMeteors = visible;
+        this.planets.forEach(planet => {
+            if (planet.toggleMeteors) {
+                planet.toggleMeteors(visible);
+            }
+        });
     }
 
     toggleSpacecrafts(visible: boolean) {
