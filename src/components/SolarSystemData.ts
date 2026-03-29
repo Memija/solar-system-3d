@@ -39,6 +39,7 @@ export interface CelestialBodyData {
     rings?: RingData[];
     ra?: number; // For stars
     dec?: number; // For stars
+    isDwarfPlanet?: boolean;
 }
 
 export interface StarData {
@@ -386,6 +387,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     // Dwarf Planets
     {
         name: "Pluto",
+        isDwarfPlanet: true,
         radius: 0.36,
         distance: 700,
         period: 248,
@@ -405,6 +407,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Ceres",
+        isDwarfPlanet: true,
         radius: 0.14,
         distance: 220,
         period: 4.6,
@@ -424,6 +427,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Eris",
+        isDwarfPlanet: true,
         radius: 0.36,
         distance: 780,
         period: 558,
@@ -441,6 +445,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Haumea",
+        isDwarfPlanet: true,
         radius: 0.3,
         distance: 740,
         period: 284,
@@ -459,6 +464,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Makemake",
+        isDwarfPlanet: true,
         radius: 0.22,
         distance: 760,
         period: 309,

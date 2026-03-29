@@ -29,6 +29,7 @@ export class SceneManager {
     previousBodyPosition: THREE.Vector3 | null;
     asteroidBelt: THREE.InstancedMesh | null;
     showAsteroids: boolean;
+    showDwarfPlanets: boolean;
     showLabels: boolean;
     showInfos: boolean;
 
@@ -55,6 +56,7 @@ export class SceneManager {
         this.previousBodyPosition = null;
         this.asteroidBelt = null;
         this.showAsteroids = true;
+        this.showDwarfPlanets = true;
         this.showLabels = true;
         this.showInfos = true;
 
@@ -467,7 +469,13 @@ export class SceneManager {
 
     toggleOrbits(visible: boolean) {
         this.showOrbits = visible;
-        this.planets.forEach(planet => planet.toggleOrbit(visible));
+        this.planets.forEach(planet => {
+            if (planet.data.isDwarfPlanet) {
+                planet.toggleOrbit(visible && this.showDwarfPlanets);
+            } else {
+                planet.toggleOrbit(visible);
+            }
+        });
         this.comets.forEach(comet => comet.toggleOrbit(visible));
         this.spacecrafts.forEach(sc => sc.toggleOrbit(visible));
     }
@@ -512,16 +520,30 @@ export class SceneManager {
         }
     }
 
+    toggleDwarfPlanets(visible: boolean) {
+        this.showDwarfPlanets = visible;
+        this.planets.forEach(planet => {
+            if (planet.data.isDwarfPlanet) {
+                planet.orbitGroup.visible = visible;
+                planet.toggleOrbit(visible && this.showOrbits);
+            }
+        });
+    }
+
     toggleLabels(visible: boolean) {
         this.showLabels = visible;
-        this.planets.forEach(planet => planet.toggleLabels(visible));
+        this.planets.forEach(planet => {
+            planet.toggleLabels(visible);
+        });
         this.comets.forEach(comet => comet.toggleLabels(visible));
         this.spacecrafts.forEach(sc => sc.toggleLabels(visible));
     }
 
     toggleInfos(visible: boolean) {
         this.showInfos = visible;
-        this.planets.forEach(planet => planet.toggleInfo(visible));
+        this.planets.forEach(planet => {
+            planet.toggleInfo(visible);
+        });
     }
 
     focusOnBody(name: string) {

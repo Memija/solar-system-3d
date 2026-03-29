@@ -66,6 +66,7 @@ export class UIManager {
             showOrbits: true,
             showMoons: true,
             showAsteroids: true,
+            showDwarfPlanets: true,
             showComets: true,
             showSpacecrafts: true,
             showMeteors: false,
@@ -86,6 +87,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showAsteroids').name('Show Asteroids').onChange(val => {
             this.sceneManager.toggleAsteroids(val);
+        });
+        simFolder.add(params, 'showDwarfPlanets').name('Show Dwarf Planets').onChange(val => {
+            this.sceneManager.toggleDwarfPlanets(val);
         });
         simFolder.add(params, 'showComets').name('Show Comets').onChange(val => {
             this.sceneManager.toggleComets(val);
