@@ -289,6 +289,32 @@ export const SolarSystemData: CelestialBodyData[] = [
         links: [
             { title: "NASA: Mars Overview", url: "https://science.nasa.gov/mars" },
             { title: "Wikipedia: Mars", url: "https://en.wikipedia.org/wiki/Mars" }
+        ],
+        moons: [
+            {
+                name: "Phobos",
+                radius: 0.1,
+                distance: 2,
+                period: 0.03,
+                color: 0x888888,
+                description: "Phobos is the innermost and larger of the two natural satellites of Mars, the other being Deimos.",
+                imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Phobos_colour_2008.jpg/800px-Phobos_colour_2008.jpg",
+                links: [
+                    { title: "Wikipedia: Phobos", url: "https://en.wikipedia.org/wiki/Phobos_(moon)" }
+                ]
+            },
+            {
+                name: "Deimos",
+                radius: 0.06,
+                distance: 3.5,
+                period: 0.12,
+                color: 0x999999,
+                description: "Deimos is the smaller and outermost of the two natural satellites of Mars.",
+                imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Deimos-MRO.jpg/800px-Deimos-MRO.jpg",
+                links: [
+                    { title: "Wikipedia: Deimos", url: "https://en.wikipedia.org/wiki/Deimos_(moon)" }
+                ]
+            }
         ]
     },
     {
@@ -382,6 +408,20 @@ export const SolarSystemData: CelestialBodyData[] = [
         links: [
             { title: "NASA: Neptune Overview", url: "https://science.nasa.gov/neptune" },
             { title: "Wikipedia: Neptune", url: "https://en.wikipedia.org/wiki/Neptune" }
+        ],
+        moons: [
+            {
+                name: "Triton",
+                radius: 0.35,
+                distance: 12,
+                period: 0.06,
+                color: 0xcccccc,
+                description: "Triton is the largest natural satellite of the planet Neptune, and the first Neptunian moon to be discovered.",
+                imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Triton_moon_mosaic_Voyager_2_%28large%29.jpg/800px-Triton_moon_mosaic_Voyager_2_%28large%29.jpg",
+                links: [
+                    { title: "Wikipedia: Triton", url: "https://en.wikipedia.org/wiki/Triton_(moon)" }
+                ]
+            }
         ]
     },
     // Dwarf Planets
