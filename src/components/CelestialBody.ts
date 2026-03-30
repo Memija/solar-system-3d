@@ -24,6 +24,10 @@ export class CelestialBody {
     meteorVelocities: THREE.Vector3[];
     showMeteors: boolean;
 
+    trailLine: THREE.Line | null;
+    trailPositions: THREE.Vector3[];
+    showTrails: boolean;
+
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
         this.data = data;
         this.parent = parent;
@@ -38,6 +42,10 @@ export class CelestialBody {
         this.meteorParticles = null;
         this.meteorVelocities = [];
         this.showMeteors = false;
+
+        this.trailLine = null;
+        this.trailPositions = [];
+        this.showTrails = false;
 
         this.init();
     }
@@ -163,6 +171,9 @@ export class CelestialBody {
 
         // Create Orbit Line
         this.createOrbit();
+
+        // Create Trail
+        this.createTrail();
 
         // Create Rings
         if ('rings' in this.data && this.data.rings) {
@@ -374,6 +385,52 @@ export class CelestialBody {
         this.meteorParticles.geometry.attributes.color.needsUpdate = true;
     }
 
+    createTrail() {
+        if (this.data.distance === 0) return; // Sun or center
+
+        const maxTrailLength = 100;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(maxTrailLength * 3);
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const material = new THREE.LineBasicMaterial({
+            color: this.data.color || 0xffffff,
+            transparent: true,
+            opacity: 0.5
+        });
+
+        this.trailLine = new THREE.Line(geometry, material);
+        // Do not add to orbitGroup as it's local space, add to parent so it traces global/parent path
+        this.trailLine.visible = this.showTrails;
+        this.parent.add(this.trailLine);
+    }
+
+    updateTrail() {
+        if (!this.trailLine || !this.showTrails) return;
+
+        const maxTrailLength = 100;
+        const currentPos = this.orbitGroup.position.clone();
+
+        // Only add a point if we've moved a certain distance to avoid too many points when slow
+        if (this.trailPositions.length === 0 || currentPos.distanceTo(this.trailPositions[this.trailPositions.length - 1]) > 0.5) {
+            this.trailPositions.push(currentPos);
+            if (this.trailPositions.length > maxTrailLength) {
+                this.trailPositions.shift();
+            }
+
+            const positions = this.trailLine.geometry.attributes.position.array as Float32Array;
+            for (let i = 0; i < this.trailPositions.length; i++) {
+                positions[i * 3] = this.trailPositions[i].x;
+                positions[i * 3 + 1] = this.trailPositions[i].y;
+                positions[i * 3 + 2] = this.trailPositions[i].z;
+            }
+
+            // If trail isn't full yet, set draw range
+            this.trailLine.geometry.setDrawRange(0, this.trailPositions.length);
+            this.trailLine.geometry.attributes.position.needsUpdate = true;
+        }
+    }
+
     createOrbit() {
         if (this.data.distance === 0) return; // Sun or center
 
@@ -452,9 +509,25 @@ export class CelestialBody {
         }
 
         this.updateMeteors(deltaTime);
+        this.updateTrail();
 
         // Update moons
         this.moons.forEach(moon => moon.update(deltaTime));
+    }
+
+    toggleTrails(visible: boolean) {
+        this.showTrails = visible;
+        if (this.trailLine) {
+            this.trailLine.visible = visible;
+            if (!visible) {
+                // Clear trail when disabled
+                this.trailPositions = [];
+                if (this.trailLine) {
+                    this.trailLine.geometry.setDrawRange(0, 0);
+                }
+            }
+        }
+        this.moons.forEach(moon => moon.toggleTrails(visible));
     }
 
     toggleMeteors(visible: boolean) {

@@ -70,6 +70,7 @@ export class UIManager {
             showComets: true,
             showSpacecrafts: true,
             showMeteors: false,
+            showTrails: false,
             showLabels: true,
             showInfos: true
         };
@@ -99,6 +100,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showMeteors').name('Show Meteors').onChange(val => {
             this.sceneManager.toggleMeteors(val);
+        });
+        simFolder.add(params, 'showTrails').name('Show Trails').onChange(val => {
+            this.sceneManager.toggleTrails(val);
         });
         simFolder.add(params, 'showLabels').name('Show Labels').onChange(val => {
             this.sceneManager.toggleLabels(val);
