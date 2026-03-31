@@ -72,7 +72,8 @@ export class UIManager {
             showMeteors: false,
             showTrails: false,
             showLabels: true,
-            showInfos: true
+            showInfos: true,
+            enableBloom: true
         };
 
         // Simulation Controls
@@ -109,6 +110,11 @@ export class UIManager {
         });
         simFolder.add(params, 'showInfos').name('Show Info').onChange(val => {
             this.sceneManager.toggleInfos(val);
+        });
+        simFolder.add(params, 'enableBloom').name('Enable Bloom').onChange(val => {
+            if (this.sceneManager.bloomPass) {
+                this.sceneManager.bloomPass.enabled = val;
+            }
         });
         simFolder.open();
 
