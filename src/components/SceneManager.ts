@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { CelestialBody } from './CelestialBody.js';
 import { SolarSystemData, StarData, CometDataList, SpacecraftDataList } from './SolarSystemData.js';
 import { ConstellationManager } from './ConstellationManager.js';
@@ -11,6 +14,8 @@ export class SceneManager {
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
     renderer: THREE.WebGLRenderer;
+    composer!: EffectComposer;
+    bloomPass!: UnrealBloomPass;
     controls!: OrbitControls;
     clock: THREE.Clock;
     planets: CelestialBody[];
@@ -85,6 +90,21 @@ export class SceneManager {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.container.appendChild(this.renderer.domElement);
+
+        // Post-processing
+        const renderScene = new RenderPass(this.scene, this.camera);
+
+        // Resolution, strength, radius, threshold
+        this.bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.5, // strength
+            0.4, // radius
+            0.85 // threshold
+        );
+
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(renderScene);
+        this.composer.addPass(this.bloomPass);
 
         // Controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -405,6 +425,7 @@ export class SceneManager {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
     }
 
     update() {
@@ -466,7 +487,7 @@ export class SceneManager {
         }
 
         this.controls.update(); // Required for OrbitControls to work
-        this.renderer.render(this.scene, this.camera);
+        this.composer.render();
     }
 
     toggleOrbits(visible: boolean) {
