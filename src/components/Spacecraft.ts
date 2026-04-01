@@ -69,12 +69,51 @@ export class Spacecraft {
             this.createHubbleModel(material, panelMat);
         } else if (name.includes("Voyager")) {
             this.createVoyagerModel(material);
+        } else if (name.includes("James Webb")) {
+            this.createJWSTModel(material);
         } else {
             // Generic box
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
             const mesh = new THREE.Mesh(geo, material);
             this.mesh.add(mesh);
         }
+    }
+
+    private createJWSTModel(material: THREE.MeshStandardMaterial) {
+        // Sunshield (diamond shape)
+        const shieldGeo = new THREE.PlaneGeometry(0.6, 0.3);
+        const shieldMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.2, side: THREE.DoubleSide });
+
+        // 3 layers of sunshield
+        for (let i = 0; i < 3; i++) {
+            const shield = new THREE.Mesh(shieldGeo, shieldMat);
+            shield.rotation.x = Math.PI / 2;
+            shield.position.y = -0.05 + (i * 0.02);
+            this.mesh.add(shield);
+        }
+
+        // Primary mirror (hexagon)
+        const mirrorGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 6);
+        const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.1 });
+        const mirror = new THREE.Mesh(mirrorGeo, mirrorMat);
+        mirror.rotation.x = Math.PI / 2;
+        mirror.position.set(0, 0.1, 0.1);
+        this.mesh.add(mirror);
+
+        // Secondary mirror support
+        const supportGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.2);
+        const support = new THREE.Mesh(supportGeo, material);
+        support.position.set(0, 0.1, 0.2);
+        support.rotation.x = Math.PI / 2;
+        this.mesh.add(support);
+
+        // Spacecraft bus
+        const busGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+        const bus = new THREE.Mesh(busGeo, material);
+        bus.position.set(0, -0.1, 0);
+        this.mesh.add(bus);
+
+        this.mesh.scale.set(1.5, 1.5, 1.5);
     }
 
     private createISSModel(material: THREE.MeshStandardMaterial, panelMat: THREE.MeshStandardMaterial) {
