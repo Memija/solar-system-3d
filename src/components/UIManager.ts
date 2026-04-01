@@ -133,7 +133,7 @@ export class UIManager {
         // I will keep it to be safe, or I could remove just the target dropdown if I'm sure.
         // Given the user said "broke the old camera related menu", they probably miss the buttons.
         // I'll keep the target dropdown too to ensure full restoration.
-        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp", "ISS (International Space Station)", "Hubble Space Telescope", "Voyager 1"];
+        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp", "ISS (International Space Station)", "Hubble Space Telescope", "Voyager 1", "James Webb Space Telescope"];
         cameraFolder.add(cameraControls, 'target', targetNames).name('Target Body');
 
         cameraFolder.add(cameraControls, 'focus').name('Attach Camera');

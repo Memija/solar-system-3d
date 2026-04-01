@@ -110,6 +110,20 @@ export const SpacecraftDataList: SpacecraftData[] = [
             { title: "NASA: Voyager", url: "https://voyager.jpl.nasa.gov/" },
             { title: "Wikipedia: Voyager 1", url: "https://en.wikipedia.org/wiki/Voyager_1" }
         ]
+    },
+    {
+        name: "James Webb Space Telescope",
+        targetBody: "Earth",
+        distance: 5.0, // L2 point, further out than Hubble
+        period: 1.0, // Orbits the Sun with Earth, so period is 1 Earth year
+        inclination: 0,
+        color: 0xffd700,
+        description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. It is the largest space telescope in history, offering unprecedented resolution and sensitivity.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/James_Webb_Space_Telescope.jpg/800px-James_Webb_Space_Telescope.jpg",
+        links: [
+            { title: "NASA: JWST", url: "https://webb.nasa.gov/" },
+            { title: "Wikipedia: JWST", url: "https://en.wikipedia.org/wiki/James_Webb_Space_Telescope" }
+        ]
     }
 ];
 
