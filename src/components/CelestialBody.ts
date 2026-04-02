@@ -446,7 +446,7 @@ export class CelestialBody {
         }
 
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const material = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
+        const material = new THREE.LineBasicMaterial({ color: this.data.color || 0x444444, transparent: true, opacity: 0.3 });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
 

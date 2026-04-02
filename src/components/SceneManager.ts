@@ -34,7 +34,9 @@ export class SceneManager {
     constellationManager: ConstellationManager;
     previousBodyPosition: THREE.Vector3 | null;
     asteroidBelt: THREE.InstancedMesh | null;
+    kuiperBelt: THREE.InstancedMesh | null;
     showAsteroids: boolean;
+    showKuiperBelt: boolean;
     showDwarfPlanets: boolean;
     showLabels: boolean;
     showInfos: boolean;
@@ -62,7 +64,9 @@ export class SceneManager {
         this.starMeshes = [];
         this.previousBodyPosition = null;
         this.asteroidBelt = null;
+        this.kuiperBelt = null;
         this.showAsteroids = true;
+        this.showKuiperBelt = true;
         this.showDwarfPlanets = true;
         this.showLabels = true;
         this.showInfos = true;
@@ -143,6 +147,9 @@ export class SceneManager {
         // Asteroids
         this.createAsteroidBelt();
 
+        // Kuiper Belt
+        this.createKuiperBelt();
+
         // Spacecrafts
         this.createSpacecrafts();
 
@@ -168,11 +175,11 @@ export class SceneManager {
         const dummy = new THREE.Object3D();
 
         for (let i = 0; i < numAsteroids; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const distance = minDistance + Math.random() * (maxDistance - minDistance);
+            const angle = THREE.MathUtils.seededRandom() * Math.PI * 2;
+            const distance = minDistance + THREE.MathUtils.seededRandom() * (maxDistance - minDistance);
 
             // Add some variation to Y
-            const yOffset = (Math.random() - 0.5) * 10;
+            const yOffset = (THREE.MathUtils.seededRandom() - 0.5) * 10;
 
             const x = Math.cos(angle) * distance;
             const z = Math.sin(angle) * distance;
@@ -180,12 +187,12 @@ export class SceneManager {
             dummy.position.set(x, yOffset, z);
 
             // Random rotation
-            dummy.rotation.x = Math.random() * Math.PI;
-            dummy.rotation.y = Math.random() * Math.PI;
-            dummy.rotation.z = Math.random() * Math.PI;
+            dummy.rotation.x = THREE.MathUtils.seededRandom() * Math.PI;
+            dummy.rotation.y = THREE.MathUtils.seededRandom() * Math.PI;
+            dummy.rotation.z = THREE.MathUtils.seededRandom() * Math.PI;
 
             // Random scale
-            const scale = 0.5 + Math.random();
+            const scale = 0.5 + THREE.MathUtils.seededRandom();
             dummy.scale.set(scale, scale, scale);
 
             dummy.updateMatrix();
@@ -193,6 +200,51 @@ export class SceneManager {
         }
 
         this.scene.add(this.asteroidBelt);
+    }
+
+    createKuiperBelt() {
+        const numObjects = 2500;
+        // Neptune is at 640
+        const minDistance = 670;
+        const maxDistance = 850;
+
+        const geometry = new THREE.DodecahedronGeometry(0.8, 0); // Slightly larger
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xaaaaaa, // Icy color
+            roughness: 0.6,
+            metalness: 0.2
+        });
+
+        this.kuiperBelt = new THREE.InstancedMesh(geometry, material, numObjects);
+
+        const dummy = new THREE.Object3D();
+
+        for (let i = 0; i < numObjects; i++) {
+            const angle = THREE.MathUtils.seededRandom() * Math.PI * 2;
+            const distance = minDistance + THREE.MathUtils.seededRandom() * (maxDistance - minDistance);
+
+            // Add some variation to Y, slightly thicker than asteroid belt
+            const yOffset = (THREE.MathUtils.seededRandom() - 0.5) * 30;
+
+            const x = Math.cos(angle) * distance;
+            const z = Math.sin(angle) * distance;
+
+            dummy.position.set(x, yOffset, z);
+
+            // Random rotation
+            dummy.rotation.x = THREE.MathUtils.seededRandom() * Math.PI;
+            dummy.rotation.y = THREE.MathUtils.seededRandom() * Math.PI;
+            dummy.rotation.z = THREE.MathUtils.seededRandom() * Math.PI;
+
+            // Random scale
+            const scale = 0.3 + THREE.MathUtils.seededRandom() * 1.5;
+            dummy.scale.set(scale, scale, scale);
+
+            dummy.updateMatrix();
+            this.kuiperBelt.setMatrixAt(i, dummy.matrix);
+        }
+
+        this.scene.add(this.kuiperBelt);
     }
 
     createStarfield() {
@@ -456,6 +508,11 @@ export class SceneManager {
             this.asteroidBelt.rotation.y -= 0.05 * deltaTime;
         }
 
+        // Rotate Kuiper belt very slowly
+        if (this.kuiperBelt && this.showKuiperBelt) {
+            this.kuiperBelt.rotation.y -= 0.01 * deltaTime;
+        }
+
         if (this.surfaceViewBody?.mesh) {
             const planetPos = new THREE.Vector3();
             this.surfaceViewBody.mesh.getWorldPosition(planetPos);
@@ -549,6 +606,13 @@ export class SceneManager {
         this.showAsteroids = visible;
         if (this.asteroidBelt) {
             this.asteroidBelt.visible = visible;
+        }
+    }
+
+    toggleKuiperBelt(visible: boolean) {
+        this.showKuiperBelt = visible;
+        if (this.kuiperBelt) {
+            this.kuiperBelt.visible = visible;
         }
     }
 
