@@ -124,6 +124,33 @@ export const SpacecraftDataList: SpacecraftData[] = [
             { title: "NASA: JWST", url: "https://webb.nasa.gov/" },
             { title: "Wikipedia: JWST", url: "https://en.wikipedia.org/wiki/James_Webb_Space_Telescope" }
         ]
+    },
+    {
+        name: "Cassini",
+        targetBody: "Saturn",
+        distance: 25,
+        period: 0.1,
+        color: 0xdddddd,
+        description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Cassini_Saturn_Orbit_Insertion.jpg/800px-Cassini_Saturn_Orbit_Insertion.jpg",
+        links: [
+            { title: "NASA: Cassini", url: "https://solarsystem.nasa.gov/missions/cassini/overview/" },
+            { title: "Wikipedia: Cassini", url: "https://en.wikipedia.org/wiki/Cassini%E2%80%93Huygens" }
+        ]
+    },
+    {
+        name: "Voyager 2",
+        distance: 700, // Starts far out
+        period: 0, // Not orbiting
+        color: 0x8888aa,
+        escaping: true,
+        speed: 1.4,
+        description: "Voyager 2 is a space probe launched by NASA on August 20, 1977, to study the outer planets. It remains the only spacecraft to have visited either of the ice giants, Uranus and Neptune.",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Voyager_spacecraft_model.png/800px-Voyager_spacecraft_model.png",
+        links: [
+            { title: "NASA: Voyager 2", url: "https://voyager.jpl.nasa.gov/" },
+            { title: "Wikipedia: Voyager 2", url: "https://en.wikipedia.org/wiki/Voyager_2" }
+        ]
     }
 ];
 
@@ -457,6 +484,20 @@ export const SolarSystemData: CelestialBodyData[] = [
         links: [
             { title: "NASA: Pluto Overview", url: "https://science.nasa.gov/dwarf-planets/pluto" },
             { title: "Wikipedia: Pluto", url: "https://en.wikipedia.org/wiki/Pluto" }
+        ],
+        moons: [
+            {
+                name: "Charon",
+                radius: 0.18,
+                distance: 2.0,
+                period: 0.017,
+                color: 0xaaaaaa,
+                description: "Charon is the largest of the five known natural satellites of the dwarf planet Pluto.",
+                imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Charon_in_True_Color_-_High-Res.jpg/800px-Charon_in_True_Color_-_High-Res.jpg",
+                links: [
+                    { title: "Wikipedia: Charon", url: "https://en.wikipedia.org/wiki/Charon_(moon)" }
+                ]
+            }
         ]
     },
     {

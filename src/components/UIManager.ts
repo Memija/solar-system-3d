@@ -66,6 +66,7 @@ export class UIManager {
             showOrbits: true,
             showMoons: true,
             showAsteroids: true,
+            showKuiperBelt: true,
             showDwarfPlanets: true,
             showComets: true,
             showSpacecrafts: true,
@@ -89,6 +90,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showAsteroids').name('Show Asteroids').onChange(val => {
             this.sceneManager.toggleAsteroids(val);
+        });
+        simFolder.add(params, 'showKuiperBelt').name('Show Kuiper Belt').onChange(val => {
+            this.sceneManager.toggleKuiperBelt(val);
         });
         simFolder.add(params, 'showDwarfPlanets').name('Show Dwarf Planets').onChange(val => {
             this.sceneManager.toggleDwarfPlanets(val);
@@ -133,7 +137,7 @@ export class UIManager {
         // I will keep it to be safe, or I could remove just the target dropdown if I'm sure.
         // Given the user said "broke the old camera related menu", they probably miss the buttons.
         // I'll keep the target dropdown too to ensure full restoration.
-        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp", "ISS (International Space Station)", "Hubble Space Telescope", "Voyager 1", "James Webb Space Telescope"];
+        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp", "ISS (International Space Station)", "Hubble Space Telescope", "Voyager 1", "James Webb Space Telescope", "Cassini", "Voyager 2"];
         cameraFolder.add(cameraControls, 'target', targetNames).name('Target Body');
 
         cameraFolder.add(cameraControls, 'focus').name('Attach Camera');
