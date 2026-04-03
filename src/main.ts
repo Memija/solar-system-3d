@@ -13,6 +13,7 @@ const uiManager = new UIManager(sceneManager);
 function animate() {
   requestAnimationFrame(animate);
   sceneManager.update();
+  uiManager.update();
 }
 
 animate();

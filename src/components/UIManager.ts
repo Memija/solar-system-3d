@@ -15,6 +15,8 @@ export class UIManager {
     gui: dat.GUI | null;
     mouseDownPos: THREE.Vector2;
     mouseUpPos: THREE.Vector2;
+    datePanel: HTMLElement;
+    tourController: dat.GUIController | null = null;
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -31,6 +33,8 @@ export class UIManager {
 
         this.infoPanel = this.createInfoPanel();
         this.modal = new Modal(this.uiContainer);
+
+        this.datePanel = this.createDatePanel();
 
         this.createSelectionMenu();
         this.initControls();
@@ -51,6 +55,29 @@ export class UIManager {
         panel.style.pointerEvents = 'none';
         this.uiContainer.appendChild(panel);
         return panel;
+    }
+
+    createDatePanel(): HTMLElement {
+        const panel = document.createElement('div');
+        panel.style.position = 'absolute';
+        panel.style.bottom = '20px';
+        panel.style.left = '20px';
+        panel.style.padding = '10px 20px';
+        panel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        panel.style.color = '#fff';
+        panel.style.fontFamily = 'monospace';
+        panel.style.fontSize = '18px';
+        panel.style.borderRadius = '8px';
+        panel.style.border = '1px solid #555';
+        panel.style.pointerEvents = 'none';
+        this.uiContainer.appendChild(panel);
+        return panel;
+    }
+
+    update() {
+        if (this.sceneManager.simDate) {
+            this.datePanel.textContent = this.sceneManager.simDate.toDateString();
+        }
     }
 
     initControls() {
@@ -143,6 +170,26 @@ export class UIManager {
         cameraFolder.add(cameraControls, 'focus').name('Attach Camera');
         cameraFolder.add(cameraControls, 'surfaceView').name('View from Surface');
         cameraFolder.add(cameraControls, 'detach').name('Free Camera');
+
+        const tourParams = {
+            tourMode: false,
+            tourInterval: 5
+        };
+
+        this.tourController = cameraFolder.add(tourParams, 'tourMode').name('Cinematic Tour').onChange(val => {
+            this.sceneManager.tourMode = val;
+            if (val) {
+                this.sceneManager.tourTimer = 0;
+                // Start with the first body
+                this.sceneManager.focusOnBody(this.sceneManager.tourTargets[this.sceneManager.tourIndex]);
+            } else {
+                this.sceneManager.detachCamera();
+            }
+        });
+
+        cameraFolder.add(tourParams, 'tourInterval', 2, 20).name('Tour Speed (s)').onChange(val => {
+            this.sceneManager.tourInterval = val;
+        });
 
         cameraFolder.open();
     }
@@ -255,6 +302,10 @@ export class UIManager {
             const selectedName = bodySelect.value;
             const selectedType = typeSelect.value;
 
+            if (this.sceneManager.tourMode && this.tourController) {
+                this.tourController.setValue(false);
+            }
+
             if (selectedType === 'Star') {
                 if (selectedName === 'Sun') {
                     this.sceneManager.focusOnBody('Sun');
@@ -349,6 +400,9 @@ export class UIManager {
                 }
 
                 if (foundData) {
+                    if (this.sceneManager.tourMode && this.tourController) {
+                        this.tourController.setValue(false);
+                    }
                     this.showModal(foundData);
                     this.sceneManager.focusOnBody(foundData.name);
                     return true;
@@ -363,6 +417,9 @@ export class UIManager {
 
         const starIntersects = this.raycaster.intersectObjects(this.sceneManager.starMeshes);
         if (starIntersects.length > 0) {
+            if (this.sceneManager.tourMode && this.tourController) {
+                this.tourController.setValue(false);
+            }
             const selectedStar = starIntersects[0].object;
             if (selectedStar.userData?.name) {
                 this.showModal(selectedStar.userData);
@@ -382,6 +439,9 @@ export class UIManager {
         if (constellationIntersects.length > 0) {
             const selectedObj = constellationIntersects[0].object;
             if (selectedObj.userData?.type === 'ConstellationStar' || selectedObj.userData?.type === 'ConstellationLine') {
+                if (this.sceneManager.tourMode && this.tourController) {
+                    this.tourController.setValue(false);
+                }
                 this.showModal(selectedObj.userData);
                 return true;
             }

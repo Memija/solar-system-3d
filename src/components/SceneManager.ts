@@ -41,6 +41,13 @@ export class SceneManager {
     showLabels: boolean;
     showInfos: boolean;
 
+    simDate: Date;
+    tourMode: boolean;
+    tourTargets: string[];
+    tourIndex: number;
+    tourTimer: number;
+    tourInterval: number;
+
     constructor(container: HTMLElement) {
         this.container = container;
         // Initialize properties to satisfy TS strict initialization
@@ -70,6 +77,13 @@ export class SceneManager {
         this.showDwarfPlanets = true;
         this.showLabels = true;
         this.showInfos = true;
+
+        this.simDate = new Date();
+        this.tourMode = false;
+        this.tourTargets = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+        this.tourIndex = 0;
+        this.tourTimer = 0;
+        this.tourInterval = 5;
 
         this.constellationManager = new ConstellationManager(this.scene);
 
@@ -481,7 +495,25 @@ export class SceneManager {
     }
 
     update() {
-        const deltaTime = this.clock.getDelta() * this.timeScale;
+        const rawDelta = this.clock.getDelta();
+        const deltaTime = rawDelta * this.timeScale;
+
+        // Earth period is 1. speedMultiplier is 0.5.
+        // 1 orbit = 2*PI radians. Speed = 0.5 rad/sec (sim time).
+        // 1 Earth Year = (2*PI)/0.5 = 12.566 seconds of sim time.
+        const earthYearInSimSeconds = (2 * Math.PI) / 0.5;
+        const yearsPassed = deltaTime / earthYearInSimSeconds;
+        const msPassed = yearsPassed * 365.25 * 24 * 60 * 60 * 1000;
+        this.simDate = new Date(this.simDate.getTime() + msPassed);
+
+        if (this.tourMode) {
+            this.tourTimer += rawDelta;
+            if (this.tourTimer >= this.tourInterval) {
+                this.tourTimer = 0;
+                this.tourIndex = (this.tourIndex + 1) % this.tourTargets.length;
+                this.focusOnBody(this.tourTargets[this.tourIndex]);
+            }
+        }
 
         this.planets.forEach(planet => {
             planet.update(deltaTime);
