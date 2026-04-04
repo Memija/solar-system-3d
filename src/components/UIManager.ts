@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import { SceneManager } from './SceneManager.js';
 import { Modal } from './Modal.js';
+import { Minimap } from './Minimap.js';
 import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData.js';
 
 export class UIManager {
@@ -17,6 +18,7 @@ export class UIManager {
     mouseUpPos: THREE.Vector2;
     datePanel: HTMLElement;
     tourController: dat.GUIController | null = null;
+    minimap: Minimap;
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -35,6 +37,8 @@ export class UIManager {
         this.modal = new Modal(this.uiContainer);
 
         this.datePanel = this.createDatePanel();
+
+        this.minimap = new Minimap(sceneManager, this.uiContainer);
 
         this.createSelectionMenu();
         this.initControls();
@@ -78,6 +82,9 @@ export class UIManager {
         if (this.sceneManager.simDate) {
             this.datePanel.textContent = this.sceneManager.simDate.toDateString();
         }
+        if (this.minimap) {
+            this.minimap.update();
+        }
     }
 
     initControls() {
@@ -101,6 +108,7 @@ export class UIManager {
             showTrails: false,
             showLabels: true,
             showInfos: true,
+            showMinimap: true,
             enableBloom: true
         };
 
@@ -141,6 +149,9 @@ export class UIManager {
         });
         simFolder.add(params, 'showInfos').name('Show Info').onChange(val => {
             this.sceneManager.toggleInfos(val);
+        });
+        simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
+            this.minimap.setVisible(val);
         });
         simFolder.add(params, 'enableBloom').name('Enable Bloom').onChange(val => {
             if (this.sceneManager.bloomPass) {
