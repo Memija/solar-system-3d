@@ -109,7 +109,9 @@ export class UIManager {
             showLabels: true,
             showInfos: true,
             showMinimap: true,
-            enableBloom: true
+            enableBloom: true,
+            showHabitableZone: false,
+            showEclipticGrid: false
         };
 
         // Simulation Controls
@@ -153,12 +155,22 @@ export class UIManager {
         simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
             this.minimap.setVisible(val);
         });
-        simFolder.add(params, 'enableBloom').name('Enable Bloom').onChange(val => {
+        simFolder.open();
+
+        // Environment Enhancements
+        const envFolder = gui.addFolder('Environment');
+        envFolder.add(params, 'showHabitableZone').name('Habitable Zone').onChange(val => {
+            this.sceneManager.toggleHabitableZone(val);
+        });
+        envFolder.add(params, 'showEclipticGrid').name('Ecliptic Grid').onChange(val => {
+            this.sceneManager.toggleEclipticGrid(val);
+        });
+        envFolder.add(params, 'enableBloom').name('Enable Bloom').onChange(val => {
             if (this.sceneManager.bloomPass) {
                 this.sceneManager.bloomPass.enabled = val;
             }
         });
-        simFolder.open();
+        envFolder.open();
 
         // Camera Controls
         const cameraFolder = gui.addFolder('Camera Controls');
