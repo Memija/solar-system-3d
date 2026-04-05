@@ -40,6 +40,11 @@ export class SceneManager {
     showDwarfPlanets: boolean;
     showLabels: boolean;
     showInfos: boolean;
+    showHabitableZone: boolean;
+    showEclipticGrid: boolean;
+
+    habitableZoneMesh: THREE.Mesh | null;
+    eclipticGridMesh: THREE.PolarGridHelper | null;
 
     simDate: Date;
     tourMode: boolean;
@@ -77,6 +82,11 @@ export class SceneManager {
         this.showDwarfPlanets = true;
         this.showLabels = true;
         this.showInfos = true;
+        this.showHabitableZone = false;
+        this.showEclipticGrid = false;
+
+        this.habitableZoneMesh = null;
+        this.eclipticGridMesh = null;
 
         this.simDate = new Date();
         this.tourMode = false;
@@ -167,6 +177,10 @@ export class SceneManager {
         // Spacecrafts
         this.createSpacecrafts();
 
+        // Environment Enhancements
+        this.createHabitableZone();
+        this.createEclipticGrid();
+
         // Resize handling
         window.addEventListener('resize', () => this.onWindowResize());
     }
@@ -214,6 +228,86 @@ export class SceneManager {
         }
 
         this.scene.add(this.asteroidBelt);
+    }
+
+    createHabitableZone() {
+        // Habitable zone for Sun is roughly 0.95 to 1.37 AU
+        // In our scale: Earth is at 130
+        const innerRadius = 120;
+        const outerRadius = 180;
+
+        const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 128);
+
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                innerRadius: { value: innerRadius },
+                outerRadius: { value: outerRadius },
+                color: { value: new THREE.Color(0x00ff00) },
+                time: { value: 0 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                varying vec3 vPosition;
+                void main() {
+                    vUv = uv;
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float innerRadius;
+                uniform float outerRadius;
+                uniform vec3 color;
+                varying vec2 vUv;
+                varying vec3 vPosition;
+
+                void main() {
+                    float dist = length(vPosition.xy);
+                    // Smooth edges
+                    float alpha = smoothstep(innerRadius, innerRadius + 10.0, dist) *
+                                  (1.0 - smoothstep(outerRadius - 10.0, outerRadius, dist));
+
+                    gl_FragColor = vec4(color, alpha * 0.15); // Very transparent green
+                }
+            `,
+            side: THREE.DoubleSide,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        this.habitableZoneMesh = new THREE.Mesh(geometry, material);
+        this.habitableZoneMesh.rotation.x = -Math.PI / 2;
+        this.habitableZoneMesh.visible = this.showHabitableZone;
+        this.scene.add(this.habitableZoneMesh);
+    }
+
+    createEclipticGrid() {
+        // Ecliptic plane grid
+        const radius = 1000;
+        const radials = 16;
+        const circles = 10;
+        const divisions = 64;
+        const color1 = new THREE.Color(0x444444);
+        const color2 = new THREE.Color(0x222222);
+
+        this.eclipticGridMesh = new THREE.PolarGridHelper(radius, radials, circles, divisions, color1, color2);
+        this.eclipticGridMesh.visible = this.showEclipticGrid;
+
+        // Ensure the grid is transparent and non-obtrusive
+        if (this.eclipticGridMesh.material instanceof THREE.Material) {
+            this.eclipticGridMesh.material.transparent = true;
+            this.eclipticGridMesh.material.opacity = 0.3;
+            this.eclipticGridMesh.material.depthWrite = false;
+        } else if (Array.isArray(this.eclipticGridMesh.material)) {
+            for (const mat of this.eclipticGridMesh.material) {
+                mat.transparent = true;
+                mat.opacity = 0.3;
+                mat.depthWrite = false;
+            }
+        }
+
+        this.scene.add(this.eclipticGridMesh);
     }
 
     createKuiperBelt() {
@@ -523,6 +617,12 @@ export class SceneManager {
             }
         });
 
+        if (this.habitableZoneMesh && this.showHabitableZone) {
+            if (this.habitableZoneMesh.material instanceof THREE.ShaderMaterial) {
+                this.habitableZoneMesh.material.uniforms.time.value += deltaTime;
+            }
+        }
+
         if (this.showComets) {
             this.comets.forEach(comet => {
                 comet.update(deltaTime);
@@ -672,6 +772,20 @@ export class SceneManager {
         this.planets.forEach(planet => {
             planet.toggleInfo(visible);
         });
+    }
+
+    toggleHabitableZone(visible: boolean) {
+        this.showHabitableZone = visible;
+        if (this.habitableZoneMesh) {
+            this.habitableZoneMesh.visible = visible;
+        }
+    }
+
+    toggleEclipticGrid(visible: boolean) {
+        this.showEclipticGrid = visible;
+        if (this.eclipticGridMesh) {
+            this.eclipticGridMesh.visible = visible;
+        }
     }
 
     focusOnBody(name: string) {
