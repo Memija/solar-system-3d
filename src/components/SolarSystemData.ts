@@ -22,6 +22,7 @@ export interface MoonData {
     images?: string[];
     links?: LinkData[];
     rings?: RingData[];
+    axialTilt?: number; // in degrees
 }
 
 export interface CelestialBodyData {
@@ -40,6 +41,7 @@ export interface CelestialBodyData {
     ra?: number; // For stars
     dec?: number; // For stars
     isDwarfPlanet?: boolean;
+    axialTilt?: number; // in degrees
 }
 
 export interface StarData {
@@ -223,6 +225,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 0,
         color: 0xffff00,
         texture: 'textures/sun.png',
+        axialTilt: 7.25,
         description: "The Sun is the star at the center of the Solar System. It is a nearly perfect sphere of hot plasma, heated to incandescence by nuclear fusion reactions in its core, radiating the energy mainly as visible light, ultraviolet light, and infrared radiation. It is by far the most important source of energy for life on Earth.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg",
         images: [
@@ -242,6 +245,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 0.24,
         color: 0xaaaaaa,
         texture: 'textures/mercury.png',
+        axialTilt: 0.034,
         description: "Mercury is the smallest planet in the Solar System and the closest to the Sun. Its orbit around the Sun takes 87.97 Earth days, the shortest of all the Sun's planets. It is named after the Roman god Mercurius (Mercury), god of commerce, messenger of the gods, and mediator between gods and mortals.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Mercury_in_color_-_Prockter07-edit1.jpg/800px-Mercury_in_color_-_Prockter07-edit1.jpg",
         images: [
@@ -261,6 +265,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 0.62,
         color: 0xffcc00,
         texture: 'textures/venus.png',
+        axialTilt: 177.36,
         description: "Venus is the second planet from the Sun. It is named after the Roman goddess of love and beauty. As the brightest natural object in Earth's night sky after the Moon, Venus can cast shadows and can be visible to the naked eye in broad daylight.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Venus-real_color.jpg/800px-Venus-real_color.jpg",
         images: [
@@ -280,6 +285,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 1,
         color: 0x0000ff,
         texture: 'textures/earth.png',
+        axialTilt: 23.44,
         description: "Earth is the third planet from the Sun and the only astronomical object known to harbor life. About 29% of Earth's surface is land consisting of continents and islands. The remaining 71% is covered with water, mostly by oceans, seas, gulfs, and other salt-water bodies, but also by lakes, rivers, and other freshwater.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/800px-The_Earth_seen_from_Apollo_17.jpg",
         images: [
@@ -299,6 +305,7 @@ export const SolarSystemData: CelestialBodyData[] = [
                 period: 0.074,
                 color: 0x888888,
                 texture: 'textures/moon.jpg',
+                axialTilt: 6.68,
                 description: "The Moon is Earth's only natural satellite. It is the fifth largest satellite in the Solar System and the largest and most massive relative to its parent planet.",
                 imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/800px-FullMoon2010.jpg",
                 images: [
@@ -320,6 +327,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 1.88,
         color: 0xff0000,
         texture: 'textures/mars.png',
+        axialTilt: 25.19,
         description: "Mars is the fourth planet from the Sun and the second-smallest planet in the Solar System, being larger than only Mercury. In English, Mars carries the name of the Roman god of war and is often referred to as the 'Red Planet'.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/800px-OSIRIS_Mars_true_color.jpg",
         images: [
@@ -365,6 +373,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 11.86,
         color: 0xffa500,
         texture: 'textures/jupiter.png',
+        axialTilt: 3.13,
         description: "Jupiter is the fifth planet from the Sun and the largest in the Solar System. It is a gas giant with a mass one-thousandth that of the Sun, but two-and-a-half times that of all the other planets in the Solar System combined.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/800px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg",
         images: [
@@ -390,6 +399,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 29.45,
         color: 0xffd700,
         texture: 'textures/saturn.png',
+        axialTilt: 26.73,
         description: "Saturn is the sixth planet from the Sun and the second-largest in the Solar System, after Jupiter. It is a gas giant with an average radius of about nine and a half times that of Earth. It has only one-eighth the average density of Earth; however, with its larger volume, Saturn is over 95 times more massive.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/800px-Saturn_during_Equinox.jpg",
         images: [
@@ -416,6 +426,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 84,
         color: 0x00ffff,
         texture: 'textures/uranus.png',
+        axialTilt: 97.77,
         description: "Uranus is the seventh planet from the Sun. Its name is a reference to the Greek god of the sky, Uranus, who, according to Greek mythology, was the great-grandfather of Ares (Mars), grandfather of Zeus (Jupiter) and father of Cronus (Saturn). It has the third-largest planetary radius and fourth-largest planetary mass in the Solar System.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/800px-Uranus2.jpg",
         images: [
@@ -439,6 +450,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 164.8,
         color: 0x0000ff,
         texture: 'textures/neptune.png',
+        axialTilt: 28.32,
         description: "Neptune is the eighth and farthest-known Solar planet from the Sun. In the Solar System, it is the fourth-largest planet by diameter, the third-most-massive planet, and the densest giant planet. It is 17 times the mass of Earth, slightly more massive than its near-twin Uranus.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg/800px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg",
         images: [
@@ -474,6 +486,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         period: 248,
         color: 0xddaa88,
         texture: 'textures/pluto.png',
+        axialTilt: 122.53,
         description: "Pluto is a dwarf planet in the Kuiper belt, a ring of bodies beyond the orbit of Neptune. It was the first and the largest Kuiper belt object to be discovered. Pluto was discovered by Clyde Tombaugh in 1930 and declared to be the ninth planet from the Sun.",
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Pluto_in_True_Color_-_High-Res.jpg/800px-Pluto_in_True_Color_-_High-Res.jpg",
         images: [

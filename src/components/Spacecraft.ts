@@ -77,6 +77,14 @@ export class Spacecraft {
             const mesh = new THREE.Mesh(geo, material);
             this.mesh.add(mesh);
         }
+
+        // Apply shadows to all meshes in the spacecraft group
+        this.mesh.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
     }
 
     private createJWSTModel(material: THREE.MeshStandardMaterial) {
