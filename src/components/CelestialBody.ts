@@ -12,6 +12,7 @@ export class CelestialBody {
     angle: number;
     moons: CelestialBody[];
     orbitGroup: THREE.Group;
+    tiltGroup: THREE.Group;
     cloudMesh?: THREE.Mesh;
     atmosphereMesh?: THREE.Mesh;
     shaderMaterial?: THREE.ShaderMaterial;
@@ -36,6 +37,7 @@ export class CelestialBody {
         this.angle = THREE.MathUtils.seededRandom() * Math.PI * 2;
         this.moons = [];
         this.orbitGroup = new THREE.Group(); // Initialize here to satisfy TS
+        this.tiltGroup = new THREE.Group();
         this.ringMeshes = [];
         this.labelSprite = null;
         this.infoSprite = null;
@@ -53,6 +55,13 @@ export class CelestialBody {
         // Group to hold mesh and moons, positioned at orbit
         this.orbitGroup = new THREE.Group();
         this.parent.add(this.orbitGroup);
+
+        // Group to handle axial tilt
+        this.tiltGroup = new THREE.Group();
+        if (this.data.axialTilt !== undefined) {
+            this.tiltGroup.rotation.z = THREE.MathUtils.degToRad(this.data.axialTilt); // Tilt on Z axis
+        }
+        this.orbitGroup.add(this.tiltGroup);
 
         // Geometry - Increase segments for larger planets
         let segments = 64;
@@ -108,7 +117,11 @@ export class CelestialBody {
         }
 
         this.mesh = new THREE.Mesh(geometry, material);
-        this.orbitGroup.add(this.mesh);
+        if (this.data.name !== 'Sun') {
+            this.mesh.castShadow = true;
+            this.mesh.receiveShadow = true;
+        }
+        this.tiltGroup.add(this.mesh);
 
         // --- EARTH SPECIFIC ADDITIONS ---
         if (this.data.name === 'Earth') {
@@ -124,9 +137,9 @@ export class CelestialBody {
                 depthWrite: false
             });
             this.cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
-            this.cloudMesh.castShadow = false;
-            this.cloudMesh.receiveShadow = false;
-            this.orbitGroup.add(this.cloudMesh);
+            this.cloudMesh.castShadow = true;
+            this.cloudMesh.receiveShadow = true;
+            this.tiltGroup.add(this.cloudMesh);
 
             // 3. Atmosphere Glow (Fresnel)
             const atmosphereGeometry = new THREE.SphereGeometry(this.data.radius * 1.025, 64, 64);
@@ -163,7 +176,7 @@ export class CelestialBody {
             });
 
             this.atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-            this.orbitGroup.add(this.atmosphereMesh);
+            this.tiltGroup.add(this.atmosphereMesh);
 
             // 4. Meteor Shower
             this.createMeteors();
@@ -245,20 +258,19 @@ export class CelestialBody {
             });
             const ringMesh = new THREE.Mesh(geometry, material);
 
+            // Shadows for rings
+            ringMesh.castShadow = true;
+            ringMesh.receiveShadow = true;
+
             // Rings are typically aligned with the planet's equator
             // By default, RingGeometry is in the XY plane. We need it in the XZ plane for typical orbit.
             ringMesh.rotation.x = Math.PI / 2;
 
-            // Specific tilt for Uranus
-            if (this.data.name === 'Uranus') {
-                ringMesh.rotation.y = Math.PI / 2;
-            } else if (this.data.name === 'Saturn') {
-                // Saturn's axial tilt is about 26.7 degrees
-                ringMesh.rotation.x = Math.PI / 2 - THREE.MathUtils.degToRad(26.7);
-            }
+            // Since we applied tilt to tiltGroup, the rings will inherit this.
+            // We just need to attach them to tiltGroup or mesh. Let's attach to tiltGroup.
 
             if (this.mesh) {
-                this.mesh.add(ringMesh);
+                this.tiltGroup.add(ringMesh);
             } else {
                 this.orbitGroup.add(ringMesh);
             }
@@ -468,17 +480,11 @@ export class CelestialBody {
 
         // Rotate planet on its axis
         if (this.mesh) {
-            if (this.data.name === 'Uranus') {
-                // Uranus rotates on its side
-                this.mesh.rotation.x += 0.5 * deltaTime;
-            } else {
-                this.mesh.rotation.y += 0.5 * deltaTime;
-            }
+            // Rotate around local Y axis (which is tilted via tiltGroup)
+            this.mesh.rotation.y += 0.5 * deltaTime;
         }
 
         // Rotate Rings
-        // Note: since rings are now a child of the mesh, they inherit its rotation automatically.
-        // We can just add a slight local rotation if needed, or leave it to inherit.
         this.ringMeshes.forEach(ring => {
              // Rotate around local Z axis since they were rotated 90deg on X
              ring.rotation.z += 0.2 * deltaTime;

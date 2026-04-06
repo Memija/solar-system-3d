@@ -42,6 +42,10 @@ export class SceneManager {
     showInfos: boolean;
     showHabitableZone: boolean;
     showEclipticGrid: boolean;
+    realisticLighting: boolean;
+
+    ambientLight: THREE.AmbientLight;
+    pointLight: THREE.PointLight;
 
     habitableZoneMesh: THREE.Mesh | null;
     eclipticGridMesh: THREE.PolarGridHelper | null;
@@ -84,6 +88,11 @@ export class SceneManager {
         this.showInfos = true;
         this.showHabitableZone = false;
         this.showEclipticGrid = false;
+        this.realisticLighting = false;
+
+        // Will be initialized in init()
+        this.ambientLight = new THREE.AmbientLight();
+        this.pointLight = new THREE.PointLight();
 
         this.habitableZoneMesh = null;
         this.eclipticGridMesh = null;
@@ -150,11 +159,25 @@ export class SceneManager {
         };
 
         // Lighting (Sun)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // Very bright ambient light to ensure visibility
-        this.scene.add(ambientLight);
+        // Store ambient light to toggle realistic lighting later
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // Default to bright ambient
+        this.scene.add(this.ambientLight);
 
-        const pointLight = new THREE.PointLight(0xffffff, 2.5, 0, 0); // Stronger Sun light
-        this.scene.add(pointLight);
+        this.pointLight = new THREE.PointLight(0xffffff, 3.0, 0, 0); // Stronger Sun light
+        this.pointLight.castShadow = true;
+
+        // Shadow map settings
+        this.pointLight.shadow.mapSize.width = 4096;
+        this.pointLight.shadow.mapSize.height = 4096;
+        this.pointLight.shadow.camera.near = 10;
+        this.pointLight.shadow.camera.far = 2000;
+        this.pointLight.shadow.bias = -0.0005;
+
+        this.scene.add(this.pointLight);
+
+        // Enable shadows on renderer
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         // Starfield
         this.createStarfield();
@@ -785,6 +808,18 @@ export class SceneManager {
         this.showEclipticGrid = visible;
         if (this.eclipticGridMesh) {
             this.eclipticGridMesh.visible = visible;
+        }
+    }
+
+    toggleRealisticLighting(visible: boolean) {
+        this.realisticLighting = visible;
+        if (this.ambientLight) {
+            // Realistic lighting has very low ambient light to show stark shadows
+            this.ambientLight.intensity = visible ? 0.05 : 2.5;
+        }
+        if (this.pointLight) {
+            // Maybe tweak sun brightness slightly
+            this.pointLight.intensity = visible ? 4.0 : 3.0;
         }
     }
 
