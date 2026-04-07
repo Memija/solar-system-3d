@@ -43,6 +43,7 @@ export class SceneManager {
     showHabitableZone: boolean;
     showEclipticGrid: boolean;
     realisticLighting: boolean;
+    showAxes: boolean;
 
     ambientLight: THREE.AmbientLight;
     pointLight: THREE.PointLight;
@@ -89,6 +90,7 @@ export class SceneManager {
         this.showHabitableZone = false;
         this.showEclipticGrid = false;
         this.realisticLighting = false;
+        this.showAxes = false;
 
         // Will be initialized in init()
         this.ambientLight = new THREE.AmbientLight();
@@ -821,6 +823,15 @@ export class SceneManager {
             // Maybe tweak sun brightness slightly
             this.pointLight.intensity = visible ? 4.0 : 3.0;
         }
+    }
+
+    toggleAxes(visible: boolean) {
+        this.showAxes = visible;
+        this.planets.forEach(planet => {
+            if (planet.toggleAxes) {
+                planet.toggleAxes(visible);
+            }
+        });
     }
 
     focusOnBody(name: string) {

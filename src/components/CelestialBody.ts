@@ -29,6 +29,9 @@ export class CelestialBody {
     trailPositions: THREE.Vector3[];
     showTrails: boolean;
 
+    axisLine: THREE.Line | null;
+    showAxes: boolean;
+
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
         this.data = data;
         this.parent = parent;
@@ -48,6 +51,9 @@ export class CelestialBody {
         this.trailLine = null;
         this.trailPositions = [];
         this.showTrails = false;
+
+        this.axisLine = null;
+        this.showAxes = false;
 
         this.init();
     }
@@ -193,6 +199,9 @@ export class CelestialBody {
             this.createRings();
         }
 
+        // Create Axis
+        this.createAxis();
+
         // Create Labels
         this.createLabel();
         this.createInfoLabel();
@@ -204,6 +213,31 @@ export class CelestialBody {
                 this.moons.push(moon);
             });
         }
+    }
+
+    createAxis() {
+        if (this.data.name === 'Sun') return;
+
+        const axisLength = this.data.radius * 2.5;
+        const geometry = new THREE.BufferGeometry();
+        const vertices = new Float32Array([
+            0, -axisLength / 2, 0,
+            0, axisLength / 2, 0
+        ]);
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+        const material = new THREE.LineBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.5,
+            linewidth: 1
+        });
+
+        this.axisLine = new THREE.Line(geometry, material);
+        this.axisLine.visible = this.showAxes;
+
+        // Add to tiltGroup so it shows the actual rotation axis
+        this.tiltGroup.add(this.axisLine);
     }
 
     createLabel() {
@@ -572,5 +606,13 @@ export class CelestialBody {
             this.infoSprite.visible = visible;
         }
         this.moons.forEach(moon => moon.toggleInfo(visible));
+    }
+
+    toggleAxes(visible: boolean) {
+        this.showAxes = visible;
+        if (this.axisLine) {
+            this.axisLine.visible = visible;
+        }
+        this.moons.forEach(moon => moon.toggleAxes(visible));
     }
 }
