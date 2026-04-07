@@ -112,7 +112,8 @@ export class UIManager {
             enableBloom: true,
             showHabitableZone: false,
             showEclipticGrid: false,
-            realisticLighting: false
+            realisticLighting: false,
+            showAxes: false
         };
 
         // Simulation Controls
@@ -173,6 +174,9 @@ export class UIManager {
         });
         envFolder.add(params, 'realisticLighting').name('Realistic Lighting').onChange(val => {
             this.sceneManager.toggleRealisticLighting(val);
+        });
+        envFolder.add(params, 'showAxes').name('Show Axes').onChange(val => {
+            this.sceneManager.toggleAxes(val);
         });
         envFolder.open();
 
