@@ -58,6 +58,12 @@ export class SceneManager {
     tourTimer: number;
     tourInterval: number;
 
+    measureMode: boolean;
+    measureTargetA: CelestialBody | Comet | Spacecraft | null;
+    measureTargetB: CelestialBody | Comet | Spacecraft | null;
+    measureLine: THREE.Line | null;
+    measureLabel: THREE.Sprite | null;
+
     constructor(container: HTMLElement) {
         this.container = container;
         // Initialize properties to satisfy TS strict initialization
@@ -105,6 +111,12 @@ export class SceneManager {
         this.tourIndex = 0;
         this.tourTimer = 0;
         this.tourInterval = 5;
+
+        this.measureMode = false;
+        this.measureTargetA = null;
+        this.measureTargetB = null;
+        this.measureLine = null;
+        this.measureLabel = null;
 
         this.constellationManager = new ConstellationManager(this.scene);
 
@@ -208,6 +220,61 @@ export class SceneManager {
 
         // Resize handling
         window.addEventListener('resize', () => this.onWindowResize());
+
+        this.createMeasureTools();
+    }
+
+    createMeasureTools() {
+        const material = new THREE.LineDashedMaterial({
+            color: 0x00ff00,
+            linewidth: 2,
+            scale: 1,
+            dashSize: 10,
+            gapSize: 5,
+        });
+
+        const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 1)]);
+        this.measureLine = new THREE.Line(geometry, material);
+        this.measureLine.computeLineDistances();
+        this.measureLine.visible = false;
+        this.scene.add(this.measureLine);
+
+        // Label
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 128;
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false });
+        this.measureLabel = new THREE.Sprite(spriteMaterial);
+        this.measureLabel.scale.set(60, 15, 1);
+        this.measureLabel.visible = false;
+        this.scene.add(this.measureLabel);
+    }
+
+    updateMeasureLabel(text: string) {
+        if (!this.measureLabel || !this.measureLabel.material.map) return;
+        const canvas = this.measureLabel.material.map.image;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Background
+        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        context.beginPath();
+        context.roundRect(0, 0, canvas.width, canvas.height, 20);
+        context.fill();
+        context.strokeStyle = '#00ff00';
+        context.lineWidth = 4;
+        context.stroke();
+
+        context.font = 'Bold 48px Arial';
+        context.fillStyle = '#00ff00';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+        this.measureLabel.material.map.needsUpdate = true;
     }
 
     createAsteroidBelt() {
@@ -670,6 +737,9 @@ export class SceneManager {
             this.kuiperBelt.rotation.y -= 0.01 * deltaTime;
         }
 
+        // Update Measurement Tool
+        this.updateMeasurement();
+
         if (this.surfaceViewBody?.mesh) {
             const planetPos = new THREE.Vector3();
             this.surfaceViewBody.mesh.getWorldPosition(planetPos);
@@ -907,6 +977,88 @@ export class SceneManager {
             const cameraPos = center.clone().normalize().multiplyScalar(40000);
             this.camera.position.copy(cameraPos);
             this.controls.enabled = true;
+        }
+    }
+
+    updateMeasurement() {
+        if (!this.measureMode || !this.measureLine || !this.measureLabel) {
+            if (this.measureLine) this.measureLine.visible = false;
+            if (this.measureLabel) this.measureLabel.visible = false;
+            return;
+        }
+
+        if (this.measureTargetA && this.measureTargetA.mesh && this.measureTargetB && this.measureTargetB.mesh) {
+            const posA = new THREE.Vector3();
+            const posB = new THREE.Vector3();
+            this.measureTargetA.mesh.getWorldPosition(posA);
+            this.measureTargetB.mesh.getWorldPosition(posB);
+
+            // Update line
+            this.measureLine.geometry.setFromPoints([posA, posB]);
+            this.measureLine.computeLineDistances();
+            this.measureLine.visible = true;
+
+            // Update label position (midpoint)
+            const midPoint = posA.clone().add(posB).multiplyScalar(0.5);
+
+            // Offset label slightly towards camera so it's readable
+            const offset = new THREE.Vector3().subVectors(this.camera.position, midPoint).normalize().multiplyScalar(10);
+            this.measureLabel.position.copy(midPoint).add(offset);
+
+            // Calculate distance
+            const distanceScale = posA.distanceTo(posB);
+
+            // Scale label size based on camera distance so it's readable
+            const camDist = this.camera.position.distanceTo(this.measureLabel.position);
+            const scale = Math.max(camDist * 0.05, 10);
+            this.measureLabel.scale.set(scale * 4, scale, 1);
+
+            // Update text (distance)
+            // Note: Earth is at 130 in simulation. 1 AU = 130 units roughly.
+            const distanceAU = (distanceScale / 130).toFixed(2);
+            const distanceMkm = (parseFloat(distanceAU) * 149.6).toFixed(1);
+            this.updateMeasureLabel(`Dist: ${distanceAU} AU / ${distanceMkm} Mkm`);
+            this.measureLabel.visible = true;
+        } else {
+            this.measureLine.visible = false;
+            this.measureLabel.visible = false;
+        }
+    }
+
+    toggleMeasureMode(visible: boolean) {
+        this.measureMode = visible;
+        if (!visible) {
+            this.measureTargetA = null;
+            this.measureTargetB = null;
+            if (this.measureLine) this.measureLine.visible = false;
+            if (this.measureLabel) this.measureLabel.visible = false;
+        }
+    }
+
+    setMeasureTarget(name: string) {
+        let target: CelestialBody | Comet | Spacecraft | undefined;
+
+        const findTarget = (body: CelestialBody) => {
+            if (body.data.name === name) {
+                target = body;
+            }
+            body.moons.forEach(findTarget);
+        };
+
+        this.planets.forEach(findTarget);
+        target = target || this.comets.find(c => c.data.name === name);
+        target = target || this.spacecrafts.find(s => s.data.name === name);
+
+        if (target) {
+            if (!this.measureTargetA) {
+                this.measureTargetA = target;
+            } else if (!this.measureTargetB && target !== this.measureTargetA) {
+                this.measureTargetB = target;
+            } else {
+                // If both set, reset A to new target, B to null
+                this.measureTargetA = target;
+                this.measureTargetB = null;
+            }
         }
     }
 

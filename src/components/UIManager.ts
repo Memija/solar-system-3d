@@ -99,6 +99,7 @@ export class UIManager {
             timeSpeed: 1,
             showOrbits: true,
             showMoons: true,
+            measureMode: false,
             showAsteroids: true,
             showKuiperBelt: true,
             showDwarfPlanets: true,
@@ -201,6 +202,12 @@ export class UIManager {
         cameraFolder.add(cameraControls, 'focus').name('Attach Camera');
         cameraFolder.add(cameraControls, 'surfaceView').name('View from Surface');
         cameraFolder.add(cameraControls, 'detach').name('Free Camera');
+
+        const toolsFolder = gui.addFolder('Tools');
+        toolsFolder.add(params, 'measureMode').name('Measure Distance').onChange(val => {
+            this.sceneManager.toggleMeasureMode(val);
+        });
+        toolsFolder.open();
 
         const tourParams = {
             tourMode: false,
@@ -434,6 +441,12 @@ export class UIManager {
                     if (this.sceneManager.tourMode && this.tourController) {
                         this.tourController.setValue(false);
                     }
+
+                    if (this.sceneManager.measureMode) {
+                        this.sceneManager.setMeasureTarget(foundData.name);
+                        return true; // Don't show modal or focus when measuring
+                    }
+
                     this.showModal(foundData);
                     this.sceneManager.focusOnBody(foundData.name);
                     return true;
