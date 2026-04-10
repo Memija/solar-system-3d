@@ -191,7 +191,7 @@ export class UIManager {
             detach: () => this.sceneManager.detachCamera()
         };
 
-        // Dropdown for selecting target - keeping it as it was part of the old menu, 
+        // Dropdown for selecting target - keeping it as it was part of the old menu,
         // though redundant with the new menu, user asked to restore the "old camera related menu".
         // I will keep it to be safe, or I could remove just the target dropdown if I'm sure.
         // Given the user said "broke the old camera related menu", they probably miss the buttons.

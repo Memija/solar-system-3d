@@ -59,7 +59,7 @@ export class Modal {
                     ${data.images.map((img: string, index: number) => `
                         <img src="${img}" class="gallery-img" data-index="${index}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: ${index === 0 ? 1 : 0}; transition: opacity 0.5s;">
                     `).join('')}
-                    
+
                     ${data.images.length > 1 ? `
                         <button class="prev-btn" style="position: absolute; top: 50%; left: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; font-size: 24px; cursor: pointer; padding: 5px 10px; border-radius: 50%;">❮</button>
                         <button class="next-btn" style="position: absolute; top: 50%; right: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; font-size: 24px; cursor: pointer; padding: 5px 10px; border-radius: 50%;">❯</button>

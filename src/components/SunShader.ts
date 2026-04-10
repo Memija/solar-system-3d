@@ -14,12 +14,12 @@ uniform float time;
 varying vec2 vUv;
 varying vec3 vPosition;
 
-// Simplex 3D Noise 
+// Simplex 3D Noise
 // by Ian McEwan, Ashima Arts
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
-float snoise(vec3 v){ 
+float snoise(vec3 v){
   const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
   const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
@@ -33,16 +33,16 @@ float snoise(vec3 v){
   vec3 i1 = min( g.xyz, l.zxy );
   vec3 i2 = max( g.xyz, l.zxy );
 
-  //  x0 = x0 - 0.0 + 0.0 * C 
+  //  x0 = x0 - 0.0 + 0.0 * C
   vec3 x1 = x0 - i1 + 1.0 * C.xxx;
   vec3 x2 = x0 - i2 + 2.0 * C.xxx;
   vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
 
 // Permutations
-  i = mod(i, 289.0 ); 
-  vec4 p = permute( permute( permute( 
+  i = mod(i, 289.0 );
+  vec4 p = permute( permute( permute(
              i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+           + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
            + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
 
 // Gradients
@@ -84,7 +84,7 @@ float snoise(vec3 v){
 // Mix final noise value
   vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
   m = m * m;
-  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
                                 dot(p2,x2), dot(p3,x3) ) );
 }
 
@@ -92,25 +92,25 @@ void main() {
     // Scale position for noise
     float noiseVal = snoise(vPosition * 0.05 + vec3(time * 0.2));
     float noiseVal2 = snoise(vPosition * 0.1 - vec3(time * 0.3));
-    
+
     // Combine noise layers
     float combinedNoise = (noiseVal + noiseVal2 * 0.5);
-    
+
     // Colors
     vec3 color1 = vec3(1.0, 0.3, 0.0); // Dark Orange
     vec3 color2 = vec3(1.0, 0.8, 0.1); // Bright Yellow
     vec3 color3 = vec3(1.0, 1.0, 0.8); // White-hot
-    
+
     // Mix colors based on noise
     vec3 finalColor = mix(color1, color2, smoothstep(-0.5, 0.5, combinedNoise));
     finalColor = mix(finalColor, color3, smoothstep(0.5, 1.0, combinedNoise));
-    
+
     // Add a glow/fresnel effect at edges
     // Simple fresnel approximation
-    // vec3 viewDir = normalize(cameraPosition - vPosition); // Need world pos for this, vPosition is local? 
+    // vec3 viewDir = normalize(cameraPosition - vPosition); // Need world pos for this, vPosition is local?
     // Actually vPosition is local, so we can just use normal (which is normalized position for sphere)
     // But for basic effect, just the noise is enough for "surface"
-    
+
     gl_FragColor = vec4(finalColor, 1.0);
 }
 `;

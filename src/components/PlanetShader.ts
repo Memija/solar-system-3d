@@ -23,11 +23,11 @@ varying vec2 vUv;
 varying vec3 vPosition;
 varying vec3 vNormal;
 
-// Simplex 3D Noise 
+// Simplex 3D Noise
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
-float snoise(vec3 v){ 
+float snoise(vec3 v){
   const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
   const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
@@ -43,19 +43,19 @@ float snoise(vec3 v){
   vec3 x2 = x0 - i2 + 2.0 * C.xxx;
   vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
 
-  i = mod(i, 289.0 ); 
-  vec4 p = permute( permute( permute( 
+  i = mod(i, 289.0 );
+  vec4 p = permute( permute( permute(
              i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+           + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
            + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
 
   float n_ = 1.0/7.0; // N=7
   vec3  ns = n_ * D.wyz - D.xzx;
 
-  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
 
   vec4 x_ = floor(j * ns.z);
-  vec4 y_ = floor(j - 7.0 * x_ );    
+  vec4 y_ = floor(j - 7.0 * x_ );
 
   vec4 x = x_ *ns.x + ns.yyyy;
   vec4 y = y_ *ns.x + ns.yyyy;
@@ -84,37 +84,37 @@ float snoise(vec3 v){
 
   vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
   m = m * m;
-  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
                                 dot(p2,x2), dot(p3,x3) ) );
 }
 
 void main() {
     vec3 finalColor = vec3(0.0);
-    
+
     if (planetType == 1) { // Gas Giant (Jupiter/Saturn)
         // Bands based on Y position + noise
         float noiseVal = snoise(vPosition * 0.02 + vec3(time * 0.05, 0.0, 0.0));
         float band = sin(vPosition.y * 0.1 + noiseVal * 2.0);
-        
+
         // Mix colors based on bands
         finalColor = mix(color1, color2, smoothstep(-0.5, 0.5, band));
         finalColor = mix(finalColor, color3, smoothstep(0.5, 1.0, snoise(vPosition * 0.1))); // Add spots
-        
+
     } else if (planetType == 2) { // Ice Giant (Uranus/Neptune)
         // Smooth gradient + subtle noise
         float noiseVal = snoise(vPosition * 0.05 + vec3(time * 0.02));
         finalColor = mix(color1, color2, smoothstep(-1.0, 1.0, noiseVal));
-        
+
     } else { // Rocky (Mercury/Venus/Mars)
         // Crater-like noise
         float noiseVal = snoise(vPosition * 0.1);
         float noiseVal2 = snoise(vPosition * 0.5);
-        
+
         float combined = noiseVal + noiseVal2 * 0.5;
         finalColor = mix(color1, color2, smoothstep(-0.5, 0.5, combined));
         finalColor = mix(finalColor, color3, smoothstep(0.5, 1.0, combined));
     }
-    
+
     // Basic Lighting
     // Assume light comes from (0,0,0) - The Sun
     // In world space, Sun is at 0,0,0. vPosition is local.
@@ -123,18 +123,18 @@ void main() {
     // Actually, since planets orbit, the light direction changes in local space.
     // But for now, let's just make them self-luminous or ambiently lit to avoid "gray patches"
     // The user wants to REMOVE gray patches, so we should avoid harsh shadows.
-    
+
     // Let's add a "fake" lighting that always looks good
     // Or just use the calculated color as "albedo" and let Three.js lights handle it?
     // No, ShaderMaterial replaces everything. We need to implement lighting.
-    
+
     // Simple ambient + diffuse
     vec3 lightDir = normalize(vec3(0.0) - vPosition); // Light from center (Sun) ? No, vPosition is local.
     // We'll just output the color for now, making them look "painted" but clean.
     // To make it look 3D, we can add a simple rim light or gradient.
-    
+
     float intensity = 1.0; // Full brightness to avoid gray patches
-    
+
     gl_FragColor = vec4(finalColor * intensity, 1.0);
 }
 `;

@@ -22,7 +22,7 @@ export class Comet {
         this.data = data;
         this.parent = parent;
         this.orbitLine = null;
-        this.angle = Math.random() * Math.PI * 2; // Start at random position
+        this.angle = THREE.MathUtils.seededRandom() * Math.PI * 2; // Start at random position
         this.baseGroup = new THREE.Group();
         this.orbitGroup = new THREE.Group();
         this.tailParticles = null;
@@ -92,10 +92,10 @@ export class Comet {
 
         for (let i = 0; i < particleCount; i++) {
             // Initialize near center
-            positions[i * 3] = (Math.random() - 0.5) * this.data.radius;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * this.data.radius;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * this.data.radius;
-            lifetimes[i] = Math.random(); // 0.0 to 1.0
+            positions[i * 3] = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
+            positions[i * 3 + 1] = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
+            positions[i * 3 + 2] = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
+            lifetimes[i] = THREE.MathUtils.seededRandom(); // 0.0 to 1.0
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
