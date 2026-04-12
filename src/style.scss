@@ -1,0 +1,51 @@
+// Design tokens
+$color-bg: #000;
+$color-text: rgba(255, 255, 255, 0.87);
+$z-ui: 10;
+
+// Typography
+$font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+$line-height: 1.5;
+$font-weight: 400;
+
+:root {
+    font-family: $font-family;
+    line-height: $line-height;
+    font-weight: $font-weight;
+    color-scheme: dark;
+    color: $color-text;
+    background-color: $color-bg;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+}
+
+#ui-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: $z-ui;
+
+    >* {
+        pointer-events: auto;
+    }
+}
