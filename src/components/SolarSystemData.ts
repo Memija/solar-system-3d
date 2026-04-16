@@ -231,7 +231,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg",
             "https://images-assets.nasa.gov/image/GSFC_20171208_Archive_e001435/GSFC_20171208_Archive_e001435~orig.jpg",
-            "https://upload.wikimedia.org/wikipedia/commons/9/99/Solar_flare_seen_by_SDO_in_AIA_304.jpg"
+            "https://upload.wikimedia.org/wikipedia/commons/9/97/X5.4_solar_flare_seen_by_SDO_in_131_%C3%85_extreme_ultraviolet_light.jpg"
         ],
         links: [
             { title: "NASA: Sun Overview", url: "https://science.nasa.gov/sun" },
@@ -250,7 +250,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Mercury_in_color_-_Prockter07-edit1.jpg/800px-Mercury_in_color_-_Prockter07-edit1.jpg",
         images: [
             "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Mercury_in_color_-_Prockter07-edit1.jpg/800px-Mercury_in_color_-_Prockter07-edit1.jpg",
-            "https://upload.wikimedia.org/wikipedia/commons/3/30/Mercury_in_true_color.jpg",
+            "https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg",
             "https://images-assets.nasa.gov/image/PIA11364/PIA11364~orig.jpg"
         ],
         links: [
@@ -525,7 +525,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg/800px-Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg",
         images: [
             "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg/800px-Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg",
-            "https://upload.wikimedia.org/wikipedia/commons/0/0c/Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29.jpg",
+            "https://upload.wikimedia.org/wikipedia/commons/5/58/Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29.jpg",
             "https://images-assets.nasa.gov/image/PIA19631/PIA19631~orig.jpg"
         ],
         links: [
