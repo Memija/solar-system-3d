@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import { CelestialBodyData, MoonData } from './SolarSystemData.js';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
-import { createSpriteLabel, createInfoLabel, updateInfoLabel } from './LabelHelper.js';
+
 
 export class CelestialBody {
     data: CelestialBodyData | MoonData;
@@ -17,8 +17,6 @@ export class CelestialBody {
     atmosphereMesh?: THREE.Mesh;
     shaderMaterial?: THREE.ShaderMaterial;
     ringMeshes: THREE.Mesh[];
-    labelSprite: THREE.Sprite | null;
-    infoSprite: THREE.Sprite | null;
     lastUpdate?: number;
 
     meteorParticles: THREE.LineSegments | null;
@@ -42,8 +40,6 @@ export class CelestialBody {
         this.orbitGroup = new THREE.Group(); // Initialize here to satisfy TS
         this.tiltGroup = new THREE.Group();
         this.ringMeshes = [];
-        this.labelSprite = null;
-        this.infoSprite = null;
         this.meteorParticles = null;
         this.meteorVelocities = [];
         this.showMeteors = false;
@@ -534,20 +530,6 @@ export class CelestialBody {
             this.shaderMaterial.uniforms.time.value += deltaTime;
         }
 
-        if (this.infoSprite && this.infoSprite.visible) {
-            // Rate limit updates to ~4 times per second to prevent severe performance drop
-            if (!this.lastUpdate || performance.now() - this.lastUpdate > 250) {
-                // Recompute stats
-                const speedText = speed.toFixed(2) + ' km/s';
-                // Current actual distance from center (Sun/parent)
-                const currentDist = this.orbitGroup.position.length();
-                const distText = currentDist.toFixed(1) + ' Mkm';
-
-                updateInfoLabel(this.infoSprite, speedText, distText);
-                this.lastUpdate = performance.now();
-            }
-        }
-
         this.updateMeteors(deltaTime);
         this.updateTrail();
 
@@ -589,24 +571,11 @@ export class CelestialBody {
         this.moons.forEach(moon => {
             if (moon.mesh) moon.mesh.visible = visible;
             if (moon.orbitLine) moon.orbitLine.visible = visible;
-            if (moon.labelSprite) moon.labelSprite.visible = visible;
             moon.toggleMoons(visible);
         });
     }
 
-    toggleLabels(visible: boolean) {
-        if (this.labelSprite) {
-            this.labelSprite.visible = visible;
-        }
-        this.moons.forEach(moon => moon.toggleLabels(visible));
-    }
 
-    toggleInfo(visible: boolean) {
-        if (this.infoSprite) {
-            this.infoSprite.visible = visible;
-        }
-        this.moons.forEach(moon => moon.toggleInfo(visible));
-    }
 
     toggleAxes(visible: boolean) {
         this.showAxes = visible;

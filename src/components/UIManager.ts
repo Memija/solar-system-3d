@@ -107,8 +107,6 @@ export class UIManager {
             showSpacecrafts: true,
             showMeteors: false,
             showTrails: false,
-            showLabels: true,
-            showInfos: true,
             showMinimap: true,
             enableBloom: true,
             showHabitableZone: false,
@@ -149,12 +147,7 @@ export class UIManager {
         simFolder.add(params, 'showTrails').name('Show Trails').onChange(val => {
             this.sceneManager.toggleTrails(val);
         });
-        simFolder.add(params, 'showLabels').name('Show Labels').onChange(val => {
-            this.sceneManager.toggleLabels(val);
-        });
-        simFolder.add(params, 'showInfos').name('Show Info').onChange(val => {
-            this.sceneManager.toggleInfos(val);
-        });
+
         simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
             this.minimap.setVisible(val);
         });

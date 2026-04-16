@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CometData } from './SolarSystemData.js';
-import { createSpriteLabel } from './LabelHelper.js';
+
 
 export class Comet {
     data: CometData;
@@ -11,7 +11,6 @@ export class Comet {
     baseGroup: THREE.Group; // Group rotated to inclination/argument of periapsis
     angle: number; // Current mean anomaly in radians
     tailParticles: THREE.Points | null;
-    labelSprite: THREE.Sprite | null;
 
     // Orbit parameters
     a: number; // Semi-major axis
@@ -26,7 +25,6 @@ export class Comet {
         this.baseGroup = new THREE.Group();
         this.orbitGroup = new THREE.Group();
         this.tailParticles = null;
-        this.labelSprite = null;
 
         // Calculate orbit parameters
         this.a = this.data.semiMajorAxis;
@@ -80,8 +78,7 @@ export class Comet {
         // Create Orbit
         this.createOrbit();
 
-        // Create Label
-        this.createLabel();
+
     }
 
     createTail() {
@@ -183,16 +180,7 @@ export class Comet {
         this.baseGroup.add(this.orbitLine);
     }
 
-    createLabel() {
-        const sprite = createSpriteLabel(this.data.name);
-        if (!sprite) return;
 
-        sprite.scale.set(40, 10, 1);
-        sprite.position.y = this.data.radius + 3;
-
-        this.orbitGroup.add(sprite);
-        this.labelSprite = sprite;
-    }
 
     update(deltaTime: number) {
         // Simple Keplerian update
@@ -261,9 +249,5 @@ export class Comet {
         }
     }
 
-    toggleLabels(visible: boolean) {
-        if (this.labelSprite) {
-            this.labelSprite.visible = visible;
-        }
-    }
+
 }

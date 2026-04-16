@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SpacecraftData } from './SolarSystemData.js';
-import { createSpriteLabel } from './LabelHelper.js';
+
 
 export class Spacecraft {
     data: SpacecraftData;
@@ -10,7 +10,6 @@ export class Spacecraft {
     orbitGroup: THREE.Group;
     baseGroup: THREE.Group;
     angle: number;
-    labelSprite: THREE.Sprite | null;
 
     constructor(data: SpacecraftData, parent: THREE.Object3D) {
         this.data = data;
@@ -25,7 +24,6 @@ export class Spacecraft {
         this.baseGroup = new THREE.Group();
         this.orbitGroup = new THREE.Group();
         this.mesh = new THREE.Group();
-        this.labelSprite = null;
 
         this.init();
     }
@@ -49,7 +47,6 @@ export class Spacecraft {
             this.orbitGroup.position.set(this.data.distance, 0, 0);
         }
 
-        this.createLabel();
     }
 
     createModel() {
@@ -206,16 +203,7 @@ export class Spacecraft {
         this.baseGroup.add(this.orbitLine);
     }
 
-    createLabel() {
-        const sprite = createSpriteLabel(this.data.name);
-        if (!sprite) return;
 
-        sprite.scale.set(15, 3.75, 1);
-        sprite.position.y = 0.5;
-
-        this.orbitGroup.add(sprite);
-        this.labelSprite = sprite;
-    }
 
     update(deltaTime: number) {
         if (this.data.escaping) {
@@ -247,9 +235,5 @@ export class Spacecraft {
         }
     }
 
-    toggleLabels(visible: boolean) {
-        if (this.labelSprite) {
-            this.labelSprite.visible = visible;
-        }
-    }
+
 }
