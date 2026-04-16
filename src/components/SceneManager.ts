@@ -611,8 +611,11 @@ export class SceneManager {
             this.scene.add(starMesh);
             this.starMeshes.push(starMesh);
 
+
         });
     }
+
+
 
     createPlanets() {
         SolarSystemData.forEach(data => {
@@ -822,6 +825,8 @@ export class SceneManager {
             }
         });
     }
+
+
 
     toggleHabitableZone(visible: boolean) {
         this.showHabitableZone = visible;

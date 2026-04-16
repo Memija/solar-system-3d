@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CelestialBodyData, MoonData } from './SolarSystemData.js';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
 
+
 export class CelestialBody {
     data: CelestialBodyData | MoonData;
     parent: THREE.Object3D;
@@ -197,6 +198,9 @@ export class CelestialBody {
         // Create Axis
         this.createAxis();
 
+        // Create Labels
+        this.createLabel();
+        this.createInfoLabel();
 
         // Create Moons
         if ('moons' in this.data && this.data.moons) {
@@ -230,6 +234,45 @@ export class CelestialBody {
 
         // Add to tiltGroup so it shows the actual rotation axis
         this.tiltGroup.add(this.axisLine);
+    }
+
+    createLabel() {
+        if (this.data.name === 'Sun') return;
+
+        const sprite = createSpriteLabel(this.data.name);
+        if (!sprite) return;
+
+        // Scale label size based on planet radius to be visible
+        // Base scale + offset based on radius
+        const labelScale = Math.max(this.data.radius * 3, 5);
+        sprite.scale.set(labelScale * 4, labelScale, 1);
+
+        // Position above the planet
+        sprite.position.y = this.data.radius + labelScale / 2 + 1;
+
+        this.orbitGroup.add(sprite);
+        this.labelSprite = sprite;
+    }
+
+    createInfoLabel() {
+        if (this.data.name === 'Sun') return;
+
+        const speedMultiplier = 0.5;
+        const speed = this.data.period === 0 ? 0 : (1 / this.data.period) * speedMultiplier;
+        const speedText = speed.toFixed(2) + ' km/s'; // Dummy formatting, representing speed
+        const distText = this.data.distance + ' Mkm'; // Dummy formatting for distance
+
+        const sprite = createInfoLabel(speedText, distText);
+        if (!sprite) return;
+
+        const labelScale = Math.max(this.data.radius * 3, 5);
+        sprite.scale.set(labelScale * 4, labelScale, 1);
+
+        // Position it below the planet name label
+        sprite.position.y = this.data.radius + labelScale / 2 - 1.5;
+
+        this.orbitGroup.add(sprite);
+        this.infoSprite = sprite;
     }
 
     createRings() {
@@ -531,6 +574,8 @@ export class CelestialBody {
             moon.toggleMoons(visible);
         });
     }
+
+
 
     toggleAxes(visible: boolean) {
         this.showAxes = visible;

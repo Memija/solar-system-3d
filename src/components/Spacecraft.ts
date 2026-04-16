@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SpacecraftData } from './SolarSystemData.js';
 
+
 export class Spacecraft {
     data: SpacecraftData;
     parent: THREE.Object3D;
@@ -202,6 +203,8 @@ export class Spacecraft {
         this.baseGroup.add(this.orbitLine);
     }
 
+
+
     update(deltaTime: number) {
         if (this.data.escaping) {
             // Voyager travels outward
@@ -231,5 +234,6 @@ export class Spacecraft {
             this.orbitLine.visible = visible;
         }
     }
+
 
 }

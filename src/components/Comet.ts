@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CometData } from './SolarSystemData.js';
 
+
 export class Comet {
     data: CometData;
     parent: THREE.Object3D;
@@ -76,6 +77,7 @@ export class Comet {
 
         // Create Orbit
         this.createOrbit();
+
 
     }
 
@@ -178,6 +180,8 @@ export class Comet {
         this.baseGroup.add(this.orbitLine);
     }
 
+
+
     update(deltaTime: number) {
         // Simple Keplerian update
         // We use Mean Anomaly (M) and Eccentric Anomaly (E)
@@ -244,5 +248,6 @@ export class Comet {
             this.orbitLine.visible = visible;
         }
     }
+
 
 }

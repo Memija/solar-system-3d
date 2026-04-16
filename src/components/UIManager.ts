@@ -147,6 +147,7 @@ export class UIManager {
         simFolder.add(params, 'showTrails').name('Show Trails').onChange(val => {
             this.sceneManager.toggleTrails(val);
         });
+
         simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
             this.minimap.setVisible(val);
         });
