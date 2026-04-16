@@ -38,8 +38,6 @@ export class SceneManager {
     showAsteroids: boolean;
     showKuiperBelt: boolean;
     showDwarfPlanets: boolean;
-    showLabels: boolean;
-    showInfos: boolean;
     showHabitableZone: boolean;
     showEclipticGrid: boolean;
     realisticLighting: boolean;
@@ -91,8 +89,6 @@ export class SceneManager {
         this.showAsteroids = true;
         this.showKuiperBelt = true;
         this.showDwarfPlanets = true;
-        this.showLabels = true;
-        this.showInfos = true;
         this.showHabitableZone = false;
         this.showEclipticGrid = false;
         this.realisticLighting = false;
@@ -615,31 +611,7 @@ export class SceneManager {
             this.scene.add(starMesh);
             this.starMeshes.push(starMesh);
 
-            const label = this.createLabel(star.name);
-            label.position.set(x, y - 200, z);
-            this.scene.add(label);
         });
-    }
-
-    createLabel(text: string) {
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error("Could not get 2D context");
-
-        canvas.width = 256;
-        canvas.height = 64;
-
-        context.font = 'Bold 32px Arial';
-        context.fillStyle = 'rgba(255, 255, 255, 1)';
-        context.textAlign = 'center';
-        context.fillText(text, 128, 48);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(2000, 500, 1);
-
-        return sprite;
     }
 
     createPlanets() {
@@ -793,7 +765,6 @@ export class SceneManager {
             comet.mesh.visible = visible;
             if (comet.orbitLine) comet.orbitLine.visible = visible && this.showOrbits;
             if (comet.tailParticles) comet.tailParticles.visible = visible;
-            if (comet.labelSprite) comet.labelSprite.visible = visible && this.showLabels;
         });
     }
 
@@ -825,7 +796,6 @@ export class SceneManager {
         this.spacecrafts.forEach(sc => {
             sc.mesh.visible = visible;
             if (sc.orbitLine) sc.orbitLine.visible = visible && this.showOrbits;
-            if (sc.labelSprite) sc.labelSprite.visible = visible && this.showLabels;
         });
     }
 
@@ -850,22 +820,6 @@ export class SceneManager {
                 planet.orbitGroup.visible = visible;
                 planet.toggleOrbit(visible && this.showOrbits);
             }
-        });
-    }
-
-    toggleLabels(visible: boolean) {
-        this.showLabels = visible;
-        this.planets.forEach(planet => {
-            planet.toggleLabels(visible);
-        });
-        this.comets.forEach(comet => comet.toggleLabels(visible));
-        this.spacecrafts.forEach(sc => sc.toggleLabels(visible));
-    }
-
-    toggleInfos(visible: boolean) {
-        this.showInfos = visible;
-        this.planets.forEach(planet => {
-            planet.toggleInfo(visible);
         });
     }
 
