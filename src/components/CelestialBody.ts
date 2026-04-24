@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 import { CelestialBodyData, MoonData } from './SolarSystemData.js';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
+import { createSpriteLabel, createInfoLabel } from './LabelUtils';
 
 
 export class CelestialBody {

@@ -4,10 +4,10 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Ursa Major (Big Dipper)",
         description: "Ursa Major is a constellation in the northern sky, whose associated mythology likely dates back into prehistory. Its Latin name means 'greater (or larger) bear', referring to and contrasting with nearby Ursa Minor, the lesser bear.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Ursa_Major_IAU.svg/800px-Ursa_Major_IAU.svg.png",
+        imageUrl: "images/800px-Ursa_Major_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Ursa_Major_IAU.svg/800px-Ursa_Major_IAU.svg.png",
-            "https://cdn.esahubble.org/archives/images/screen/heic0406a.jpg"
+            "images/800px-Ursa_Major_IAU.svg.png",
+            "images/heic0406a.jpg"
         ],
         links: [
             { title: "Wikipedia: Ursa Major", url: "https://en.wikipedia.org/wiki/Ursa_Major" }
@@ -27,9 +27,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Ursa Minor (Little Dipper)",
         description: "Ursa Minor is a constellation in the Northern Sky. Like the Great Bear, the tail of the Little Bear may also be seen as the handle of a ladle, hence the North American name, Little Dipper.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Ursa_Minor_IAU.svg/800px-Ursa_Minor_IAU.svg.png",
+        imageUrl: "images/800px-Ursa_Minor_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Ursa_Minor_IAU.svg/800px-Ursa_Minor_IAU.svg.png"
+            "images/800px-Ursa_Minor_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Ursa Minor", url: "https://en.wikipedia.org/wiki/Ursa_Minor" }
@@ -49,10 +49,10 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Orion",
         description: "Orion is a prominent constellation located on the celestial equator and visible throughout the world. It is one of the most conspicuous and recognizable constellations in the night sky.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Orion_IAU.svg/800px-Orion_IAU.svg.png",
+        imageUrl: "images/800px-Orion_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Orion_IAU.svg/800px-Orion_IAU.svg.png",
-            "https://cdn.esahubble.org/archives/images/screen/heic0601a.jpg"
+            "images/800px-Orion_IAU.svg.png",
+            "images/heic0601a.jpg"
         ],
         links: [
             { title: "Wikipedia: Orion", url: "https://en.wikipedia.org/wiki/Orion_(constellation)" }
@@ -75,9 +75,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Cassiopeia",
         description: "Cassiopeia is a constellation in the northern sky, named after the vain queen Cassiopeia in Greek mythology, who boasted about her unrivalled beauty.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Cassiopeia_IAU.svg/800px-Cassiopeia_IAU.svg.png",
+        imageUrl: "images/800px-Cassiopeia_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Cassiopeia_IAU.svg/800px-Cassiopeia_IAU.svg.png"
+            "images/800px-Cassiopeia_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Cassiopeia", url: "https://en.wikipedia.org/wiki/Cassiopeia_(constellation)" }
@@ -95,9 +95,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Cygnus (The Swan)",
         description: "Cygnus is a northern constellation on the plane of the Milky Way, deriving its name from the Latinized Greek word for swan. It is one of the most recognizable constellations of the northern summer and autumn.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Cygnus_IAU.svg/800px-Cygnus_IAU.svg.png",
+        imageUrl: "images/800px-Cygnus_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Cygnus_IAU.svg/800px-Cygnus_IAU.svg.png"
+            "images/800px-Cygnus_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Cygnus", url: "https://en.wikipedia.org/wiki/Cygnus_(constellation)" }
@@ -115,9 +115,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Scorpius",
         description: "Scorpius is one of the constellations of the zodiac. Its name is Latin for scorpion. It lies between Libra to the west and Sagittarius to the east. It is a large constellation located in the southern hemisphere near the center of the Milky Way.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Scorpius_IAU.svg/800px-Scorpius_IAU.svg.png",
+        imageUrl: "images/800px-Scorpius_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Scorpius_IAU.svg/800px-Scorpius_IAU.svg.png"
+            "images/800px-Scorpius_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Scorpius", url: "https://en.wikipedia.org/wiki/Scorpius" }
@@ -136,9 +136,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Crux (Southern Cross)",
         description: "Crux is a constellation in the southern sky that is centred on four bright stars in a cross-shaped asterism known as the Southern Cross. It lies on the southern end of the Milky Way's visible band.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Crux_IAU.svg/800px-Crux_IAU.svg.png",
+        imageUrl: "images/800px-Crux_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Crux_IAU.svg/800px-Crux_IAU.svg.png"
+            "images/800px-Crux_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Crux", url: "https://en.wikipedia.org/wiki/Crux" }
@@ -155,9 +155,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Leo",
         description: "Leo is one of the constellations of the zodiac, lying between Cancer the crab to the west and Virgo the maiden to the east. Its name is Latin for lion.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Leo_IAU.svg/800px-Leo_IAU.svg.png",
+        imageUrl: "images/800px-Leo_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Leo_IAU.svg/800px-Leo_IAU.svg.png"
+            "images/800px-Leo_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Leo", url: "https://en.wikipedia.org/wiki/Leo_(constellation)" }
@@ -174,9 +174,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Gemini",
         description: "Gemini is one of the constellations of the zodiac. Its name is Latin for twins, and it is associated with the mythological twins Castor and Pollux.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Gemini_IAU.svg/800px-Gemini_IAU.svg.png",
+        imageUrl: "images/800px-Gemini_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Gemini_IAU.svg/800px-Gemini_IAU.svg.png"
+            "images/800px-Gemini_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Gemini", url: "https://en.wikipedia.org/wiki/Gemini_(constellation)" }
@@ -192,9 +192,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Taurus",
         description: "Taurus is one of the constellations of the zodiac and is located in the northern hemisphere. Taurus is a large and prominent constellation in the northern hemisphere's winter sky.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Taurus_IAU.svg/800px-Taurus_IAU.svg.png",
+        imageUrl: "images/800px-Taurus_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Taurus_IAU.svg/800px-Taurus_IAU.svg.png"
+            "images/800px-Taurus_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Taurus", url: "https://en.wikipedia.org/wiki/Taurus_(constellation)" }
@@ -210,9 +210,9 @@ export const MajorConstellations: ConstellationData[] = [
     {
         name: "Canis Major",
         description: "Canis Major is a constellation in the southern celestial hemisphere. In the second century, it was included in Ptolemy's 48 constellations, and is counted among the 88 modern constellations.",
-        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Canis_Major_IAU.svg/800px-Canis_Major_IAU.svg.png",
+        imageUrl: "images/800px-Canis_Major_IAU.svg.png",
         images: [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Canis_Major_IAU.svg/800px-Canis_Major_IAU.svg.png"
+            "images/800px-Canis_Major_IAU.svg.png"
         ],
         links: [
             { title: "Wikipedia: Canis Major", url: "https://en.wikipedia.org/wiki/Canis_Major" }
