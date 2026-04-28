@@ -227,11 +227,11 @@ export const SolarSystemData: CelestialBodyData[] = [
         texture: 'textures/sun.png',
         axialTilt: 7.25,
         description: "The Sun is the star at the center of the Solar System. It is a nearly perfect sphere of hot plasma, heated to incandescence by nuclear fusion reactions in its core, radiating the energy mainly as visible light, ultraviolet light, and infrared radiation. It is by far the most important source of energy for life on Earth.",
-        imageUrl: "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg",
+        imageUrl: "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.jpg",
         images: [
-            "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg",
+            "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.jpg",
             "images/GSFC_20171208_Archive_e001435~orig.jpg",
-            "images/X5.4_solar_flare_seen_by_SDO_in_131_%C3%85_extreme_ultraviolet_light.jpg"
+            "images/X5.4_solar_flare_seen_by_SDO_in_131_Å_extreme_ultraviolet_light.jpg"
         ],
         links: [
             { title: "NASA: Sun Overview", url: "https://science.nasa.gov/sun" },
@@ -404,7 +404,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         imageUrl: "images/800px-Saturn_during_Equinox.jpg",
         images: [
             "images/800px-Saturn_during_Equinox.jpg",
-            "images/Saturn_%28planet%29_large.jpg",
+            "images/Saturn_(planet)_large.jpg",
             "images/PIA11141~orig.jpg"
         ],
         links: [
@@ -431,7 +431,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         imageUrl: "images/800px-Uranus2.jpg",
         images: [
             "images/800px-Uranus2.jpg",
-            "images/Uranus_as_seen_by_NASA%27s_Voyager_2_%28remastered%29_-_JPEG_converted.jpg",
+            "images/Uranus_as_seen_by_NASA's_Voyager_2_(remastered)_-_JPEG_converted.jpg",
             "images/PIA18182~orig.jpg"
         ],
         links: [
@@ -452,9 +452,9 @@ export const SolarSystemData: CelestialBodyData[] = [
         texture: 'textures/neptune.png',
         axialTilt: 28.32,
         description: "Neptune is the eighth and farthest-known Solar planet from the Sun. In the Solar System, it is the fourth-largest planet by diameter, the third-most-massive planet, and the densest giant planet. It is 17 times the mass of Earth, slightly more massive than its near-twin Uranus.",
-        imageUrl: "images/800px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg",
+        imageUrl: "images/800px-Neptune_-_Voyager_2_(29347980845)_flatten_crop.jpg",
         images: [
-            "images/800px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg",
+            "images/800px-Neptune_-_Voyager_2_(29347980845)_flatten_crop.jpg",
             "images/Neptune_Full.jpg",
             "images/PIA01492~orig.jpg"
         ],
@@ -470,7 +470,7 @@ export const SolarSystemData: CelestialBodyData[] = [
                 period: 0.06,
                 color: 0xcccccc,
                 description: "Triton is the largest natural satellite of the planet Neptune, and the first Neptunian moon to be discovered.",
-                imageUrl: "images/800px-Triton_moon_mosaic_Voyager_2_%28large%29.jpg",
+                imageUrl: "images/800px-Triton_moon_mosaic_Voyager_2_(large).jpg",
                 links: [
                     { title: "Wikipedia: Triton", url: "https://en.wikipedia.org/wiki/Triton_(moon)" }
                 ]
@@ -522,10 +522,10 @@ export const SolarSystemData: CelestialBodyData[] = [
         color: 0x888888,
         texture: 'textures/ceres.png',
         description: "Ceres is a dwarf planet in the asteroid belt between the orbits of Mars and Jupiter. It was the first asteroid discovered, on 1 January 1801, by Giuseppe Piazzi at Palermo Astronomical Observatory in Sicily. Originally considered a planet, it was reclassified as an asteroid in the 1850s.",
-        imageUrl: "images/800px-Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg",
+        imageUrl: "images/800px-Ceres_-_RC3_-_Haulani_Crater_(22381131691)_(cropped).jpg",
         images: [
-            "images/800px-Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg",
-            "images/Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29.jpg",
+            "images/800px-Ceres_-_RC3_-_Haulani_Crater_(22381131691)_(cropped).jpg",
+            "images/Ceres_-_RC3_-_Haulani_Crater_(22381131691).jpg",
             "images/PIA19631~orig.jpg"
         ],
         links: [
