@@ -4,11 +4,42 @@ export class Modal {
     container: HTMLElement;
     modalElement: HTMLElement;
     contentElement: HTMLElement;
+    tooltipElement: HTMLElement;
 
     constructor(container: HTMLElement) {
         this.container = container;
         this.modalElement = this.createModal();
         this.contentElement = this.modalElement.querySelector('#modal-content') as HTMLElement;
+        this.tooltipElement = this.createTooltipModal();
+
+        // Hide tooltip when clicking anywhere else (handle touch and click)
+        const hideTooltip = () => {
+            if (this.tooltipElement.style.display === 'block') {
+                this.tooltipElement.style.display = 'none';
+            }
+        };
+        document.addEventListener('click', hideTooltip);
+        document.addEventListener('touchstart', hideTooltip, { passive: true });
+    }
+
+    private createTooltipModal(): HTMLElement {
+        const tooltip = document.createElement('div');
+        tooltip.style.position = 'absolute';
+        tooltip.style.backgroundColor = 'rgba(10, 10, 15, 0.95)';
+        tooltip.style.border = '1px solid #666';
+        tooltip.style.borderRadius = '6px';
+        tooltip.style.padding = '10px';
+        tooltip.style.color = '#fff';
+        tooltip.style.display = 'none';
+        tooltip.style.zIndex = '1001'; // Above main modal
+        tooltip.style.boxShadow = '0 0 10px rgba(0,0,0,0.8)';
+        tooltip.style.maxWidth = '250px';
+        tooltip.style.fontSize = '0.85em';
+        tooltip.style.lineHeight = '1.4';
+        tooltip.style.pointerEvents = 'none'; // Prevent tooltip from interfering with hovers
+
+        this.container.appendChild(tooltip);
+        return tooltip;
     }
 
     private createModal(): HTMLElement {
@@ -92,19 +123,24 @@ export class Modal {
 
     private getExtraInfo(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
         let info = '';
+
+        const createInfoButton = (title: string, text: string) => {
+            return `<span class="info-btn" data-title="${title}" data-text="${text}" style="cursor: help; background: #444; color: #fff; border-radius: 50%; display: inline-block; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 12px; margin-left: 5px;">?</span>`;
+        };
+
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
             info += `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
         }
 
         if ('semiMajorAxis' in data) {
             const comet = data as CometData;
-            info += `<p><strong>Semi-Major Axis:</strong> ${comet.semiMajorAxis} AU</p>
-                     <p><strong>Eccentricity:</strong> ${comet.eccentricity}</p>
-                     <p><strong>Orbital Period:</strong> ${comet.period} years</p>`;
+            info += `<p style="display: flex; align-items: center;"><strong>Semi-Major Axis:</strong>&nbsp;${comet.semiMajorAxis} AU ${createInfoButton("Semi-Major Axis", "One half of the major axis of the elliptical orbit; essentially the average distance from the Sun.")}</p>
+                     <p style="display: flex; align-items: center;"><strong>Eccentricity:</strong>&nbsp;${comet.eccentricity} ${createInfoButton("Eccentricity", "A measure of how much an elliptical orbit deviates from a perfect circle. 0 is a circle, closer to 1 is a highly elongated ellipse.")}</p>
+                     <p style="display: flex; align-items: center;"><strong>Orbital Period:</strong>&nbsp;${comet.period} years ${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around another object.")}</p>`;
         } else if ('radius' in data) {
-            info += `<p><strong>Radius:</strong> ${(data as CelestialBodyData).radius} (relative)</p>
-                     <p><strong>Distance:</strong> ${(data as CelestialBodyData).distance} AU</p>
-                     <p><strong>Period:</strong> ${(data as CelestialBodyData).period} years</p>`;
+            info += `<p style="display: flex; align-items: center;"><strong>Radius:</strong>&nbsp;${(data as CelestialBodyData).radius} (relative) ${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}</p>
+                     <p style="display: flex; align-items: center;"><strong>Distance:</strong>&nbsp;${(data as CelestialBodyData).distance} AU ${createInfoButton("Distance", "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}</p>
+                     <p style="display: flex; align-items: center;"><strong>Period:</strong>&nbsp;${(data as CelestialBodyData).period} years ${createInfoButton("Period", "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}</p>`;
         }
 
         return info;
@@ -135,6 +171,74 @@ export class Modal {
         }
     }
 
+    private positionTooltip(btn: HTMLElement) {
+        const title = btn.getAttribute('data-title') || '';
+        const text = btn.getAttribute('data-text') || '';
+
+        this.tooltipElement.innerHTML = `<strong>${title}</strong><br/>${text}`;
+        this.tooltipElement.style.display = 'block';
+
+        const rect = btn.getBoundingClientRect();
+
+        let top = rect.top - this.tooltipElement.offsetHeight - 10;
+        let left = rect.left - (this.tooltipElement.offsetWidth / 2) + (rect.width / 2);
+
+        if (top < 0) {
+            top = rect.bottom + 10;
+        }
+
+        if (left + this.tooltipElement.offsetWidth > window.innerWidth) {
+            left = window.innerWidth - this.tooltipElement.offsetWidth - 10;
+        }
+
+        if (left < 0) {
+            left = 10;
+        }
+
+        this.tooltipElement.style.top = `${top}px`;
+        this.tooltipElement.style.left = `${left}px`;
+    }
+
+    private setupInfoButtons() {
+        const infoButtons = this.contentElement.querySelectorAll('.info-btn') as NodeListOf<HTMLElement>;
+
+        infoButtons.forEach(btn => {
+            let isTouch = false;
+
+            btn.addEventListener('touchstart', () => {
+                isTouch = true;
+            }, { passive: true });
+
+            btn.addEventListener('mouseenter', () => {
+                if (!isTouch) {
+                    this.positionTooltip(btn);
+                }
+            });
+
+            btn.addEventListener('mouseleave', () => {
+                if (!isTouch) {
+                    this.tooltipElement.style.display = 'none';
+                }
+            });
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isTouch) {
+                    const title = btn.getAttribute('data-title') || '';
+                    const isCurrentlyShowing = this.tooltipElement.style.display === 'block' && this.tooltipElement.innerHTML.includes(title);
+
+                    if (isCurrentlyShowing) {
+                        this.tooltipElement.style.display = 'none';
+                    } else {
+                        this.positionTooltip(btn);
+                    }
+                } else {
+                    this.positionTooltip(btn);
+                }
+            });
+        });
+    }
+
     public show(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {
         if (!this.contentElement) return;
 
@@ -153,10 +257,12 @@ export class Modal {
         `;
 
         this.setupGalleryLogic(data);
+        this.setupInfoButtons();
         this.modalElement.style.display = 'block';
     }
 
     public hide() {
         this.modalElement.style.display = 'none';
+        this.tooltipElement.style.display = 'none';
     }
 }
