@@ -105,11 +105,12 @@ export class Modal {
 
     private getLinksHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
         if (data.links && data.links.length > 0) {
+            const sortedLinks = [...data.links].sort((a, b) => a.title.localeCompare(b.title));
             return `
                 <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
                     <h4 style="margin: 0 0 5px 0; font-size: 0.9em; color: #aaa;">Learn More:</h4>
                     <ul style="list-style: none; padding: 0; margin: 0;">
-                        ${data.links.map((link: any) => `
+                        ${sortedLinks.map((link: any) => `
                             <li style="margin-bottom: 5px;">
                                 <a href="${link.url}" target="_blank" style="color: #4da6ff; text-decoration: none; font-size: 0.9em;">${link.title} ↗</a>
                             </li>
@@ -125,7 +126,7 @@ export class Modal {
         let info = '';
 
         const createInfoButton = (title: string, text: string) => {
-            return `<span class="info-btn" data-title="${title}" data-text="${text}" style="cursor: help; background: #444; color: #fff; border-radius: 50%; display: inline-block; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 12px; margin-left: 5px;">?</span>`;
+            return `<span class="info-btn" data-title="${title}" data-text="${text}" style="cursor: help; background: #444; color: #fff; border-radius: 50%; display: inline-block; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 12px; margin-right: 5px;">i</span>`;
         };
 
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
@@ -134,13 +135,13 @@ export class Modal {
 
         if ('semiMajorAxis' in data) {
             const comet = data as CometData;
-            info += `<p style="display: flex; align-items: center;"><strong>Semi-Major Axis:</strong>&nbsp;${comet.semiMajorAxis} AU ${createInfoButton("Semi-Major Axis", "One half of the major axis of the elliptical orbit; essentially the average distance from the Sun.")}</p>
-                     <p style="display: flex; align-items: center;"><strong>Eccentricity:</strong>&nbsp;${comet.eccentricity} ${createInfoButton("Eccentricity", "A measure of how much an elliptical orbit deviates from a perfect circle. 0 is a circle, closer to 1 is a highly elongated ellipse.")}</p>
-                     <p style="display: flex; align-items: center;"><strong>Orbital Period:</strong>&nbsp;${comet.period} years ${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around another object.")}</p>`;
+            info += `<p style="display: flex; align-items: center;">${createInfoButton("Semi-Major Axis", "One half of the major axis of the elliptical orbit; essentially the average distance from the Sun.")}<strong>Semi-Major Axis:</strong>&nbsp;${comet.semiMajorAxis} AU</p>
+                     <p style="display: flex; align-items: center;">${createInfoButton("Eccentricity", "A measure of how much an elliptical orbit deviates from a perfect circle. 0 is a circle, closer to 1 is a highly elongated ellipse.")}<strong>Eccentricity:</strong>&nbsp;${comet.eccentricity}</p>
+                     <p style="display: flex; align-items: center;">${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around another object.")}<strong>Orbital Period:</strong>&nbsp;${comet.period} years</p>`;
         } else if ('radius' in data) {
-            info += `<p style="display: flex; align-items: center;"><strong>Radius:</strong>&nbsp;${(data as CelestialBodyData).radius} (relative) ${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}</p>
-                     <p style="display: flex; align-items: center;"><strong>Distance:</strong>&nbsp;${(data as CelestialBodyData).distance} AU ${createInfoButton("Distance", "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}</p>
-                     <p style="display: flex; align-items: center;"><strong>Period:</strong>&nbsp;${(data as CelestialBodyData).period} years ${createInfoButton("Period", "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}</p>`;
+            info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${(data as CelestialBodyData).radius} (relative)</p>
+                     <p style="display: flex; align-items: center;">${createInfoButton("Distance", "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${(data as CelestialBodyData).distance} AU</p>
+                     <p style="display: flex; align-items: center;">${createInfoButton("Period", "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${(data as CelestialBodyData).period} years</p>`;
         }
 
         return info;
