@@ -130,7 +130,7 @@ export class Modal {
         };
 
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
-            info += `<p>RA: ${data.ra}h | Dec: ${data.dec}°</p>`;
+            info += `<p style="display: flex; align-items: center;">${createInfoButton("Right Ascension (RA)", "The celestial equivalent of terrestrial longitude. Measured in hours (h).")}<strong>RA:</strong>&nbsp;${data.ra}h&nbsp;&nbsp;|&nbsp;&nbsp;${createInfoButton("Declination (Dec)", "The celestial equivalent of terrestrial latitude. Measured in degrees (°).")}<strong>Dec:</strong>&nbsp;${data.dec}°</p>`;
         }
 
         if ('semiMajorAxis' in data) {
