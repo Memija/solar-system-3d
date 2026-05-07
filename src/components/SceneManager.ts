@@ -475,7 +475,7 @@ export class SceneManager {
                 ],
                 links: [
                     { title: "Wikipedia: Sirius", url: "https://en.wikipedia.org/wiki/Sirius" },
-                    { title: "NASA: Sirius", url: "https://hubblesite.org/contents/media/images/2005/36/1826-Image.html" }
+                    { title: "NASA: Sirius", url: "https://science.nasa.gov/asset/hubble/the-dog-star-sirius-and-its-tiny-companion/" }
                 ]
             },
             {
