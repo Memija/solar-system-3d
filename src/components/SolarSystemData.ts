@@ -81,7 +81,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         description: "The International Space Station (ISS) is a modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project involving five participating space agencies.",
         imageUrl: "images/800px-International_Space_Station_after_undocking_of_STS-132.jpg",
         links: [
-            { title: "NASA: ISS", url: "https://www.nasa.gov/mission_pages/station/main/index.html" },
+            { title: "NASA: ISS", url: "https://www.nasa.gov/international-space-station/" },
             { title: "Wikipedia: ISS", url: "https://en.wikipedia.org/wiki/International_Space_Station" }
         ]
     },
@@ -95,7 +95,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation. It is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy.",
         imageUrl: "images/800px-HST-SM4.jpeg",
         links: [
-            { title: "NASA: Hubble", url: "https://www.nasa.gov/mission_pages/hubble/main/index.html" },
+            { title: "NASA: Hubble", url: "https://science.nasa.gov/mission/hubble/" },
             { title: "Wikipedia: Hubble", url: "https://en.wikipedia.org/wiki/Hubble_Space_Telescope" }
         ]
     },
@@ -123,7 +123,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. It is the largest space telescope in history, offering unprecedented resolution and sensitivity.",
         imageUrl: "images/800px-James_Webb_Space_Telescope.jpg",
         links: [
-            { title: "NASA: JWST", url: "https://webb.nasa.gov/" },
+            { title: "NASA: JWST", url: "https://science.nasa.gov/mission/webb/" },
             { title: "Wikipedia: JWST", url: "https://en.wikipedia.org/wiki/James_Webb_Space_Telescope" }
         ]
     },
@@ -136,7 +136,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system.",
         imageUrl: "images/800px-Cassini_Saturn_Orbit_Insertion.jpg",
         links: [
-            { title: "NASA: Cassini", url: "https://solarsystem.nasa.gov/missions/cassini/overview/" },
+            { title: "NASA: Cassini", url: "https://science.nasa.gov/mission/cassini/" },
             { title: "Wikipedia: Cassini", url: "https://en.wikipedia.org/wiki/Cassini%E2%80%93Huygens" }
         ]
     },
@@ -196,7 +196,7 @@ export const CometDataList: CometData[] = [
         description: "Halley's Comet or Comet Halley, officially designated 1P/Halley, is a short-period comet visible from Earth every 75-76 years. Halley is the only known short-period comet that is regularly visible to the naked eye from Earth.",
         imageUrl: "images/800px-Lspn_comet_halley.jpg",
         links: [
-            { title: "NASA: Halley's Comet", url: "https://solarsystem.nasa.gov/asteroids-comets-and-meteors/comets/1p-halley/in-depth/" },
+            { title: "NASA: Halley's Comet", url: "https://science.nasa.gov/solar-system/comets/1p-halley/" },
             { title: "Wikipedia: Halley's Comet", url: "https://en.wikipedia.org/wiki/Halley%27s_Comet" }
         ]
     },
