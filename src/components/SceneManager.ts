@@ -560,7 +560,7 @@ export class SceneManager {
                 description: "An orange-hued giant star in the constellation of Gemini. It is the brightest star in Gemini and the closest giant star to the Sun.",
                 imageUrl: "images/heic1007b.jpg",
                 images: ["images/heic1007b.jpg"],
-                links: [{ title: "Wikipedia: Pollux", url: "https://en.wikipedia.org/wiki/Pollux" }]
+                links: [{ title: "Wikipedia: Pollux", url: "https://en.wikipedia.org/wiki/Pollux_(star)" }]
             },
             {
                 name: "Fomalhaut", ra: 22.96, dec: -29.62, color: 0xffffff,
