@@ -337,16 +337,59 @@ export class UIManager {
                 this.tourController.setValue(false);
             }
 
+            // Automatically hide any previous UI panels
+            this.hideInfo();
+
             if (selectedType === 'Star') {
                 if (selectedName === 'Sun') {
+                    const sun = this.sceneManager.planets.find(p => p.data.name === 'Sun');
+                    if (sun) {
+                        this.showModal(sun.data);
+                    }
                     this.sceneManager.focusOnBody('Sun');
                 } else {
                     const star = this.sceneManager.starMeshes.find(m => m.userData.name === selectedName);
-                    if (star) this.sceneManager.focusOnStar(star);
+                    if (star && star.userData) {
+                        this.showModal(star.userData);
+                    }
+                    if (star) {
+                        this.sceneManager.focusOnStar(star);
+                    }
                 }
             } else if (selectedType === 'Constellation') {
+                const center = this.sceneManager.constellationManager?.getConstellationCenter(selectedName);
+                if (center) {
+                    // Try to find the constellation data
+                    const group = this.sceneManager.constellationManager?.constellationMeshes.find(g => g.userData.name === selectedName);
+                    if (group && group.userData) {
+                        this.showModal(group.userData);
+                    }
+                }
                 this.sceneManager.focusOnConstellation(selectedName);
             } else {
+                // Find planet, comet, spacecraft or moon
+                let foundData: any = null;
+                const findTarget = (body: any) => {
+                    if (body.data && body.data.name === selectedName) {
+                        foundData = body.data;
+                    }
+                    if (body.moons) {
+                        body.moons.forEach(findTarget);
+                    }
+                };
+                this.sceneManager.planets.forEach(findTarget);
+                if (!foundData) {
+                    const comet = this.sceneManager.comets.find(c => c.data.name === selectedName);
+                    if (comet) foundData = comet.data;
+                }
+                if (!foundData) {
+                    const sc = this.sceneManager.spacecrafts.find(s => s.data.name === selectedName);
+                    if (sc) foundData = sc.data;
+                }
+
+                if (foundData) {
+                    this.showModal(foundData);
+                }
                 this.sceneManager.focusOnBody(selectedName);
             }
         });
