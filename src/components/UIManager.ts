@@ -327,7 +327,11 @@ export class UIManager {
         updateBodyOptions();
 
         // Event Listeners
-        typeSelect.addEventListener('change', updateBodyOptions);
+        typeSelect.addEventListener('change', () => {
+            updateBodyOptions();
+            // Trigger selection update
+            bodySelect.dispatchEvent(new Event('change'));
+        });
 
         bodySelect.addEventListener('change', () => {
             const selectedName = bodySelect.value;

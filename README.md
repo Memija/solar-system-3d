@@ -14,6 +14,14 @@ A beautiful, interactive 3D simulation of our Solar System, built using TypeScri
 
 Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 
+## Running Tests
+
+To run the unit tests, use the following command:
+
+```bash
+npm test
+```
+
 ## Getting Started
 
 1. Clone the repository:
