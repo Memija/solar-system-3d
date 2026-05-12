@@ -230,7 +230,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         imageUrl: "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.jpg",
         images: [
             "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.jpg",
-            "images/GSFC_20171208_Archive_e001435~orig.jpg",
+            "images/GSFC_20171208_Archive_e001435_orig.jpg",
             "images/X5.4_solar_flare_seen_by_SDO_in_131_Å_extreme_ultraviolet_light.jpg"
         ],
         links: [
@@ -251,7 +251,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Mercury_in_color_-_Prockter07-edit1.jpg",
             "images/Mercury_in_true_color.jpg",
-            "images/PIA11364~orig.jpg"
+            "images/PIA11364_orig.jpg"
         ],
         links: [
             { title: "NASA: Mercury Overview", url: "https://science.nasa.gov/mercury" },
@@ -271,7 +271,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Venus-real_color.jpg",
             "images/Venus_2_Approach_Image.jpg",
-            "images/PIA00271~orig.jpg"
+            "images/PIA00271_orig.jpg"
         ],
         links: [
             { title: "NASA: Venus Overview", url: "https://science.nasa.gov/venus" },
@@ -291,7 +291,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-The_Earth_seen_from_Apollo_17.jpg",
             "images/Africa_and_Europe_from_a_Million_Miles_Away.png",
-            "images/PIA18033~orig.jpg"
+            "images/PIA18033_orig.jpg"
         ],
         links: [
             { title: "NASA: Earth Overview", url: "https://science.nasa.gov/earth" },
@@ -311,7 +311,7 @@ export const SolarSystemData: CelestialBodyData[] = [
                 images: [
                     "images/800px-FullMoon2010.jpg",
                     "images/Full_Moon_Luc_Viatour.jpg",
-                    "images/PIA00405~orig.jpg"
+                    "images/PIA00405_orig.jpg"
                 ],
                 links: [
                     { title: "NASA: Moon Overview", url: "https://science.nasa.gov/moon" },
@@ -333,7 +333,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-OSIRIS_Mars_true_color.jpg",
             "images/Mars_23_aug_2003_hubbe.jpg",
-            "images/PIA02653~orig.jpg"
+            "images/PIA02653_orig.jpg"
         ],
         links: [
             { title: "NASA: Mars Overview", url: "https://science.nasa.gov/mars" },
@@ -379,7 +379,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg",
             "images/Jupiter.jpg",
-            "images/PIA22946~orig.jpg"
+            "images/PIA22946_orig.jpg"
         ],
         links: [
             { title: "NASA: Jupiter Overview", url: "https://science.nasa.gov/jupiter" },
@@ -405,7 +405,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Saturn_during_Equinox.jpg",
             "images/Saturn_(planet)_large.jpg",
-            "images/PIA11141~orig.jpg"
+            "images/PIA11141_orig.jpg"
         ],
         links: [
             { title: "NASA: Saturn Overview", url: "https://science.nasa.gov/saturn" },
@@ -432,7 +432,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Uranus2.jpg",
             "images/Uranus_as_seen_by_NASA's_Voyager_2_(remastered)_-_JPEG_converted.jpg",
-            "images/PIA18182~orig.jpg"
+            "images/PIA18182_orig.jpg"
         ],
         links: [
             { title: "NASA: Uranus Overview", url: "https://science.nasa.gov/uranus" },
@@ -456,7 +456,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Neptune_-_Voyager_2_(29347980845)_flatten_crop.jpg",
             "images/Neptune_Full.jpg",
-            "images/PIA01492~orig.jpg"
+            "images/PIA01492_orig.jpg"
         ],
         links: [
             { title: "NASA: Neptune Overview", url: "https://science.nasa.gov/neptune" },
@@ -492,7 +492,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Pluto_in_True_Color_-_High-Res.jpg",
             "images/Pluto-01_Stern_03_Pluto_Color_TXT.jpg",
-            "images/PIA19952~orig.jpg"
+            "images/PIA19952_orig.jpg"
         ],
         links: [
             { title: "NASA: Pluto Overview", url: "https://science.nasa.gov/dwarf-planets/pluto" },
@@ -526,7 +526,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         images: [
             "images/800px-Ceres_-_RC3_-_Haulani_Crater_(22381131691)_(cropped).jpg",
             "images/Ceres_-_RC3_-_Haulani_Crater_(22381131691).jpg",
-            "images/PIA19631~orig.jpg"
+            "images/PIA19631_orig.jpg"
         ],
         links: [
             { title: "NASA: Ceres Overview", url: "https://science.nasa.gov/dwarf-planets/ceres" },
