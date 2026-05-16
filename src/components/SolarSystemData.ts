@@ -13,6 +13,7 @@ export interface RingData {
 export interface MoonData {
     name: string;
     radius: number;
+    displayRadius?: number;
     distance: number;
     period: number;
     color: number;
@@ -20,6 +21,7 @@ export interface MoonData {
     description?: string;
     imageUrl?: string;
     images?: string[];
+    displayRadius?: number;
     links?: LinkData[];
     rings?: RingData[];
     axialTilt?: number; // in degrees
@@ -28,6 +30,7 @@ export interface MoonData {
 export interface CelestialBodyData {
     name: string;
     radius: number;
+    displayRadius?: number;
     distance: number;
     period: number;
     color: number;
@@ -35,6 +38,7 @@ export interface CelestialBodyData {
     description: string;
     imageUrl: string;
     images?: string[];
+    displayRadius?: number;
     links?: LinkData[];
     moons?: MoonData[];
     rings?: RingData[];
@@ -52,6 +56,7 @@ export interface StarData {
     description?: string;
     imageUrl?: string;
     images?: string[];
+    displayRadius?: number;
     links?: LinkData[];
 }
 
@@ -65,6 +70,7 @@ export interface SpacecraftData {
     description?: string;
     imageUrl?: string;
     images?: string[];
+    displayRadius?: number;
     links?: LinkData[];
     escaping?: boolean; // For Voyager 1
     speed?: number; // For escaping spacecraft
@@ -164,12 +170,14 @@ export interface ConstellationData {
     description?: string;
     imageUrl?: string;
     images?: string[];
+    displayRadius?: number;
     links?: LinkData[];
 }
 
 export interface CometData {
     name: string;
     radius: number;
+    displayRadius?: number;
     semiMajorAxis: number;
     eccentricity: number;
     period: number;
@@ -180,13 +188,14 @@ export interface CometData {
     description?: string;
     imageUrl?: string;
     images?: string[];
+    displayRadius?: number;
     links?: LinkData[];
 }
 
 export const CometDataList: CometData[] = [
     {
         name: "Halley's Comet",
-        radius: 0.1,
+        radius: 0.1, displayRadius: 0.00086,
         semiMajorAxis: 180, // roughly scaled for visibility
         eccentricity: 0.967,
         period: 75.3,
@@ -202,7 +211,7 @@ export const CometDataList: CometData[] = [
     },
     {
         name: "Hale-Bopp",
-        radius: 0.3,
+        radius: 0.3, displayRadius: 0.0047,
         semiMajorAxis: 300,
         eccentricity: 0.995,
         period: 2500,
@@ -220,7 +229,7 @@ export const CometDataList: CometData[] = [
 export const SolarSystemData: CelestialBodyData[] = [
     {
         name: "Sun",
-        radius: 25, // Visual scale
+        radius: 25, displayRadius: 109.2, // Visual scale
         distance: 0,
         period: 0,
         color: 0xffff00,
@@ -240,7 +249,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Mercury",
-        radius: 0.76,
+        radius: 0.76, displayRadius: 0.383,
         distance: 60,
         period: 0.24,
         color: 0xaaaaaa,
@@ -260,7 +269,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Venus",
-        radius: 1.9,
+        radius: 1.9, displayRadius: 0.949,
         distance: 90,
         period: 0.62,
         color: 0xffcc00,
@@ -280,7 +289,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Earth",
-        radius: 2,
+        radius: 2, displayRadius: 1.0,
         distance: 130,
         period: 1,
         color: 0x0000ff,
@@ -300,7 +309,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         moons: [
             {
                 name: "Moon",
-                radius: 0.27,
+                radius: 0.27, displayRadius: 0.272,
                 distance: 5,
                 period: 0.074,
                 color: 0x888888,
@@ -322,7 +331,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Mars",
-        radius: 1.06,
+        radius: 1.06, displayRadius: 0.532,
         distance: 170,
         period: 1.88,
         color: 0xff0000,
@@ -342,7 +351,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         moons: [
             {
                 name: "Phobos",
-                radius: 0.1,
+                radius: 0.1, displayRadius: 0.0017,
                 distance: 2,
                 period: 0.03,
                 color: 0x888888,
@@ -354,7 +363,7 @@ export const SolarSystemData: CelestialBodyData[] = [
             },
             {
                 name: "Deimos",
-                radius: 0.06,
+                radius: 0.06, displayRadius: 0.00098,
                 distance: 3.5,
                 period: 0.12,
                 color: 0x999999,
@@ -368,7 +377,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Jupiter",
-        radius: 11.2,
+        radius: 11.2, displayRadius: 10.97,
         distance: 280,
         period: 11.86,
         color: 0xffa500,
@@ -386,15 +395,15 @@ export const SolarSystemData: CelestialBodyData[] = [
             { title: "Wikipedia: Jupiter", url: "https://en.wikipedia.org/wiki/Jupiter" }
         ],
         moons: [
-            { name: "Io", radius: 0.28, distance: 15, period: 0.005, color: 0xffff00 },
-            { name: "Europa", radius: 0.25, distance: 17, period: 0.01, color: 0xffffff },
-            { name: "Ganymede", radius: 0.41, distance: 19, period: 0.02, color: 0x888888 },
-            { name: "Callisto", radius: 0.38, distance: 21, period: 0.045, color: 0x555555 }
+            { name: "Io", radius: 0.28, displayRadius: 0.286, distance: 15, period: 0.005, color: 0xffff00 },
+            { name: "Europa", radius: 0.25, displayRadius: 0.245, distance: 17, period: 0.01, color: 0xffffff },
+            { name: "Ganymede", radius: 0.41, displayRadius: 0.413, distance: 19, period: 0.02, color: 0x888888 },
+            { name: "Callisto", radius: 0.38, displayRadius: 0.378, distance: 21, period: 0.045, color: 0x555555 }
         ]
     },
     {
         name: "Saturn",
-        radius: 9.45,
+        radius: 9.45, displayRadius: 9.14,
         distance: 400,
         period: 29.45,
         color: 0xffd700,
@@ -412,7 +421,7 @@ export const SolarSystemData: CelestialBodyData[] = [
             { title: "Wikipedia: Saturn", url: "https://en.wikipedia.org/wiki/Saturn" }
         ],
         moons: [
-            { name: "Titan", radius: 0.4, distance: 15, period: 0.044, color: 0xffaa00 }
+            { name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 15, period: 0.044, color: 0xffaa00 }
         ],
         rings: [
             { innerRadius: 11, outerRadius: 21, color: 0xe6e6cd, opacity: 0.8 },
@@ -421,7 +430,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Uranus",
-        radius: 6,
+        radius: 6, displayRadius: 3.98,
         distance: 520,
         period: 84,
         color: 0x00ffff,
@@ -445,7 +454,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Neptune",
-        radius: 5.82,
+        radius: 5.82, displayRadius: 3.86,
         distance: 640,
         period: 164.8,
         color: 0x0000ff,
@@ -465,7 +474,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         moons: [
             {
                 name: "Triton",
-                radius: 0.35,
+                radius: 0.35, displayRadius: 0.212,
                 distance: 12,
                 period: 0.06,
                 color: 0xcccccc,
@@ -481,7 +490,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     {
         name: "Pluto",
         isDwarfPlanet: true,
-        radius: 0.36,
+        radius: 0.36, displayRadius: 0.187,
         distance: 700,
         period: 248,
         color: 0xddaa88,
@@ -501,7 +510,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         moons: [
             {
                 name: "Charon",
-                radius: 0.18,
+                radius: 0.18, displayRadius: 0.095,
                 distance: 2.0,
                 period: 0.017,
                 color: 0xaaaaaa,
@@ -516,7 +525,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     {
         name: "Ceres",
         isDwarfPlanet: true,
-        radius: 0.14,
+        radius: 0.14, displayRadius: 0.074,
         distance: 220,
         period: 4.6,
         color: 0x888888,
@@ -536,7 +545,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     {
         name: "Eris",
         isDwarfPlanet: true,
-        radius: 0.36,
+        radius: 0.36, displayRadius: 0.182,
         distance: 780,
         period: 558,
         color: 0xcccccc,
@@ -554,7 +563,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     {
         name: "Haumea",
         isDwarfPlanet: true,
-        radius: 0.3,
+        radius: 0.3, displayRadius: 0.128,
         distance: 740,
         period: 284,
         color: 0xaaaaaa,
@@ -573,7 +582,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     {
         name: "Makemake",
         isDwarfPlanet: true,
-        radius: 0.22,
+        radius: 0.22, displayRadius: 0.112,
         distance: 760,
         period: 309,
         color: 0xaa8866,
