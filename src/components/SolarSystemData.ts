@@ -163,6 +163,9 @@ export const SpacecraftDataList: SpacecraftData[] = [
 ];
 
 export interface ConstellationData {
+    area?: string | number;
+    brightestStar?: string;
+    family?: string;
     name: string;
     stars: StarData[];
     connections: number[][];
