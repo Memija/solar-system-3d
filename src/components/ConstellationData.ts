@@ -12,6 +12,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Ursa Major", url: "https://en.wikipedia.org/wiki/Ursa_Major" }
         ],
+        area: 1280,
+        brightestStar: "Alioth",
+        family: "Ursa Major",
         stars: [
             { name: "Dubhe", ra: 11.062, dec: 61.75 },
             { name: "Merak", ra: 11.03, dec: 56.38 },
@@ -34,6 +37,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Ursa Minor", url: "https://en.wikipedia.org/wiki/Ursa_Minor" }
         ],
+        area: 256,
+        brightestStar: "Polaris",
+        family: "Ursa Major",
         stars: [
             { name: "Polaris", ra: 2.53, dec: 89.26 },
             { name: "Yildun", ra: 17.54, dec: 86.58 },
@@ -57,6 +63,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Orion", url: "https://en.wikipedia.org/wiki/Orion_(constellation)" }
         ],
+        area: 594,
+        brightestStar: "Rigel",
+        family: "Orion",
         stars: [
             { name: "Betelgeuse", ra: 5.92, dec: 7.41 },
             { name: "Rigel", ra: 5.24, dec: -8.2 },
@@ -82,6 +91,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Cassiopeia", url: "https://en.wikipedia.org/wiki/Cassiopeia_(constellation)" }
         ],
+        area: 598,
+        brightestStar: "Schedar",
+        family: "Perseus",
         stars: [
             { name: "Schedar", ra: 0.67, dec: 56.53 },
             { name: "Caph", ra: 0.15, dec: 59.15 },
@@ -102,6 +114,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Cygnus", url: "https://en.wikipedia.org/wiki/Cygnus_(constellation)" }
         ],
+        area: 804,
+        brightestStar: "Deneb",
+        family: "Hercules",
         stars: [
             { name: "Deneb", ra: 20.69, dec: 45.28 },
             { name: "Sadr", ra: 20.37, dec: 40.26 },
@@ -122,6 +137,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Scorpius", url: "https://en.wikipedia.org/wiki/Scorpius" }
         ],
+        area: 497,
+        brightestStar: "Antares",
+        family: "Zodiac",
         stars: [
             { name: "Antares", ra: 16.49, dec: -26.43 },
             { name: "Graffias", ra: 16.09, dec: -19.8 },
@@ -143,6 +161,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Crux", url: "https://en.wikipedia.org/wiki/Crux" }
         ],
+        area: 68,
+        brightestStar: "Acrux",
+        family: "Hercules",
         stars: [
             { name: "Acrux", ra: 12.44, dec: -63.1 },
             { name: "Mimosa", ra: 12.79, dec: -59.68 },
@@ -162,6 +183,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Leo", url: "https://en.wikipedia.org/wiki/Leo_(constellation)" }
         ],
+        area: 947,
+        brightestStar: "Regulus",
+        family: "Zodiac",
         stars: [
             { name: "Regulus", ra: 10.14, dec: 11.97 },
             { name: "Denebola", ra: 11.82, dec: 14.57 },
@@ -181,6 +205,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Gemini", url: "https://en.wikipedia.org/wiki/Gemini_(constellation)" }
         ],
+        area: 514,
+        brightestStar: "Pollux",
+        family: "Zodiac",
         stars: [
             { name: "Pollux", ra: 7.76, dec: 28.03 },
             { name: "Castor", ra: 7.58, dec: 31.89 },
@@ -199,6 +226,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Taurus", url: "https://en.wikipedia.org/wiki/Taurus_(constellation)" }
         ],
+        area: 797,
+        brightestStar: "Aldebaran",
+        family: "Zodiac",
         stars: [
             { name: "Aldebaran", ra: 4.6, dec: 16.51 },
             { name: "Elnath", ra: 5.43, dec: 28.61 },
@@ -217,6 +247,9 @@ export const MajorConstellations: ConstellationData[] = [
         links: [
             { title: "Wikipedia: Canis Major", url: "https://en.wikipedia.org/wiki/Canis_Major" }
         ],
+        area: 380,
+        brightestStar: "Sirius",
+        family: "Orion",
         stars: [
             { name: "Sirius", ra: 6.75, dec: -16.72 },
             { name: "Adhara", ra: 6.98, dec: -28.97 },

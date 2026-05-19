@@ -146,6 +146,20 @@ export class Modal {
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
                      <p style="display: flex; align-items: center;">${createInfoButton("Distance", "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${body.distance} AU</p>
                      <p style="display: flex; align-items: center;">${createInfoButton("Period", "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${body.period} years</p>`;
+        } else if ('stars' in data && 'connections' in data) {
+            const constellation = data as ConstellationData;
+            if (constellation.stars && constellation.stars.length > 0) {
+                info += `<p style="display: flex; align-items: center;">${createInfoButton("Main Stars", "The number of primary stars that make up the visual pattern of this constellation.")}<strong>Main Stars:</strong>&nbsp;${constellation.stars.length}</p>`;
+            }
+            if (constellation.brightestStar) {
+                info += `<p style="display: flex; align-items: center;">${createInfoButton("Brightest Star", "The most luminous star in the constellation as seen from Earth.")}<strong>Brightest Star:</strong>&nbsp;${constellation.brightestStar}</p>`;
+            }
+            if (constellation.area) {
+                info += `<p style="display: flex; align-items: center;">${createInfoButton("Area", "The total area of the sky covered by this constellation, measured in square degrees.")}<strong>Area:</strong>&nbsp;${constellation.area} sq. deg.</p>`;
+            }
+            if (constellation.family) {
+                info += `<p style="display: flex; align-items: center;">${createInfoButton("Constellation Family", "A grouping of constellations typically sharing a common origin or mythological theme.")}<strong>Family:</strong>&nbsp;${constellation.family}</p>`;
+            }
         }
 
         return info;
