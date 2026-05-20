@@ -922,21 +922,44 @@ export class SceneManager {
     }
 
     focusOnConstellation(name: string) {
-        const center = this.constellationManager.getConstellationCenter(name);
-        if (center) {
-            this.focusedBody = null;
-            this.surfaceViewBody = null;
-            this.previousBodyPosition = null;
-            this.controls.autoRotate = false;
+        const group = this.constellationManager.constellationMeshes.find(g => g.userData.name === name);
+        if (!group) return;
 
-            this.controls.target.copy(center);
+        const box = new THREE.Box3().setFromObject(group);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
 
-            // Move camera to view the constellation
-            // Radius is 49000, so move to ~40000
-            const cameraPos = center.clone().normalize().multiplyScalar(40000);
-            this.camera.position.copy(cameraPos);
-            this.controls.enabled = true;
-        }
+        const sphere = new THREE.Sphere();
+        box.getBoundingSphere(sphere);
+
+        this.focusedBody = null;
+        this.surfaceViewBody = null;
+        this.previousBodyPosition = null;
+        this.controls.autoRotate = false;
+
+        this.controls.target.copy(center);
+
+        // Move camera to view the constellation
+        // Calculate distance based on bounding sphere radius and camera fov
+        const vFov = this.camera.fov * (Math.PI / 180);
+        const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect);
+        const minFov = Math.min(vFov, hFov);
+
+        // Add 20% padding to radius to ensure it fits well
+        const distance = (sphere.radius * 1.2) / Math.sin(minFov / 2);
+
+        // Constellations are on a sphere of radius ~49000
+        // We move the camera along the vector from origin to center
+        // and place it at (center.length() - distance) from origin
+        let camDistFromOrigin = center.length() - distance;
+
+        // Ensure the camera doesn't go too close to origin (e.g. into the sun)
+        // or too far outside the constellation sphere
+        if (camDistFromOrigin < 1000) camDistFromOrigin = 1000;
+
+        const cameraPos = center.clone().normalize().multiplyScalar(camDistFromOrigin);
+        this.camera.position.copy(cameraPos);
+        this.controls.enabled = true;
     }
 
     updateMeasurement() {
