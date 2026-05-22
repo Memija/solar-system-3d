@@ -8,11 +8,6 @@ vi.mock('../SunShader', () => ({
     fragmentShader: 'mockFragmentShader'
 }));
 
-vi.mock('../LabelUtils', () => ({
-    createSpriteLabel: vi.fn(() => new THREE.Sprite()),
-    createInfoLabel: vi.fn(() => new THREE.Sprite())
-}));
-
 describe('CelestialBody', () => {
     const mockPlanetData: CelestialBodyData = {
         name: 'Earth',
@@ -20,10 +15,10 @@ describe('CelestialBody', () => {
         distance: 1,
         period: 1,
         color: 0x0000ff,
-        textureUrl: 'earth.jpg',
+        texture: 'earth.jpg',
         description: 'Mock Earth',
-        axialTilt: 23.5,
-        type: 'Planet'
+        imageUrl: 'earth.jpg',
+        axialTilt: 23.5
     };
 
     const mockMoonData: MoonData = {
@@ -46,7 +41,7 @@ describe('CelestialBody', () => {
     });
 
     it('should initialize a planet correctly', () => {
-        const body = new CelestialBody(mockPlanetData, parentGroup, false);
+        const body = new CelestialBody(mockPlanetData, parentGroup);
 
         expect(body.data).toBe(mockPlanetData);
         expect(body.parent).toBe(parentGroup);
@@ -61,7 +56,7 @@ describe('CelestialBody', () => {
     });
 
     it('should update orbit correctly', () => {
-        const body = new CelestialBody(mockPlanetData, parentGroup, false);
+        const body = new CelestialBody(mockPlanetData, parentGroup);
         const initialAngle = body.angle;
 
         // Simulate 1 year of time
@@ -72,8 +67,8 @@ describe('CelestialBody', () => {
     });
 
     it('should add moons correctly', () => {
-         const earth = new CelestialBody(mockPlanetData, parentGroup, false);
-         const moon = new CelestialBody(mockMoonData, earth.orbitGroup, true);
+         const earth = new CelestialBody(mockPlanetData, parentGroup);
+         const moon = new CelestialBody(mockMoonData, earth.orbitGroup);
 
          earth.moons.push(moon);
 
