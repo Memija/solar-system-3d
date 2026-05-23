@@ -47,27 +47,40 @@ export class Comet {
 
         this.baseGroup.add(this.orbitGroup);
 
-        // Create Comet Body
-        const geometry = new THREE.SphereGeometry(this.data.radius, 32, 32);
+        // Create Comet Body (Coma)
+        const geometry = new THREE.SphereGeometry(this.data.radius * 2.0, 32, 32);
 
-        let material: THREE.Material;
-        if (this.data.texture) {
-            const textureLoader = new THREE.TextureLoader();
-            const texture = textureLoader.load(this.data.texture);
-            texture.colorSpace = THREE.SRGBColorSpace;
-            material = new THREE.MeshStandardMaterial({
-                map: texture,
-                roughness: 0.9,
-                color: 0xffffff
-            });
-        } else {
-            // Rough, rocky icy body
-            material = new THREE.MeshStandardMaterial({
-                color: this.data.color,
-                roughness: 0.9,
-                metalness: 0.1
-            });
-        }
+        // A fuzzy, glowing coma material instead of a solid planet
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: new THREE.Color(this.data.color) },
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vViewPosition = -mvPosition.xyz;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 color;
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                void main() {
+                    vec3 normal = normalize(vNormal);
+                    vec3 viewDir = normalize(vViewPosition);
+                    // Intensity is higher in the middle, fading out to edges
+                    float intensity = pow(max(dot(normal, viewDir), 0.0), 1.5);
+                    gl_FragColor = vec4(color, intensity);
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true
+        });
 
         this.mesh = new THREE.Mesh(geometry, material);
         this.orbitGroup.add(this.mesh);
@@ -155,6 +168,7 @@ export class Comet {
         });
 
         this.tailParticles = new THREE.Points(geometry, material);
+        this.tailParticles.frustumCulled = false; // Prevent tail from disappearing at certain angles
         this.orbitGroup.add(this.tailParticles);
     }
 
