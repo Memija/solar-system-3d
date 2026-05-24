@@ -889,7 +889,13 @@ export class SceneManager {
 
             // Adjust camera distance based on radius (Spacecraft have smaller 'models')
             const radius = 'radius' in target.data ? target.data.radius : 0.5;
-            const distance = radius * 5;
+            let distance = radius * 5;
+
+            // Comets need a larger distance to see the tail
+            if ('tailParticles' in target) {
+                distance = Math.max(distance, 40);
+            }
+
             this.camera.position.set(pos.x + distance, pos.y + distance * 0.5, pos.z + distance);
 
             // Initialize previous position for tracking
