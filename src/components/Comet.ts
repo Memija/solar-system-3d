@@ -95,7 +95,7 @@ export class Comet {
     }
 
     createTail() {
-        const particleCount = 2000;
+        const particleCount = 12000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const lifetimes = new Float32Array(particleCount);
@@ -144,7 +144,9 @@ export class Comet {
                     offset += normalize(offset) * (currentLife * 15.0);
 
                     vec4 mvPosition = modelViewMatrix * vec4(tailMove + offset, 1.0);
-                    gl_PointSize = (10.0 * vAlpha) / -mvPosition.z; // Scale by distance and fade
+                    // Make particles larger and clamp minimum size so they don't vanish from side profile
+                    float size = 300.0 * vAlpha;
+                    gl_PointSize = max(1.5, size / -mvPosition.z);
                     gl_Position = projectionMatrix * mvPosition;
                 }
             `,
