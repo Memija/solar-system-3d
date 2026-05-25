@@ -48,7 +48,8 @@ export class Comet {
         this.baseGroup.add(this.orbitGroup);
 
         // Create Comet Body (Coma)
-        const geometry = new THREE.SphereGeometry(this.data.radius * 2.0, 32, 32);
+        const visualRadius = Math.max(this.data.radius * 3.0, 0.6);
+        const geometry = new THREE.SphereGeometry(visualRadius, 32, 32);
 
         // A fuzzy, glowing coma material instead of a solid planet
         const material = new THREE.ShaderMaterial({
@@ -214,9 +215,21 @@ export class Comet {
         this.angle = this.angle % (Math.PI * 2);
 
         // Solve Kepler's equation M = E - e*sin(E) for E using Newton-Raphson
-        let E = this.angle; // Initial guess
-        for(let i=0; i<5; i++) {
-            E = E - (E - this.e * Math.sin(E) - this.angle) / (1 - this.e * Math.cos(E));
+        let M = this.angle;
+        // Better initial guess for high eccentricity
+        let E = M + this.e * Math.sin(M) + 0.5 * this.e * this.e * Math.sin(2 * M);
+
+        for(let i = 0; i < 50; i++) {
+            let f = E - this.e * Math.sin(E) - M;
+            let df = 1 - this.e * Math.cos(E);
+            let dE = f / df;
+
+            // Clamp the change to prevent wild oscillation for extreme eccentricities
+            if (dE > 0.5) dE = 0.5;
+            if (dE < -0.5) dE = -0.5;
+
+            E -= dE;
+            if (Math.abs(dE) < 1e-6) break;
         }
 
         // Calculate position in orbital plane
@@ -253,7 +266,7 @@ export class Comet {
             const perihelion = this.a * (1 - this.e);
 
             // Rough fade logic:
-            const tailVisibility = Math.max(0, 1 - ((dist - perihelion) / (this.a * 1.5)));
+            const tailVisibility = Math.max(0.15, 1 - ((dist - perihelion) / (this.a * 2.5)));
             material.uniforms.tailVisibility.value = tailVisibility;
             // Also need to pass this to shader if we want length to change, but opacity fade is good enough for now
         }
