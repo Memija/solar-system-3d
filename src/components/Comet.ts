@@ -84,6 +84,7 @@ export class Comet {
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
+        this.mesh.frustumCulled = false;
         this.orbitGroup.add(this.mesh);
 
         // Create Comet Tail
