@@ -84,6 +84,7 @@ export class Comet {
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
+        this.mesh.renderOrder = 1; // Ensures it renders after other transparent objects, preventing center-based depth sorting issues, but keeps depthTest to allow occlusion by planets
         this.mesh.frustumCulled = false;
         this.orbitGroup.add(this.mesh);
 
@@ -172,6 +173,7 @@ export class Comet {
         });
 
         this.tailParticles = new THREE.Points(geometry, material);
+        this.tailParticles.renderOrder = 1;
         this.tailParticles.frustumCulled = false; // Prevent tail from disappearing at certain angles
         this.orbitGroup.add(this.tailParticles);
     }
