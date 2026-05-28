@@ -139,7 +139,7 @@ export class Modal {
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
                      <p style="display: flex; align-items: center;">${createInfoButton("Semi-Major Axis", "One half of the major axis of the elliptical orbit; essentially the average distance from the Sun.")}<strong>Semi-Major Axis:</strong>&nbsp;${comet.semiMajorAxis} AU</p>
                      <p style="display: flex; align-items: center;">${createInfoButton("Eccentricity", "A measure of how much an elliptical orbit deviates from a perfect circle. 0 is a circle, closer to 1 is a highly elongated ellipse.")}<strong>Eccentricity:</strong>&nbsp;${comet.eccentricity}</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around another object.")}<strong>Orbital Period:</strong>&nbsp;${comet.period} years</p>`;
+                     <p style="display: flex; align-items: center;">${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around our Sun.")}<strong>Orbital Period:</strong>&nbsp;${comet.period} years</p>`;
         } else if ('radius' in data) {
             const body = data as CelestialBodyData;
             const displayRadius = body.displayRadius !== undefined ? body.displayRadius : body.radius;
