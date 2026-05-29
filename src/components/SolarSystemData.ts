@@ -84,7 +84,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 0.05, // fast orbit
         inclination: 51.6,
         color: 0xffffff,
-        description: "The International Space Station (ISS) is a modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project involving five participating space agencies.",
+        description: "The International Space Station (ISS) is a modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project involving five participating space agencies. Spacecraft are vehicles or machines designed to fly in outer space. They are used for a variety of purposes, including communications, Earth observation, meteorology, navigation, space colonization, planetary exploration, and transportation of humans and cargo.",
         imageUrl: "images/800px-International_Space_Station_after_undocking_of_STS-132.jpg",
         links: [
             { title: "NASA: ISS", url: "https://www.nasa.gov/international-space-station/" },
@@ -98,7 +98,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 0.06,
         inclination: 28.5,
         color: 0xcccccc,
-        description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation. It is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy.",
+        description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation. It is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy. Spacecraft are vehicles or machines designed to fly in outer space. They are used for a variety of purposes, including communications, Earth observation, meteorology, navigation, space colonization, planetary exploration, and transportation of humans and cargo.",
         imageUrl: "images/800px-HST-SM4.jpeg",
         links: [
             { title: "NASA: Hubble", url: "https://science.nasa.gov/mission/hubble/" },
@@ -112,7 +112,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         color: 0xaaaaaa,
         escaping: true,
         speed: 1.5,
-        description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, Voyager 1 launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth.",
+        description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, Voyager 1 launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth. Spacecraft are vehicles or machines designed to fly in outer space. They are used for a variety of purposes, including communications, Earth observation, meteorology, navigation, space colonization, planetary exploration, and transportation of humans and cargo.",
         imageUrl: "images/800px-Voyager_spacecraft_model.png",
         links: [
             { title: "NASA: Voyager", url: "https://voyager.jpl.nasa.gov/" },
@@ -126,7 +126,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 1.0, // Orbits the Sun with Earth, so period is 1 Earth year
         inclination: 0,
         color: 0xffd700,
-        description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. It is the largest space telescope in history, offering unprecedented resolution and sensitivity.",
+        description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. It is the largest space telescope in history, offering unprecedented resolution and sensitivity. Spacecraft are vehicles or machines designed to fly in outer space. They are used for a variety of purposes, including communications, Earth observation, meteorology, navigation, space colonization, planetary exploration, and transportation of humans and cargo.",
         imageUrl: "images/800px-James_Webb_Space_Telescope.jpg",
         links: [
             { title: "NASA: JWST", url: "https://science.nasa.gov/mission/webb/" },
@@ -139,7 +139,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         distance: 25,
         period: 0.1,
         color: 0xdddddd,
-        description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system.",
+        description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system. Spacecraft are vehicles or machines designed to fly in outer space. They are used for a variety of purposes, including communications, Earth observation, meteorology, navigation, space colonization, planetary exploration, and transportation of humans and cargo.",
         imageUrl: "images/800px-Cassini_Saturn_Orbit_Insertion.jpg",
         links: [
             { title: "NASA: Cassini", url: "https://science.nasa.gov/mission/cassini/" },
@@ -153,7 +153,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         color: 0x8888aa,
         escaping: true,
         speed: 1.4,
-        description: "Voyager 2 is a space probe launched by NASA on August 20, 1977, to study the outer planets. It remains the only spacecraft to have visited either of the ice giants, Uranus and Neptune.",
+        description: "Voyager 2 is a space probe launched by NASA on August 20, 1977, to study the outer planets. It remains the only spacecraft to have visited either of the ice giants, Uranus and Neptune. Spacecraft are vehicles or machines designed to fly in outer space. They are used for a variety of purposes, including communications, Earth observation, meteorology, navigation, space colonization, planetary exploration, and transportation of humans and cargo.",
         imageUrl: "images/800px-Voyager_spacecraft_model.png",
         links: [
             { title: "NASA: Voyager 2", url: "https://voyager.jpl.nasa.gov/" },

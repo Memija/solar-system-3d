@@ -129,6 +129,12 @@ export class Modal {
             return `<span class="info-btn" data-title="${title}" data-text="${text}" style="cursor: help; background: #444; color: #fff; border-radius: 50%; display: inline-block; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 12px; margin-right: 5px;">i</span>`;
         };
 
+        // A generic description addition for Spacecraft
+        if ('targetBody' in data || 'escaping' in data) {
+            const scData = data as any; // SpacecraftData
+            info += `<p style="display: flex; align-items: center;">${createInfoButton("Spacecraft", "A spacecraft is a vehicle or machine designed to fly in outer space.")}<strong>Type:</strong>&nbsp;Spacecraft</p>`;
+        }
+
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Right Ascension (RA)", "The celestial equivalent of terrestrial longitude. Measured in hours (h).")}<strong>RA:</strong>&nbsp;${data.ra}h&nbsp;&nbsp;|&nbsp;&nbsp;${createInfoButton("Declination (Dec)", "The celestial equivalent of terrestrial latitude. Measured in degrees (°).")}<strong>Dec:</strong>&nbsp;${data.dec}°</p>`;
         }

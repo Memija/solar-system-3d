@@ -61,6 +61,7 @@ export class SceneManager {
     measureTargetB: CelestialBody | Comet | Spacecraft | null;
     measureLine: THREE.Line | null;
     measureLabel: THREE.Sprite | null;
+    onTimeScaleChange?: (newScale: number) => void;
 
     constructor(container: HTMLElement) {
         this.container = container;

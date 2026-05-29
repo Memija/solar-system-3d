@@ -19,6 +19,7 @@ export class UIManager {
     datePanel: HTMLElement;
     tourController: dat.GUIController | null = null;
     minimap: Minimap;
+    previousTimeSpeed: number | null = null;
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -117,9 +118,18 @@ export class UIManager {
 
         // Simulation Controls
         const simFolder = gui.addFolder('Simulation');
-        simFolder.add(params, 'timeSpeed', 0, 5).name('Time Speed').onChange(val => {
+        const timeSpeedController = simFolder.add(params, 'timeSpeed', 0, 5).name('Time Speed').onChange(val => {
             this.sceneManager.timeScale = val;
+            if (this.previousTimeSpeed !== null) {
+                // User changed speed manually while something was selected
+                this.previousTimeSpeed = val;
+            }
         });
+
+        // Listen for internal speed changes
+        this.sceneManager.onTimeScaleChange = (newSpeed: number) => {
+            timeSpeedController.setValue(newSpeed);
+        };
         simFolder.add(params, 'showOrbits').name('Show Orbits').onChange(val => {
             this.sceneManager.toggleOrbits(val);
         });
@@ -557,10 +567,39 @@ export class UIManager {
     showModal(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData) {
         this.modal.show(data);
         this.infoPanel.style.display = 'none'; // Ensure simple info is hidden
+
+        // Slow down time for low Earth orbit spacecraft
+        if ('targetBody' in data && data.targetBody === 'Earth' && 'distance' in data && data.distance < 10) {
+            if (this.previousTimeSpeed === null) {
+                this.previousTimeSpeed = this.sceneManager.timeScale;
+            }
+            const slowSpeed = 0.05; // Slow down
+            if (this.sceneManager.timeScale > slowSpeed) {
+                this.sceneManager.timeScale = slowSpeed;
+                if (this.sceneManager.onTimeScaleChange) {
+                    this.sceneManager.onTimeScaleChange(slowSpeed);
+                }
+            }
+        } else if (this.previousTimeSpeed !== null) {
+            // Restore speed if switching to something else
+            this.sceneManager.timeScale = this.previousTimeSpeed;
+            if (this.sceneManager.onTimeScaleChange) {
+                this.sceneManager.onTimeScaleChange(this.previousTimeSpeed);
+            }
+            this.previousTimeSpeed = null;
+        }
     }
 
     hideInfo() {
         this.selectedBody = null;
         this.infoPanel.style.display = 'none';
+
+        if (this.previousTimeSpeed !== null) {
+            this.sceneManager.timeScale = this.previousTimeSpeed;
+            if (this.sceneManager.onTimeScaleChange) {
+                this.sceneManager.onTimeScaleChange(this.previousTimeSpeed);
+            }
+            this.previousTimeSpeed = null;
+        }
     }
 }
