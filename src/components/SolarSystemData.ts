@@ -84,7 +84,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 0.05, // fast orbit
         inclination: 51.6,
         color: 0xffffff,
-        description: "The International Space Station (ISS) is a modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project involving five participating space agencies.",
+        description: "The International Space Station (ISS) is a modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project involving five participating space agencies. It serves as a microgravity and space environment research laboratory in which scientific research is conducted in astrobiology, astronomy, meteorology, physics, and other fields.",
         imageUrl: "images/800px-International_Space_Station_after_undocking_of_STS-132.jpg",
         links: [
             { title: "NASA: ISS", url: "https://www.nasa.gov/international-space-station/" },
@@ -98,7 +98,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 0.06,
         inclination: 28.5,
         color: 0xcccccc,
-        description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation. It is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy.",
+        description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation. It is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy. The Hubble telescope is named after astronomer Edwin Hubble and is one of NASA's Great Observatories.",
         imageUrl: "images/800px-HST-SM4.jpeg",
         links: [
             { title: "NASA: Hubble", url: "https://science.nasa.gov/mission/hubble/" },
@@ -112,7 +112,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         color: 0xaaaaaa,
         escaping: true,
         speed: 1.5,
-        description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, Voyager 1 launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth.",
+        description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, Voyager 1 launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth. The probe's primary mission was to fly by Jupiter and Saturn, and it was the first spacecraft to cross the heliopause and enter interstellar space.",
         imageUrl: "images/800px-Voyager_spacecraft_model.png",
         links: [
             { title: "NASA: Voyager", url: "https://voyager.jpl.nasa.gov/" },
@@ -126,7 +126,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 1.0, // Orbits the Sun with Earth, so period is 1 Earth year
         inclination: 0,
         color: 0xffd700,
-        description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. It is the largest space telescope in history, offering unprecedented resolution and sensitivity.",
+        description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. It is the largest space telescope in history, offering unprecedented resolution and sensitivity. JWST enables a broad range of investigations across the fields of astronomy and cosmology, such as observation of the first stars and the formation of the first galaxies.",
         imageUrl: "images/800px-James_Webb_Space_Telescope.jpg",
         links: [
             { title: "NASA: JWST", url: "https://science.nasa.gov/mission/webb/" },
@@ -139,7 +139,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         distance: 25,
         period: 0.1,
         color: 0xdddddd,
-        description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system.",
+        description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system. The spacecraft arrived at Saturn in 2004 and spent 13 years studying the planet, its rings, and its moons, including releasing the Huygens lander onto Titan.",
         imageUrl: "images/800px-Cassini_Saturn_Orbit_Insertion.jpg",
         links: [
             { title: "NASA: Cassini", url: "https://science.nasa.gov/mission/cassini/" },
@@ -153,7 +153,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         color: 0x8888aa,
         escaping: true,
         speed: 1.4,
-        description: "Voyager 2 is a space probe launched by NASA on August 20, 1977, to study the outer planets. It remains the only spacecraft to have visited either of the ice giants, Uranus and Neptune.",
+        description: "Voyager 2 is a space probe launched by NASA on August 20, 1977, to study the outer planets. It remains the only spacecraft to have visited either of the ice giants, Uranus and Neptune. It successfully completed close flybys of Jupiter, Saturn, Uranus, and Neptune, capturing detailed images and scientific data before joining its twin in interstellar space.",
         imageUrl: "images/800px-Voyager_spacecraft_model.png",
         links: [
             { title: "NASA: Voyager 2", url: "https://voyager.jpl.nasa.gov/" },
