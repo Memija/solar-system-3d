@@ -49,3 +49,204 @@ body {
         pointer-events: auto;
     }
 }
+// Custom dat.gui theme overrides
+.dg.ac {
+    z-index: 20 !important;
+}
+
+.dg {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+}
+
+.dg.main {
+    background: rgba(15, 15, 25, 0.65) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+
+    .close-button {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
+        transition: background-color 0.2s ease;
+        height: 24px !important;
+        line-height: 24px !important;
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+    }
+
+    // Style scrollbar for dat.gui
+    ::-webkit-scrollbar {
+        width: 6px;
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+}
+
+.dg li:not(.folder) {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: background 0.2s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+}
+
+.dg li.title {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+    text-transform: uppercase;
+    font-size: 11px !important;
+    letter-spacing: 0.8px;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    transition: background 0.2s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.15) !important;
+    }
+}
+
+.dg .cr.boolean {
+    border-left: 3px solid #3b82f6 !important;
+}
+.dg .cr.number {
+    border-left: 3px solid #10b981 !important;
+}
+.dg .cr.string {
+    border-left: 3px solid #f59e0b !important;
+}
+.dg .cr.function {
+    border-left: 3px solid #8b5cf6 !important;
+}
+
+.dg .c input[type=text] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 4px !important;
+    color: #fff !important;
+    padding: 3px 6px !important;
+    transition: all 0.2s ease !important;
+    font-family: inherit !important;
+
+    &:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+        outline: none !important;
+    }
+
+    &:hover {
+        background: rgba(0, 0, 0, 0.7) !important;
+    }
+}
+
+.dg .c select {
+    background: rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 4px !important;
+    color: #fff !important;
+    padding: 3px 6px !important;
+    transition: all 0.2s ease !important;
+    font-family: inherit !important;
+    outline: none !important;
+
+    &:focus {
+        border-color: #3b82f6 !important;
+    }
+}
+
+.dg .c .slider {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 4px !important;
+    height: 6px !important;
+    margin-top: 6px !important;
+    overflow: hidden;
+}
+.dg .c .slider-fg {
+    background: linear-gradient(90deg, #3b82f6, #10b981) !important;
+    border-radius: 4px !important;
+    transition: background 0.2s ease;
+}
+
+.dg .c .slider:hover .slider-fg {
+    background: linear-gradient(90deg, #60a5fa, #34d399) !important;
+}
+
+.dg .property-name {
+    color: #e2e8f0 !important;
+    font-size: 12px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    line-height: 27px !important;
+}
+
+.dg .c .button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 4px !important;
+    color: #fff !important;
+    transition: all 0.2s ease !important;
+    font-weight: 500 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+    padding: 4px !important;
+
+    &:hover {
+        background: rgba(59, 130, 246, 0.5) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    &:active {
+        transform: translateY(1px);
+        box-shadow: none;
+    }
+}
+
+// Checkboxes
+.dg .c input[type=checkbox] {
+    appearance: none;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    width: 16px;
+    height: 16px;
+    position: relative;
+    cursor: pointer;
+    margin-top: 5px !important;
+    transition: all 0.2s ease;
+
+    &:checked {
+        background: #3b82f6;
+        border-color: #3b82f6;
+
+        &::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 1px;
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+    }
+
+    &:hover {
+        border-color: #60a5fa;
+    }
+}
