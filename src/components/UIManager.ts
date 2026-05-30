@@ -246,12 +246,20 @@ export class UIManager {
 
         // Type Selector
         const typeSelect = document.createElement('select');
-        typeSelect.style.padding = '8px';
-        typeSelect.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        typeSelect.style.padding = '8px 12px';
+        typeSelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)';
+        typeSelect.style.backdropFilter = 'blur(12px)';
+        typeSelect.style.WebkitBackdropFilter = 'blur(12px)';
         typeSelect.style.color = '#fff';
-        typeSelect.style.border = '1px solid #444';
-        typeSelect.style.borderRadius = '4px';
+        typeSelect.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+        typeSelect.style.borderRadius = '8px';
         typeSelect.style.cursor = 'pointer';
+        typeSelect.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+        typeSelect.style.fontFamily = 'inherit';
+        typeSelect.style.outline = 'none';
+        typeSelect.style.transition = 'all 0.2s ease';
+        typeSelect.addEventListener('mouseenter', () => typeSelect.style.backgroundColor = 'rgba(255, 255, 255, 0.1)');
+        typeSelect.addEventListener('mouseleave', () => typeSelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)');
 
         const types = ['Star', 'Planet', 'Constellation', 'Comet', 'Spacecraft'];
         types.forEach(type => {
@@ -263,12 +271,20 @@ export class UIManager {
 
         // Body Selector
         const bodySelect = document.createElement('select');
-        bodySelect.style.padding = '8px';
-        bodySelect.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        bodySelect.style.padding = '8px 12px';
+        bodySelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)';
+        bodySelect.style.backdropFilter = 'blur(12px)';
+        bodySelect.style.WebkitBackdropFilter = 'blur(12px)';
         bodySelect.style.color = '#fff';
-        bodySelect.style.border = '1px solid #444';
-        bodySelect.style.borderRadius = '4px';
+        bodySelect.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+        bodySelect.style.borderRadius = '8px';
         bodySelect.style.cursor = 'pointer';
+        bodySelect.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+        bodySelect.style.fontFamily = 'inherit';
+        bodySelect.style.outline = 'none';
+        bodySelect.style.transition = 'all 0.2s ease';
+        bodySelect.addEventListener('mouseenter', () => bodySelect.style.backgroundColor = 'rgba(255, 255, 255, 0.1)');
+        bodySelect.addEventListener('mouseleave', () => bodySelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)');
 
         // Populate Body Selector based on Type
         const updateBodyOptions = () => {
