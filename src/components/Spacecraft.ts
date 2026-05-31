@@ -68,6 +68,8 @@ export class Spacecraft {
             this.createVoyagerModel(material);
         } else if (name.includes("James Webb")) {
             this.createJWSTModel(material);
+        } else if (name.includes("Cassini")) {
+            this.createCassiniModel(material);
         } else {
             // Generic box
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
@@ -159,6 +161,35 @@ export class Spacecraft {
         this.mesh.add(panel);
 
         this.mesh.scale.set(0.5, 0.5, 0.5);
+    }
+
+    private createCassiniModel(material: THREE.MeshStandardMaterial) {
+        // High-Gain Antenna (Dish)
+        const dishGeo = new THREE.ConeGeometry(0.15, 0.05, 16);
+        const dish = new THREE.Mesh(dishGeo, material);
+        dish.position.y = 0.2;
+        this.mesh.add(dish);
+
+        // Main body cylinder
+        const bodyGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.4, 16);
+        const body = new THREE.Mesh(bodyGeo, material);
+        this.mesh.add(body);
+
+        // Lower equipment section
+        const baseGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.1, 16);
+        const base = new THREE.Mesh(baseGeo, material);
+        base.position.y = -0.2;
+        this.mesh.add(base);
+
+        // Magnetometer boom
+        const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.6);
+        const boomMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5, roughness: 0.5 });
+        const boom = new THREE.Mesh(boomGeo, boomMat);
+        boom.position.set(0.2, -0.1, 0);
+        boom.rotation.z = Math.PI / 2;
+        this.mesh.add(boom);
+
+        this.mesh.scale.set(1.5, 1.5, 1.5);
     }
 
     private createVoyagerModel(material: THREE.MeshStandardMaterial) {
