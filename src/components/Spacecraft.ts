@@ -50,26 +50,45 @@ export class Spacecraft {
     }
 
     createModel() {
+        // Base metallic materials
+        const baseColor = this.data.color;
+        // Make sure base metallic material is spicy
         const material = new THREE.MeshStandardMaterial({
-            color: this.data.color,
-            roughness: 0.5,
-            metalness: 0.8
+            color: baseColor,
+            roughness: 0.4,
+            metalness: 0.9
         });
 
-        const panelMat = new THREE.MeshStandardMaterial({ color: 0x224488, metalness: 0.9, roughness: 0.2 });
+        const goldFoil = new THREE.MeshStandardMaterial({
+            color: 0xffd700,
+            roughness: 0.3,
+            metalness: 1.0
+        });
+
+        const silverFoil = new THREE.MeshStandardMaterial({
+            color: 0xdddddd,
+            roughness: 0.3,
+            metalness: 1.0
+        });
+
+        const panelMat = new THREE.MeshStandardMaterial({
+            color: 0x224488,
+            metalness: 0.9,
+            roughness: 0.2
+        });
 
         // Simple representations based on name
         const name = this.data.name;
         if (name.includes("ISS")) {
-            this.createISSModel(material, panelMat);
+            this.createISSModel(silverFoil, panelMat);
         } else if (name.includes("Hubble")) {
-            this.createHubbleModel(material, panelMat);
+            this.createHubbleModel(silverFoil, panelMat);
         } else if (name.includes("Voyager")) {
-            this.createVoyagerModel(material);
+            this.createVoyagerModel(material, goldFoil);
         } else if (name.includes("James Webb")) {
-            this.createJWSTModel(material);
+            this.createJWSTModel(silverFoil, goldFoil);
         } else if (name.includes("Cassini")) {
-            this.createCassiniModel(material);
+            this.createCassiniModel(material, goldFoil);
         } else {
             // Generic box
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
@@ -86,10 +105,10 @@ export class Spacecraft {
         });
     }
 
-    private createJWSTModel(material: THREE.MeshStandardMaterial) {
+    private createJWSTModel(material: THREE.MeshStandardMaterial, mirrorMat: THREE.MeshStandardMaterial) {
         // Sunshield (diamond shape)
         const shieldGeo = new THREE.PlaneGeometry(0.6, 0.3);
-        const shieldMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.2, side: THREE.DoubleSide });
+        const shieldMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide });
 
         // 3 layers of sunshield
         for (let i = 0; i < 3; i++) {
@@ -101,7 +120,6 @@ export class Spacecraft {
 
         // Primary mirror (hexagon)
         const mirrorGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 6);
-        const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.1 });
         const mirror = new THREE.Mesh(mirrorGeo, mirrorMat);
         mirror.rotation.x = Math.PI / 2;
         mirror.position.set(0, 0.1, 0.1);
@@ -116,7 +134,8 @@ export class Spacecraft {
 
         // Spacecraft bus
         const busGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-        const bus = new THREE.Mesh(busGeo, material);
+        const goldBus = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.9, roughness: 0.3 });
+        const bus = new THREE.Mesh(busGeo, goldBus);
         bus.position.set(0, -0.1, 0);
         this.mesh.add(bus);
 
@@ -151,7 +170,7 @@ export class Spacecraft {
         this.mesh.add(body);
 
         const apertureGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.1, 16);
-        const apertureMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const apertureMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.3, roughness: 0.8 });
         const aperture = new THREE.Mesh(apertureGeo, apertureMat);
         aperture.position.y = 0.2;
         this.mesh.add(aperture);
@@ -163,16 +182,18 @@ export class Spacecraft {
         this.mesh.scale.set(0.5, 0.5, 0.5);
     }
 
-    private createCassiniModel(material: THREE.MeshStandardMaterial) {
+    private createCassiniModel(material: THREE.MeshStandardMaterial, foilMat: THREE.MeshStandardMaterial) {
         // High-Gain Antenna (Dish)
         const dishGeo = new THREE.ConeGeometry(0.15, 0.05, 16);
-        const dish = new THREE.Mesh(dishGeo, material);
+        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.8 }); // White dish
+        const dish = new THREE.Mesh(dishGeo, dishMat);
         dish.position.y = 0.2;
         this.mesh.add(dish);
 
         // Main body cylinder
         const bodyGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.4, 16);
-        const body = new THREE.Mesh(bodyGeo, material);
+        // Cassini is famously wrapped in gold multi-layer insulation
+        const body = new THREE.Mesh(bodyGeo, foilMat);
         this.mesh.add(body);
 
         // Lower equipment section
@@ -183,7 +204,7 @@ export class Spacecraft {
 
         // Magnetometer boom
         const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.6);
-        const boomMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5, roughness: 0.5 });
+        const boomMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.5 });
         const boom = new THREE.Mesh(boomGeo, boomMat);
         boom.position.set(0.2, -0.1, 0);
         boom.rotation.z = Math.PI / 2;
@@ -192,18 +213,26 @@ export class Spacecraft {
         this.mesh.scale.set(1.5, 1.5, 1.5);
     }
 
-    private createVoyagerModel(material: THREE.MeshStandardMaterial) {
-        // Dish
+    private createVoyagerModel(material: THREE.MeshStandardMaterial, goldMat: THREE.MeshStandardMaterial) {
+        // Dish (white/gray)
         const dishGeo = new THREE.ConeGeometry(0.2, 0.1, 16);
-        const dish = new THREE.Mesh(dishGeo, material);
+        const dishMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.3, roughness: 0.7 });
+        const dish = new THREE.Mesh(dishGeo, dishMat);
         dish.rotation.x = -Math.PI / 2;
         this.mesh.add(dish);
 
-        // Body
+        // Body (Gold Record & bus)
         const bodyGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
         const body = new THREE.Mesh(bodyGeo, material);
         body.position.z = 0.1;
         this.mesh.add(body);
+
+        // Add a gold record on the side
+        const recordGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.005, 16);
+        const record = new THREE.Mesh(recordGeo, goldMat);
+        record.position.set(0.05, 0, 0.1);
+        record.rotation.z = Math.PI / 2;
+        this.mesh.add(record);
 
         // Boom
         const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.4);
