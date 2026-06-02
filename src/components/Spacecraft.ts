@@ -214,32 +214,86 @@ export class Spacecraft {
     }
 
     private createVoyagerModel(material: THREE.MeshStandardMaterial, goldMat: THREE.MeshStandardMaterial) {
-        // Dish (white/gray)
-        const dishGeo = new THREE.ConeGeometry(0.2, 0.1, 16);
-        const dishMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.3, roughness: 0.7 });
+        // High-gain antenna (dish) - Parabolic shape using a sphere cap
+        const dishGeo = new THREE.SphereGeometry(0.25, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
+        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, metalness: 0.3, roughness: 0.7 });
         const dish = new THREE.Mesh(dishGeo, dishMat);
-        dish.rotation.x = -Math.PI / 2;
+        dish.rotation.x = -Math.PI / 2; // point "forward"
+        dish.position.z = -0.05;
         this.mesh.add(dish);
 
-        // Body (Gold Record & bus)
-        const bodyGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-        const body = new THREE.Mesh(bodyGeo, material);
-        body.position.z = 0.1;
-        this.mesh.add(body);
+        // Antenna sub-reflector (small cone in the middle)
+        const subReflectorGeo = new THREE.ConeGeometry(0.03, 0.05, 16);
+        const subReflector = new THREE.Mesh(subReflectorGeo, dishMat);
+        subReflector.position.z = -0.15;
+        subReflector.rotation.x = -Math.PI / 2;
+        this.mesh.add(subReflector);
 
-        // Add a gold record on the side
-        const recordGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.005, 16);
+        // Feed struts
+        const strutGeo = new THREE.CylinderGeometry(0.002, 0.002, 0.15);
+        for (let i = 0; i < 3; i++) {
+            const strut = new THREE.Mesh(strutGeo, material);
+            const angle = (i / 3) * Math.PI * 2;
+            strut.position.set(Math.cos(angle) * 0.08, Math.sin(angle) * 0.08, -0.1);
+            strut.lookAt(0, 0, -0.15);
+            strut.rotateX(Math.PI / 2);
+            this.mesh.add(strut);
+        }
+
+        // Bus (Decagon)
+        const busGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.15, 10);
+        const busMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5, roughness: 0.6 });
+        const bus = new THREE.Mesh(busGeo, busMat);
+        bus.rotation.x = Math.PI / 2;
+        bus.position.z = 0.08;
+        this.mesh.add(bus);
+
+        // Gold Record
+        const recordGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.005, 16);
         const record = new THREE.Mesh(recordGeo, goldMat);
-        record.position.set(0.05, 0, 0.1);
+        record.position.set(0.1, 0, 0.08);
         record.rotation.z = Math.PI / 2;
         this.mesh.add(record);
 
-        // Boom
-        const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.4);
-        const boom = new THREE.Mesh(boomGeo, material);
-        boom.position.set(0.2, 0, 0.1);
-        boom.rotation.z = Math.PI / 4;
-        this.mesh.add(boom);
+        // RTG Boom
+        const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.3);
+        const rtgBoom = new THREE.Mesh(boomGeo, material);
+        rtgBoom.position.set(-0.15, -0.15, 0.15);
+        rtgBoom.rotation.z = -Math.PI / 4;
+        rtgBoom.rotation.x = -Math.PI / 6;
+        this.mesh.add(rtgBoom);
+
+        // RTGs (3 cylinders)
+        const rtgGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.06, 16);
+        const rtgMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.4 });
+        for (let i = 0; i < 3; i++) {
+            const rtg = new THREE.Mesh(rtgGeo, rtgMat);
+            // Offset each RTG along the boom
+            rtg.position.set(-0.15 - (i * 0.05), -0.15 - (i * 0.05), 0.15 + (i * 0.03));
+            rtg.rotation.z = -Math.PI / 4;
+            rtg.rotation.x = -Math.PI / 6;
+            this.mesh.add(rtg);
+        }
+
+        // Science Boom
+        const sciBoomGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.4);
+        const sciBoom = new THREE.Mesh(sciBoomGeo, material);
+        sciBoom.position.set(0.2, 0.2, 0.15);
+        sciBoom.rotation.z = -Math.PI / 4;
+        this.mesh.add(sciBoom);
+
+        // Instruments on Science Boom
+        const instrumentGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+        const instrument = new THREE.Mesh(instrumentGeo, material);
+        instrument.position.set(0.35, 0.35, 0.15);
+        this.mesh.add(instrument);
+
+        // Magnetometer Boom (Very long)
+        const magBoomGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.8);
+        const magBoom = new THREE.Mesh(magBoomGeo, material);
+        magBoom.position.set(-0.3, 0.3, 0.1);
+        magBoom.rotation.z = Math.PI / 4;
+        this.mesh.add(magBoom);
 
         this.mesh.scale.set(2, 2, 2); // Make Voyager a bit bigger so it's visible far away
     }
