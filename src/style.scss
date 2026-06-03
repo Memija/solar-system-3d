@@ -169,6 +169,12 @@ body {
     }
 }
 
+// Fix white flash and unreadable text in select options by explicitly setting background color
+option {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
 .dg .c .slider {
     background: rgba(255, 255, 255, 0.1) !important;
     border-radius: 4px !important;
