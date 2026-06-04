@@ -26,14 +26,55 @@ export class Minimap {
         this.canvas.style.borderRadius = '50%';
         this.canvas.style.border = '2px solid rgba(100, 150, 255, 0.5)';
         this.canvas.style.backgroundColor = 'rgba(0, 10, 20, 0.7)';
-        this.canvas.style.pointerEvents = 'none'; // click through
+        this.canvas.style.pointerEvents = 'auto'; // allow clicks
         this.canvas.style.boxShadow = '0 0 15px rgba(0, 100, 255, 0.3)';
+        this.canvas.style.cursor = 'crosshair';
 
         const ctx = this.canvas.getContext('2d');
         if (!ctx) throw new Error("Could not get 2D context for minimap");
         this.context = ctx;
 
         container.appendChild(this.canvas);
+
+        this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+    }
+
+    onPointerDown(event: PointerEvent) {
+        if (!this.isVisible) return;
+
+        // Prevent click from propagating to the main scene raycaster if they overlap
+        event.stopPropagation();
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const cx = this.size / 2;
+        const cy = this.size / 2;
+
+        // Check if click is inside the circular minimap
+        const distFromCenter = Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2));
+        if (distFromCenter > this.size / 2) return;
+
+        // Map radar click to 3D space
+        const scale = this.maxDistance / (this.size / 2);
+        const x3d = (x - cx) * scale;
+        const z3d = (y - cy) * scale;
+
+        // Detach camera from whatever it's following
+        this.sceneManager.detachCamera();
+
+        // Keep current Y height or use a default height
+        let currentY = this.sceneManager.camera.position.y;
+        if (currentY < 10) currentY = 100; // minimum height
+
+        // Set new camera target
+        this.sceneManager.controls.target.set(x3d, 0, z3d);
+
+        // Set new camera position, offset slightly so we look at the target
+        // E.g. keeping the same angle or simply looking down
+        this.sceneManager.camera.position.set(x3d, currentY, z3d + currentY);
+        this.sceneManager.controls.update();
     }
 
     setVisible(visible: boolean) {
