@@ -89,7 +89,7 @@ export class UIManager {
     }
 
     initControls() {
-        const gui = new dat.GUI({ autoPlace: false });
+        const gui = new dat.GUI({ autoPlace: false, width: 300 });
         this.gui = gui;
         this.uiContainer.appendChild(gui.domElement);
         gui.domElement.style.position = 'absolute';
@@ -118,6 +118,11 @@ export class UIManager {
 
         // Simulation Controls
         const simFolder = gui.addFolder('Simulation');
+
+        simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
+            this.minimap.setVisible(val);
+        });
+
         const timeSpeedController = simFolder.add(params, 'timeSpeed', 0, 5).name('Time Speed').onChange(val => {
             this.sceneManager.timeScale = val;
             if (this.previousTimeSpeed !== null) {
@@ -156,10 +161,6 @@ export class UIManager {
         });
         simFolder.add(params, 'showTrails').name('Show Trails').onChange(val => {
             this.sceneManager.toggleTrails(val);
-        });
-
-        simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
-            this.minimap.setVisible(val);
         });
         simFolder.open();
 

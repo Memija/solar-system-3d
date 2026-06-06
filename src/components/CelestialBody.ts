@@ -405,6 +405,7 @@ export class CelestialBody {
         this.trailLine = new THREE.Line(geometry, material);
         // Do not add to orbitGroup as it's local space, add to parent so it traces global/parent path
         this.trailLine.visible = this.showTrails;
+        this.trailLine.frustumCulled = false;
         this.parent.add(this.trailLine);
     }
 
@@ -412,10 +413,16 @@ export class CelestialBody {
         if (!this.trailLine || !this.showTrails) return;
 
         const maxTrailLength = 100;
-        const currentPos = this.orbitGroup.position.clone();
+
+        // Get the global position to accurately draw trails for moons and nested objects
+        const currentGlobalPos = new THREE.Vector3();
+        this.orbitGroup.getWorldPosition(currentGlobalPos);
+
+        // Transform the global position into the parent's local space
+        const currentPos = this.parent.worldToLocal(currentGlobalPos);
 
         // Only add a point if we've moved a certain distance to avoid too many points when slow
-        if (this.trailPositions.length === 0 || currentPos.distanceTo(this.trailPositions[this.trailPositions.length - 1]) > 0.5) {
+        if (this.trailPositions.length === 0 || currentPos.distanceTo(this.trailPositions[this.trailPositions.length - 1]) > 0.01) {
             this.trailPositions.push(currentPos);
             if (this.trailPositions.length > maxTrailLength) {
                 this.trailPositions.shift();
