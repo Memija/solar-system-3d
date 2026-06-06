@@ -163,25 +163,55 @@ export class UIManager {
         });
         simFolder.open();
 
+        // Helper to add info icons to dat.gui items
+        const addInfoIcon = (controller: dat.GUIController | undefined, text: string) => {
+            // Check if controller exists, helpful when testing where dat.gui might be mocked
+            if (!controller) return;
+
+            // dat.gui manipulates DOM somewhat asynchronously, we use setTimeout to ensure element is there
+            setTimeout(() => {
+                if (controller && controller.domElement && controller.domElement.closest) {
+                    const li = controller.domElement.closest('li');
+                    if (li) {
+                        const nameNode = li.querySelector('.property-name');
+                        if (nameNode) {
+                            const currentName = nameNode.textContent || '';
+                            nameNode.innerHTML = `${currentName} <span class="gui-info-icon" title="${text.replace(/"/g, '&quot;')}">i</span>`;
+                        }
+                    }
+                }
+            }, 0);
+        };
+
         // Environment Enhancements
         const envFolder = gui.addFolder('Environment');
-        envFolder.add(params, 'showHabitableZone').name('Habitable Zone').onChange(val => {
+        const habZoneCtrl = envFolder.add(params, 'showHabitableZone').name('Habitable Zone').onChange(val => {
             this.sceneManager.toggleHabitableZone(val);
         });
-        envFolder.add(params, 'showEclipticGrid').name('Ecliptic Grid').onChange(val => {
+        addInfoIcon(habZoneCtrl, "The region around a star where conditions might be right for liquid water to exist on a planet's surface.");
+
+        const eclipticCtrl = envFolder.add(params, 'showEclipticGrid').name('Ecliptic Grid').onChange(val => {
             this.sceneManager.toggleEclipticGrid(val);
         });
-        envFolder.add(params, 'enableBloom').name('Enable Bloom').onChange(val => {
+        addInfoIcon(eclipticCtrl, "A grid representing the plane of Earth's orbit around the Sun.");
+
+        const bloomCtrl = envFolder.add(params, 'enableBloom').name('Enable Bloom').onChange(val => {
             if (this.sceneManager.bloomPass) {
                 this.sceneManager.bloomPass.enabled = val;
             }
         });
-        envFolder.add(params, 'realisticLighting').name('Realistic Lighting').onChange(val => {
+        addInfoIcon(bloomCtrl, "A post-processing effect that makes bright objects appear to glow.");
+
+        const lightingCtrl = envFolder.add(params, 'realisticLighting').name('Realistic Lighting').onChange(val => {
             this.sceneManager.toggleRealisticLighting(val);
         });
-        envFolder.add(params, 'showAxes').name('Show Axes').onChange(val => {
+        addInfoIcon(lightingCtrl, "Uses physically based rendering to simulate realistic light interaction with planetary surfaces.");
+
+        const axesCtrl = envFolder.add(params, 'showAxes').name('Show Axes').onChange(val => {
             this.sceneManager.toggleAxes(val);
         });
+        addInfoIcon(axesCtrl, "Displays X (red), Y (green), and Z (blue) axes for spatial orientation.");
+
         envFolder.open();
 
         // Camera Controls
