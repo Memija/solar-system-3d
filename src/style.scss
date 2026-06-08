@@ -134,7 +134,7 @@ body {
     border-left: 3px solid #8b5cf6 !important;
 }
 
-.dg .c input[type=text] {
+.dg .c input[type=text], .dg .c input[type=number] {
     background: rgba(0, 0, 0, 0.5) !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
     border-radius: 4px !important;
