@@ -15,6 +15,8 @@ export interface MoonData {
     radius: number;
     displayRadius?: number;
     distance: number;
+    distanceAU?: number;
+    eccentricity?: number;
     period: number;
     color: number;
     texture?: string;
@@ -32,6 +34,8 @@ export interface CelestialBodyData {
     radius: number;
     displayRadius?: number;
     distance: number;
+    distanceAU?: number;
+    eccentricity?: number;
     period: number;
     color: number;
     texture: string;
@@ -64,6 +68,8 @@ export interface SpacecraftData {
     name: string;
     targetBody?: string; // If undefined, it orbits the Sun or escapes
     distance: number; // distance from targetBody
+    distanceAU?: number;
+    eccentricity?: number;
     period: number; // orbital period
     inclination?: number;
     color: number;
@@ -80,7 +86,9 @@ export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "ISS (International Space Station)",
         targetBody: "Earth",
-        distance: 2.5, // slightly larger than Earth's radius of 2
+        distance: 2.5,
+        distanceAU: 0.000045,
+        eccentricity: 0.0003, // slightly larger than Earth's radius of 2
         period: 0.05, // fast orbit
         inclination: 51.6,
         color: 0xffffff,
@@ -95,6 +103,8 @@ export const SpacecraftDataList: SpacecraftData[] = [
         name: "Hubble Space Telescope",
         targetBody: "Earth",
         distance: 2.8,
+        distanceAU: 0.000046,
+        eccentricity: 0.0002,
         period: 0.06,
         inclination: 28.5,
         color: 0xcccccc,
@@ -107,7 +117,9 @@ export const SpacecraftDataList: SpacecraftData[] = [
     },
     {
         name: "Voyager 1",
-        distance: 800, // Starts far out
+        distance: 800,
+        distanceAU: 160,
+        eccentricity: 0, // Starts far out
         period: 0, // Not orbiting
         color: 0xaaaaaa,
         escaping: true,
@@ -122,7 +134,9 @@ export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "James Webb Space Telescope",
         targetBody: "Earth",
-        distance: 5.0, // L2 point, further out than Hubble
+        distance: 5.0,
+        distanceAU: 0.01,
+        eccentricity: 0, // L2 point, further out than Hubble
         period: 1.0, // Orbits the Sun with Earth, so period is 1 Earth year
         inclination: 0,
         color: 0xffd700,
@@ -137,6 +151,8 @@ export const SpacecraftDataList: SpacecraftData[] = [
         name: "Cassini",
         targetBody: "Saturn",
         distance: 25,
+        distanceAU: 0.008,
+        eccentricity: 0,
         period: 0.1,
         color: 0xdddddd,
         description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system. The spacecraft arrived at Saturn in 2004 and spent 13 years studying the planet, its rings, and its moons, including releasing the Huygens lander onto Titan.",
@@ -148,7 +164,9 @@ export const SpacecraftDataList: SpacecraftData[] = [
     },
     {
         name: "Voyager 2",
-        distance: 700, // Starts far out
+        distance: 700,
+        distanceAU: 133,
+        eccentricity: 0, // Starts far out
         period: 0, // Not orbiting
         color: 0x8888aa,
         escaping: true,
@@ -234,6 +252,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Sun",
         radius: 25, displayRadius: 109.2, // Visual scale
         distance: 0,
+        distanceAU: 17.8,
+        eccentricity: 0.967,
         period: 0,
         color: 0xffff00,
         texture: 'textures/sun.png',
@@ -254,6 +274,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Mercury",
         radius: 0.76, displayRadius: 0.383,
         distance: 60,
+        distanceAU: 0.387,
+        eccentricity: 0.205,
         period: 0.24,
         color: 0xaaaaaa,
         texture: 'textures/mercury.png',
@@ -274,6 +296,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Venus",
         radius: 1.9, displayRadius: 0.949,
         distance: 90,
+        distanceAU: 0.723,
+        eccentricity: 0.0067,
         period: 0.62,
         color: 0xffcc00,
         texture: 'textures/venus.png',
@@ -294,6 +318,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Earth",
         radius: 2, displayRadius: 1.0,
         distance: 130,
+        distanceAU: 1.000,
+        eccentricity: 0.0167,
         period: 1,
         color: 0x0000ff,
         texture: 'textures/earth.png',
@@ -314,6 +340,8 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Moon",
                 radius: 0.27, displayRadius: 0.272,
                 distance: 5,
+        distanceAU: 0.00257,
+        eccentricity: 0.0549,
                 period: 0.074,
                 color: 0x888888,
                 texture: 'textures/moon.jpg',
@@ -336,6 +364,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Mars",
         radius: 1.06, displayRadius: 0.532,
         distance: 170,
+        distanceAU: 1.524,
+        eccentricity: 0.0934,
         period: 1.88,
         color: 0xff0000,
         texture: 'textures/mars.png',
@@ -356,6 +386,8 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Phobos",
                 radius: 0.1, displayRadius: 0.0017,
                 distance: 2,
+        distanceAU: 0.000062,
+        eccentricity: 0.0151,
                 period: 0.03,
                 color: 0x888888,
                 description: "Phobos is the innermost and larger of the two natural satellites of Mars, the other being Deimos.",
@@ -368,6 +400,8 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Deimos",
                 radius: 0.06, displayRadius: 0.00098,
                 distance: 3.5,
+        distanceAU: 0.000156,
+        eccentricity: 0.0002,
                 period: 0.12,
                 color: 0x999999,
                 description: "Deimos is the smaller and outermost of the two natural satellites of Mars.",
@@ -382,6 +416,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Jupiter",
         radius: 11.2, displayRadius: 10.97,
         distance: 280,
+        distanceAU: 5.203,
+        eccentricity: 0.0489,
         period: 11.86,
         color: 0xffa500,
         texture: 'textures/jupiter.png',
@@ -398,16 +434,26 @@ export const SolarSystemData: CelestialBodyData[] = [
             { title: "Wikipedia: Jupiter", url: "https://en.wikipedia.org/wiki/Jupiter" }
         ],
         moons: [
-            { name: "Io", radius: 0.28, displayRadius: 0.286, distance: 15, period: 0.005, color: 0xffff00 },
-            { name: "Europa", radius: 0.25, displayRadius: 0.245, distance: 17, period: 0.01, color: 0xffffff },
-            { name: "Ganymede", radius: 0.41, displayRadius: 0.413, distance: 19, period: 0.02, color: 0x888888 },
-            { name: "Callisto", radius: 0.38, displayRadius: 0.378, distance: 21, period: 0.045, color: 0x555555 }
+            { name: "Io", radius: 0.28, displayRadius: 0.286, distance: 15,
+        distanceAU: 0.00281,
+        eccentricity: 0.0041, period: 0.005, color: 0xffff00 },
+            { name: "Europa", radius: 0.25, displayRadius: 0.245, distance: 17,
+        distanceAU: 0.00448,
+        eccentricity: 0.009, period: 0.01, color: 0xffffff },
+            { name: "Ganymede", radius: 0.41, displayRadius: 0.413, distance: 19,
+        distanceAU: 0.00715,
+        eccentricity: 0.0013, period: 0.02, color: 0x888888 },
+            { name: "Callisto", radius: 0.38, displayRadius: 0.378, distance: 21,
+        distanceAU: 0.01258,
+        eccentricity: 0.0074, period: 0.045, color: 0x555555 }
         ]
     },
     {
         name: "Saturn",
         radius: 9.45, displayRadius: 9.14,
         distance: 400,
+        distanceAU: 9.537,
+        eccentricity: 0.0565,
         period: 29.45,
         color: 0xffd700,
         texture: 'textures/saturn.png',
@@ -424,7 +470,9 @@ export const SolarSystemData: CelestialBodyData[] = [
             { title: "Wikipedia: Saturn", url: "https://en.wikipedia.org/wiki/Saturn" }
         ],
         moons: [
-            { name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 15, period: 0.044, color: 0xffaa00 }
+            { name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 15,
+        distanceAU: 0.00816,
+        eccentricity: 0.0288, period: 0.044, color: 0xffaa00 }
         ],
         rings: [
             { innerRadius: 11, outerRadius: 21, color: 0xe6e6cd, opacity: 0.8 },
@@ -435,6 +483,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Uranus",
         radius: 6, displayRadius: 3.98,
         distance: 520,
+        distanceAU: 19.191,
+        eccentricity: 0.0457,
         period: 84,
         color: 0x00ffff,
         texture: 'textures/uranus.png',
@@ -459,6 +509,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Neptune",
         radius: 5.82, displayRadius: 3.86,
         distance: 640,
+        distanceAU: 30.068,
+        eccentricity: 0.0113,
         period: 164.8,
         color: 0x0000ff,
         texture: 'textures/neptune.png',
@@ -479,6 +531,8 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Triton",
                 radius: 0.35, displayRadius: 0.212,
                 distance: 12,
+        distanceAU: 0.00237,
+        eccentricity: 0.00001,
                 period: 0.06,
                 color: 0xcccccc,
                 description: "Triton is the largest natural satellite of the planet Neptune, and the first Neptunian moon to be discovered.",
@@ -495,6 +549,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         isDwarfPlanet: true,
         radius: 0.36, displayRadius: 0.187,
         distance: 700,
+        distanceAU: 39.482,
+        eccentricity: 0.2488,
         period: 248,
         color: 0xddaa88,
         texture: 'textures/pluto.png',
@@ -515,6 +571,8 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Charon",
                 radius: 0.18, displayRadius: 0.095,
                 distance: 2.0,
+        distanceAU: 0.000131,
+        eccentricity: 0.00005,
                 period: 0.017,
                 color: 0xaaaaaa,
                 description: "Charon is the largest of the five known natural satellites of the dwarf planet Pluto.",
@@ -530,6 +588,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         isDwarfPlanet: true,
         radius: 0.14, displayRadius: 0.074,
         distance: 220,
+        distanceAU: 2.767,
+        eccentricity: 0.0758,
         period: 4.6,
         color: 0x888888,
         texture: 'textures/ceres.png',
@@ -550,6 +610,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         isDwarfPlanet: true,
         radius: 0.36, displayRadius: 0.182,
         distance: 780,
+        distanceAU: 67.668,
+        eccentricity: 0.4406,
         period: 558,
         color: 0xcccccc,
         texture: 'textures/ceres.png', // Fallback texture since there is no eris.png
@@ -568,6 +630,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         isDwarfPlanet: true,
         radius: 0.3, displayRadius: 0.128,
         distance: 740,
+        distanceAU: 43.335,
+        eccentricity: 0.1912,
         period: 284,
         color: 0xaaaaaa,
         texture: 'textures/haumea.png',
@@ -587,6 +651,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         isDwarfPlanet: true,
         radius: 0.22, displayRadius: 0.112,
         distance: 760,
+        distanceAU: 45.791,
+        eccentricity: 0.1558,
         period: 309,
         color: 0xaa8866,
         texture: 'textures/makemake.png',

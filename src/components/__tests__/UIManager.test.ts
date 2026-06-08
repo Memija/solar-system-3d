@@ -5,20 +5,21 @@ import { Modal } from '../Modal';
 // Mock dat.gui
 vi.mock('dat.gui', () => ({
     GUI: class {
-        addFolder = vi.fn(() => ({
-            add: vi.fn(() => ({
-                name: vi.fn(() => ({
-                    onChange: vi.fn()
-                })),
-                onChange: vi.fn()
-            })),
+addFolder = vi.fn(() => ({
+            add: vi.fn().mockReturnValue({
+                name: vi.fn().mockReturnThis(),
+                onChange: vi.fn().mockReturnThis(),
+                step: vi.fn().mockReturnThis(),
+                setValue: vi.fn().mockReturnThis()
+            }),
             open: vi.fn()
         }));
         domElement = document.createElement('div');
-        add = vi.fn(() => ({
-            name: vi.fn(() => ({
-                onChange: vi.fn()
-            }))
+add = vi.fn(() => ({
+            name: vi.fn().mockReturnThis(),
+            onChange: vi.fn().mockReturnThis(),
+            step: vi.fn().mockReturnThis(),
+            setValue: vi.fn().mockReturnThis()
         }));
     }
 }));

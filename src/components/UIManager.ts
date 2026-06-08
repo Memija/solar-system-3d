@@ -123,7 +123,7 @@ export class UIManager {
             this.minimap.setVisible(val);
         });
 
-        const timeSpeedController = simFolder.add(params, 'timeSpeed', 0, 5).name('Time Speed').onChange(val => {
+        const timeSpeedController = simFolder.add(params, 'timeSpeed').step(0.1).name('Time Speed').onChange(val => {
             this.sceneManager.timeScale = val;
             if (this.previousTimeSpeed !== null) {
                 // User changed speed manually while something was selected
