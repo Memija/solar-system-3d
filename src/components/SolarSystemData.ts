@@ -23,10 +23,10 @@ export interface MoonData {
     description?: string;
     imageUrl?: string;
     images?: string[];
-    displayRadius?: number;
     links?: LinkData[];
     rings?: RingData[];
     axialTilt?: number; // in degrees
+    isDwarfPlanet?: boolean;
 }
 
 export interface CelestialBodyData {
@@ -42,7 +42,6 @@ export interface CelestialBodyData {
     description: string;
     imageUrl: string;
     images?: string[];
-    displayRadius?: number;
     links?: LinkData[];
     moons?: MoonData[];
     rings?: RingData[];
@@ -199,6 +198,7 @@ export interface CometData {
     name: string;
     radius: number;
     displayRadius?: number;
+    distanceAU?: number;
     semiMajorAxis: number;
     eccentricity: number;
     period: number;
@@ -209,7 +209,6 @@ export interface CometData {
     description?: string;
     imageUrl?: string;
     images?: string[];
-    displayRadius?: number;
     links?: LinkData[];
 }
 

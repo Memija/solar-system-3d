@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CometData } from './SolarSystemData.js';
+import { solveKepler } from './MathUtils';
 
 
 export class Comet {
@@ -16,6 +17,7 @@ export class Comet {
     a: number; // Semi-major axis
     e: number; // Eccentricity
     b: number; // Semi-minor axis
+    realisticDistances: boolean = false;
 
     constructor(data: CometData, parent: THREE.Object3D) {
         this.data = data;
@@ -178,6 +180,23 @@ export class Comet {
         this.orbitGroup.add(this.tailParticles);
     }
 
+    rebuildOrbit(realistic: boolean) {
+        this.realisticDistances = realistic;
+        if (this.orbitLine) {
+            this.baseGroup.remove(this.orbitLine);
+            this.orbitLine.geometry.dispose();
+            (this.orbitLine.material as THREE.Material).dispose();
+            this.orbitLine = null;
+        }
+
+        const distanceAU = this.data.distanceAU || (this.data.semiMajorAxis / 13);
+        this.a = this.realisticDistances ? distanceAU * 130 : this.data.semiMajorAxis;
+        this.e = this.data.eccentricity;
+        this.b = this.a * Math.sqrt(1 - this.e * this.e);
+
+        this.createOrbit();
+    }
+
     createOrbit() {
         const segments = 256;
         const geometry = new THREE.BufferGeometry();
@@ -219,21 +238,7 @@ export class Comet {
 
         // Solve Kepler's equation M = E - e*sin(E) for E using Newton-Raphson
         let M = this.angle;
-        // Better initial guess for high eccentricity
-        let E = M + this.e * Math.sin(M) + 0.5 * this.e * this.e * Math.sin(2 * M);
-
-        for(let i = 0; i < 50; i++) {
-            let f = E - this.e * Math.sin(E) - M;
-            let df = 1 - this.e * Math.cos(E);
-            let dE = f / df;
-
-            // Clamp the change to prevent wild oscillation for extreme eccentricities
-            if (dE > 0.5) dE = 0.5;
-            if (dE < -0.5) dE = -0.5;
-
-            E -= dE;
-            if (Math.abs(dE) < 1e-6) break;
-        }
+        let E = solveKepler(M, this.e);
 
         // Calculate position in orbital plane
         const x = this.a * (Math.cos(E) - this.e);

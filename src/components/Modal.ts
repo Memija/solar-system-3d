@@ -1,4 +1,6 @@
-import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData.js';
+
+type ModalData = CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData;
 
 export class Modal {
     container: HTMLElement;
@@ -83,7 +85,7 @@ export class Modal {
         return modal;
     }
 
-    private getGalleryHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
+    private getGalleryHtml(data: ModalData): string {
         if (data.images && data.images.length > 0) {
             return `
                 <div class="gallery-container" style="position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 8px; margin: 10px 0; background: #000;">
@@ -103,7 +105,7 @@ export class Modal {
         return '';
     }
 
-    private getLinksHtml(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
+    private getLinksHtml(data: ModalData): string {
         if (data.links && data.links.length > 0) {
             const sortedLinks = [...data.links].sort((a, b) => a.title.localeCompare(b.title));
             return `
@@ -122,7 +124,7 @@ export class Modal {
         return '';
     }
 
-    private getExtraInfo(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData): string {
+    private getExtraInfo(data: ModalData): string {
         let info = '';
 
         const createInfoButton = (title: string, text: string) => {
@@ -131,7 +133,6 @@ export class Modal {
 
         // A generic description addition for Spacecraft
         if ('targetBody' in data || 'escaping' in data) {
-            const scData = data as any; // SpacecraftData
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Spacecraft", "A spacecraft is a vehicle or machine designed to fly in outer space.")}<strong>Type:</strong>&nbsp;Spacecraft</p>`;
         }
 
@@ -171,7 +172,7 @@ export class Modal {
         return info;
     }
 
-    private setupGalleryLogic(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {
+    private setupGalleryLogic(data: ModalData) {
         if (data.images && data.images.length > 1) {
             let currentIndex = 0;
             const images = this.contentElement.querySelectorAll('.gallery-img') as NodeListOf<HTMLElement>;
@@ -264,7 +265,7 @@ export class Modal {
         });
     }
 
-    public show(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData) {
+    public show(data: ModalData) {
         if (!this.contentElement) return;
 
         const galleryHtml = this.getGalleryHtml(data);
