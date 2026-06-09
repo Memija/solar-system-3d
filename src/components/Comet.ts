@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CometData } from './SolarSystemData.js';
-import { solveKepler } from './MathUtils';
+import { solveKepler, createOrbitLine } from './MathUtils';
 
 
 export class Comet {
@@ -198,21 +198,7 @@ export class Comet {
     }
 
     createOrbit() {
-        const segments = 256;
-        const geometry = new THREE.BufferGeometry();
-        const vertices = [];
-
-        for (let i = 0; i <= segments; i++) {
-            const E = (i / segments) * Math.PI * 2; // Eccentric anomaly
-
-            // Parametric equation for ellipse with focus at origin
-            const x = this.a * (Math.cos(E) - this.e);
-            const z = this.b * Math.sin(E);
-
-            vertices.push(x, 0, z);
-        }
-
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const geometry = createOrbitLine(this.a, this.e);
         const material = new THREE.LineBasicMaterial({ color: 0x88bbff, transparent: true, opacity: 0.3 });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);

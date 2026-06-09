@@ -140,19 +140,20 @@ export class Modal {
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Right Ascension (RA)", "The celestial equivalent of terrestrial longitude. Measured in hours (h).")}<strong>RA:</strong>&nbsp;${data.ra}h&nbsp;&nbsp;|&nbsp;&nbsp;${createInfoButton("Declination (Dec)", "The celestial equivalent of terrestrial latitude. Measured in degrees (°).")}<strong>Dec:</strong>&nbsp;${data.dec}°</p>`;
         }
 
-        if ('semiMajorAxis' in data) {
-            const comet = data as CometData;
-            const displayRadius = comet.displayRadius !== undefined ? comet.displayRadius : comet.radius;
-            info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Semi-Major Axis", "One half of the major axis of the elliptical orbit; essentially the average distance from the Sun.")}<strong>Semi-Major Axis:</strong>&nbsp;${comet.semiMajorAxis} AU</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Eccentricity", "A measure of how much an elliptical orbit deviates from a perfect circle. 0 is a circle, closer to 1 is a highly elongated ellipse.")}<strong>Eccentricity:</strong>&nbsp;${comet.eccentricity}</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around our Sun.")}<strong>Orbital Period:</strong>&nbsp;${comet.period} years</p>`;
-        } else if ('radius' in data) {
-            const body = data as CelestialBodyData;
-            const displayRadius = body.displayRadius !== undefined ? body.displayRadius : body.radius;
-            info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Distance", "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${body.distance} AU</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Period", "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${body.period} years</p>`;
+        if ('radius' in data) {
+            const displayRadius = data.displayRadius !== undefined ? data.displayRadius : data.radius;
+            info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>`;
+
+            if ('semiMajorAxis' in data) {
+                const comet = data as CometData;
+                info += `<p style="display: flex; align-items: center;">${createInfoButton("Semi-Major Axis", "One half of the major axis of the elliptical orbit; essentially the average distance from the Sun.")}<strong>Semi-Major Axis:</strong>&nbsp;${comet.semiMajorAxis} AU</p>
+                         <p style="display: flex; align-items: center;">${createInfoButton("Eccentricity", "A measure of how much an elliptical orbit deviates from a perfect circle. 0 is a circle, closer to 1 is a highly elongated ellipse.")}<strong>Eccentricity:</strong>&nbsp;${comet.eccentricity}</p>
+                         <p style="display: flex; align-items: center;">${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around our Sun.")}<strong>Orbital Period:</strong>&nbsp;${comet.period} years</p>`;
+            } else {
+                const body = data as CelestialBodyData;
+                info += `<p style="display: flex; align-items: center;">${createInfoButton("Distance", "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${body.distance} AU</p>
+                         <p style="display: flex; align-items: center;">${createInfoButton("Period", "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${body.period} years</p>`;
+            }
         } else if ('stars' in data && 'connections' in data) {
             const constellation = data as ConstellationData;
             if (constellation.stars && constellation.stars.length > 0) {

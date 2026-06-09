@@ -14,3 +14,20 @@ export function solveKepler(M: number, e: number): number {
     }
     return E;
 }
+import * as THREE from 'three';
+
+export function createOrbitLine(a: number, e: number, segments: number = 256): THREE.BufferGeometry {
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    const b = a * Math.sqrt(1 - e * e);
+
+    for (let i = 0; i <= segments; i++) {
+        const E = (i / segments) * Math.PI * 2;
+        const x = a * (Math.cos(E) - e);
+        const z = b * Math.sin(E);
+        vertices.push(x, 0, z);
+    }
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    return geometry;
+}

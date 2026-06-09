@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import { CelestialBodyData, MoonData } from './SolarSystemData.js';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
-import { solveKepler } from './MathUtils';
+import { solveKepler, createOrbitLine } from './MathUtils';
 
 
 export class CelestialBody {
@@ -462,22 +462,10 @@ export class CelestialBody {
     createOrbit() {
         if (this.data.distance === 0) return; // Sun or center
 
-        const segments = 256;
-        const geometry = new THREE.BufferGeometry();
-        const vertices = [];
-
         const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
         const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
-        const b = a * Math.sqrt(1 - e * e);
 
-        for (let i = 0; i <= segments; i++) {
-            const E = (i / segments) * Math.PI * 2;
-            const x = a * (Math.cos(E) - e);
-            const z = b * Math.sin(E);
-            vertices.push(x, 0, z);
-        }
-
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const geometry = createOrbitLine(a, e);
         const material = new THREE.LineBasicMaterial({ color: this.data.color || 0x444444, transparent: true, opacity: 0.3 });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);

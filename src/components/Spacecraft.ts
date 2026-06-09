@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SpacecraftData } from './SolarSystemData.js';
-import { solveKepler } from './MathUtils';
+import { solveKepler, createOrbitLine } from './MathUtils';
 
 
 export class Spacecraft {
@@ -315,22 +315,10 @@ export class Spacecraft {
     }
 
     createOrbit() {
-        const segments = 256;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array((segments + 1) * 3);
-
         const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
         const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
-        const b = a * Math.sqrt(1 - e * e);
 
-        for (let i = 0; i <= segments; i++) {
-            const E = (i / segments) * Math.PI * 2;
-            positions[i * 3] = a * (Math.cos(E) - e);
-            positions[i * 3 + 1] = 0;
-            positions[i * 3 + 2] = b * Math.sin(E);
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const geometry = createOrbitLine(a, e);
         const material = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
