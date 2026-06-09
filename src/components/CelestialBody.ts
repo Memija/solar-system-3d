@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 import { CelestialBodyData, MoonData } from './SolarSystemData.js';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
+import { solveKepler } from './MathUtils';
 
 
 export class CelestialBody {
@@ -501,14 +502,7 @@ export class CelestialBody {
 
         if (e > 0) {
             let M = this.angle;
-            let E = M + e * Math.sin(M) + 0.5 * e * e * Math.sin(2 * M);
-            for(let i = 0; i < 10; i++) {
-                let f = E - e * Math.sin(E) - M;
-                let df = 1 - e * Math.cos(E);
-                let dE = f / df;
-                E -= dE;
-                if (Math.abs(dE) < 1e-6) break;
-            }
+            let E = solveKepler(M, e);
             x = a * (Math.cos(E) - e);
             z = b * Math.sin(E);
         } else {

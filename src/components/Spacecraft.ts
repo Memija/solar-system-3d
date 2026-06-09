@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SpacecraftData } from './SolarSystemData.js';
+import { solveKepler } from './MathUtils';
 
 
 export class Spacecraft {
@@ -362,14 +363,7 @@ export class Spacecraft {
 
             if (e > 0) {
                 let M = this.angle;
-                let E = M + e * Math.sin(M) + 0.5 * e * e * Math.sin(2 * M);
-                for(let i = 0; i < 10; i++) {
-                    let f = E - e * Math.sin(E) - M;
-                    let df = 1 - e * Math.cos(E);
-                    let dE = f / df;
-                    E -= dE;
-                    if (Math.abs(dE) < 1e-6) break;
-                }
+                let E = solveKepler(M, e);
                 x = a * (Math.cos(E) - e);
                 z = b * Math.sin(E);
             } else {
