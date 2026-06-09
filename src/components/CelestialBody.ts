@@ -29,6 +29,7 @@ export class CelestialBody {
 
     axisLine: THREE.Line | null;
     showAxes: boolean;
+    realisticDistances: boolean = false;
 
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
         this.data = data;
@@ -441,17 +442,37 @@ export class CelestialBody {
         }
     }
 
+    rebuildOrbit(realistic: boolean) {
+        this.realisticDistances = realistic;
+        if (this.orbitLine) {
+            this.parent.remove(this.orbitLine);
+            this.orbitLine.geometry.dispose();
+            (this.orbitLine.material as THREE.Material).dispose();
+            this.orbitLine = null;
+        }
+
+        if (this.data.distance !== 0) {
+            this.createOrbit();
+        }
+
+        this.moons.forEach(moon => moon.rebuildOrbit(realistic));
+    }
+
     createOrbit() {
         if (this.data.distance === 0) return; // Sun or center
 
-        const segments = 128;
+        const segments = 256;
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
 
+        const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
+        const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
+        const b = a * Math.sqrt(1 - e * e);
+
         for (let i = 0; i <= segments; i++) {
-            const theta = (i / segments) * Math.PI * 2;
-            const x = Math.cos(theta) * this.data.distance;
-            const z = Math.sin(theta) * this.data.distance;
+            const E = (i / segments) * Math.PI * 2;
+            const x = a * (Math.cos(E) - e);
+            const z = b * Math.sin(E);
             vertices.push(x, 0, z);
         }
 
@@ -469,9 +490,31 @@ export class CelestialBody {
         const speed = this.data.period === 0 ? 0 : (1 / this.data.period) * speedMultiplier;
 
         this.angle += speed * deltaTime;
+        this.angle = this.angle % (Math.PI * 2);
 
-        const x = Math.cos(this.angle) * this.data.distance;
-        const z = Math.sin(this.angle) * this.data.distance;
+        const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
+        const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
+        const b = a * Math.sqrt(1 - e * e);
+
+        let x = 0;
+        let z = 0;
+
+        if (e > 0) {
+            let M = this.angle;
+            let E = M + e * Math.sin(M) + 0.5 * e * e * Math.sin(2 * M);
+            for(let i = 0; i < 10; i++) {
+                let f = E - e * Math.sin(E) - M;
+                let df = 1 - e * Math.cos(E);
+                let dE = f / df;
+                E -= dE;
+                if (Math.abs(dE) < 1e-6) break;
+            }
+            x = a * (Math.cos(E) - e);
+            z = b * Math.sin(E);
+        } else {
+            x = Math.cos(this.angle) * a;
+            z = Math.sin(this.angle) * a;
+        }
 
         // Move the group
         this.orbitGroup.position.set(x, 0, z);

@@ -16,6 +16,7 @@ export class Comet {
     a: number; // Semi-major axis
     e: number; // Eccentricity
     b: number; // Semi-minor axis
+    realisticDistances: boolean = false;
 
     constructor(data: CometData, parent: THREE.Object3D) {
         this.data = data;
@@ -176,6 +177,23 @@ export class Comet {
         this.tailParticles.renderOrder = 1;
         this.tailParticles.frustumCulled = false; // Prevent tail from disappearing at certain angles
         this.orbitGroup.add(this.tailParticles);
+    }
+
+    rebuildOrbit(realistic: boolean) {
+        this.realisticDistances = realistic;
+        if (this.orbitLine) {
+            this.baseGroup.remove(this.orbitLine);
+            this.orbitLine.geometry.dispose();
+            (this.orbitLine.material as THREE.Material).dispose();
+            this.orbitLine = null;
+        }
+
+        const distanceAU = this.data.distanceAU || (this.data.semiMajorAxis / 13);
+        this.a = this.realisticDistances ? distanceAU * 130 : this.data.semiMajorAxis;
+        this.e = this.data.eccentricity;
+        this.b = this.a * Math.sqrt(1 - this.e * this.e);
+
+        this.createOrbit();
     }
 
     createOrbit() {

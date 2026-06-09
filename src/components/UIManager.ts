@@ -113,11 +113,16 @@ export class UIManager {
             showHabitableZone: false,
             showEclipticGrid: false,
             realisticLighting: false,
-            showAxes: false
+            showAxes: false,
+            realisticDistances: false
         };
 
         // Simulation Controls
         const simFolder = gui.addFolder('Simulation');
+
+        simFolder.add(params, 'realisticDistances').name('Realistic Distances').onChange(val => {
+            this.sceneManager.toggleRealisticDistances(val);
+        });
 
         simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
             this.minimap.setVisible(val);
@@ -280,7 +285,7 @@ export class UIManager {
         typeSelect.style.padding = '8px 12px';
         typeSelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)';
         typeSelect.style.backdropFilter = 'blur(12px)';
-        typeSelect.style.WebkitBackdropFilter = 'blur(12px)';
+        (typeSelect.style as any).webkitBackdropFilter = 'blur(12px)';
         typeSelect.style.color = '#fff';
         typeSelect.style.border = '1px solid rgba(255, 255, 255, 0.1)';
         typeSelect.style.borderRadius = '8px';
@@ -305,7 +310,7 @@ export class UIManager {
         bodySelect.style.padding = '8px 12px';
         bodySelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)';
         bodySelect.style.backdropFilter = 'blur(12px)';
-        bodySelect.style.WebkitBackdropFilter = 'blur(12px)';
+        (bodySelect.style as any).webkitBackdropFilter = 'blur(12px)';
         bodySelect.style.color = '#fff';
         bodySelect.style.border = '1px solid rgba(255, 255, 255, 0.1)';
         bodySelect.style.borderRadius = '8px';
@@ -611,7 +616,7 @@ export class UIManager {
         }
     }
 
-    showModal(data: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData) {
+    showModal(data: any) {
         this.modal.show(data);
         this.infoPanel.style.display = 'none'; // Ensure simple info is hidden
 

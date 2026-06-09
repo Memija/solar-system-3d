@@ -250,7 +250,7 @@ export class SceneManager {
 
     updateMeasureLabel(text: string) {
         if (!this.measureLabel || !this.measureLabel.material.map) return;
-        const canvas = this.measureLabel.material.map.image;
+        const canvas = this.measureLabel.material.map.image as HTMLCanvasElement;
         const context = canvas.getContext('2d');
         if (!context) return;
 
@@ -860,6 +860,26 @@ export class SceneManager {
         this.planets.forEach(planet => {
             if (planet.toggleAxes) {
                 planet.toggleAxes(visible);
+            }
+        });
+    }
+
+    toggleRealisticDistances(visible: boolean) {
+        this.planets.forEach(planet => {
+            if (planet.rebuildOrbit) {
+                planet.rebuildOrbit(visible);
+            }
+        });
+
+        this.comets.forEach(comet => {
+            if (comet.rebuildOrbit) {
+                comet.rebuildOrbit(visible);
+            }
+        });
+
+        this.spacecrafts.forEach(sc => {
+            if (sc.rebuildOrbit) {
+                sc.rebuildOrbit(visible);
             }
         });
     }
