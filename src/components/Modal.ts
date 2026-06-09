@@ -172,7 +172,7 @@ export class Modal {
         return info;
     }
 
-    private setupGalleryLogic(data: ModalData): void {
+    private setupGalleryLogic(data: ModalData) {
         if (data.images && data.images.length > 1) {
             let currentIndex = 0;
             const images = this.contentElement.querySelectorAll('.gallery-img') as NodeListOf<HTMLElement>;
