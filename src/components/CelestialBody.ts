@@ -121,6 +121,9 @@ export class CelestialBody {
         }
 
         this.mesh = new THREE.Mesh(geometry, material);
+        if (this.data.name === 'Sun') {
+            this.mesh.frustumCulled = false;
+        }
         if (this.data.name !== 'Sun') {
             this.mesh.castShadow = true;
             this.mesh.receiveShadow = true;
