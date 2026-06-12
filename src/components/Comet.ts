@@ -182,6 +182,12 @@ export class Comet {
 
     rebuildOrbit(realistic: boolean) {
         this.realisticDistances = realistic;
+
+        const displayRadius = this.data.displayRadius ?? this.data.radius;
+        const realisticRadius = displayRadius * 0.005536;
+        const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
+        this.mesh.scale.setScalar(scale);
+        if (this.tailParticles) this.tailParticles.scale.setScalar(scale);
         if (this.orbitLine) {
             this.baseGroup.remove(this.orbitLine);
             this.orbitLine.geometry.dispose();

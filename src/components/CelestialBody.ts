@@ -448,6 +448,12 @@ export class CelestialBody {
 
     rebuildOrbit(realistic: boolean) {
         this.realisticDistances = realistic;
+
+        const displayRadius = this.data.displayRadius ?? this.data.radius;
+        // 1 displayRadius (Earth) = 6371 km. 1 AU = 149597870 km. 1 AU in scene = 130 units.
+        const realisticRadius = displayRadius * 0.005536;
+        const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
+        this.tiltGroup.scale.setScalar(scale);
         if (this.orbitLine) {
             this.parent.remove(this.orbitLine);
             this.orbitLine.geometry.dispose();
@@ -496,21 +502,23 @@ export class CelestialBody {
         this.angle += speed * deltaTime;
         this.angle = this.angle % (Math.PI * 2);
 
-        const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
-        const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
-        const b = a * Math.sqrt(1 - e * e);
-
         let x = 0;
         let z = 0;
 
-        if (e > 0) {
+        if (this.data.distance !== 0) {
+            const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
+            const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
+            const b = a * Math.sqrt(1 - e * e);
+
+            if (e > 0) {
             let M = this.angle;
             let E = solveKepler(M, e);
             x = a * (Math.cos(E) - e);
             z = b * Math.sin(E);
         } else {
             x = Math.cos(this.angle) * a;
-            z = Math.sin(this.angle) * a;
+                z = Math.sin(this.angle) * a;
+            }
         }
 
         // Move the group
