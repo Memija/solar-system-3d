@@ -300,14 +300,14 @@ export class Spacecraft {
         this.mesh.scale.set(2, 2, 2); // Make Voyager a bit bigger so it's visible far away
     }
 
-    rebuildOrbit(realistic: boolean) {
+    rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
 
         // For spacecraft, they don't have displayRadius or radius, but we should make them tiny if realistic
         // They start at scale 2, 2, 2. If realistic, they should be very tiny, but let's make them just visible enough or scaled relative to earth
         // 1 displayRadius (Earth) = 6371 km. Spacecraft are tiny. Let's scale them down a bit if realistic
         // Let's use an arbitrary tiny scale for realistic
-        const scale = realistic ? 0.001 : 1.0;
+        const scale = realistic ? 0.001 * sizeRatio : 1.0;
         this.mesh.scale.set(scale * 2, scale * 2, scale * 2);
         if (this.orbitLine) {
             this.baseGroup.remove(this.orbitLine);
