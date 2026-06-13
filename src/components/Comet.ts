@@ -180,11 +180,11 @@ export class Comet {
         this.orbitGroup.add(this.tailParticles);
     }
 
-    rebuildOrbit(realistic: boolean) {
+    rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
 
         const displayRadius = this.data.displayRadius ?? this.data.radius;
-        const realisticRadius = displayRadius * 0.005536;
+        const realisticRadius = displayRadius * 0.005536 * sizeRatio;
         const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
         this.mesh.scale.setScalar(scale);
         if (this.tailParticles) this.tailParticles.scale.setScalar(scale);

@@ -114,15 +114,55 @@ export class UIManager {
             showEclipticGrid: false,
             realisticLighting: false,
             showAxes: false,
-            realisticDistances: false
+            realisticDistances: false,
+            realSizeRatio: 1.0
+        };
+
+        // Helper to add info icons to dat.gui items
+        const addInfoIcon = (controller: dat.GUIController | undefined, text: string) => {
+            // Check if controller exists, helpful when testing where dat.gui might be mocked
+            if (!controller) return;
+
+            // dat.gui manipulates DOM somewhat asynchronously, we use setTimeout to ensure element is there
+            setTimeout(() => {
+                if (controller && controller.domElement && controller.domElement.closest) {
+                    const li = controller.domElement.closest('li');
+                    if (li) {
+                        const nameNode = li.querySelector('.property-name');
+                        if (nameNode) {
+                            const icon = document.createElement('span');
+                            icon.innerHTML = 'i';
+                            icon.style.display = 'inline-block';
+                            icon.style.width = '14px';
+                            icon.style.height = '14px';
+                            icon.style.lineHeight = '14px';
+                            icon.style.textAlign = 'center';
+                            icon.style.borderRadius = '50%';
+                            icon.style.backgroundColor = '#444';
+                            icon.style.color = '#fff';
+                            icon.style.fontSize = '10px';
+                            icon.style.marginLeft = '5px';
+                            icon.style.cursor = 'help';
+                            icon.title = text;
+                            nameNode.appendChild(icon);
+                        }
+                    }
+                }
+            }, 100);
         };
 
         // Simulation Controls
         const simFolder = gui.addFolder('Simulation');
 
-        simFolder.add(params, 'realisticDistances').name('Realistic Distances').onChange(val => {
+        const distCtrl = simFolder.add(params, 'realisticDistances').name('Realistic Distances').onChange(val => {
             this.sceneManager.toggleRealisticDistances(val);
         });
+        addInfoIcon(distCtrl, "Toggles realistic orbital distances and scales bodies to real sizes relative to the distances.");
+
+        const sizeRatioCtrl = simFolder.add(params, 'realSizeRatio', 1, 1000).step(1).name('Real Size Ratio').onChange(val => {
+            this.sceneManager.setRealSizeRatio(val);
+        });
+        addInfoIcon(sizeRatioCtrl, "In real distance mode, the planets and sun are of real size. Ratio: 1 Earth = 6371 km, 1 AU = 130 units. Use this to increase their visible size proportionally.");
 
         simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
             this.minimap.setVisible(val);
@@ -168,26 +208,6 @@ export class UIManager {
             this.sceneManager.toggleTrails(val);
         });
         simFolder.open();
-
-        // Helper to add info icons to dat.gui items
-        const addInfoIcon = (controller: dat.GUIController | undefined, text: string) => {
-            // Check if controller exists, helpful when testing where dat.gui might be mocked
-            if (!controller) return;
-
-            // dat.gui manipulates DOM somewhat asynchronously, we use setTimeout to ensure element is there
-            setTimeout(() => {
-                if (controller && controller.domElement && controller.domElement.closest) {
-                    const li = controller.domElement.closest('li');
-                    if (li) {
-                        const nameNode = li.querySelector('.property-name');
-                        if (nameNode) {
-                            const currentName = nameNode.textContent || '';
-                            nameNode.innerHTML = `${currentName} <span class="gui-info-icon" title="${text.replace(/"/g, '&quot;')}">i</span>`;
-                        }
-                    }
-                }
-            }, 0);
-        };
 
         // Environment Enhancements
         const envFolder = gui.addFolder('Environment');

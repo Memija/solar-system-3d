@@ -864,22 +864,35 @@ export class SceneManager {
         });
     }
 
+    realisticDistances: boolean = false;
+    realSizeRatio: number = 1.0;
+
     toggleRealisticDistances(visible: boolean) {
+        this.realisticDistances = visible;
+        this.updateRealisticSizes();
+    }
+
+    setRealSizeRatio(ratio: number) {
+        this.realSizeRatio = ratio;
+        this.updateRealisticSizes();
+    }
+
+    updateRealisticSizes() {
         this.planets.forEach(planet => {
             if (planet.rebuildOrbit) {
-                planet.rebuildOrbit(visible);
+                planet.rebuildOrbit(this.realisticDistances, this.realSizeRatio);
             }
         });
 
         this.comets.forEach(comet => {
             if (comet.rebuildOrbit) {
-                comet.rebuildOrbit(visible);
+                comet.rebuildOrbit(this.realisticDistances, this.realSizeRatio);
             }
         });
 
         this.spacecrafts.forEach(sc => {
             if (sc.rebuildOrbit) {
-                sc.rebuildOrbit(visible);
+                sc.rebuildOrbit(this.realisticDistances, this.realSizeRatio);
             }
         });
     }

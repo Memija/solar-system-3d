@@ -446,12 +446,12 @@ export class CelestialBody {
         }
     }
 
-    rebuildOrbit(realistic: boolean) {
+    rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
 
         const displayRadius = this.data.displayRadius ?? this.data.radius;
         // 1 displayRadius (Earth) = 6371 km. 1 AU = 149597870 km. 1 AU in scene = 130 units.
-        const realisticRadius = displayRadius * 0.005536;
+        const realisticRadius = displayRadius * 0.005536 * sizeRatio;
         const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
         this.tiltGroup.scale.setScalar(scale);
         if (this.orbitLine) {
@@ -465,7 +465,7 @@ export class CelestialBody {
             this.createOrbit();
         }
 
-        this.moons.forEach(moon => moon.rebuildOrbit(realistic));
+        this.moons.forEach(moon => moon.rebuildOrbit(realistic, sizeRatio));
     }
 
     createOrbit() {
