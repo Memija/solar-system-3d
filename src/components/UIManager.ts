@@ -156,13 +156,14 @@ export class UIManager {
 
         const distCtrl = simFolder.add(params, 'realisticDistances').name('Realistic Distances').onChange(val => {
             this.sceneManager.toggleRealisticDistances(val);
+            if (val) {
+                this.modal.show({
+                    name: "True Scale of the Solar System",
+                    description: "You are now viewing the Solar System at its true scale. Planets are rendered at their actual sizes relative to the vast distances between them. Because space is mostly empty, planets appear extremely small—almost invisible dots—compared to their orbits. Pointer flags have been enabled to help you locate them in this mode."
+                });
+            }
         });
         addInfoIcon(distCtrl, "Toggles realistic orbital distances and scales bodies to real sizes relative to the distances.");
-
-        const sizeRatioCtrl = simFolder.add(params, 'realSizeRatio', 1, 1000).step(1).name('Real Size Ratio').onChange(val => {
-            this.sceneManager.setRealSizeRatio(val);
-        });
-        addInfoIcon(sizeRatioCtrl, "In real distance mode, the planets and sun are of real size. Ratio: 1 Earth = 6371 km, 1 AU = 130 units. Use this to increase their visible size proportionally.");
 
         simFolder.add(params, 'showMinimap').name('Show Minimap').onChange(val => {
             this.minimap.setVisible(val);

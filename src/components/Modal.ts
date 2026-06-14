@@ -2,6 +2,14 @@ import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, Sp
 
 type ModalData = CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData;
 
+export interface CustomModalData {
+    name: string;
+    description: string;
+    images?: string[];
+    imageUrl?: string;
+    links?: any[];
+}
+
 export class Modal {
     container: HTMLElement;
     modalElement: HTMLElement;
@@ -85,7 +93,7 @@ export class Modal {
         return modal;
     }
 
-    private getGalleryHtml(data: ModalData): string {
+    private getGalleryHtml(data: ModalData | CustomModalData): string {
         if (data.images && data.images.length > 0) {
             return `
                 <div class="gallery-container" style="position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 8px; margin: 10px 0; background: #000;">
@@ -105,7 +113,7 @@ export class Modal {
         return '';
     }
 
-    private getLinksHtml(data: ModalData): string {
+    private getLinksHtml(data: ModalData | CustomModalData): string {
         if (data.links && data.links.length > 0) {
             const sortedLinks = [...data.links].sort((a, b) => a.title.localeCompare(b.title));
             return `
@@ -124,7 +132,7 @@ export class Modal {
         return '';
     }
 
-    private getExtraInfo(data: ModalData): string {
+    private getExtraInfo(data: ModalData | CustomModalData): string {
         let info = '';
 
         const createInfoButton = (title: string, text: string) => {
@@ -172,7 +180,7 @@ export class Modal {
         return info;
     }
 
-    private setupGalleryLogic(data: ModalData) {
+    private setupGalleryLogic(data: ModalData | CustomModalData) {
         if (data.images && data.images.length > 1) {
             let currentIndex = 0;
             const images = this.contentElement.querySelectorAll('.gallery-img') as NodeListOf<HTMLElement>;
@@ -265,7 +273,7 @@ export class Modal {
         });
     }
 
-    public show(data: ModalData) {
+    public show(data: ModalData | CustomModalData) {
         if (!this.contentElement) return;
 
         const galleryHtml = this.getGalleryHtml(data);

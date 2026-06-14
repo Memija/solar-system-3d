@@ -878,21 +878,44 @@ export class SceneManager {
     }
 
     updateRealisticSizes() {
+        const sun = this.planets.find(p => p.data.name === 'Sun');
+        if (sun && sun.labelSprite) {
+            sun.showLabel = this.realisticDistances;
+            sun.labelSprite.visible = this.realisticDistances;
+            if (this.realisticDistances) {
+                const scale = 1;
+                sun.labelSprite.scale.set(8 / scale, 4 / scale, 2 / scale);
+            } else {
+                sun.labelSprite.scale.set(8, 4, 2);
+            }
+        }
+
         this.planets.forEach(planet => {
             if (planet.rebuildOrbit) {
-                planet.rebuildOrbit(this.realisticDistances, this.realSizeRatio);
+                planet.rebuildOrbit(this.realisticDistances);
+            }
+            if (planet.labelSprite) {
+                planet.showLabel = this.realisticDistances;
+                planet.labelSprite.visible = this.realisticDistances;
+                // Ensure it scales correctly or retains fixed apparent size
+                if (this.realisticDistances) {
+                    const scale = (planet.data.displayRadius ?? planet.data.radius) * 0.005536 / planet.data.radius;
+                    planet.labelSprite.scale.set(4 / scale, 2 / scale, 1 / scale);
+                } else {
+                    planet.labelSprite.scale.set(4, 2, 1);
+                }
             }
         });
 
         this.comets.forEach(comet => {
             if (comet.rebuildOrbit) {
-                comet.rebuildOrbit(this.realisticDistances, this.realSizeRatio);
+                comet.rebuildOrbit(this.realisticDistances);
             }
         });
 
         this.spacecrafts.forEach(sc => {
             if (sc.rebuildOrbit) {
-                sc.rebuildOrbit(this.realisticDistances, this.realSizeRatio);
+                sc.rebuildOrbit(this.realisticDistances);
             }
         });
     }
