@@ -30,6 +30,8 @@ export class CelestialBody {
 
     axisLine: THREE.Line | null;
     showAxes: boolean;
+    labelSprite: THREE.Sprite | null = null;
+    showLabel: boolean = false;
     realisticDistances: boolean = false;
 
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
@@ -204,6 +206,7 @@ export class CelestialBody {
         this.createAxis();
 
         // Create Labels
+        this.createLabel();
 
 
 
@@ -214,6 +217,37 @@ export class CelestialBody {
                 this.moons.push(moon);
             });
         }
+    }
+
+
+    createLabel() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '32px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.data.name, 128, 64);
+
+            // Draw a pointer arrow
+            ctx.beginPath();
+            ctx.moveTo(128, 70);
+            ctx.lineTo(118, 90);
+            ctx.lineTo(138, 90);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+        this.labelSprite = new THREE.Sprite(material);
+        this.labelSprite.scale.set(10, 5, 1); // Adjust size as needed
+        this.labelSprite.position.set(0, this.data.radius * 1.5 + 2, 0); // Position above the planet
+        this.labelSprite.visible = this.showLabel;
+        this.tiltGroup.add(this.labelSprite);
     }
 
     createAxis() {
