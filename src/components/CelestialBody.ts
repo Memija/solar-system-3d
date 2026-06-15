@@ -223,31 +223,52 @@ export class CelestialBody {
     createLabel() {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
-        canvas.height = 128;
+        canvas.height = 256;
         const ctx = canvas.getContext('2d');
         if (ctx) {
             ctx.fillStyle = 'rgba(0, 0, 0, 0)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.font = '32px Arial';
+            ctx.font = 'bold 40px Arial';
             ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
             ctx.fillText(this.data.name, 128, 64);
 
-            // Draw a pointer arrow
+            // Draw a Google Maps style pin
+            ctx.fillStyle = '#ea4335';
             ctx.beginPath();
-            ctx.moveTo(128, 70);
-            ctx.lineTo(118, 90);
-            ctx.lineTo(138, 90);
+            ctx.arc(128, 128, 32, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(96, 128);
+            ctx.lineTo(128, 192); // bottom point
+            ctx.lineTo(160, 128);
+            ctx.fill();
+
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(128, 128, 16, 0, Math.PI * 2);
             ctx.fill();
         }
 
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: false,
+            sizeAttenuation: false
+        });
         this.labelSprite = new THREE.Sprite(material);
-        this.labelSprite.scale.set(10, 5, 1); // Adjust size as needed
-        this.labelSprite.position.set(0, this.data.radius * 1.5 + 2, 0); // Position above the planet
+        // With sizeAttenuation: false, scale is in pixels/viewport relative units
+        // Typically a small decimal value like 0.05
+        this.labelSprite.scale.set(0.05, 0.05, 1);
+
+        // When sizeAttenuation is false, position does not strictly scale up linearly in screen space,
+        // but we keep the relative world position. We might want to offset it slightly or put it at the center.
+        this.labelSprite.position.set(0, this.data.radius * 1.2, 0);
         this.labelSprite.visible = this.showLabel;
-        this.tiltGroup.add(this.labelSprite);
+        // Don't add it to tiltGroup so the label stays upright
+        this.orbitGroup.add(this.labelSprite);
     }
 
     createAxis() {
