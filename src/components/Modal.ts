@@ -281,7 +281,7 @@ export class Modal {
         const extraInfo = this.getExtraInfo(data);
 
         this.contentElement.innerHTML = `
-            <h2 style="margin-top: 0; border-bottom: 1px solid #666; padding-bottom: 10px;">${data.name}</h2>
+            <h2 style="margin-top: 0; margin-right: 30px; border-bottom: 1px solid #666; padding-bottom: 10px;">${data.name}</h2>
             ${galleryHtml}
             <p style="line-height: 1.5; font-size: 0.95em;">${data.description || 'No description available.'}</p>
             <div style="margin-top: 10px; font-size: 0.9em; color: #aaa;">

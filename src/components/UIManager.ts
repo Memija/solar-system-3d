@@ -154,12 +154,12 @@ export class UIManager {
         // Simulation Controls
         const simFolder = gui.addFolder('Simulation');
 
-        const distCtrl = simFolder.add(params, 'realisticDistances').name('Realistic Distances').onChange(val => {
+        const distCtrl = simFolder.add(params, 'realisticDistances').name('Realistic Scale').onChange(val => {
             this.sceneManager.toggleRealisticDistances(val);
             if (val) {
                 this.modal.show({
                     name: "True Scale of the Solar System",
-                    description: "You are now viewing the Solar System at its true scale. Planets are rendered at their actual sizes relative to the vast distances between them. Because space is mostly empty, planets appear extremely small—almost invisible dots—compared to their orbits. Pointer flags have been enabled to help you locate them in this mode."
+                    description: "You are now viewing the Solar System at its true scale. Planets are rendered at their actual sizes relative to the vast distances between them. Because space is mostly empty, planets appear extremely small - almost invisible dots - compared to their orbits. Pointer flags have been enabled to help you locate them in this mode."
                 });
             }
         });
@@ -169,7 +169,7 @@ export class UIManager {
             this.minimap.setVisible(val);
         });
 
-        const timeSpeedController = simFolder.add(params, 'timeSpeed').step(0.1).name('Time Speed').onChange(val => {
+        const timeSpeedController = simFolder.add(params, 'timeSpeed').min(0).step(0.01).name('Time Speed').onChange(val => {
             this.sceneManager.timeScale = val;
             if (this.previousTimeSpeed !== null) {
                 // User changed speed manually while something was selected

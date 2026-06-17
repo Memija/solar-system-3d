@@ -10,6 +10,7 @@ addFolder = vi.fn(() => ({
                 name: vi.fn().mockReturnThis(),
                 onChange: vi.fn().mockReturnThis(),
                 step: vi.fn().mockReturnThis(),
+                min: vi.fn().mockReturnThis(),
                 setValue: vi.fn().mockReturnThis()
             }),
             open: vi.fn()
@@ -19,6 +20,7 @@ add = vi.fn(() => ({
             name: vi.fn().mockReturnThis(),
             onChange: vi.fn().mockReturnThis(),
             step: vi.fn().mockReturnThis(),
+            min: vi.fn().mockReturnThis(),
             setValue: vi.fn().mockReturnThis()
         }));
     }
