@@ -509,6 +509,16 @@ export class CelestialBody {
         const realisticRadius = displayRadius * 0.005536 * sizeRatio;
         const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
         this.tiltGroup.scale.setScalar(scale);
+
+        if (this.labelSprite) {
+            // Update the label position based on the new visual scale of the planet.
+            // When realistic, we use the newly computed realisticRadius, otherwise default radius.
+            // The labelSprite is not in the tiltGroup (so it stays upright), meaning it doesn't
+            // inherit the tiltGroup's scale automatically. We must set its local Y position.
+            const currentRadius = realistic ? realisticRadius : this.data.radius;
+            this.labelSprite.position.set(0, currentRadius * 1.2, 0);
+        }
+
         if (this.orbitLine) {
             this.parent.remove(this.orbitLine);
             this.orbitLine.geometry.dispose();
