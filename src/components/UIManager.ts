@@ -159,8 +159,12 @@ export class UIManager {
             if (val) {
                 this.modal.show({
                     name: "True Scale of the Solar System",
-                    description: "You are now viewing the Solar System at its true scale. Planets are rendered at their actual sizes relative to the vast distances between them. Because space is mostly empty, planets appear extremely small - almost invisible dots - compared to their orbits. Pointer flags have been enabled to help you locate them in this mode."
+                    description: "You are now viewing the Solar System at its true scale. Planets are rendered at their actual sizes relative to the vast distances between them. Because space is mostly empty, planets appear extremely small, almost invisible dots, compared to their orbits. Pointers have been enabled to help you locate them in this mode."
                 });
+            } else {
+                if (this.modal.contentElement && this.modal.contentElement.innerHTML.includes("True Scale of the Solar System")) {
+                    this.modal.hide();
+                }
             }
         });
         addInfoIcon(distCtrl, "Toggles realistic orbital distances and scales bodies to real sizes relative to the distances.");
