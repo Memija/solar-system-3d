@@ -281,3 +281,30 @@ option {
 .dg .cr, .dg li:not(.folder) {
     overflow: visible !important;
 }
+
+.gui-tooltip {
+    position: absolute;
+    background-color: rgba(10, 10, 15, 0.95);
+    border: 1px solid #666;
+    border-radius: 6px;
+    padding: 10px;
+    color: #fff;
+    z-index: 10000;
+    box-shadow: 0 0 10px rgba(0,0,0,0.8);
+    max-width: 250px;
+    font-size: 0.85em;
+    line-height: 1.4;
+    pointer-events: none;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Remove arrows from input type number in webkit */
+.dg .c input[type=number]::-webkit-inner-spin-button,
+.dg .c input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.dg .c input[type=number] {
+    -moz-appearance: textfield;
+}

@@ -118,6 +118,20 @@ export class UIManager {
             realSizeRatio: 1.0
         };
 
+        // Setup custom tooltip for GUI
+        const tooltip = document.createElement('div');
+        tooltip.id = 'gui-custom-tooltip';
+        tooltip.className = 'gui-tooltip';
+        tooltip.style.display = 'none';
+        document.body.appendChild(tooltip);
+
+        // Hide tooltip globally if clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!(e.target as HTMLElement).closest('.gui-info-icon')) {
+                tooltip.style.display = 'none';
+            }
+        });
+
         // Helper to add info icons to dat.gui items
         const addInfoIcon = (controller: dat.GUIController | undefined, text: string) => {
             // Check if controller exists, helpful when testing where dat.gui might be mocked
@@ -132,6 +146,7 @@ export class UIManager {
                         if (nameNode) {
                             const icon = document.createElement('span');
                             icon.innerHTML = 'i';
+                            icon.className = 'gui-info-icon';
                             icon.style.display = 'inline-block';
                             icon.style.width = '14px';
                             icon.style.height = '14px';
@@ -143,7 +158,34 @@ export class UIManager {
                             icon.style.fontSize = '10px';
                             icon.style.marginLeft = '5px';
                             icon.style.cursor = 'help';
-                            icon.title = text;
+                            icon.style.position = 'relative';
+
+                            // Show custom tooltip on hover
+                            icon.addEventListener('mouseenter', (e) => {
+                                tooltip.innerHTML = text;
+                                tooltip.style.display = 'block';
+                                const rect = icon.getBoundingClientRect();
+                                let top = rect.top - tooltip.offsetHeight - 10;
+                                let left = rect.left - (tooltip.offsetWidth / 2) + (rect.width / 2);
+
+                                if (top < 0) {
+                                    top = rect.bottom + 10;
+                                }
+                                if (left + tooltip.offsetWidth > window.innerWidth) {
+                                    left = window.innerWidth - tooltip.offsetWidth - 10;
+                                }
+                                if (left < 0) {
+                                    left = 10;
+                                }
+
+                                tooltip.style.top = `${top}px`;
+                                tooltip.style.left = `${left}px`;
+                            });
+
+                            icon.addEventListener('mouseleave', () => {
+                                tooltip.style.display = 'none';
+                            });
+
                             nameNode.appendChild(icon);
                         }
                     }
@@ -181,6 +223,53 @@ export class UIManager {
             }
         });
 
+        // Make time speed input better looking and add arrows
+        setTimeout(() => {
+            if (timeSpeedController && timeSpeedController.domElement) {
+                const inputElement = timeSpeedController.domElement.querySelector('input');
+                if (inputElement) {
+                    inputElement.type = 'number';
+                    inputElement.style.textAlign = 'center';
+                    inputElement.style.width = '60px';
+
+                    const parent = inputElement.parentNode as HTMLElement;
+                    if (parent) {
+                        parent.style.display = 'flex';
+                        parent.style.alignItems = 'center';
+                        parent.style.justifyContent = 'center';
+
+                        const decBtn = document.createElement('button');
+                        decBtn.innerHTML = '◀';
+                        decBtn.style.background = 'none';
+                        decBtn.style.border = 'none';
+                        decBtn.style.color = '#3b82f6';
+                        decBtn.style.cursor = 'pointer';
+                        decBtn.style.padding = '0 5px';
+                        decBtn.style.fontSize = '12px';
+                        decBtn.onclick = () => {
+                            let newVal = Math.max(0, params.timeSpeed - 0.1);
+                            timeSpeedController.setValue(newVal);
+                        };
+                        parent.insertBefore(decBtn, inputElement);
+
+                        const incBtn = document.createElement('button');
+                        incBtn.innerHTML = '▶';
+                        incBtn.style.background = 'none';
+                        incBtn.style.border = 'none';
+                        incBtn.style.color = '#3b82f6';
+                        incBtn.style.cursor = 'pointer';
+                        incBtn.style.padding = '0 5px';
+                        incBtn.style.fontSize = '12px';
+                        incBtn.onclick = () => {
+                            let newVal = params.timeSpeed + 0.1;
+                            timeSpeedController.setValue(newVal);
+                        };
+                        parent.appendChild(incBtn);
+                    }
+                }
+            }
+        }, 100);
+
         // Listen for internal speed changes
         this.sceneManager.onTimeScaleChange = (newSpeed: number) => {
             timeSpeedController.setValue(newSpeed);
@@ -208,6 +297,17 @@ export class UIManager {
         });
         simFolder.add(params, 'showMeteors').name('Show Meteors').onChange(val => {
             this.sceneManager.toggleMeteors(val);
+            if (val) {
+                this.sceneManager.focusOnBody('Earth');
+                this.modal.show({
+                    name: "Meteors",
+                    description: "You are now viewing meteors near Earth. A meteor is a streak of light in the sky caused by a meteoroid crashing through Earth's atmosphere."
+                });
+            } else {
+                if (this.modal.contentElement && this.modal.contentElement.innerHTML.includes("Meteors")) {
+                    this.modal.hide();
+                }
+            }
         });
         simFolder.add(params, 'showTrails').name('Show Trails').onChange(val => {
             this.sceneManager.toggleTrails(val);
