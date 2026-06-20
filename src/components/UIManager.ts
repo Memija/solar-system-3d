@@ -301,7 +301,7 @@ export class UIManager {
                 this.sceneManager.focusOnBody('Earth');
                 this.modal.show({
                     name: "Meteors",
-                    description: "You are now viewing meteors near Earth. A meteor is a streak of light in the sky caused by a meteoroid crashing through Earth's atmosphere."
+                    description: "You are now viewing meteors near Earth. A meteor is a streak of light in the sky caused by a meteoroid crashing through Earth's atmosphere. Millions of meteors occur in Earth's atmosphere daily. Most meteoroids that cause meteors are about the size of a grain of sand, and they come from comets or asteroids. They usually consist of rock or iron."
                 });
             } else {
                 if (this.modal.contentElement && this.modal.contentElement.innerHTML.includes("Meteors")) {
@@ -309,9 +309,10 @@ export class UIManager {
                 }
             }
         });
-        simFolder.add(params, 'showTrails').name('Show Trails').onChange(val => {
+        const trailsCtrl = simFolder.add(params, 'showTrails').name('Show Trails').onChange(val => {
             this.sceneManager.toggleTrails(val);
         });
+        addInfoIcon(trailsCtrl, "Displays the orbital paths or trails behind celestial bodies as they move.");
         simFolder.open();
 
         // Environment Enhancements
