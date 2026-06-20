@@ -67,6 +67,8 @@ export class Modal {
         modal.style.display = 'none';
         modal.style.zIndex = '1000';
         modal.style.boxShadow = '0 0 20px rgba(0,0,0,0.8)';
+        modal.style.maxHeight = '90vh';
+        modal.style.overflowY = 'auto';
 
         // Close button
         const closeBtn = document.createElement('button');
