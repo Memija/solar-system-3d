@@ -97,7 +97,7 @@ export class UIManager {
         gui.domElement.style.left = '20px';
 
         const params = {
-            timeSpeed: 1,
+            timeSpeed: 0.1,
             showOrbits: true,
             showMoons: true,
             measureMode: false,
@@ -107,7 +107,7 @@ export class UIManager {
             showComets: true,
             showSpacecrafts: true,
             showMeteors: false,
-            showTrails: false,
+            showTrails: true,
             showMinimap: true,
             enableBloom: true,
             showHabitableZone: false,
@@ -301,7 +301,7 @@ export class UIManager {
                 this.sceneManager.focusOnBody('Earth');
                 this.modal.show({
                     name: "Meteors",
-                    description: "You are now viewing meteors near Earth. A meteor is a streak of light in the sky caused by a meteoroid crashing through Earth's atmosphere. Millions of meteors occur in Earth's atmosphere daily. Most meteoroids that cause meteors are about the size of a grain of sand, and they come from comets or asteroids. They usually consist of rock or iron."
+                    description: "You are now viewing meteors near Earth. A meteor is a streak of light in the sky caused by a meteoroid crashing through Earth's atmosphere. Millions of meteors occur in Earth's atmosphere daily. Most meteoroids that cause meteors are about the size of a grain of sand, and they come from comets or asteroids. They usually consist of rock or iron. When these meteoroids enter Earth's atmosphere at high speeds, friction with the air causes them to heat up and burn, creating the visible streak of light. Famous meteor showers include the Perseids (originating from Comet Swift-Tuttle), the Leonids (from Comet Tempel-Tuttle), and the Geminids (from the asteroid 3200 Phaethon)."
                 });
             } else {
                 if (this.modal.contentElement && this.modal.contentElement.innerHTML.includes("Meteors")) {

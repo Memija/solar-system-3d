@@ -650,7 +650,7 @@ export class CelestialBody {
 
     toggleMoons(visible: boolean) {
         this.moons.forEach(moon => {
-            if (moon.mesh) moon.mesh.visible = visible;
+            moon.tiltGroup.visible = visible;
             if (moon.orbitLine) moon.orbitLine.visible = visible;
             moon.toggleMoons(visible);
         });
