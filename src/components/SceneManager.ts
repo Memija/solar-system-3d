@@ -74,13 +74,13 @@ export class SceneManager {
         this.planets = [];
         this.comets = [];
         this.spacecrafts = [];
-        this.timeScale = 1;
+        this.timeScale = 0.1;
         this.showOrbits = true;
         this.showMoons = true;
         this.showComets = true;
         this.showSpacecrafts = true;
         this.showMeteors = false;
-        this.showTrails = false;
+        this.showTrails = true;
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.starMeshes = [];
