@@ -161,7 +161,7 @@ export class UIManager {
                             icon.style.position = 'relative';
 
                             // Show custom tooltip on hover
-                            icon.addEventListener('mouseenter', (e) => {
+                            icon.addEventListener('mouseenter', () => {
                                 tooltip.innerHTML = text;
                                 tooltip.style.display = 'block';
                                 const rect = icon.getBoundingClientRect();
@@ -423,7 +423,7 @@ export class UIManager {
         typeSelect.addEventListener('mouseenter', () => typeSelect.style.backgroundColor = 'rgba(255, 255, 255, 0.1)');
         typeSelect.addEventListener('mouseleave', () => typeSelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)');
 
-        const types = ['Star', 'Planet', 'Constellation', 'Comet', 'Spacecraft'];
+        const types = ['Star', 'Planet', 'Moon', 'Constellation', 'Comet', 'Spacecraft'];
         types.forEach(type => {
             const option = document.createElement('option');
             option.value = type;
@@ -481,7 +481,17 @@ export class UIManager {
                         bodySelect.appendChild(option);
                     }
                 });
-
+            } else if (selectedType === 'Moon') {
+                this.sceneManager.planets.forEach(planet => {
+                    if (planet.moons && planet.moons.length > 0) {
+                        planet.moons.forEach(moon => {
+                            const option = document.createElement('option');
+                            option.value = moon.data.name;
+                            option.textContent = `${moon.data.name} (orbiting ${planet.data.name})`;
+                            bodySelect.appendChild(option);
+                        });
+                    }
+                });
             } else if (selectedType === 'Constellation') {
                 if (this.sceneManager.constellationManager) {
                     this.sceneManager.constellationManager.constellationMeshes.forEach(group => {
