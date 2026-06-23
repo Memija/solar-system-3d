@@ -1,4 +1,4 @@
-import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData, SolarSystemData } from './SolarSystemData.js';
 
 type ModalData = CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData;
 
@@ -160,9 +160,18 @@ export class Modal {
         } else if ('radius' in data) {
             const body = data as CelestialBodyData;
             const displayRadius = body.displayRadius !== undefined ? body.displayRadius : body.radius;
+
+            let isMoon = false;
+            for (const planet of SolarSystemData) {
+                if (planet.moons && planet.moons.find(m => m.name === body.name)) {
+                    isMoon = true;
+                    break;
+                }
+            }
+
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
                      <p style="display: flex; align-items: center;">${createInfoButton("Distance", "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${body.distance} AU</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Period", "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${body.period} years</p>`;
+                     <p style="display: flex; align-items: center;">${createInfoButton("Period", isMoon ? "The time it takes for the object to complete one full orbit around its planet, measured in Earth years." : "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${body.period} years</p>`;
         } else if ('stars' in data && 'connections' in data) {
             const constellation = data as ConstellationData;
             if (constellation.stars && constellation.stars.length > 0) {
