@@ -28,7 +28,7 @@ export class CelestialBody {
     trailPositions: THREE.Vector3[];
     showTrails: boolean;
 
-    axisLine: THREE.Line | null;
+    axesHelper: THREE.AxesHelper | null;
     showAxes: boolean;
     labelSprite: THREE.Sprite | null = null;
     showLabel: boolean = false;
@@ -52,7 +52,7 @@ export class CelestialBody {
         this.trailPositions = [];
         this.showTrails = false;
 
-        this.axisLine = null;
+        this.axesHelper = null;
         this.showAxes = false;
 
         this.init();
@@ -275,25 +275,12 @@ export class CelestialBody {
         if (this.data.name === 'Sun') return;
 
         const axisLength = this.data.radius * 2.5;
-        const geometry = new THREE.BufferGeometry();
-        const vertices = new Float32Array([
-            0, -axisLength / 2, 0,
-            0, axisLength / 2, 0
-        ]);
-        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
-        const material = new THREE.LineBasicMaterial({
-            color: 0x00ffff,
-            transparent: true,
-            opacity: 0.5,
-            linewidth: 1
-        });
-
-        this.axisLine = new THREE.Line(geometry, material);
-        this.axisLine.visible = this.showAxes;
+        this.axesHelper = new THREE.AxesHelper(axisLength);
+        this.axesHelper.visible = this.showAxes;
 
         // Add to tiltGroup so it shows the actual rotation axis
-        this.tiltGroup.add(this.axisLine);
+        this.tiltGroup.add(this.axesHelper);
     }
     createRings() {
         if (!('rings' in this.data) || !this.data.rings) return;
@@ -660,8 +647,8 @@ export class CelestialBody {
 
     toggleAxes(visible: boolean) {
         this.showAxes = visible;
-        if (this.axisLine) {
-            this.axisLine.visible = visible;
+        if (this.axesHelper) {
+            this.axesHelper.visible = visible;
         }
         this.moons.forEach(moon => moon.toggleAxes(visible));
     }
