@@ -433,18 +433,34 @@ export const SolarSystemData: CelestialBodyData[] = [
             { title: "Wikipedia: Jupiter", url: "https://en.wikipedia.org/wiki/Jupiter" }
         ],
         moons: [
-            { name: "Io", radius: 0.28, displayRadius: 0.286, distance: 15,
-        distanceAU: 0.00281,
-        eccentricity: 0.0041, period: 0.005, color: 0xffff00 },
-            { name: "Europa", radius: 0.25, displayRadius: 0.245, distance: 17,
-        distanceAU: 0.00448,
-        eccentricity: 0.009, period: 0.01, color: 0xffffff },
-            { name: "Ganymede", radius: 0.41, displayRadius: 0.413, distance: 19,
-        distanceAU: 0.00715,
-        eccentricity: 0.0013, period: 0.02, color: 0x888888 },
-            { name: "Callisto", radius: 0.38, displayRadius: 0.378, distance: 21,
-        distanceAU: 0.01258,
-        eccentricity: 0.0074, period: 0.045, color: 0x555555 }
+            {
+                name: "Io", radius: 0.28, displayRadius: 0.286, distance: 15,
+                distanceAU: 0.00281, eccentricity: 0.0041, period: 0.005, color: 0xffff00,
+                description: "Io is the innermost and third-largest of the four Galilean moons of the planet Jupiter. It is the fourth-largest moon in the Solar System, has the highest density of any moon, the strongest surface gravity of any moon, and the lowest amount of water of any known astronomical object in the Solar System.",
+                imageUrl: "images/800px-Io.jpg",
+                links: [{ title: "Wikipedia: Io", url: "https://en.wikipedia.org/wiki/Io_(moon)" }]
+            },
+            {
+                name: "Europa", radius: 0.25, displayRadius: 0.245, distance: 17,
+                distanceAU: 0.00448, eccentricity: 0.009, period: 0.01, color: 0xffffff,
+                description: "Europa is the smallest of the four Galilean moons orbiting Jupiter, and the sixth-closest to the planet of all its 95 known moons. It is also the sixth-largest moon in the Solar System.",
+                imageUrl: "images/800px-Europa.jpg",
+                links: [{ title: "Wikipedia: Europa", url: "https://en.wikipedia.org/wiki/Europa_(moon)" }]
+            },
+            {
+                name: "Ganymede", radius: 0.41, displayRadius: 0.413, distance: 19,
+                distanceAU: 0.00715, eccentricity: 0.0013, period: 0.02, color: 0x888888,
+                description: "Ganymede is the largest and most massive of the Solar System's moons. The ninth-largest object in the Solar System, it is the largest without a substantial atmosphere. It has a diameter of 5,268 km (3,273 mi), making it 26% larger than the planet Mercury by volume, although it is only 45% as massive.",
+                imageUrl: "images/800px-Ganymede.jpg",
+                links: [{ title: "Wikipedia: Ganymede", url: "https://en.wikipedia.org/wiki/Ganymede_(moon)" }]
+            },
+            {
+                name: "Callisto", radius: 0.38, displayRadius: 0.378, distance: 21,
+                distanceAU: 0.01258, eccentricity: 0.0074, period: 0.045, color: 0x555555,
+                description: "Callisto is the second-largest moon of Jupiter, after Ganymede. It is the third-largest moon in the Solar System after Ganymede and Saturn's largest moon Titan, and the largest object in the Solar System that may not be properly differentiated.",
+                imageUrl: "images/800px-Callisto.jpg",
+                links: [{ title: "Wikipedia: Callisto", url: "https://en.wikipedia.org/wiki/Callisto_(moon)" }]
+            }
         ]
     },
     {
@@ -469,9 +485,34 @@ export const SolarSystemData: CelestialBodyData[] = [
             { title: "Wikipedia: Saturn", url: "https://en.wikipedia.org/wiki/Saturn" }
         ],
         moons: [
-            { name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 15,
-        distanceAU: 0.00816,
-        eccentricity: 0.0288, period: 0.044, color: 0xffaa00 }
+            {
+                name: "Enceladus", radius: 0.15, displayRadius: 0.04, distance: 9,
+                distanceAU: 0.00159, eccentricity: 0.0047, period: 0.0037, color: 0xffffff,
+                description: "Enceladus is the sixth-largest moon of Saturn. It is about 500 kilometers in diameter, about a tenth of that of Saturn's largest moon, Titan. It is mostly covered by fresh, clean ice, making it one of the most reflective bodies of the Solar System.",
+                imageUrl: "images/800px-Enceladus.jpg",
+                links: [{ title: "Wikipedia: Enceladus", url: "https://en.wikipedia.org/wiki/Enceladus" }]
+            },
+            {
+                name: "Mimas", radius: 0.12, displayRadius: 0.03, distance: 7,
+                distanceAU: 0.00124, eccentricity: 0.0202, period: 0.0026, color: 0xcccccc,
+                description: "Mimas is a moon of Saturn which was discovered in 1789 by William Herschel. It is named after Mimas, a son of Gaia in Greek mythology. With a diameter of 396 kilometres, it is the smallest astronomical body that is known to be rounded in shape because of self-gravitation.",
+                imageUrl: "images/800px-Mimas.jpg",
+                links: [{ title: "Wikipedia: Mimas", url: "https://en.wikipedia.org/wiki/Mimas_(moon)" }]
+            },
+            {
+                name: "Iapetus", radius: 0.25, displayRadius: 0.115, distance: 22,
+                distanceAU: 0.0238, eccentricity: 0.0286, period: 0.217, color: 0xaaaaaa,
+                description: "Iapetus is the third-largest natural satellite of Saturn, eleventh-largest in the Solar System, and the largest body in the Solar System known not to be in hydrostatic equilibrium. Iapetus is best known for its dramatic 'two-tone' coloration.",
+                imageUrl: "images/800px-Iapetus.jpg",
+                links: [{ title: "Wikipedia: Iapetus", url: "https://en.wikipedia.org/wiki/Iapetus_(moon)" }]
+            },
+            {
+                name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 15,
+                distanceAU: 0.00816, eccentricity: 0.0288, period: 0.044, color: 0xffaa00,
+                description: "Titan is the largest moon of Saturn and the second-largest natural satellite in the Solar System. It is the only moon known to have a dense atmosphere, and the only known body in space, other than Earth, where clear evidence of stable bodies of surface liquid has been found.",
+                imageUrl: "images/800px-Titan.jpg",
+                links: [{ title: "Wikipedia: Titan", url: "https://en.wikipedia.org/wiki/Titan_(moon)" }]
+            }
         ],
         rings: [
             { innerRadius: 11, outerRadius: 21, color: 0xe6e6cd, opacity: 0.8 },
