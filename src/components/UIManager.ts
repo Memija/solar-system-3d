@@ -20,6 +20,7 @@ export class UIManager {
     tourController: dat.GUIController | null = null;
     minimap: Minimap;
     previousTimeSpeed: number | null = null;
+    cameraTarget: string = 'Earth';
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -350,19 +351,20 @@ export class UIManager {
         const cameraFolder = gui.addFolder('Camera Controls');
 
         const cameraControls = {
-            target: 'Earth', // Default
-            focus: () => this.sceneManager.focusOnBody(cameraControls.target),
-            surfaceView: () => this.sceneManager.setSurfaceView(cameraControls.target),
+            focus: () => {
+                const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
+                if (typeSelect?.value === 'Star') {
+                    const star = this.sceneManager.starMeshes.find(m => m.userData.name === this.cameraTarget);
+                    if (star) this.sceneManager.focusOnStar(star);
+                } else if (typeSelect?.value === 'Constellation') {
+                    this.sceneManager.focusOnConstellation(this.cameraTarget);
+                } else {
+                    this.sceneManager.focusOnBody(this.cameraTarget);
+                }
+            },
+            surfaceView: () => this.sceneManager.setSurfaceView(this.cameraTarget),
             detach: () => this.sceneManager.detachCamera()
         };
-
-        // Dropdown for selecting target - keeping it as it was part of the old menu,
-        // though redundant with the new menu, user asked to restore the "old camera related menu".
-        // I will keep it to be safe, or I could remove just the target dropdown if I'm sure.
-        // Given the user said "broke the old camera related menu", they probably miss the buttons.
-        // I'll keep the target dropdown too to ensure full restoration.
-        const targetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Eris', 'Haumea', 'Makemake', "Halley's Comet", "Hale-Bopp", "ISS (International Space Station)", "Hubble Space Telescope", "Voyager 1", "James Webb Space Telescope", "Cassini", "Voyager 2"];
-        cameraFolder.add(cameraControls, 'target', targetNames).name('Target Body');
 
         cameraFolder.add(cameraControls, 'focus').name('Attach Camera');
         cameraFolder.add(cameraControls, 'surfaceView').name('View from Surface');
@@ -408,6 +410,7 @@ export class UIManager {
 
         // Type Selector
         const typeSelect = document.createElement('select');
+        typeSelect.id = 'typeSelect';
         typeSelect.style.padding = '8px 12px';
         typeSelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)';
         typeSelect.style.backdropFilter = 'blur(12px)';
@@ -433,6 +436,7 @@ export class UIManager {
 
         // Body Selector
         const bodySelect = document.createElement('select');
+        bodySelect.id = 'bodySelect';
         bodySelect.style.padding = '8px 12px';
         bodySelect.style.backgroundColor = 'rgba(15, 15, 25, 0.65)';
         bodySelect.style.backdropFilter = 'blur(12px)';
@@ -534,6 +538,9 @@ export class UIManager {
         bodySelect.addEventListener('change', () => {
             const selectedName = bodySelect.value;
             const selectedType = typeSelect.value;
+
+            // Sync the camera target
+            this.cameraTarget = selectedName;
 
             if (this.sceneManager.tourMode && this.tourController) {
                 this.tourController.setValue(false);

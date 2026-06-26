@@ -199,6 +199,11 @@ option {
     line-height: 27px !important;
 }
 
+.dg .cr.function .property-name {
+    width: 100% !important;
+    text-align: center !important;
+}
+
 .gui-info-icon {
     cursor: help;
     background: rgba(255, 255, 255, 0.2);
