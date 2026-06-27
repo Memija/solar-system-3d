@@ -133,6 +133,57 @@ export class UIManager {
             }
         });
 
+        // Helper to add arrows to numeric input controllers
+        const addNumericArrows = (controller: dat.GUIController | undefined, obj: any, prop: string, step: number, min?: number, max?: number) => {
+            setTimeout(() => {
+                if (controller && controller.domElement) {
+                    const inputElement = controller.domElement.querySelector('input');
+                    if (inputElement) {
+                        inputElement.type = 'number';
+                        inputElement.style.textAlign = 'center';
+                        inputElement.style.width = '60px';
+
+                        const parent = inputElement.parentNode as HTMLElement;
+                        if (parent) {
+                            parent.style.display = 'flex';
+                            parent.style.alignItems = 'center';
+                            parent.style.justifyContent = 'center';
+
+                            const decBtn = document.createElement('button');
+                            decBtn.innerHTML = '◀';
+                            decBtn.style.background = 'none';
+                            decBtn.style.border = 'none';
+                            decBtn.style.color = '#3b82f6';
+                            decBtn.style.cursor = 'pointer';
+                            decBtn.style.padding = '0 5px';
+                            decBtn.style.fontSize = '12px';
+                            decBtn.onclick = () => {
+                                let newVal = obj[prop] - step;
+                                if (min !== undefined) newVal = Math.max(min, newVal);
+                                controller.setValue(newVal);
+                            };
+                            parent.insertBefore(decBtn, inputElement);
+
+                            const incBtn = document.createElement('button');
+                            incBtn.innerHTML = '▶';
+                            incBtn.style.background = 'none';
+                            incBtn.style.border = 'none';
+                            incBtn.style.color = '#3b82f6';
+                            incBtn.style.cursor = 'pointer';
+                            incBtn.style.padding = '0 5px';
+                            incBtn.style.fontSize = '12px';
+                            incBtn.onclick = () => {
+                                let newVal = obj[prop] + step;
+                                if (max !== undefined) newVal = Math.min(max, newVal);
+                                controller.setValue(newVal);
+                            };
+                            parent.appendChild(incBtn);
+                        }
+                    }
+                }
+            }, 100);
+        };
+
         // Helper to add info icons to dat.gui items
         const addInfoIcon = (controller: dat.GUIController | undefined, text: string) => {
             // Check if controller exists, helpful when testing where dat.gui might be mocked
@@ -225,51 +276,7 @@ export class UIManager {
         });
 
         // Make time speed input better looking and add arrows
-        setTimeout(() => {
-            if (timeSpeedController && timeSpeedController.domElement) {
-                const inputElement = timeSpeedController.domElement.querySelector('input');
-                if (inputElement) {
-                    inputElement.type = 'number';
-                    inputElement.style.textAlign = 'center';
-                    inputElement.style.width = '60px';
-
-                    const parent = inputElement.parentNode as HTMLElement;
-                    if (parent) {
-                        parent.style.display = 'flex';
-                        parent.style.alignItems = 'center';
-                        parent.style.justifyContent = 'center';
-
-                        const decBtn = document.createElement('button');
-                        decBtn.innerHTML = '◀';
-                        decBtn.style.background = 'none';
-                        decBtn.style.border = 'none';
-                        decBtn.style.color = '#3b82f6';
-                        decBtn.style.cursor = 'pointer';
-                        decBtn.style.padding = '0 5px';
-                        decBtn.style.fontSize = '12px';
-                        decBtn.onclick = () => {
-                            let newVal = Math.max(0, params.timeSpeed - 0.1);
-                            timeSpeedController.setValue(newVal);
-                        };
-                        parent.insertBefore(decBtn, inputElement);
-
-                        const incBtn = document.createElement('button');
-                        incBtn.innerHTML = '▶';
-                        incBtn.style.background = 'none';
-                        incBtn.style.border = 'none';
-                        incBtn.style.color = '#3b82f6';
-                        incBtn.style.cursor = 'pointer';
-                        incBtn.style.padding = '0 5px';
-                        incBtn.style.fontSize = '12px';
-                        incBtn.onclick = () => {
-                            let newVal = params.timeSpeed + 0.1;
-                            timeSpeedController.setValue(newVal);
-                        };
-                        parent.appendChild(incBtn);
-                    }
-                }
-            }
-        }, 100);
+        addNumericArrows(timeSpeedController, params, 'timeSpeed', 0.1, 0);
 
         // Listen for internal speed changes
         this.sceneManager.onTimeScaleChange = (newSpeed: number) => {
@@ -392,9 +399,11 @@ export class UIManager {
             }
         });
 
-        cameraFolder.add(tourParams, 'tourInterval', 2, 20).name('Tour Speed (s)').onChange(val => {
+        const tourSpeedController = cameraFolder.add(tourParams, 'tourInterval', 2, 20).name('Tour Speed (s)').onChange(val => {
             this.sceneManager.tourInterval = val;
         });
+
+        addNumericArrows(tourSpeedController, tourParams, 'tourInterval', 1, 2, 20);
 
         cameraFolder.open();
     }
