@@ -283,10 +283,6 @@ option {
     }
 }
 
-.dg .cr, .dg li:not(.folder) {
-    overflow: visible !important;
-}
-
 .gui-tooltip {
     position: absolute;
     background-color: rgba(10, 10, 15, 0.95);
