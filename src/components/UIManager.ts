@@ -45,6 +45,31 @@ export class UIManager {
         this.createSelectionMenu();
         this.initControls();
         this.initInteraction();
+        window.addEventListener('tour-focus', (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const targetName = customEvent.detail;
+
+            // Find data for this body
+            let foundData: any = null;
+            const findTarget = (body: any) => {
+                if (body.data.name === targetName) {
+                    foundData = body.data;
+                }
+                if (body.moons) body.moons.forEach(findTarget);
+            };
+            this.sceneManager.planets.forEach(findTarget);
+            if (!foundData) {
+                const comet = this.sceneManager.comets.find(c => c.data.name === targetName);
+                if (comet) foundData = comet.data;
+            }
+            if (!foundData) {
+                const sc = this.sceneManager.spacecrafts.find(s => s.data.name === targetName);
+                if (sc) foundData = sc.data;
+            }
+            if (foundData) {
+                this.showModal(foundData);
+            }
+        });
     }
 
     createInfoPanel(): HTMLElement {
@@ -393,7 +418,9 @@ export class UIManager {
             if (val) {
                 this.sceneManager.tourTimer = 0;
                 // Start with the first body
-                this.sceneManager.focusOnBody(this.sceneManager.tourTargets[this.sceneManager.tourIndex]);
+                const targetName = this.sceneManager.tourTargets[this.sceneManager.tourIndex];
+                this.sceneManager.focusOnBody(targetName);
+                window.dispatchEvent(new CustomEvent('tour-focus', { detail: targetName }));
             } else {
                 this.sceneManager.detachCamera();
             }
