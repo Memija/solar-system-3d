@@ -309,3 +309,8 @@ option {
 .dg .c input[type=number] {
     -moz-appearance: textfield;
 }
+
+.dg ul.closed li:not(.title) {
+    border-bottom: none !important;
+    display: none !important;
+}

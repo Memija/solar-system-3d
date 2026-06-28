@@ -673,7 +673,9 @@ export class SceneManager {
             if (this.tourTimer >= this.tourInterval) {
                 this.tourTimer = 0;
                 this.tourIndex = (this.tourIndex + 1) % this.tourTargets.length;
-                this.focusOnBody(this.tourTargets[this.tourIndex]);
+                const targetName = this.tourTargets[this.tourIndex];
+                this.focusOnBody(targetName);
+                window.dispatchEvent(new CustomEvent('tour-focus', { detail: targetName }));
             }
         }
 
@@ -722,7 +724,7 @@ export class SceneManager {
 
             const sunToPlanet = planetPos.clone().normalize();
             const offset = sunToPlanet.multiplyScalar(this.surfaceViewBody.data.radius + 2);
-            const camPos = planetPos.clone().sub(offset);
+            const camPos = planetPos.clone().add(offset);
 
             this.camera.position.copy(camPos);
             this.camera.lookAt(0, 0, 0);
