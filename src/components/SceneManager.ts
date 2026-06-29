@@ -107,7 +107,7 @@ export class SceneManager {
         this.tourTargets = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
         this.tourIndex = 0;
         this.tourTimer = 0;
-        this.tourInterval = 5;
+        this.tourInterval = 12; // Maps to speed 5
 
         this.measureMode = false;
         this.measureTargetA = null;
@@ -234,6 +234,7 @@ export class SceneManager {
         this.measureLine = new THREE.Line(geometry, material);
         this.measureLine.computeLineDistances();
         this.measureLine.visible = false;
+        this.measureLine.frustumCulled = false;
         this.scene.add(this.measureLine);
 
         // Label
@@ -723,11 +724,14 @@ export class SceneManager {
             this.surfaceViewBody.mesh.getWorldPosition(planetPos);
 
             const sunToPlanet = planetPos.clone().normalize();
+            // Place the camera slightly closer to the sun so we look outwards from the surface
             const offset = sunToPlanet.multiplyScalar(this.surfaceViewBody.data.radius + 2);
-            const camPos = planetPos.clone().add(offset);
+            const camPos = planetPos.clone().sub(offset);
 
             this.camera.position.copy(camPos);
-            this.camera.lookAt(0, 0, 0);
+            // Look away from the sun (outwards into space)
+            const lookTarget = camPos.clone().sub(sunToPlanet.clone().multiplyScalar(100));
+            this.camera.lookAt(lookTarget);
             this.controls.enabled = false;
         } else if (this.focusedBody?.mesh) {
             const pos = new THREE.Vector3();

@@ -403,14 +403,15 @@ export class UIManager {
         cameraFolder.add(cameraControls, 'detach').name('Free Camera');
 
         const toolsFolder = gui.addFolder('Tools');
-        toolsFolder.add(params, 'measureMode').name('Measure Distance').onChange(val => {
+        const measureCtrl = toolsFolder.add(params, 'measureMode').name('Measure Distance').onChange(val => {
             this.sceneManager.toggleMeasureMode(val);
         });
+        addInfoIcon(measureCtrl, "Enable Measure Distance, then click on two bodies in the 3D scene (or select them from the dropdown) to measure the distance between them.");
         toolsFolder.open();
 
         const tourParams = {
             tourMode: false,
-            tourInterval: 5
+            tourSpeed: 5 // Default speed maps to a moderate interval
         };
 
         this.tourController = cameraFolder.add(tourParams, 'tourMode').name('Cinematic Tour').onChange(val => {
@@ -426,11 +427,13 @@ export class UIManager {
             }
         });
 
-        const tourSpeedController = cameraFolder.add(tourParams, 'tourInterval', 2, 20).name('Tour Speed (s)').onChange(val => {
-            this.sceneManager.tourInterval = val;
+        // 1 to 10 range. Speed 1 -> 20s interval. Speed 10 -> 2s interval.
+        // Formula: interval = 22 - (speed * 2)
+        const tourSpeedController = cameraFolder.add(tourParams, 'tourSpeed', 1, 10).name('Tour Speed').onChange(val => {
+            this.sceneManager.tourInterval = 22 - (val * 2);
         });
 
-        addNumericArrows(tourSpeedController, tourParams, 'tourInterval', 1, 2, 20);
+        addNumericArrows(tourSpeedController, tourParams, 'tourSpeed', 1, 1, 10);
 
         cameraFolder.open();
     }
@@ -580,6 +583,11 @@ export class UIManager {
 
             if (this.sceneManager.tourMode && this.tourController) {
                 this.tourController.setValue(false);
+            }
+
+            if (this.sceneManager.measureMode) {
+                this.sceneManager.setMeasureTarget(selectedName);
+                return; // Don't show modal or focus when measuring
             }
 
             // Automatically hide any previous UI panels
