@@ -10,6 +10,9 @@ if (!container) {
 const sceneManager = new SceneManager(container);
 const uiManager = new UIManager(sceneManager);
 
+// EXPOSE FOR TESTING
+(window as any).sceneManager = sceneManager;
+
 function animate() {
   requestAnimationFrame(animate);
   sceneManager.update();
