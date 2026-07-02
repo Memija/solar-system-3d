@@ -255,6 +255,19 @@ export class SceneManager {
         const context = canvas.getContext('2d');
         if (!context) return;
 
+        context.font = 'Bold 48px Arial';
+        const textMetrics = context.measureText(text);
+        const textWidth = textMetrics.width;
+
+        // Add padding to the text width
+        const newWidth = Math.max(512, textWidth + 80);
+
+        if (canvas.width !== newWidth) {
+            canvas.width = newWidth;
+            // Updating canvas dimensions resets context state, so re-apply font
+            context.font = 'Bold 48px Arial';
+        }
+
         context.clearRect(0, 0, canvas.width, canvas.height);
 
         // Background
@@ -266,13 +279,17 @@ export class SceneManager {
         context.lineWidth = 4;
         context.stroke();
 
-        context.font = 'Bold 48px Arial';
         context.fillStyle = '#00ff00';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillText(text, canvas.width / 2, canvas.height / 2);
 
         this.measureLabel.material.map.needsUpdate = true;
+
+        // Update the scale aspect ratio to match the new canvas dimensions
+        // Previous static scale: scale.set(60, 15, 1) -> ratio of 4:1 for 512x128
+        const currentScaleY = this.measureLabel.scale.y;
+        this.measureLabel.scale.set(currentScaleY * (canvas.width / canvas.height), currentScaleY, 1);
     }
 
     createAsteroidBelt() {
@@ -725,8 +742,15 @@ export class SceneManager {
 
             const sunToPlanet = planetPos.clone().normalize();
             // Place the camera slightly closer to the sun so we look outwards from the surface
-            const offset = sunToPlanet.multiplyScalar(this.surfaceViewBody.data.radius + 2);
-            const camPos = planetPos.clone().sub(offset);
+
+            // Get the actual visual radius in world space
+            const actualRadius = this.surfaceViewBody.data.radius * this.surfaceViewBody.tiltGroup.scale.x;
+
+            // Add a dynamic offset that scales slightly with the radius, but prevents clipping
+            const distanceOffset = actualRadius + Math.max(actualRadius * 0.1, 1);
+
+            const offsetVector = sunToPlanet.clone().multiplyScalar(distanceOffset);
+            const camPos = planetPos.clone().sub(offsetVector);
 
             this.camera.position.copy(camPos);
             // Look away from the sun (outwards into space)
@@ -1048,16 +1072,25 @@ export class SceneManager {
             // Calculate distance
             const distanceScale = posA.distanceTo(posB);
 
-            // Scale label size based on camera distance so it's readable
-            const camDist = this.camera.position.distanceTo(this.measureLabel.position);
-            const scale = Math.max(camDist * 0.05, 10);
-            this.measureLabel.scale.set(scale * 4, scale, 1);
-
             // Update text (distance)
             // Note: Earth is at 130 in simulation. 1 AU = 130 units roughly.
             const distanceAU = (distanceScale / 130).toFixed(2);
             const distanceMkm = (parseFloat(distanceAU) * 149.6).toFixed(1);
             this.updateMeasureLabel(`Dist: ${distanceAU} AU / ${distanceMkm} Mkm`);
+
+            // Scale label size based on camera distance so it's readable
+            const camDist = this.camera.position.distanceTo(this.measureLabel.position);
+            const scaleY = Math.max(camDist * 0.05, 10);
+
+            // The texture image (canvas) might have changed width, so we need to maintain aspect ratio
+            const canvas = this.measureLabel.material.map?.image as HTMLCanvasElement;
+            if (canvas) {
+                const ratio = canvas.width / canvas.height;
+                this.measureLabel.scale.set(scaleY * ratio, scaleY, 1);
+            } else {
+                this.measureLabel.scale.set(scaleY * 4, scaleY, 1); // Fallback
+            }
+
             this.measureLabel.visible = true;
         } else {
             this.measureLine.visible = false;
