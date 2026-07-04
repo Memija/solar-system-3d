@@ -251,6 +251,11 @@ export class SceneManager {
 
     updateMeasureLabel(text: string) {
         if (!this.measureLabel || !this.measureLabel.material.map) return;
+
+        // Check if text is same, avoid re-rendering
+        if ((this.measureLabel as any).userData.lastText === text) return;
+        (this.measureLabel as any).userData.lastText = text;
+
         const canvas = this.measureLabel.material.map.image as HTMLCanvasElement;
         const context = canvas.getContext('2d');
         if (!context) return;
@@ -733,28 +738,27 @@ export class SceneManager {
             this.kuiperBelt.rotation.y -= 0.01 * deltaTime;
         }
 
-        // Update Measurement Tool
-        this.updateMeasurement();
-
         if (this.surfaceViewBody?.mesh) {
+            // Get the actual visual radius
+            const actualRadius = this.surfaceViewBody.data.radius; // The mesh world matrix handles scale
+            const distanceOffset = actualRadius + Math.max(actualRadius * 0.1, 1);
+
+            // We place the camera on the +X equator of the planet in its local space
+            const localPos = new THREE.Vector3(distanceOffset, 0, 0);
+
+            // Get the world position of this point, rotating with the planet
+            const camPos = localPos.applyMatrix4(this.surfaceViewBody.mesh.matrixWorld);
+
+            // The center of the planet in world space
             const planetPos = new THREE.Vector3();
             this.surfaceViewBody.mesh.getWorldPosition(planetPos);
 
-            const sunToPlanet = planetPos.clone().normalize();
-            // Place the camera slightly closer to the sun so we look outwards from the surface
-
-            // Get the actual visual radius in world space
-            const actualRadius = this.surfaceViewBody.data.radius * this.surfaceViewBody.tiltGroup.scale.x;
-
-            // Add a dynamic offset that scales slightly with the radius, but prevents clipping
-            const distanceOffset = actualRadius + Math.max(actualRadius * 0.1, 1);
-
-            const offsetVector = sunToPlanet.clone().multiplyScalar(distanceOffset);
-            const camPos = planetPos.clone().sub(offsetVector);
-
             this.camera.position.copy(camPos);
-            // Look away from the sun (outwards into space)
-            const lookTarget = camPos.clone().sub(sunToPlanet.clone().multiplyScalar(100));
+
+            // Look directly outwards from the surface (away from the center)
+            const outwardNormal = camPos.clone().sub(planetPos).normalize();
+            const lookTarget = camPos.clone().add(outwardNormal.multiplyScalar(100));
+
             this.camera.lookAt(lookTarget);
             this.controls.enabled = false;
         } else if (this.focusedBody?.mesh) {
@@ -777,6 +781,10 @@ export class SceneManager {
         }
 
         this.controls.update(); // Required for OrbitControls to work
+
+        // Update Measurement Tool after camera updates so labels don't lag
+        this.updateMeasurement();
+
         this.composer.render();
     }
 
@@ -1059,6 +1067,7 @@ export class SceneManager {
 
             // Update line
             this.measureLine.geometry.setFromPoints([posA, posB]);
+            this.measureLine.geometry.attributes.position.needsUpdate = true;
             this.measureLine.computeLineDistances();
             this.measureLine.visible = true;
 
