@@ -738,30 +738,7 @@ export class SceneManager {
             this.kuiperBelt.rotation.y -= 0.01 * deltaTime;
         }
 
-        if (this.surfaceViewBody?.mesh) {
-            // Get the actual visual radius
-            const actualRadius = this.surfaceViewBody.data.radius; // The mesh world matrix handles scale
-            const distanceOffset = actualRadius + Math.max(actualRadius * 0.1, 1);
-
-            // We place the camera on the +X equator of the planet in its local space
-            const localPos = new THREE.Vector3(distanceOffset, 0, 0);
-
-            // Get the world position of this point, rotating with the planet
-            const camPos = localPos.applyMatrix4(this.surfaceViewBody.mesh.matrixWorld);
-
-            // The center of the planet in world space
-            const planetPos = new THREE.Vector3();
-            this.surfaceViewBody.mesh.getWorldPosition(planetPos);
-
-            this.camera.position.copy(camPos);
-
-            // Look directly outwards from the surface (away from the center)
-            const outwardNormal = camPos.clone().sub(planetPos).normalize();
-            const lookTarget = camPos.clone().add(outwardNormal.multiplyScalar(100));
-
-            this.camera.lookAt(lookTarget);
-            this.controls.enabled = false;
-        } else if (this.focusedBody?.mesh) {
+        if (this.focusedBody?.mesh) {
             const pos = new THREE.Vector3();
             this.focusedBody.mesh.getWorldPosition(pos);
 
@@ -781,6 +758,36 @@ export class SceneManager {
         }
 
         this.controls.update(); // Required for OrbitControls to work
+
+        if (this.surfaceViewBody?.mesh) {
+            // Force update matrix world so we don't lag behind the animation frame
+            this.surfaceViewBody.mesh.updateMatrixWorld(true);
+            const scale = this.surfaceViewBody.tiltGroup.scale.x;
+            const actualRadius = this.surfaceViewBody.data.radius * scale;
+            const worldMargin = Math.max(actualRadius * 0.1, 2);
+
+            // To ensure we don't clip into clouds or atmosphere, we need the local distance
+            const localDistance = this.surfaceViewBody.data.radius + (worldMargin / scale);
+
+            // We place the camera on the +X equator of the planet in its local space
+            const localPos = new THREE.Vector3(localDistance, 0, 0);
+
+            // Get the world position of this point, rotating with the planet
+            const camPos = localPos.applyMatrix4(this.surfaceViewBody.mesh.matrixWorld);
+
+            // The center of the planet in world space
+            const planetPos = new THREE.Vector3();
+            this.surfaceViewBody.mesh.getWorldPosition(planetPos);
+
+            this.camera.position.copy(camPos);
+
+            // Look directly outwards from the surface (away from the center)
+            const outwardNormal = camPos.clone().sub(planetPos).normalize();
+            const lookTarget = camPos.clone().add(outwardNormal.multiplyScalar(100));
+
+            this.camera.lookAt(lookTarget);
+            this.controls.enabled = false;
+        }
 
         // Update Measurement Tool after camera updates so labels don't lag
         this.updateMeasurement();
@@ -1062,8 +1069,27 @@ export class SceneManager {
         if (this.measureTargetA && this.measureTargetA.mesh && this.measureTargetB && this.measureTargetB.mesh) {
             const posA = new THREE.Vector3();
             const posB = new THREE.Vector3();
-            this.measureTargetA.mesh.getWorldPosition(posA);
-            this.measureTargetB.mesh.getWorldPosition(posB);
+            // When 'realistic distances' is off, a planet's 'mesh' might be moving on an orbit but we need its actual position in the world.
+            // Actually getWorldPosition gets the exact world position anyway, however, the target object might be a celestial body which contains an orbitGroup
+            // To ensure distance measures are updating correctly, we must make sure these target's orbitGroups
+            // have their matrices updated if they were animated this frame. Usually, animate() updates the position
+            // properties, but not matrices until render(). Calling updateMatrixWorld ensures we get the latest pos.
+            if ('orbitGroup' in this.measureTargetA) {
+                this.measureTargetA.orbitGroup.updateMatrixWorld(true);
+                this.measureTargetA.orbitGroup.getWorldPosition(posA);
+            } else {
+                this.measureTargetA.mesh.updateMatrixWorld(true);
+                this.measureTargetA.mesh.getWorldPosition(posA);
+            }
+
+            if ('orbitGroup' in this.measureTargetB) {
+                this.measureTargetB.orbitGroup.updateMatrixWorld(true);
+                this.measureTargetB.orbitGroup.getWorldPosition(posB);
+            } else {
+                this.measureTargetB.mesh.updateMatrixWorld(true);
+                this.measureTargetB.mesh.getWorldPosition(posB);
+            }
+
 
             // Update line
             this.measureLine.geometry.setFromPoints([posA, posB]);
