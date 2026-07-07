@@ -1074,19 +1074,18 @@ export class SceneManager {
             // To ensure distance measures are updating correctly, we must make sure these target's orbitGroups
             // have their matrices updated if they were animated this frame. Usually, animate() updates the position
             // properties, but not matrices until render(). Calling updateMatrixWorld ensures we get the latest pos.
+            // We must update the entire scene graph to ensure all parents (e.g. Earth for Moon) are updated.
+            this.scene.updateMatrixWorld(true);
+
             if ('orbitGroup' in this.measureTargetA) {
-                this.measureTargetA.orbitGroup.updateMatrixWorld(true);
                 this.measureTargetA.orbitGroup.getWorldPosition(posA);
             } else {
-                this.measureTargetA.mesh.updateMatrixWorld(true);
                 this.measureTargetA.mesh.getWorldPosition(posA);
             }
 
             if ('orbitGroup' in this.measureTargetB) {
-                this.measureTargetB.orbitGroup.updateMatrixWorld(true);
                 this.measureTargetB.orbitGroup.getWorldPosition(posB);
             } else {
-                this.measureTargetB.mesh.updateMatrixWorld(true);
                 this.measureTargetB.mesh.getWorldPosition(posB);
             }
 
