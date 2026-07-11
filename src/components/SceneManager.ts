@@ -62,6 +62,7 @@ export class SceneManager {
     measureLine: THREE.Line | null;
     measureLabel: THREE.Sprite | null;
     onTimeScaleChange?: (newScale: number) => void;
+    onMeasureTargetsSet?: () => void;
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -1161,6 +1162,9 @@ export class SceneManager {
                 this.measureTargetA = target;
             } else if (!this.measureTargetB && target !== this.measureTargetA) {
                 this.measureTargetB = target;
+                if (this.onMeasureTargetsSet) {
+                    this.onMeasureTargetsSet();
+                }
             } else {
                 // If both set, reset A to new target, B to null
                 this.measureTargetA = target;
