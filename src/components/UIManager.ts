@@ -405,10 +405,17 @@ export class UIManager {
         const toolsFolder = gui.addFolder('Tools');
         const measureCtrl = toolsFolder.add(params, 'measureMode').name('Measure Distance').onChange(val => {
             this.sceneManager.toggleMeasureMode(val);
-            if (val && !params.realisticDistances) {
-                distCtrl.setValue(true);
+            if (!val && params.realisticDistances) {
+                distCtrl.setValue(false);
             }
         });
+
+        this.sceneManager.onMeasureTargetsSet = () => {
+            if (!params.realisticDistances) {
+                distCtrl.setValue(true);
+            }
+        };
+
         addInfoIcon(measureCtrl, "Enable Measure Distance, then click on two bodies in the 3D scene (or select them from the dropdown) to measure the distance between them.");
         toolsFolder.open();
 
