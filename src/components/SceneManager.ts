@@ -50,6 +50,7 @@ export class SceneManager {
     eclipticGridMesh: THREE.PolarGridHelper | null;
 
     simDate: Date;
+    baseDate: Date;
     tourMode: boolean;
     tourTargets: string[];
     tourIndex: number;
@@ -104,6 +105,7 @@ export class SceneManager {
         this.eclipticGridMesh = null;
 
         this.simDate = new Date();
+        this.baseDate = new Date(Date.UTC(2000, 0, 1, 12, 0, 0)); // J2000 epoch
         this.tourMode = false;
         this.tourTargets = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
         this.tourIndex = 0;
@@ -119,6 +121,10 @@ export class SceneManager {
         this.constellationManager = new ConstellationManager(this.scene);
 
         this.init();
+    }
+
+    setSimDate(newDate: Date) {
+        this.simDate = newDate;
     }
 
     init() {
@@ -692,6 +698,9 @@ export class SceneManager {
         const msPassed = yearsPassed * 365.25 * 24 * 60 * 60 * 1000;
         this.simDate = new Date(this.simDate.getTime() + msPassed);
 
+        const yearsSince2000 = (this.simDate.getTime() - this.baseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        const simTimePassed = yearsSince2000 * earthYearInSimSeconds;
+
         if (this.tourMode) {
             this.tourTimer += rawDelta;
             if (this.tourTimer >= this.tourInterval) {
@@ -704,7 +713,7 @@ export class SceneManager {
         }
 
         this.planets.forEach(planet => {
-            planet.update(deltaTime);
+            planet.update(deltaTime, simTimePassed);
             // Update atmosphere view vector if it exists
             if (planet.atmosphereMesh && planet.orbitGroup) {
                 (planet.atmosphereMesh.material as THREE.ShaderMaterial).uniforms.viewVector.value.subVectors(this.camera.position, planet.orbitGroup.position);
@@ -719,13 +728,13 @@ export class SceneManager {
 
         if (this.showComets) {
             this.comets.forEach(comet => {
-                comet.update(deltaTime);
+                comet.update(deltaTime, simTimePassed);
             });
         }
 
         if (this.showSpacecrafts) {
-            this.spacecrafts.forEach(spacecraft => {
-                spacecraft.update(deltaTime);
+            this.spacecrafts.forEach(sc => {
+                sc.update(deltaTime, simTimePassed);
             });
         }
 
@@ -968,10 +977,10 @@ export class SceneManager {
 
         this.planets.forEach(findTarget);
 
-        target = target || this.comets.find(c => c.data.name === name);
-        target = target || this.spacecrafts.find(s => s.data.name === name);
+        target = target || this.comets.find((c: Comet) => c.data.name === name);
+        target = target || this.spacecrafts.find((s: Spacecraft) => s.data.name === name);
 
-        if (target?.mesh) {
+        if (target && target.mesh) {
             this.focusedBody = target;
             this.surfaceViewBody = null;
 
@@ -1078,16 +1087,16 @@ export class SceneManager {
             // We must update the entire scene graph to ensure all parents (e.g. Earth for Moon) are updated.
             this.scene.updateMatrixWorld(true);
 
-            if ('orbitGroup' in this.measureTargetA) {
-                this.measureTargetA.orbitGroup.getWorldPosition(posA);
-            } else {
-                this.measureTargetA.mesh.getWorldPosition(posA);
+            if (this.measureTargetA && 'orbitGroup' in this.measureTargetA) {
+                (this.measureTargetA as any).orbitGroup.getWorldPosition(posA);
+            } else if (this.measureTargetA && 'mesh' in this.measureTargetA) {
+                (this.measureTargetA as any).mesh.getWorldPosition(posA);
             }
 
-            if ('orbitGroup' in this.measureTargetB) {
-                this.measureTargetB.orbitGroup.getWorldPosition(posB);
-            } else {
-                this.measureTargetB.mesh.getWorldPosition(posB);
+            if (this.measureTargetB && 'orbitGroup' in this.measureTargetB) {
+                (this.measureTargetB as any).orbitGroup.getWorldPosition(posB);
+            } else if (this.measureTargetB && 'mesh' in this.measureTargetB) {
+                (this.measureTargetB as any).mesh.getWorldPosition(posB);
             }
 
 
@@ -1154,8 +1163,8 @@ export class SceneManager {
         };
 
         this.planets.forEach(findTarget);
-        target = target || this.comets.find(c => c.data.name === name);
-        target = target || this.spacecrafts.find(s => s.data.name === name);
+        target = target || this.comets.find((c: Comet) => c.data.name === name);
+        target = target || this.spacecrafts.find((s: Spacecraft) => s.data.name === name);
 
         if (target) {
             if (!this.measureTargetA) {
@@ -1193,7 +1202,7 @@ export class SceneManager {
 
         this.planets.forEach(findTarget);
 
-        if (target?.mesh) {
+        if (target && target.mesh) {
             this.surfaceViewBody = target;
             this.focusedBody = null;
             this.previousBodyPosition = null;

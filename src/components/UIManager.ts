@@ -100,14 +100,48 @@ export class UIManager {
         panel.style.fontSize = '18px';
         panel.style.borderRadius = '8px';
         panel.style.border = '1px solid #555';
-        panel.style.pointerEvents = 'none';
+        panel.style.pointerEvents = 'auto'; // allow interaction
+
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.style.backgroundColor = 'transparent';
+        input.style.color = '#fff';
+        input.style.border = 'none';
+        input.style.outline = 'none';
+        input.style.fontFamily = 'inherit';
+        input.style.fontSize = 'inherit';
+        input.style.cursor = 'pointer';
+
+        // Ensure calendar picker icon is visible in dark mode
+        input.style.colorScheme = 'dark';
+
+        input.addEventListener('change', (e) => {
+            const target = e.target as HTMLInputElement;
+            if (target.value) {
+                // Parse date assuming UTC, avoiding local timezone shifts
+                const [year, month, day] = target.value.split('-').map(Number);
+                const newDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+                if (this.sceneManager.setSimDate) {
+                    this.sceneManager.setSimDate(newDate);
+                }
+            }
+        });
+
+        panel.appendChild(input);
         this.uiContainer.appendChild(panel);
         return panel;
     }
 
     update() {
         if (this.sceneManager.simDate) {
-            this.datePanel.textContent = this.sceneManager.simDate.toDateString();
+            const input = this.datePanel.querySelector('input') as HTMLInputElement;
+            // Only update the input value if it's not currently focused by the user
+            // to prevent the UI from fighting with user interaction
+            if (input && document.activeElement !== input) {
+                // Format correctly to YYYY-MM-DD in UTC to match how it is parsed
+                input.value = this.sceneManager.simDate.toISOString().split('T')[0];
+            }
         }
         if (this.minimap) {
             this.minimap.update();

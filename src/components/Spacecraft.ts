@@ -346,20 +346,34 @@ export class Spacecraft {
 
 
 
-    update(deltaTime: number) {
+    update(deltaTime: number, simTimePassed?: number) {
         if (this.data.escaping) {
             // Voyager travels outward
             const speedMultiplier = 5; // make it visible
             const speed = (this.data.speed || 1) * speedMultiplier;
-            this.orbitGroup.position.x += speed * deltaTime;
-            this.orbitGroup.position.z += (speed * 0.5) * deltaTime; // Diagonal path
-            this.mesh.rotation.y += 0.1 * deltaTime; // slow spin
+
+            // For escaping bodies, we use simTimePassed if available to deterministically position them based on J2000 epoch
+            if (simTimePassed !== undefined) {
+                // Determine base starting position
+                this.orbitGroup.position.x = speed * simTimePassed;
+                this.orbitGroup.position.z = (speed * 0.5) * simTimePassed;
+                this.mesh.rotation.y = 0.1 * simTimePassed;
+            } else {
+                this.orbitGroup.position.x += speed * deltaTime;
+                this.orbitGroup.position.z += (speed * 0.5) * deltaTime; // Diagonal path
+                this.mesh.rotation.y += 0.1 * deltaTime; // slow spin
+            }
         } else {
             const speedMultiplier = 0.5;
             const speed = (1 / this.data.period) * speedMultiplier;
 
-            this.angle += speed * deltaTime;
-            this.angle = this.angle % (Math.PI * 2);
+            if (simTimePassed !== undefined) {
+                const baseAngle = this.data.baseLongitude || 0;
+                this.angle = (baseAngle + speed * simTimePassed) % (Math.PI * 2);
+            } else {
+                this.angle += speed * deltaTime;
+                this.angle = this.angle % (Math.PI * 2);
+            }
 
             const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
             const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;

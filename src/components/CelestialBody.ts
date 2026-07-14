@@ -546,13 +546,18 @@ export class CelestialBody {
         this.parent.add(this.orbitLine);
     }
 
-    update(deltaTime: number) {
+    update(deltaTime: number, simTimePassed?: number) {
         // Update position
         const speedMultiplier = 0.5;
         const speed = this.data.period === 0 ? 0 : (1 / this.data.period) * speedMultiplier;
 
-        this.angle += speed * deltaTime;
-        this.angle = this.angle % (Math.PI * 2);
+        if (simTimePassed !== undefined) {
+            const baseAngle = ('baseLongitude' in this.data && typeof this.data.baseLongitude === 'number') ? this.data.baseLongitude : 0;
+            this.angle = (baseAngle + speed * simTimePassed) % (Math.PI * 2);
+        } else {
+            this.angle += speed * deltaTime;
+            this.angle = this.angle % (Math.PI * 2);
+        }
 
         let x = 0;
         let z = 0;
