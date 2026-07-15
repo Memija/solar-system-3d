@@ -14,6 +14,7 @@ export interface MoonData {
     name: string;
     radius: number;
     displayRadius?: number;
+    baseLongitude?: number;
     distance: number;
     distanceAU?: number;
     eccentricity?: number;
@@ -33,6 +34,7 @@ export interface CelestialBodyData {
     name: string;
     radius: number;
     displayRadius?: number;
+    baseLongitude?: number;
     distance: number;
     distanceAU?: number;
     eccentricity?: number;
@@ -66,6 +68,7 @@ export interface StarData {
 export interface SpacecraftData {
     name: string;
     targetBody?: string; // If undefined, it orbits the Sun or escapes
+    baseLongitude?: number;
     distance: number; // distance from targetBody
     distanceAU?: number;
     eccentricity?: number;
@@ -198,6 +201,7 @@ export interface CometData {
     name: string;
     radius: number;
     displayRadius?: number;
+    baseLongitude?: number;
     distanceAU?: number;
     semiMajorAxis: number;
     eccentricity: number;
@@ -271,6 +275,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Mercury",
+        baseLongitude: 4.42925,
         radius: 0.76, displayRadius: 0.383,
         distance: 60,
         distanceAU: 0.387098,
@@ -293,6 +298,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Venus",
+        baseLongitude: 3.18693,
         radius: 1.9, displayRadius: 0.949,
         distance: 90,
         distanceAU: 0.723332,
@@ -315,6 +321,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Earth",
+        baseLongitude: 1.75186,
         radius: 2, displayRadius: 1.0,
         distance: 130,
         distanceAU: 1.000000,
@@ -361,6 +368,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Mars",
+        baseLongitude: 6.27346,
         radius: 1.06, displayRadius: 0.532,
         distance: 170,
         distanceAU: 1.523679,
@@ -413,6 +421,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Jupiter",
+        baseLongitude: 0.63342,
         radius: 11.2, displayRadius: 10.97,
         distance: 280,
         distanceAU: 5.203363,
@@ -465,6 +474,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Saturn",
+        baseLongitude: 0.79797,
         radius: 9.45, displayRadius: 9.14,
         distance: 400,
         distanceAU: 9.537070,
@@ -521,6 +531,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Uranus",
+        baseLongitude: 5.52253,
         radius: 6, displayRadius: 3.98,
         distance: 520,
         distanceAU: 19.19126,
@@ -547,6 +558,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     },
     {
         name: "Neptune",
+        baseLongitude: 5.30454,
         radius: 5.82, displayRadius: 3.86,
         distance: 640,
         distanceAU: 30.06896,
@@ -586,6 +598,7 @@ export const SolarSystemData: CelestialBodyData[] = [
     // Dwarf Planets
     {
         name: "Pluto",
+        baseLongitude: 4.37284,
         isDwarfPlanet: true,
         radius: 0.36, displayRadius: 0.187,
         distance: 700,

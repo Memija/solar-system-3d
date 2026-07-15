@@ -227,7 +227,7 @@ export class Comet {
 
 
 
-    update(deltaTime: number) {
+    update(deltaTime: number, simTimePassed?: number) {
         // Simple Keplerian update
         // We use Mean Anomaly (M) and Eccentric Anomaly (E)
 
@@ -237,10 +237,14 @@ export class Comet {
         // Update Mean Anomaly
         // speedMultiplier adjusts overall simulation speed similarly to planets
         const speedMultiplier = 0.5;
-        this.angle += n * deltaTime * speedMultiplier;
 
-        // Keep angle in 0-2PI range
-        this.angle = this.angle % (Math.PI * 2);
+        if (simTimePassed !== undefined) {
+            const baseAngle = this.data.baseLongitude || 0;
+            this.angle = (baseAngle + n * simTimePassed * speedMultiplier) % (Math.PI * 2);
+        } else {
+            this.angle += n * deltaTime * speedMultiplier;
+            this.angle = this.angle % (Math.PI * 2);
+        }
 
         // Solve Kepler's equation M = E - e*sin(E) for E using Newton-Raphson
         let M = this.angle;
