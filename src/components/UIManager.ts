@@ -93,14 +93,26 @@ export class UIManager {
         panel.style.position = 'absolute';
         panel.style.bottom = '20px';
         panel.style.left = '20px';
-        panel.style.padding = '10px 20px';
-        panel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        panel.style.padding = '8px 16px';
+        panel.style.backgroundColor = 'rgba(15, 15, 25, 0.65)';
+        panel.style.backdropFilter = 'blur(12px)';
+        (panel.style as any).webkitBackdropFilter = 'blur(12px)';
         panel.style.color = '#fff';
-        panel.style.fontFamily = 'monospace';
-        panel.style.fontSize = '18px';
+        panel.style.fontFamily = 'inherit';
+        panel.style.fontSize = '14px';
         panel.style.borderRadius = '8px';
-        panel.style.border = '1px solid #555';
+        panel.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+        panel.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
         panel.style.pointerEvents = 'auto'; // allow interaction
+        panel.style.display = 'flex';
+        panel.style.alignItems = 'center';
+        panel.style.gap = '10px';
+
+        const label = document.createElement('label');
+        label.textContent = 'Date:';
+        label.style.fontWeight = 'bold';
+        label.style.color = '#ccc';
+        panel.appendChild(label);
 
         const input = document.createElement('input');
         input.type = 'date';
@@ -124,6 +136,11 @@ export class UIManager {
 
                 if (this.sceneManager.setSimDate) {
                     this.sceneManager.setSimDate(newDate);
+                    // Stop simulation in place
+                    this.sceneManager.timeScale = 0;
+                    if (this.sceneManager.onTimeScaleChange) {
+                        this.sceneManager.onTimeScaleChange(0);
+                    }
                 }
             }
         });
