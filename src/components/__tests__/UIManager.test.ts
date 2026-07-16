@@ -91,9 +91,8 @@ describe('UIManager', () => {
     });
 
     it('should automatically open the modal when a planet is selected from the dropdown', () => {
-        const selects = uiContainer.querySelectorAll('select');
-        const typeSelect = selects[0] as HTMLSelectElement;
-        const bodySelect = selects[1] as HTMLSelectElement;
+        const typeSelect = uiContainer.querySelector('#typeSelect') as HTMLSelectElement;
+        const bodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
 
         const showModalSpy = vi.spyOn(uiManager, 'showModal');
         const hideInfoSpy = vi.spyOn(uiManager, 'hideInfo');

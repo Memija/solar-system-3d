@@ -3,6 +3,7 @@ import * as dat from 'dat.gui';
 import { SceneManager } from './SceneManager.js';
 import { Modal } from './Modal.js';
 import { Minimap } from './Minimap.js';
+import { CustomDatePicker } from './CustomDatePicker.js';
 import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData.js';
 
 export class UIManager {
@@ -17,6 +18,7 @@ export class UIManager {
     mouseDownPos: THREE.Vector2;
     mouseUpPos: THREE.Vector2;
     datePanel: HTMLElement;
+    customDatePicker: CustomDatePicker | null = null;
     tourController: dat.GUIController | null = null;
     minimap: Minimap;
     previousTimeSpeed: number | null = null;
@@ -114,50 +116,27 @@ export class UIManager {
         label.style.color = '#ccc';
         panel.appendChild(label);
 
-        const input = document.createElement('input');
-        input.type = 'date';
-        input.style.backgroundColor = 'transparent';
-        input.style.color = '#fff';
-        input.style.border = 'none';
-        input.style.outline = 'none';
-        input.style.fontFamily = 'inherit';
-        input.style.fontSize = 'inherit';
-        input.style.cursor = 'pointer';
-
-        // Ensure calendar picker icon is visible in dark mode
-        input.style.colorScheme = 'dark';
-
-        input.addEventListener('change', (e) => {
-            const target = e.target as HTMLInputElement;
-            if (target.value) {
-                // Parse date assuming UTC, avoiding local timezone shifts
-                const [year, month, day] = target.value.split('-').map(Number);
-                const newDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-
-                if (this.sceneManager.setSimDate) {
-                    this.sceneManager.setSimDate(newDate);
-                    // Stop simulation in place
-                    this.sceneManager.timeScale = 0;
-                    if (this.sceneManager.onTimeScaleChange) {
-                        this.sceneManager.onTimeScaleChange(0);
-                    }
+        const initialDate = this.sceneManager.simDate || new Date();
+        this.customDatePicker = new CustomDatePicker(initialDate, (newDate: Date) => {
+            if (this.sceneManager.setSimDate) {
+                this.sceneManager.setSimDate(newDate);
+                // Stop simulation in place
+                this.sceneManager.timeScale = 0;
+                if (this.sceneManager.onTimeScaleChange) {
+                    this.sceneManager.onTimeScaleChange(0);
                 }
             }
         });
 
-        panel.appendChild(input);
+        panel.appendChild(this.customDatePicker.domElement);
         this.uiContainer.appendChild(panel);
         return panel;
     }
 
     update() {
         if (this.sceneManager.simDate) {
-            const input = this.datePanel.querySelector('input') as HTMLInputElement;
-            // Only update the input value if it's not currently focused by the user
-            // to prevent the UI from fighting with user interaction
-            if (input && document.activeElement !== input) {
-                // Format correctly to YYYY-MM-DD in UTC to match how it is parsed
-                input.value = this.sceneManager.simDate.toISOString().split('T')[0];
+            if (this.customDatePicker && !this.customDatePicker.isOpen) {
+                this.customDatePicker.setDate(this.sceneManager.simDate);
             }
         }
         if (this.minimap) {
