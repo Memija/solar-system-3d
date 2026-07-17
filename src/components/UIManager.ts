@@ -126,6 +126,11 @@ export class UIManager {
                     this.sceneManager.onTimeScaleChange(0);
                 }
             }
+        }, () => {
+            this.sceneManager.timeScale = 0;
+            if (this.sceneManager.onTimeScaleChange) {
+                this.sceneManager.onTimeScaleChange(0);
+            }
         });
 
         panel.appendChild(this.customDatePicker.domElement);

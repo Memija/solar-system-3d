@@ -12,16 +12,18 @@ export class CustomDatePicker {
     public isOpen: boolean = false;
 
     private onChange: (date: Date) => void;
+    private onOpen?: () => void;
 
     private months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    constructor(initialDate: Date, onChange: (date: Date) => void) {
+    constructor(initialDate: Date, onChange: (date: Date) => void, onOpen?: () => void) {
         this.currentDate = new Date(initialDate.getTime());
         this.viewDate = new Date(initialDate.getTime());
         this.onChange = onChange;
+        this.onOpen = onOpen;
 
         this.domElement = document.createElement('div');
         this.domElement.style.position = 'relative';
@@ -47,9 +49,9 @@ export class CustomDatePicker {
 
         this.popupElement = document.createElement('div');
         this.popupElement.style.position = 'absolute';
-        this.popupElement.style.top = '100%';
+        this.popupElement.style.bottom = '100%';
         this.popupElement.style.left = '0';
-        this.popupElement.style.marginTop = '4px';
+        this.popupElement.style.marginBottom = '4px';
         this.popupElement.style.padding = '8px';
         this.popupElement.style.backgroundColor = '#1a1a1a';
         this.popupElement.style.border = '1px solid rgba(255,255,255,0.2)';
@@ -158,6 +160,9 @@ export class CustomDatePicker {
         this.popupElement.style.display = 'block';
         this.viewDate = new Date(this.currentDate.getTime());
         this.renderCalendar();
+        if (this.onOpen) {
+            this.onOpen();
+        }
     }
 
     private closePopup() {
