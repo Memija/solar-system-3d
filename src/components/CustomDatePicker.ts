@@ -57,7 +57,7 @@ export class CustomDatePicker {
         this.popupElement.style.border = '1px solid rgba(255,255,255,0.2)';
         this.popupElement.style.borderRadius = '4px';
         this.popupElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-        this.popupElement.style.zIndex = '1000';
+        this.popupElement.style.zIndex = '1001';
         this.popupElement.style.display = 'none';
         this.popupElement.style.width = '220px';
 

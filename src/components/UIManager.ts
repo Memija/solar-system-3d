@@ -106,6 +106,7 @@ export class UIManager {
         panel.style.border = '1px solid rgba(255, 255, 255, 0.1)';
         panel.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
         panel.style.pointerEvents = 'auto'; // allow interaction
+        panel.style.zIndex = "1000";
         panel.style.display = 'flex';
         panel.style.alignItems = 'center';
         panel.style.gap = '10px';
