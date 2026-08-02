@@ -102,8 +102,46 @@ export class CustomDatePicker {
             this.renderCalendar();
         });
 
+        const yearContainer = document.createElement('div');
+        yearContainer.style.display = 'flex';
+        yearContainer.style.alignItems = 'center';
+
+        const decYearBtn = document.createElement('button');
+        decYearBtn.innerHTML = '◀';
+        decYearBtn.style.background = 'none';
+        decYearBtn.style.border = 'none';
+        decYearBtn.style.color = '#3b82f6';
+        decYearBtn.style.cursor = 'pointer';
+        decYearBtn.style.padding = '0 5px';
+        decYearBtn.style.fontSize = '12px';
+        decYearBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.viewDate.setUTCDate(1);
+            this.viewDate.setUTCFullYear(this.viewDate.getUTCFullYear() - 1);
+            this.renderCalendar();
+        };
+
+        const incYearBtn = document.createElement('button');
+        incYearBtn.innerHTML = '▶';
+        incYearBtn.style.background = 'none';
+        incYearBtn.style.border = 'none';
+        incYearBtn.style.color = '#3b82f6';
+        incYearBtn.style.cursor = 'pointer';
+        incYearBtn.style.padding = '0 5px';
+        incYearBtn.style.fontSize = '12px';
+        incYearBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.viewDate.setUTCDate(1);
+            this.viewDate.setUTCFullYear(this.viewDate.getUTCFullYear() + 1);
+            this.renderCalendar();
+        };
+
+        yearContainer.appendChild(decYearBtn);
+        yearContainer.appendChild(this.yearInput);
+        yearContainer.appendChild(incYearBtn);
+
         header.appendChild(this.monthSelect);
-        header.appendChild(this.yearInput);
+        header.appendChild(yearContainer);
         this.popupElement.appendChild(header);
 
         // Days of week
@@ -129,6 +167,57 @@ export class CustomDatePicker {
         this.daysGridElement.style.gridTemplateColumns = 'repeat(7, 1fr)';
         this.daysGridElement.style.gap = '2px';
         this.popupElement.appendChild(this.daysGridElement);
+
+        // Historical Events
+        const eventsContainer = document.createElement('div');
+        eventsContainer.style.marginTop = '8px';
+        eventsContainer.style.borderTop = '1px solid #444';
+        eventsContainer.style.paddingTop = '8px';
+
+        const eventsSelect = document.createElement('select');
+        eventsSelect.style.width = '100%';
+        eventsSelect.style.backgroundColor = '#333';
+        eventsSelect.style.color = '#fff';
+        eventsSelect.style.border = '1px solid #555';
+        eventsSelect.style.borderRadius = '2px';
+        eventsSelect.style.padding = '2px';
+
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'Historical Events...';
+        defaultOpt.disabled = true;
+        defaultOpt.selected = true;
+        eventsSelect.appendChild(defaultOpt);
+
+        const historicalEvents = [
+            { name: 'Sputnik 1 Launch', date: new Date(Date.UTC(1957, 9, 4, 12, 0, 0)) },
+            { name: 'Apollo 11 Moon Landing', date: new Date(Date.UTC(1969, 6, 20, 12, 0, 0)) },
+            { name: 'Voyager 1 Launch', date: new Date(Date.UTC(1977, 8, 5, 12, 0, 0)) },
+            { name: 'Hubble Space Telescope Launch', date: new Date(Date.UTC(1990, 3, 24, 12, 0, 0)) },
+            { name: 'ISS First Module Launch', date: new Date(Date.UTC(1998, 10, 20, 12, 0, 0)) },
+            { name: 'James Webb Telescope Launch', date: new Date(Date.UTC(2021, 11, 25, 12, 0, 0)) }
+        ];
+
+        historicalEvents.forEach((evt, i) => {
+            const opt = document.createElement('option');
+            opt.value = i.toString();
+            opt.textContent = evt.name;
+            eventsSelect.appendChild(opt);
+        });
+
+        eventsSelect.addEventListener('change', () => {
+            const idx = parseInt(eventsSelect.value);
+            if (!isNaN(idx) && historicalEvents[idx]) {
+                const evtDate = historicalEvents[idx].date;
+                this.setDate(evtDate);
+                this.onChange(evtDate);
+                this.closePopup();
+                eventsSelect.value = ''; // Reset select
+            }
+        });
+
+        eventsContainer.appendChild(eventsSelect);
+        this.popupElement.appendChild(eventsContainer);
 
         this.domElement.appendChild(this.popupElement);
 
