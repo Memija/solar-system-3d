@@ -86,6 +86,38 @@ export interface SpacecraftData {
 
 export const SpacecraftDataList: SpacecraftData[] = [
     {
+        name: "Apollo 11",
+        targetBody: "Moon",
+        distance: 1.1,
+        distanceAU: 0.000012,
+        eccentricity: 0.0,
+        period: 0.005,
+        inclination: 0.0,
+        color: 0xffffff,
+        description: "Apollo 11 was the American spaceflight that first landed humans on the Moon. Commander Neil Armstrong and Lunar Module Pilot Buzz Aldrin landed the Apollo Lunar Module Eagle on July 20, 1969. Armstrong became the first person to step onto the lunar surface six hours and 39 minutes later. The event marked a turning point in history and the end of the Space Race.",
+        imageUrl: "images/800px-Aldrin_Apollo_11_original.jpg",
+        links: [
+            { title: "NASA: Apollo 11", url: "https://www.nasa.gov/mission_pages/apollo/missions/apollo11.html" },
+            { title: "Wikipedia: Apollo 11", url: "https://en.wikipedia.org/wiki/Apollo_11" }
+        ]
+    },
+    {
+        name: "Sputnik 1",
+        targetBody: "Earth",
+        distance: 2.1,
+        distanceAU: 0.000040,
+        eccentricity: 0.05,
+        period: 0.04,
+        inclination: 65.1,
+        color: 0xcccccc,
+        description: "Sputnik 1 was the first artificial Earth satellite. The Soviet Union launched it into an elliptical low Earth orbit on 4 October 1957. It orbited for three weeks before its batteries died and then orbited silently for two months before it fell back into the atmosphere on the 4th January 1958. Its launch was a major event in the Cold War, and triggered the Space Race.",
+        imageUrl: "images/800px-Sputnik_1_replica.jpg",
+        links: [
+            { title: "NASA: Sputnik 1", url: "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1957-001B" },
+            { title: "Wikipedia: Sputnik 1", url: "https://en.wikipedia.org/wiki/Sputnik_1" }
+        ]
+    },
+    {
         name: "ISS (International Space Station)",
         targetBody: "Earth",
         distance: 2.5,
@@ -94,7 +126,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 0.05, // fast orbit
         inclination: 51.6,
         color: 0xffffff,
-        description: "The International Space Station (ISS) is a modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project involving five participating space agencies. It serves as a microgravity and space environment research laboratory in which scientific research is conducted in astrobiology, astronomy, meteorology, physics, and other fields.",
+        description: "The International Space Station (ISS) is a modular space station in low Earth orbit. The first component, Zarya, was launched on November 20, 1998. It is a multinational collaborative project involving five participating space agencies. It serves as a microgravity and space environment research laboratory in which scientific research is conducted in astrobiology, astronomy, meteorology, physics, and other fields.",
         imageUrl: "images/800px-International_Space_Station_after_undocking_of_STS-132.jpg",
         links: [
             { title: "NASA: ISS", url: "https://www.nasa.gov/international-space-station/" },
@@ -110,7 +142,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 0.06,
         inclination: 28.5,
         color: 0xcccccc,
-        description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation. It is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy. The Hubble telescope is named after astronomer Edwin Hubble and is one of NASA's Great Observatories.",
+        description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit on April 24, 1990 aboard the Space Shuttle Discovery. It remains in operation and is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy. The Hubble telescope is named after astronomer Edwin Hubble and is one of NASA's Great Observatories.",
         imageUrl: "images/800px-HST-SM4.jpeg",
         links: [
             { title: "NASA: Hubble", url: "https://science.nasa.gov/mission/hubble/" },
@@ -126,7 +158,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         color: 0xaaaaaa,
         escaping: true,
         speed: 1.5,
-        description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, Voyager 1 launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth. The probe's primary mission was to fly by Jupiter and Saturn, and it was the first spacecraft to cross the heliopause and enter interstellar space.",
+        description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, it launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth. Its primary mission was to fly by Jupiter and Saturn, and it was the first spacecraft to cross the heliopause and enter interstellar space.",
         imageUrl: "images/800px-Voyager_spacecraft_model.png",
         links: [
             { title: "NASA: Voyager", url: "https://voyager.jpl.nasa.gov/" },
@@ -142,7 +174,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 1.0, // Orbits the Sun with Earth, so period is 1 Earth year
         inclination: 0,
         color: 0xffd700,
-        description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. It is the largest space telescope in history, offering unprecedented resolution and sensitivity. JWST enables a broad range of investigations across the fields of astronomy and cosmology, such as observation of the first stars and the formation of the first galaxies.",
+        description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. Launched on December 25, 2021, it is the largest space telescope in history, offering unprecedented resolution and sensitivity. JWST enables a broad range of investigations across the fields of astronomy and cosmology, such as observation of the first stars and the formation of the first galaxies.",
         imageUrl: "images/800px-James_Webb_Space_Telescope.jpg",
         links: [
             { title: "NASA: JWST", url: "https://science.nasa.gov/mission/webb/" },
