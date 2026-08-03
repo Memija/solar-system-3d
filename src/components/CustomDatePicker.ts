@@ -190,12 +190,12 @@ export class CustomDatePicker {
         eventsSelect.appendChild(defaultOpt);
 
         const historicalEvents = [
-            { name: 'Sputnik 1 Launch', date: new Date(Date.UTC(1957, 9, 4, 12, 0, 0)) },
-            { name: 'Apollo 11 Moon Landing', date: new Date(Date.UTC(1969, 6, 20, 12, 0, 0)) },
-            { name: 'Voyager 1 Launch', date: new Date(Date.UTC(1977, 8, 5, 12, 0, 0)) },
-            { name: 'Hubble Space Telescope Launch', date: new Date(Date.UTC(1990, 3, 24, 12, 0, 0)) },
-            { name: 'ISS First Module Launch', date: new Date(Date.UTC(1998, 10, 20, 12, 0, 0)) },
-            { name: 'James Webb Telescope Launch', date: new Date(Date.UTC(2021, 11, 25, 12, 0, 0)) }
+            { name: 'Sputnik 1 Launch', date: new Date(Date.UTC(1957, 9, 4, 12, 0, 0)), target: 'Sputnik 1' },
+            { name: 'Apollo 11 Moon Landing', date: new Date(Date.UTC(1969, 6, 20, 12, 0, 0)), target: 'Apollo 11' },
+            { name: 'Voyager 1 Launch', date: new Date(Date.UTC(1977, 8, 5, 12, 0, 0)), target: 'Voyager 1' },
+            { name: 'Hubble Space Telescope Launch', date: new Date(Date.UTC(1990, 3, 24, 12, 0, 0)), target: 'Hubble Space Telescope' },
+            { name: 'ISS First Module Launch', date: new Date(Date.UTC(1998, 10, 20, 12, 0, 0)), target: 'ISS (International Space Station)' },
+            { name: 'James Webb Telescope Launch', date: new Date(Date.UTC(2021, 11, 25, 12, 0, 0)), target: 'James Webb Space Telescope' }
         ];
 
         historicalEvents.forEach((evt, i) => {
@@ -208,11 +208,18 @@ export class CustomDatePicker {
         eventsSelect.addEventListener('change', () => {
             const idx = parseInt(eventsSelect.value);
             if (!isNaN(idx) && historicalEvents[idx]) {
-                const evtDate = historicalEvents[idx].date;
+                const evt = historicalEvents[idx];
+                const evtDate = evt.date;
                 this.setDate(evtDate);
                 this.onChange(evtDate);
                 this.closePopup();
                 eventsSelect.value = ''; // Reset select
+
+                if (evt.target) {
+                    window.dispatchEvent(new CustomEvent('select-celestial-body', {
+                        detail: { name: evt.target }
+                    }));
+                }
             }
         });
 
