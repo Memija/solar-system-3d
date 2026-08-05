@@ -23,6 +23,7 @@ export class UIManager {
     minimap: Minimap;
     previousTimeSpeed: number | null = null;
     cameraTarget: string = 'Earth';
+    ignoreNextBodyChange: boolean = false;
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -69,6 +70,61 @@ export class UIManager {
                 if (sc) foundData = sc.data;
             }
             if (foundData) {
+                this.showModal(foundData);
+            }
+        });
+
+        window.addEventListener('select-celestial-body', (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const targetName = customEvent.detail?.name || customEvent.detail;
+            const eventName = customEvent.detail?.eventName;
+
+            this.cameraTarget = targetName;
+            this.sceneManager.focusOnBody(targetName);
+
+            const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
+            const bodySelect = document.getElementById('bodySelect') as HTMLSelectElement;
+
+            this.ignoreNextBodyChange = true;
+                // If bodySelect isn't updated by the dispatch, revert the flag
+                setTimeout(() => { this.ignoreNextBodyChange = false; }, 100);
+
+            if (typeSelect && bodySelect) {
+                let determinedType = 'Planet';
+                if (this.sceneManager.planets.find(p => p.data.name === targetName) || targetName === 'Sun') {
+                    determinedType = 'Planet';
+                    if (targetName === 'Sun') determinedType = 'Star';
+                } else if (this.sceneManager.planets.some(p => p.moons.find(m => m.data.name === targetName))) {
+                    determinedType = 'Moon';
+                } else if (this.sceneManager.comets.find(c => c.data.name === targetName)) {
+                    determinedType = 'Comet';
+                } else if (this.sceneManager.spacecrafts.find(s => s.data.name === targetName)) {
+                    determinedType = 'Spacecraft';
+                }
+
+                typeSelect.value = determinedType;
+                typeSelect.dispatchEvent(new Event('change'));
+                bodySelect.value = targetName;
+            }
+
+            let foundData: any = null;
+            const findTarget = (body: any) => {
+                if (body.data.name === targetName) foundData = { ...body.data };
+                if (body.moons) body.moons.forEach(findTarget);
+            };
+            this.sceneManager.planets.forEach(findTarget);
+            if (!foundData) {
+                const comet = this.sceneManager.comets.find(c => c.data.name === targetName);
+                if (comet) foundData = { ...comet.data };
+            }
+            if (!foundData) {
+                const sc = this.sceneManager.spacecrafts.find(s => s.data.name === targetName);
+                if (sc) foundData = { ...sc.data };
+            }
+            if (foundData) {
+                if (eventName) {
+                    foundData.description = `<div style="padding: 10px; background-color: rgba(255, 215, 0, 0.2); border-left: 4px solid gold; margin-bottom: 10px; color: white;"><strong>Historical Event: ${eventName}</strong></div>` + foundData.description;
+                }
                 this.showModal(foundData);
             }
         });
@@ -621,6 +677,10 @@ export class UIManager {
         });
 
         bodySelect.addEventListener('change', () => {
+            if (this.ignoreNextBodyChange) {
+                this.ignoreNextBodyChange = false;
+                return;
+            }
             const selectedName = bodySelect.value;
             const selectedType = typeSelect.value;
 
