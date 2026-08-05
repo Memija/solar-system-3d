@@ -217,7 +217,7 @@ export class CustomDatePicker {
 
                 if (evt.target) {
                     window.dispatchEvent(new CustomEvent('select-celestial-body', {
-                        detail: { name: evt.target }
+                        detail: { name: evt.target, eventName: evt.name }
                     }));
                 }
             }
