@@ -7,9 +7,17 @@ export class CustomDatePicker {
     private monthSelect: HTMLSelectElement;
     private yearInput: HTMLInputElement;
 
+
     public currentDate: Date;
     private viewDate: Date;
     public isOpen: boolean = false;
+
+    // Year selection modal state
+    private yearModalElement: HTMLElement;
+    private yearModalState: 'CENTURY' | 'DECADE' | 'YEAR' = 'YEAR';
+    private yearModalBaseYear: number = new Date().getUTCFullYear();
+    private isYearModalOpen: boolean = false;
+
 
     private onChange: (date: Date) => void;
     private onOpen?: () => void;
@@ -87,20 +95,24 @@ export class CustomDatePicker {
             this.renderCalendar();
         });
 
+
         this.yearInput = document.createElement('input');
-        this.yearInput.type = 'number';
+        this.yearInput.type = 'text';
+        this.yearInput.readOnly = true;
         this.yearInput.style.backgroundColor = '#333';
         this.yearInput.style.color = '#fff';
         this.yearInput.style.border = '1px solid #555';
         this.yearInput.style.borderRadius = '2px';
         this.yearInput.style.width = '60px';
         this.yearInput.style.padding = '2px';
+        this.yearInput.style.cursor = 'pointer';
+        this.yearInput.style.textAlign = 'center';
 
-        this.yearInput.addEventListener('change', () => {
-            this.viewDate.setUTCDate(1);
-            this.viewDate.setUTCFullYear(parseInt(this.yearInput.value));
-            this.renderCalendar();
+        this.yearInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openYearModal();
         });
+
 
         const yearContainer = document.createElement('div');
         yearContainer.style.display = 'flex';
@@ -226,16 +238,203 @@ export class CustomDatePicker {
         eventsContainer.appendChild(eventsSelect);
         this.popupElement.appendChild(eventsContainer);
 
+
+        // Create Year Modal
+        this.yearModalElement = document.createElement('div');
+        this.yearModalElement.style.position = 'absolute';
+        this.yearModalElement.style.backgroundColor = '#1a1a1a';
+        this.yearModalElement.style.border = '1px solid rgba(255,255,255,0.2)';
+        this.yearModalElement.style.borderRadius = '4px';
+        this.yearModalElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+        this.yearModalElement.style.zIndex = '1002'; // Above main popup
+        this.yearModalElement.style.display = 'none';
+        this.yearModalElement.style.width = '200px';
+        this.yearModalElement.style.padding = '8px';
+        document.body.appendChild(this.yearModalElement);
+
         this.domElement.appendChild(this.popupElement);
 
         // Close on click outside
         document.addEventListener('click', (e) => {
-            if (this.isOpen && !this.domElement.contains(e.target as Node)) {
+            if (this.isOpen && !this.domElement.contains(e.target as Node) && !this.yearModalElement.contains(e.target as Node)) {
                 this.closePopup();
+            }
+            if (this.isYearModalOpen && !this.yearModalElement.contains(e.target as Node) && e.target !== this.yearInput) {
+                this.closeYearModal();
             }
         });
 
         this.updateDisplay();
+    }
+
+
+    private openYearModal() {
+        this.isYearModalOpen = true;
+        this.yearModalElement.style.display = 'block';
+        this.yearModalState = 'CENTURY';
+        this.yearModalBaseYear = this.viewDate.getUTCFullYear();
+
+        // Position relative to year input
+        const rect = this.yearInput.getBoundingClientRect();
+        this.yearModalElement.style.top = (rect.bottom + window.scrollY) + 'px';
+        this.yearModalElement.style.left = (rect.left + window.scrollX - 70) + 'px'; // Center roughly
+
+        this.renderYearModal();
+    }
+
+    private closeYearModal() {
+        this.isYearModalOpen = false;
+        this.yearModalElement.style.display = 'none';
+    }
+
+    private renderYearModal() {
+        this.yearModalElement.innerHTML = '';
+
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.marginBottom = '8px';
+        header.style.color = '#fff';
+
+        const prevBtn = document.createElement('button');
+        prevBtn.innerHTML = '◀';
+        prevBtn.style.background = 'none';
+        prevBtn.style.border = 'none';
+        prevBtn.style.color = '#3b82f6';
+        prevBtn.style.cursor = 'pointer';
+
+        const nextBtn = document.createElement('button');
+        nextBtn.innerHTML = '▶';
+        nextBtn.style.background = 'none';
+        nextBtn.style.border = 'none';
+        nextBtn.style.color = '#3b82f6';
+        nextBtn.style.cursor = 'pointer';
+
+        const titleSpan = document.createElement('span');
+        titleSpan.style.cursor = 'pointer';
+        titleSpan.style.fontWeight = 'bold';
+
+        header.appendChild(prevBtn);
+        header.appendChild(titleSpan);
+        header.appendChild(nextBtn);
+        this.yearModalElement.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+        grid.style.gap = '4px';
+        this.yearModalElement.appendChild(grid);
+
+        let items: { label: string, value: number, isOutOfRange?: boolean }[] = [];
+        let onSelect: (val: number) => void;
+
+        if (this.yearModalState === 'CENTURY') {
+            const startYear = Math.floor(this.yearModalBaseYear / 1000) * 1000;
+            titleSpan.textContent = `${startYear} - ${startYear + 999}`;
+
+            // Allow going up to a higher range if clicked (Millennium) - for simplicity, we just stay at century and page by 1000s
+            titleSpan.onclick = () => {}; // Highest level
+
+            prevBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear -= 1000; this.renderYearModal(); };
+            nextBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear += 1000; this.renderYearModal(); };
+
+            for (let i = -1; i <= 10; i++) {
+                items.push({
+                    label: `${startYear + i * 100}s`,
+                    value: startYear + i * 100,
+                    isOutOfRange: i < 0 || i === 10
+                });
+            }
+
+            onSelect = (val) => {
+                this.yearModalBaseYear = val;
+                this.yearModalState = 'DECADE';
+                this.renderYearModal();
+            };
+
+        } else if (this.yearModalState === 'DECADE') {
+            const startYear = Math.floor(this.yearModalBaseYear / 100) * 100;
+            titleSpan.textContent = `${startYear} - ${startYear + 99}`;
+
+            titleSpan.onclick = (e) => { e.stopPropagation(); this.yearModalState = 'CENTURY'; this.renderYearModal(); };
+
+            prevBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear -= 100; this.renderYearModal(); };
+            nextBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear += 100; this.renderYearModal(); };
+
+            for (let i = -1; i <= 10; i++) {
+                items.push({
+                    label: `${startYear + i * 10}`,
+                    value: startYear + i * 10,
+                    isOutOfRange: i < 0 || i === 10
+                });
+            }
+
+            onSelect = (val) => {
+                this.yearModalBaseYear = val;
+                this.yearModalState = 'YEAR';
+                this.renderYearModal();
+            };
+
+        } else { // YEAR
+            const startYear = Math.floor(this.yearModalBaseYear / 10) * 10;
+            titleSpan.textContent = `${startYear} - ${startYear + 9}`;
+
+            titleSpan.onclick = (e) => { e.stopPropagation(); this.yearModalState = 'DECADE'; this.renderYearModal(); };
+
+            prevBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear -= 10; this.renderYearModal(); };
+            nextBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear += 10; this.renderYearModal(); };
+
+            for (let i = -1; i <= 10; i++) {
+                items.push({
+                    label: `${startYear + i}`,
+                    value: startYear + i,
+                    isOutOfRange: i < 0 || i === 10
+                });
+            }
+
+            onSelect = (val) => {
+                this.viewDate.setUTCDate(1);
+                this.viewDate.setUTCFullYear(val);
+                this.renderCalendar();
+                this.closeYearModal();
+            };
+        }
+
+        items.forEach(item => {
+            const el = document.createElement('div');
+            el.textContent = item.label;
+            el.style.textAlign = 'center';
+            el.style.padding = '8px 4px';
+            el.style.cursor = 'pointer';
+            el.style.fontSize = '12px';
+            el.style.borderRadius = '2px';
+            el.style.backgroundColor = item.isOutOfRange ? '#1a1a1a' : '#2a2a2a';
+            el.style.color = item.isOutOfRange ? '#777' : '#ccc';
+
+            if (this.yearModalState === 'YEAR' && item.value === this.viewDate.getUTCFullYear()) {
+                el.style.backgroundColor = '#4CAF50';
+                el.style.color = '#fff';
+            }
+
+            el.addEventListener('mouseenter', () => {
+                if (el.style.backgroundColor !== 'rgb(76, 175, 80)') { // #4CAF50
+                    el.style.backgroundColor = '#444';
+                }
+            });
+            el.addEventListener('mouseleave', () => {
+                if (el.style.backgroundColor !== 'rgb(76, 175, 80)') {
+                    el.style.backgroundColor = item.isOutOfRange ? '#1a1a1a' : '#2a2a2a';
+                }
+            });
+
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onSelect(item.value);
+            });
+
+            grid.appendChild(el);
+        });
     }
 
     public setDate(date: Date) {
@@ -261,10 +460,13 @@ export class CustomDatePicker {
         }
     }
 
+
     private closePopup() {
         this.isOpen = false;
         this.popupElement.style.display = 'none';
+        this.closeYearModal();
     }
+
 
     private renderCalendar() {
         this.monthSelect.value = this.viewDate.getUTCMonth().toString();
