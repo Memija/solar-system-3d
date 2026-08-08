@@ -22,6 +22,10 @@ export class CustomDatePicker {
     private onChange: (date: Date) => void;
     private onOpen?: () => void;
 
+    private formatYear(year: number): string {
+        return year <= 0 ? `${Math.abs(year) + 1} BC` : year.toString();
+    }
+
     private months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -331,7 +335,7 @@ export class CustomDatePicker {
 
         if (this.yearModalState === 'CENTURY') {
             const startYear = Math.floor(this.yearModalBaseYear / 1000) * 1000;
-            titleSpan.textContent = `${startYear} - ${startYear + 999}`;
+            titleSpan.textContent = `${this.formatYear(startYear)} - ${this.formatYear(startYear + 999)}`;
 
             // Allow going up to a higher range if clicked (Millennium) - for simplicity, we just stay at century and page by 1000s
             titleSpan.onclick = () => {}; // Highest level
@@ -341,7 +345,7 @@ export class CustomDatePicker {
 
             for (let i = -1; i <= 10; i++) {
                 items.push({
-                    label: `${startYear + i * 100}s`,
+                    label: `${this.formatYear(startYear + i * 100)}s`,
                     value: startYear + i * 100,
                     isOutOfRange: i < 0 || i === 10
                 });
@@ -355,7 +359,7 @@ export class CustomDatePicker {
 
         } else if (this.yearModalState === 'DECADE') {
             const startYear = Math.floor(this.yearModalBaseYear / 100) * 100;
-            titleSpan.textContent = `${startYear} - ${startYear + 99}`;
+            titleSpan.textContent = `${this.formatYear(startYear)} - ${this.formatYear(startYear + 99)}`;
 
             titleSpan.onclick = (e) => { e.stopPropagation(); this.yearModalState = 'CENTURY'; this.renderYearModal(); };
 
@@ -364,7 +368,7 @@ export class CustomDatePicker {
 
             for (let i = -1; i <= 10; i++) {
                 items.push({
-                    label: `${startYear + i * 10}`,
+                    label: `${this.formatYear(startYear + i * 10)}`,
                     value: startYear + i * 10,
                     isOutOfRange: i < 0 || i === 10
                 });
@@ -378,7 +382,7 @@ export class CustomDatePicker {
 
         } else { // YEAR
             const startYear = Math.floor(this.yearModalBaseYear / 10) * 10;
-            titleSpan.textContent = `${startYear} - ${startYear + 9}`;
+            titleSpan.textContent = `${this.formatYear(startYear)} - ${this.formatYear(startYear + 9)}`;
 
             titleSpan.onclick = (e) => { e.stopPropagation(); this.yearModalState = 'DECADE'; this.renderYearModal(); };
 
@@ -387,7 +391,7 @@ export class CustomDatePicker {
 
             for (let i = -1; i <= 10; i++) {
                 items.push({
-                    label: `${startYear + i}`,
+                    label: `${this.formatYear(startYear + i)}`,
                     value: startYear + i,
                     isOutOfRange: i < 0 || i === 10
                 });
@@ -470,7 +474,7 @@ export class CustomDatePicker {
 
     private renderCalendar() {
         this.monthSelect.value = this.viewDate.getUTCMonth().toString();
-        this.yearInput.value = this.viewDate.getUTCFullYear().toString();
+        this.yearInput.value = this.formatYear(this.viewDate.getUTCFullYear());
 
         this.daysGridElement.innerHTML = '';
 
@@ -532,7 +536,7 @@ export class CustomDatePicker {
     }
 
     private updateDisplay() {
-        const yyyy = this.currentDate.getUTCFullYear();
+        const yyyy = this.formatYear(this.currentDate.getUTCFullYear());
         const mm = String(this.currentDate.getUTCMonth() + 1).padStart(2, '0');
         const dd = String(this.currentDate.getUTCDate()).padStart(2, '0');
         this.displayElement.textContent = `${yyyy}-${mm}-${dd}`;
