@@ -201,7 +201,7 @@ export class CustomDatePicker {
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
         defaultOpt.textContent = 'Historical Events...';
-        defaultOpt.disabled = true;
+        defaultOpt.hidden = true;
         defaultOpt.selected = true;
         eventsSelect.appendChild(defaultOpt);
 
