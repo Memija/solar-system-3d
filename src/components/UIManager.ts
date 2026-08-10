@@ -14,6 +14,7 @@ export class UIManager {
     uiContainer: HTMLElement;
     infoPanel: HTMLElement;
     modal: Modal;
+    eventModal: Modal;
     gui: dat.GUI | null;
     mouseDownPos: THREE.Vector2;
     mouseUpPos: THREE.Vector2;
@@ -40,6 +41,12 @@ export class UIManager {
 
         this.infoPanel = this.createInfoPanel();
         this.modal = new Modal(this.uiContainer);
+        this.eventModal = new Modal(this.uiContainer);
+        this.eventModal.modalElement.style.top = '50%';
+        this.eventModal.modalElement.style.left = '50%';
+        this.eventModal.modalElement.style.right = 'auto';
+        this.eventModal.modalElement.style.transform = 'translate(-50%, -50%)';
+        this.eventModal.modalElement.style.borderTop = '4px solid gold';
 
         this.datePanel = this.createDatePanel();
 
@@ -78,6 +85,7 @@ export class UIManager {
             const customEvent = e as CustomEvent;
             const targetName = customEvent.detail?.name || customEvent.detail;
             const eventName = customEvent.detail?.eventName;
+            const eventImpact = customEvent.detail?.eventImpact;
 
             this.cameraTarget = targetName;
             this.sceneManager.focusOnBody(targetName);
@@ -122,10 +130,13 @@ export class UIManager {
                 if (sc) foundData = { ...sc.data };
             }
             if (foundData) {
-                if (eventName) {
-                    foundData.description = `<div style="padding: 10px; background-color: rgba(255, 215, 0, 0.2); border-left: 4px solid gold; margin-bottom: 10px; color: white;"><strong>Historical Event: ${eventName}</strong></div>` + foundData.description;
-                }
                 this.showModal(foundData);
+                if (eventName && eventImpact) {
+                    this.eventModal.show({
+                        name: `Historical Event: ${eventName}`,
+                        description: `<div style="padding: 10px; background-color: rgba(255, 215, 0, 0.2); margin-bottom: 10px; color: white;">${eventImpact}</div>`
+                    });
+                }
             }
         });
     }
@@ -910,6 +921,7 @@ export class UIManager {
     }
 
     showModal(data: any) {
+        if (this.eventModal) this.eventModal.hide();
         this.modal.show(data);
         this.infoPanel.style.display = 'none'; // Ensure simple info is hidden
 
