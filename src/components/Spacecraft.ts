@@ -346,14 +346,36 @@ export class Spacecraft {
 
 
 
-    update(deltaTime: number, simTimePassed?: number) {
+    update(deltaTime: number, simTimePassed?: number, simDate?: Date) {
+        if (this.data.launchDate && simDate) {
+            const launchDate = new Date(this.data.launchDate);
+            if (simDate < launchDate) {
+                this.baseGroup.visible = false;
+                return;
+            } else {
+                this.baseGroup.visible = true;
+            }
+        } else {
+            this.baseGroup.visible = true;
+        }
+
         if (this.data.escaping) {
             // Voyager travels outward
             const speedMultiplier = 5; // make it visible
             const speed = (this.data.speed || 1) * speedMultiplier;
 
             // For escaping bodies, we use simTimePassed if available to deterministically position them based on J2000 epoch
-            if (simTimePassed !== undefined) {
+            if (simTimePassed !== undefined && simDate && this.data.launchDate) {
+                const launchDate = new Date(this.data.launchDate);
+                const yearsSinceLaunch = (simDate.getTime() - launchDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+                const earthYearInSimSeconds = 2 * Math.PI / 0.5;
+                const effectiveSimTimePassed = yearsSinceLaunch * earthYearInSimSeconds;
+
+                // Determine base starting position
+                this.orbitGroup.position.x = speed * effectiveSimTimePassed;
+                this.orbitGroup.position.z = (speed * 0.5) * effectiveSimTimePassed;
+                this.mesh.rotation.y = 0.1 * effectiveSimTimePassed;
+            } else if (simTimePassed !== undefined) {
                 // Determine base starting position
                 this.orbitGroup.position.x = speed * simTimePassed;
                 this.orbitGroup.position.z = (speed * 0.5) * simTimePassed;
@@ -367,7 +389,15 @@ export class Spacecraft {
             const speedMultiplier = 0.5;
             const speed = (1 / this.data.period) * speedMultiplier;
 
-            if (simTimePassed !== undefined) {
+            if (simTimePassed !== undefined && simDate && this.data.launchDate) {
+                const launchDate = new Date(this.data.launchDate);
+                const yearsSinceLaunch = (simDate.getTime() - launchDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+                const earthYearInSimSeconds = 2 * Math.PI / 0.5;
+                const effectiveSimTimePassed = yearsSinceLaunch * earthYearInSimSeconds;
+
+                const baseAngle = this.data.baseLongitude || 0;
+                this.angle = (baseAngle + speed * effectiveSimTimePassed) % (Math.PI * 2);
+            } else if (simTimePassed !== undefined) {
                 const baseAngle = this.data.baseLongitude || 0;
                 this.angle = (baseAngle + speed * simTimePassed) % (Math.PI * 2);
             } else {
