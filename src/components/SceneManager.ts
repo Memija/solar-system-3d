@@ -734,7 +734,7 @@ export class SceneManager {
 
         if (this.showSpacecrafts) {
             this.spacecrafts.forEach(sc => {
-                sc.update(deltaTime, simTimePassed);
+                sc.update(deltaTime, simTimePassed, this.simDate);
             });
         }
 

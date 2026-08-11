@@ -82,12 +82,14 @@ export interface SpacecraftData {
     links?: LinkData[];
     escaping?: boolean; // For Voyager 1
     speed?: number; // For escaping spacecraft
+    launchDate?: string; // ISO 8601 string for start date
 }
 
 export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "Apollo 11",
         targetBody: "Moon",
+        launchDate: "1969-07-16T13:32:00Z",
         distance: 1.1,
         distanceAU: 0.000012,
         eccentricity: 0.0,
@@ -104,6 +106,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "Sputnik 1",
         targetBody: "Earth",
+        launchDate: "1957-10-04T19:28:34Z",
         distance: 2.1,
         distanceAU: 0.000040,
         eccentricity: 0.05,
@@ -120,6 +123,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "ISS (International Space Station)",
         targetBody: "Earth",
+        launchDate: "1998-11-20T06:40:00Z",
         distance: 2.5,
         distanceAU: 0.000045,
         eccentricity: 0.0003, // slightly larger than Earth's radius of 2
@@ -136,6 +140,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "Hubble Space Telescope",
         targetBody: "Earth",
+        launchDate: "1990-04-24T12:33:51Z",
         distance: 2.8,
         distanceAU: 0.000046,
         eccentricity: 0.0002,
@@ -151,8 +156,10 @@ export const SpacecraftDataList: SpacecraftData[] = [
     },
     {
         name: "Voyager 1",
-        distance: 800,
-        distanceAU: 160,
+        targetBody: "Earth",
+        launchDate: "1977-09-05T12:56:00Z",
+        distance: 2.0,
+        distanceAU: 0.000045,
         eccentricity: 0, // Starts far out
         period: 0, // Not orbiting
         color: 0xaaaaaa,
@@ -168,6 +175,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "James Webb Space Telescope",
         targetBody: "Earth",
+        launchDate: "2021-12-25T12:20:00Z",
         distance: 5.0,
         distanceAU: 0.01,
         eccentricity: 0, // L2 point, further out than Hubble
@@ -184,6 +192,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
     {
         name: "Cassini",
         targetBody: "Saturn",
+        launchDate: "1997-10-15T08:43:00Z",
         distance: 25,
         distanceAU: 0.008,
         eccentricity: 0,
@@ -198,8 +207,10 @@ export const SpacecraftDataList: SpacecraftData[] = [
     },
     {
         name: "Voyager 2",
-        distance: 700,
-        distanceAU: 133,
+        targetBody: "Earth",
+        launchDate: "1977-08-20T14:29:44Z",
+        distance: 2.0,
+        distanceAU: 0.000045,
         eccentricity: 0, // Starts far out
         period: 0, // Not orbiting
         color: 0x8888aa,

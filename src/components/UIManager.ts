@@ -133,7 +133,7 @@ export class UIManager {
                 this.showModal(foundData);
                 if (eventName && eventImpact) {
                     this.eventModal.show({
-                        name: `Historical Event: ${eventName}`,
+                        name: `${eventName}`,
                         description: `<div style="padding: 10px; background-color: rgba(255, 215, 0, 0.2); margin-bottom: 10px; color: white;">${eventImpact}</div>`
                     });
                 }
