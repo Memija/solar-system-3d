@@ -206,12 +206,12 @@ export class CustomDatePicker {
         eventsSelect.appendChild(defaultOpt);
 
         const historicalEvents = [
-            { name: 'Sputnik 1 Launch', date: new Date(Date.UTC(1957, 9, 4, 12, 0, 0)), target: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and the US-USSR space race, demonstrating the feasibility of artificial satellites.' },
-            { name: 'Apollo 11 Moon Landing', date: new Date(Date.UTC(1969, 6, 20, 12, 0, 0)), target: 'Apollo 11', impact: 'First humans on the Moon, proving that crewed extraterrestrial travel was possible and achieving a major milestone in human history.' },
-            { name: 'Voyager 1 Launch', date: new Date(Date.UTC(1977, 8, 5, 12, 0, 0)), target: 'Voyager 1', impact: 'Voyager 1 became the first human-made object to enter interstellar space, providing unprecedented images and data of the outer solar system.' },
-            { name: 'Hubble Space Telescope Launch', date: new Date(Date.UTC(1990, 3, 24, 12, 0, 0)), target: 'Hubble Space Telescope', impact: 'Revolutionized astronomy by providing clear, deep images of the universe, leading to discoveries about the age of the universe, dark energy, and exoplanets.' },
-            { name: 'ISS First Module Launch', date: new Date(Date.UTC(1998, 10, 20, 12, 0, 0)), target: 'ISS (International Space Station)', impact: 'Began the era of continuous human presence in space and international cooperation in scientific research in microgravity.' },
-            { name: 'James Webb Telescope Launch', date: new Date(Date.UTC(2021, 11, 25, 12, 0, 0)), target: 'James Webb Space Telescope', impact: 'Designed to observe the first galaxies formed in the universe and look inside dust clouds where stars and planetary systems are forming today.' }
+            { name: 'Sputnik 1 Launch', date: new Date("1957-10-04T19:28:35Z"), target: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and the US-USSR space race, demonstrating the feasibility of artificial satellites.' },
+            { name: 'Apollo 11 Moon Landing', date: new Date("1969-07-20T12:00:00Z"), target: 'Apollo 11', impact: 'First humans on the Moon, proving that crewed extraterrestrial travel was possible and achieving a major milestone in human history.' },
+            { name: 'Voyager 1 Launch', date: new Date("1977-09-05T12:56:01Z"), target: 'Voyager 1', impact: 'Voyager 1 became the first human-made object to enter interstellar space, providing unprecedented images and data of the outer solar system.' },
+            { name: 'Hubble Space Telescope Launch', date: new Date("1990-04-24T12:33:52Z"), target: 'Hubble Space Telescope', impact: 'Revolutionized astronomy by providing clear, deep images of the universe, leading to discoveries about the age of the universe, dark energy, and exoplanets.' },
+            { name: 'ISS First Module Launch', date: new Date("1998-11-20T06:40:01Z"), target: 'ISS (International Space Station)', impact: 'Began the era of continuous human presence in space and international cooperation in scientific research in microgravity.' },
+            { name: 'James Webb Telescope Launch', date: new Date("2021-12-25T12:20:01Z"), target: 'James Webb Space Telescope', impact: 'Designed to observe the first galaxies formed in the universe and look inside dust clouds where stars and planetary systems are forming today.' }
         ];
 
         historicalEvents.forEach((evt, i) => {

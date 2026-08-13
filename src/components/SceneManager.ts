@@ -668,9 +668,21 @@ export class SceneManager {
 
             if (data.targetBody) {
                 // Find target planet to attach orbit to
-                const targetPlanet = this.planets.find(p => p.data.name === data.targetBody);
-                if (targetPlanet) {
-                    parentObject = targetPlanet.orbitGroup;
+                let targetBody = this.planets.find(p => p.data.name === data.targetBody);
+
+                // If not found in planets, search in moons of planets
+                if (!targetBody) {
+                    for (const planet of this.planets) {
+                        const moon = planet.moons.find(m => m.data.name === data.targetBody);
+                        if (moon) {
+                            targetBody = moon as any;
+                            break;
+                        }
+                    }
+                }
+
+                if (targetBody) {
+                    parentObject = targetBody.orbitGroup;
                 }
             }
 
