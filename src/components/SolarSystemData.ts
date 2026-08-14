@@ -298,8 +298,8 @@ export const SolarSystemData: CelestialBodyData[] = [
         name: "Sun",
         radius: 25, displayRadius: 109.2, // Visual scale
         distance: 0,
-        distanceAU: 17.8,
-        eccentricity: 0.967,
+        distanceAU: 0,
+        eccentricity: 0,
         period: 0,
         color: 0xffff00,
         texture: 'textures/sun.png',
