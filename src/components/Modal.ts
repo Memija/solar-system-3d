@@ -193,8 +193,9 @@ export class Modal {
                 }
             }
 
+            const displayDistance = body.distanceAU !== undefined ? body.distanceAU : body.distance;
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Distance", isMoon ? "The average distance from its host planet, measured in Astronomical Units (AU)." : "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${body.distance} AU</p>
+                     <p style="display: flex; align-items: center;">${createInfoButton("Distance", isMoon ? "The average distance from its host planet, measured in Astronomical Units (AU)." : "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${displayDistance} AU</p>
                      <p style="display: flex; align-items: center;">${createInfoButton("Period", isMoon ? "The time it takes for the object to complete one full orbit around its planet, measured in Earth years." : "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${this.formatPeriodText(body.period)}</p>`;
         } else if ('stars' in data && 'connections' in data) {
             const constellation = data as ConstellationData;
