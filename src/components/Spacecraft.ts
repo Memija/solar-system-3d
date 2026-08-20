@@ -91,6 +91,10 @@ export class Spacecraft {
             this.createJWSTModel(silverFoil, goldFoil);
         } else if (name.includes("Cassini")) {
             this.createCassiniModel(material, goldFoil);
+        } else if (name.includes("Sputnik")) {
+            this.createSputnikModel(silverFoil);
+        } else if (name.includes("Apollo")) {
+            this.createApolloModel(silverFoil, material);
         } else {
             // Generic box
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
@@ -105,6 +109,71 @@ export class Spacecraft {
                 child.receiveShadow = true;
             }
         });
+    }
+
+    private createSputnikModel(silverFoil: THREE.MeshStandardMaterial) {
+        // Main sphere
+        const sphereGeo = new THREE.SphereGeometry(0.1, 16, 16);
+        const sphere = new THREE.Mesh(sphereGeo, silverFoil);
+        this.mesh.add(sphere);
+
+        // 4 Antennas
+        const antennaGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.4);
+        for (let i = 0; i < 4; i++) {
+            const antenna = new THREE.Mesh(antennaGeo, silverFoil);
+
+            // Angle them back slightly and spread them around
+            const angle = (i / 4) * Math.PI * 2;
+
+            // Position them at the surface of the sphere
+            antenna.position.set(
+                Math.cos(angle) * 0.08,
+                -0.15,
+                Math.sin(angle) * 0.08
+            );
+
+            // Pointing backwards and outwards
+            antenna.rotation.x = Math.PI / 6; // Angle back
+            antenna.rotation.z = angle; // Spread around
+
+            this.mesh.add(antenna);
+        }
+
+        this.mesh.scale.set(1.5, 1.5, 1.5);
+    }
+
+    private createApolloModel(silverFoil: THREE.MeshStandardMaterial, greyMat: THREE.MeshStandardMaterial) {
+        // Command Module (Cone)
+        const cmGeo = new THREE.ConeGeometry(0.15, 0.2, 16);
+        const cm = new THREE.Mesh(cmGeo, silverFoil);
+        cm.position.set(0, 0.2, 0);
+        this.mesh.add(cm);
+
+        // Service Module (Cylinder)
+        const smGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 16);
+        const sm = new THREE.Mesh(smGeo, silverFoil);
+        sm.position.set(0, -0.05, 0);
+        this.mesh.add(sm);
+
+        // Engine Bell (Cone)
+        const engineGeo = new THREE.ConeGeometry(0.08, 0.15, 16);
+        const engine = new THREE.Mesh(engineGeo, greyMat);
+        engine.position.set(0, -0.25, 0);
+        // Engine bell points down
+        engine.rotation.x = Math.PI;
+        this.mesh.add(engine);
+
+        // High gain antenna (dish at bottom)
+        const dishGeo = new THREE.SphereGeometry(0.05, 16, 16, 0, Math.PI);
+        const dish = new THREE.Mesh(dishGeo, greyMat);
+        dish.position.set(0.15, -0.15, 0);
+        dish.rotation.z = -Math.PI / 2;
+        this.mesh.add(dish);
+
+        // Rotate so it lies 'flat' in orbit
+        this.mesh.rotation.z = -Math.PI / 2;
+
+        this.mesh.scale.set(1.5, 1.5, 1.5);
     }
 
     private createJWSTModel(material: THREE.MeshStandardMaterial, mirrorMat: THREE.MeshStandardMaterial) {
