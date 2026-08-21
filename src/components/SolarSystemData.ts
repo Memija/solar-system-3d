@@ -82,7 +82,8 @@ export interface SpacecraftData {
     links?: LinkData[];
     escaping?: boolean; // For Voyager 1
     speed?: number; // For escaping spacecraft
-    launchDate?: string; // ISO 8601 string for start date
+    launchDate?: string;
+    endDate?: string; // ISO 8601 string for start date
 }
 
 export const SpacecraftDataList: SpacecraftData[] = [
@@ -90,6 +91,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         name: "Apollo 11",
         targetBody: "Moon",
         launchDate: "1969-07-16T13:32:00Z",
+        endDate: "1969-07-24T16:50:35Z",
         distance: 1.1,
         distanceAU: 0.000012,
         eccentricity: 0.0,
@@ -107,6 +109,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         name: "Sputnik 1",
         targetBody: "Earth",
         launchDate: "1957-10-04T19:28:34Z",
+        endDate: "1958-01-04T00:00:00Z",
         distance: 2.1,
         distanceAU: 0.000040,
         eccentricity: 0.05,

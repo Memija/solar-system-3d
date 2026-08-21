@@ -12,6 +12,8 @@ export class Spacecraft {
     baseGroup: THREE.Group;
     angle: number;
     realisticDistances: boolean = false;
+    isActive: boolean = true;
+    materials: THREE.Material[] = [];
 
     constructor(data: SpacecraftData, parent: THREE.Object3D) {
         this.data = data;
@@ -426,6 +428,31 @@ export class Spacecraft {
             }
         } else {
             this.baseGroup.visible = true;
+        }
+
+        if (this.data.endDate && simDate) {
+            const endDate = new Date(this.data.endDate);
+            const currentlyActive = simDate <= endDate;
+            if (this.isActive !== currentlyActive) {
+                this.isActive = currentlyActive;
+                this.mesh.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        const mat = child.material;
+                        if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                            if (mat.userData.originalColor === undefined) {
+                                mat.userData.originalColor = mat.color.getHex();
+                            }
+                            if (!this.isActive) {
+                                // Darken color for inactive state
+                                mat.color.setHex(0x555555);
+                            } else {
+                                // Restore original color
+                                mat.color.setHex(mat.userData.originalColor);
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         if (this.data.escaping) {
