@@ -121,24 +121,32 @@ export class Spacecraft {
 
         // 4 Antennas
         const antennaGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.4);
+        antennaGeo.translate(0, 0.2, 0); // Origin at base
+
         for (let i = 0; i < 4; i++) {
             const antenna = new THREE.Mesh(antennaGeo, silverFoil);
+            const pivot = new THREE.Group();
 
-            // Angle them back slightly and spread them around
+            const radius = 0.095; // slightly inside to avoid gaps
+            const attachAngle = Math.PI / 4; // latitude of attachment (from Z axis)
+
+            const zAttach = -Math.cos(attachAngle) * radius;
+            const xyAttach = Math.sin(attachAngle) * radius;
+
             const angle = (i / 4) * Math.PI * 2;
-
-            // Position them at the surface of the sphere
-            antenna.position.set(
-                Math.cos(angle) * 0.08,
-                -0.15,
-                Math.sin(angle) * 0.08
+            pivot.position.set(
+                Math.cos(angle) * xyAttach,
+                Math.sin(angle) * xyAttach,
+                zAttach
             );
 
-            // Pointing backwards and outwards
-            antenna.rotation.x = Math.PI / 6; // Angle back
-            antenna.rotation.z = angle; // Spread around
+            pivot.lookAt(new THREE.Vector3(0, 0, 0));
 
-            this.mesh.add(antenna);
+            antenna.rotation.x = -Math.PI / 2; // point along -Z (outward normal)
+            antenna.rotation.x -= Math.PI / 8; // Sweep back slightly more
+
+            pivot.add(antenna);
+            this.mesh.add(pivot);
         }
 
         this.mesh.scale.set(1.5, 1.5, 1.5);
