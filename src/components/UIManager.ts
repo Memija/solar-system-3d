@@ -81,6 +81,18 @@ export class UIManager {
             }
         });
 
+        window.addEventListener('jump-to-date', (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const dateStr = customEvent.detail;
+            if (dateStr && this.sceneManager.setSimDate) {
+                const newDate = new Date(dateStr);
+                this.sceneManager.setSimDate(newDate);
+                if (this.customDatePicker) {
+                    this.customDatePicker.setDate(newDate);
+                }
+            }
+        });
+
         window.addEventListener('select-celestial-body', (e: Event) => {
             const customEvent = e as CustomEvent;
             const targetName = customEvent.detail?.name || customEvent.detail;
