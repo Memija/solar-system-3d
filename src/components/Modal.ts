@@ -168,6 +168,10 @@ export class Modal {
         // A generic description addition for Spacecraft
         if ('targetBody' in data || 'escaping' in data) {
             info += `<p style="display: flex; align-items: center;">${createInfoButton("Spacecraft", "A spacecraft is a vehicle or machine designed to fly in outer space.")}<strong>Type:</strong>&nbsp;Spacecraft</p>`;
+
+            if ('launchDate' in data && data.launchDate && (data.name === 'Sputnik 1' || data.name === 'Apollo 11')) {
+                info += `<div style="margin-top: 15px; text-align: center;"><button class="jump-to-date-btn" data-date="${data.launchDate}" style="background-color: #4da6ff; color: #fff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9em; width: 100%;">Jump to Active Date</button></div>`;
+            }
         }
 
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
@@ -269,6 +273,20 @@ export class Modal {
         this.tooltipElement.style.left = `${left}px`;
     }
 
+    private setupJumpToDateButtons() {
+        const jumpToDateButtons = this.contentElement.querySelectorAll('.jump-to-date-btn') as NodeListOf<HTMLElement>;
+
+        jumpToDateButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dateStr = btn.getAttribute('data-date');
+                if (dateStr) {
+                    window.dispatchEvent(new CustomEvent('jump-to-date', { detail: dateStr }));
+                }
+            });
+        });
+    }
+
     private setupInfoButtons() {
         const infoButtons = this.contentElement.querySelectorAll('.info-btn') as NodeListOf<HTMLElement>;
 
@@ -328,6 +346,7 @@ export class Modal {
 
         this.setupGalleryLogic(data);
         this.setupInfoButtons();
+        this.setupJumpToDateButtons();
         this.modalElement.style.display = 'block';
     }
 
