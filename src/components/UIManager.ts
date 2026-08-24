@@ -90,6 +90,12 @@ export class UIManager {
                 if (this.customDatePicker) {
                     this.customDatePicker.setDate(newDate);
                 }
+
+                // Stop simulation when jumping to active date
+                this.sceneManager.timeScale = 0;
+                if (this.sceneManager.onTimeScaleChange) {
+                    this.sceneManager.onTimeScaleChange(0);
+                }
             }
         });
 
