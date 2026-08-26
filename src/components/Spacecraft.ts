@@ -452,7 +452,7 @@ export class Spacecraft {
                             }
                             if (!this.isActive) {
                                 // Darken color for inactive state
-                                mat.color.setHex(0x555555);
+                                mat.color.setHex(0xff8800);
                             } else {
                                 // Restore original color
                                 mat.color.setHex(mat.userData.originalColor);
