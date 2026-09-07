@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CometData } from './SolarSystemData.js';
+import { CometData } from './SolarSystemData';
 import { solveKepler } from './MathUtils';
 
 
@@ -18,6 +18,7 @@ export class Comet {
     e: number; // Eccentricity
     b: number; // Semi-minor axis
     realisticDistances: boolean = false;
+    private static readonly _tempDir = new THREE.Vector3();
 
     constructor(data: CometData, parent: THREE.Object3D) {
         this.data = data;
@@ -100,7 +101,12 @@ export class Comet {
     }
 
     createTail() {
-        const particleCount = 12000;
+        const isMobile = typeof window !== 'undefined' && (
+            ('ontouchstart' in window) ||
+            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+            window.innerWidth <= 768
+        );
+        const particleCount = isMobile ? 4000 : 12000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const lifetimes = new Float32Array(particleCount);
@@ -227,7 +233,7 @@ export class Comet {
 
 
 
-    update(deltaTime: number, simTimePassed?: number) {
+    update(deltaTime: number, simTimePassed?: number, rawDelta?: number) {
         // Simple Keplerian update
         // We use Mean Anomaly (M) and Eccentric Anomaly (E)
 
@@ -259,23 +265,13 @@ export class Comet {
         // Update Tail
         if (this.tailParticles) {
             const material = this.tailParticles.material as THREE.ShaderMaterial;
-            material.uniforms.time.value += deltaTime;
+            // Solar wind continuously sweeps comet tail dust & ions away from the Sun in real time
+            const flowDelta = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 1.5 : deltaTime;
+            material.uniforms.time.value += flowDelta;
 
-            // Tail direction points away from the Sun
-            // In the orbitGroup's local space, the Sun is at -orbitGroup.position
-            // Because orbitGroup is child of baseGroup which is rotated, we need to find
-            // the vector from Sun(0,0,0 in world) to the Comet in world, and map it to local?
-            // Actually, if we just want it pointing away from Sun, vector from Sun to Comet is just world position of Comet.
-            const worldPos = new THREE.Vector3();
-            this.orbitGroup.getWorldPosition(worldPos);
-
-            // However, a simpler way: the tail particles are in orbitGroup space.
-            // In baseGroup space, the sun is at (0,0,0) and comet is at (x,0,z).
-            // So vector away from sun in baseGroup space is (x,0,z).
-            // Since orbitGroup has no rotation relative to baseGroup, local direction is just normalize(x,0,z)!
-            const localDirAwayFromSun = new THREE.Vector3(x, 0, z).normalize();
-
-            material.uniforms.sunDirection.value.copy(localDirAwayFromSun);
+            // Tail direction points away from the Sun in baseGroup/orbitGroup space
+            Comet._tempDir.set(x, 0, z).normalize();
+            material.uniforms.sunDirection.value.copy(Comet._tempDir);
 
             // Tail intensity based on distance to sun (closer = brighter/longer)
             // Distance squared = x*x + z*z
@@ -296,5 +292,39 @@ export class Comet {
         }
     }
 
+    dispose() {
+        if (this.mesh) {
+            this.mesh.geometry?.dispose();
+            if (Array.isArray(this.mesh.material)) {
+                this.mesh.material.forEach(m => m.dispose());
+            } else {
+                (this.mesh.material as any)?.dispose?.();
+            }
+        }
 
+        if (this.tailParticles) {
+            this.tailParticles.geometry?.dispose();
+            if (Array.isArray(this.tailParticles.material)) {
+                this.tailParticles.material.forEach(m => m.dispose());
+            } else {
+                (this.tailParticles.material as any)?.dispose?.();
+            }
+        }
+
+        if (this.orbitLine) {
+            this.orbitLine.geometry?.dispose();
+            if (Array.isArray(this.orbitLine.material)) {
+                this.orbitLine.material.forEach(m => m.dispose());
+            } else {
+                (this.orbitLine.material as any)?.dispose?.();
+            }
+        }
+
+        if (this.orbitGroup.parent) {
+            this.orbitGroup.parent.remove(this.orbitGroup);
+        }
+        if (this.baseGroup.parent) {
+            this.baseGroup.parent.remove(this.baseGroup);
+        }
+    }
 }

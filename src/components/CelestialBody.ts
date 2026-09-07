@@ -1,9 +1,58 @@
 import * as THREE from 'three';
 
-import { CelestialBodyData, MoonData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData } from './SolarSystemData';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
 import { solveKepler } from './MathUtils';
+import { TextureGenerator } from './TextureGenerator';
 
+
+const auroraVertexShader = `
+varying vec2 vUv;
+varying vec3 vNormal;
+uniform float time;
+
+void main() {
+    vUv = uv;
+    vNormal = normalize(normalMatrix * normal);
+
+    vec3 pos = position;
+    float angle = atan(pos.z, pos.x);
+    float wave1 = sin(angle * 5.0 + time * 1.8) * 0.04;
+    float wave2 = cos(angle * 9.0 - time * 2.3) * 0.025;
+    float displacement = wave1 + wave2;
+
+    vec2 dir = length(pos.xz) > 0.001 ? normalize(pos.xz) : vec2(1.0, 0.0);
+    pos.x += dir.x * displacement;
+    pos.z += dir.y * displacement;
+    pos.y += displacement * 0.5;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}
+`;
+
+const auroraFragmentShader = `
+varying vec2 vUv;
+varying vec3 vNormal;
+uniform float time;
+uniform vec3 colorBase;
+uniform vec3 colorMid;
+uniform vec3 colorTop;
+uniform float opacity;
+
+void main() {
+    float verticalFade = smoothstep(0.0, 0.25, vUv.y) * smoothstep(1.0, 0.65, vUv.y);
+
+    float rays = sin(vUv.x * 45.0 + time * 2.0) * 0.5 + 0.5;
+    float raysDetail = sin(vUv.x * 90.0 - time * 1.5) * 0.5 + 0.5;
+    float fluting = 0.55 + 0.45 * (rays * 0.65 + raysDetail * 0.35);
+
+    vec3 col = mix(colorBase, colorMid, smoothstep(0.15, 0.6, vUv.y));
+    col = mix(col, colorTop, smoothstep(0.6, 0.95, vUv.y));
+
+    float alpha = verticalFade * fluting * opacity;
+    gl_FragColor = vec4(col, alpha);
+}
+`;
 
 export class CelestialBody {
     data: CelestialBodyData | MoonData;
@@ -22,6 +71,12 @@ export class CelestialBody {
 
     meteorParticles: THREE.LineSegments | null;
     meteorVelocities: THREE.Vector3[];
+    auroraMeshNorth: THREE.Mesh | null = null;
+    auroraMeshSouth: THREE.Mesh | null = null;
+    auroraMaterial: THREE.ShaderMaterial | null = null;
+    velocityVectorGroup: THREE.Group | null = null;
+    velocityPulseChevron: THREE.Mesh | null = null;
+    private velocityPulseTimer: number = 0;
     showMeteors: boolean;
 
     trailLine: THREE.Line | null;
@@ -33,10 +88,16 @@ export class CelestialBody {
     labelSprite: THREE.Sprite | null = null;
     showLabel: boolean = false;
     realisticDistances: boolean = false;
+    isMoon: boolean = false;
 
-    constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D) {
+    private static _tempWorldPos = new THREE.Vector3();
+    private static _tempLocalPos = new THREE.Vector3();
+    private static _tempMeteorDir = new THREE.Vector3();
+
+    constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D, isMoon: boolean = false) {
         this.data = data;
         this.parent = parent;
+        this.isMoon = isMoon;
         this.mesh = null;
         this.orbitLine = null;
         this.angle = THREE.MathUtils.seededRandom() * Math.PI * 2;
@@ -69,19 +130,17 @@ export class CelestialBody {
         }
         this.orbitGroup.add(this.tiltGroup);
 
-        // Geometry - Increase segments for larger planets
+        // Geometry - Adaptive segments based on scale and moon status
         let segments = 64;
-        if (this.data.radius > 3) { // Gas giants
+        if (this.isMoon) {
+            segments = this.data.radius < 0.5 ? 24 : 32;
+        } else if (this.data.radius > 3) { // Gas giants
             segments = 128;
         }
         const geometry = new THREE.SphereGeometry(this.data.radius, segments, segments);
 
         // Material
         let material: THREE.Material;
-
-        // Common Texture Loading
-        const textureLoader = new THREE.TextureLoader();
-        let texturePath = this.data.texture;
 
         if (this.data.name === 'Sun') {
             const sunMaterial = new THREE.ShaderMaterial({
@@ -94,31 +153,34 @@ export class CelestialBody {
             });
             material = sunMaterial;
             this.shaderMaterial = sunMaterial;
-        } else if (texturePath && this.data.name === 'Earth') {
-            // Planets and Moons
-            const texture = textureLoader.load(texturePath);
+        } else if (this.data.name === 'Earth') {
+            // High-resolution real NASA Blue Marble satellite map of Earth
+            const textureUrl = `${import.meta.env.BASE_URL}textures/earth_equirectangular.png`;
+            const texture = new THREE.TextureLoader().load(textureUrl);
             texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = TextureGenerator.maxAnisotropy;
+            texture.minFilter = THREE.LinearMipmapLinearFilter;
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
 
-            // Improve texture quality
-            texture.anisotropy = 16;
+            const roughnessMap = TextureGenerator.getPlanetRoughnessMap('Earth');
 
             material = new THREE.MeshStandardMaterial({
                 map: texture,
-                roughness: 0.8,
-                metalness: 0.1,
+                roughnessMap: roughnessMap,
+                roughness: 0.9,
+                metalness: 0.05,
                 color: 0xffffff
             });
-
-            // Adjust for Gas Giants
-            if (['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name)) {
-                (material as THREE.MeshStandardMaterial).roughness = 1;
-                (material as THREE.MeshStandardMaterial).metalness = 0;
-            }
         } else {
+            // Apply 2:1 equirectangular seamless texture
+            const texture = TextureGenerator.getPlanetTexture(this.data.name);
+
             material = new THREE.MeshStandardMaterial({
-                color: this.data.color,
-                roughness: 0.8,
-                metalness: 0.1
+                map: texture,
+                roughness: ['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Venus'].includes(this.data.name) ? 0.95 : 0.8,
+                metalness: ['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name) ? 0.0 : 0.05,
+                color: 0xffffff
             });
         }
 
@@ -132,63 +194,37 @@ export class CelestialBody {
         }
         this.tiltGroup.add(this.mesh);
 
-        // --- EARTH SPECIFIC ADDITIONS ---
+        // --- ATMOSPHERE & SPECIAL FEATURES ---
+        this.createAtmosphere();
+
         if (this.data.name === 'Earth') {
-            // 2. Cloud Sphere
-            const cloudGeometry = new THREE.SphereGeometry(this.data.radius * 1.005, 64, 64);
-            const cloudTexture = textureLoader.load('textures/earth_clouds.png');
+            // Earth Cloud Sphere - seamless 2:1 equirectangular crisp white cloud deck
+            const cloudGeometry = new THREE.SphereGeometry(this.data.radius * 1.008, 64, 64);
+            const cloudTexture = TextureGenerator.getPlanetTexture('EarthClouds');
             const cloudMaterial = new THREE.MeshStandardMaterial({
                 map: cloudTexture,
                 transparent: true,
-                opacity: 0.2,
-                side: THREE.DoubleSide,
+                opacity: 0.88,
+                roughness: 0.35,
+                metalness: 0.0,
+                color: 0xffffff,
+                side: THREE.FrontSide,
                 blending: THREE.NormalBlending,
                 depthWrite: false
             });
             this.cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
-            this.cloudMesh.castShadow = true;
-            this.cloudMesh.receiveShadow = true;
             this.tiltGroup.add(this.cloudMesh);
 
-            // 3. Atmosphere Glow (Fresnel)
-            const atmosphereGeometry = new THREE.SphereGeometry(this.data.radius * 1.025, 64, 64);
-            const atmosphereMaterial = new THREE.ShaderMaterial({
-                uniforms: {
-                    c: { value: 0.3 },
-                    p: { value: 5 },
-                    glowColor: { value: new THREE.Color(0x00aaff) },
-                    viewVector: { value: new THREE.Vector3() }
-                },
-                vertexShader: `
-                    uniform vec3 viewVector;
-                    uniform float c;
-                    uniform float p;
-                    varying float intensity;
-                    void main() {
-                        vec3 vNormal = normalize(normalMatrix * normal);
-                        vec3 vNormel = normalize(normalMatrix * viewVector);
-                        intensity = pow(c - dot(vNormal, vNormel), p);
-                        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-                    }
-                `,
-                fragmentShader: `
-                    uniform vec3 glowColor;
-                    varying float intensity;
-                    void main() {
-                        vec3 glow = glowColor * intensity;
-                        gl_FragColor = vec4( glow, 1.0 );
-                    }
-                `,
-                side: THREE.BackSide,
-                blending: THREE.AdditiveBlending,
-                transparent: true
-            });
-
-            this.atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-            this.tiltGroup.add(this.atmosphereMesh);
-
-            // 4. Meteor Shower
+            // Meteor Shower
             this.createMeteors();
+
+            // Polar Auroras (Northern and Southern Lights)
+            this.createEarthAuroras();
+        }
+
+        // Real-Time Holographic Orbital Velocity Vector for all orbiting celestial bodies
+        if (this.data.distance > 0 && this.data.name !== 'Sun') {
+            this.createVelocityVector();
         }
 
         // Create Orbit Line
@@ -213,7 +249,7 @@ export class CelestialBody {
         // Create Moons
         if ('moons' in this.data && this.data.moons) {
             this.data.moons.forEach(moonData => {
-                const moon = new CelestialBody(moonData, this.orbitGroup);
+                const moon = new CelestialBody(moonData, this.orbitGroup, true);
                 this.moons.push(moon);
             });
         }
@@ -271,6 +307,62 @@ export class CelestialBody {
         this.orbitGroup.add(this.labelSprite);
     }
 
+    createAtmosphere() {
+        const atmosphereConfigs: Record<string, { color: number; scale: number; coefficient: number; power: number }> = {
+            'Earth': { color: 0x38bdf8, scale: 1.018, coefficient: 0.35, power: 4.5 },
+            'Venus': { color: 0xf59e0b, scale: 1.022, coefficient: 0.40, power: 3.8 },
+            'Mars': { color: 0xf97316, scale: 1.012, coefficient: 0.25, power: 5.0 },
+            'Jupiter': { color: 0xfde68a, scale: 1.012, coefficient: 0.25, power: 4.5 },
+            'Saturn': { color: 0xfef08a, scale: 1.012, coefficient: 0.25, power: 4.5 },
+            'Uranus': { color: 0x67e8f9, scale: 1.018, coefficient: 0.35, power: 4.0 },
+            'Neptune': { color: 0x3b82f6, scale: 1.020, coefficient: 0.40, power: 4.0 },
+            'Titan': { color: 0xd97706, scale: 1.025, coefficient: 0.30, power: 3.8 }
+        };
+
+        const config = atmosphereConfigs[this.data.name];
+        if (!config) return;
+
+        const segments = this.data.radius > 3 ? 128 : 64;
+        const atmosphereGeometry = new THREE.SphereGeometry(this.data.radius * config.scale, segments, segments);
+        const atmosphereMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                glowColor: { value: new THREE.Color(config.color) },
+                coefficient: { value: config.coefficient },
+                power: { value: config.power }
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vPosition = mvPosition.xyz;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 glowColor;
+                uniform float coefficient;
+                uniform float power;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {
+                    vec3 viewDir = normalize(-vPosition);
+                    float fresnel = 1.0 - max(0.0, dot(vNormal, viewDir));
+                    float intensity = pow(fresnel, power) * coefficient;
+                    gl_FragColor = vec4(glowColor, intensity);
+                }
+            `,
+            side: THREE.FrontSide,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            depthWrite: false
+        });
+
+        this.atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+        this.tiltGroup.add(this.atmosphereMesh);
+    }
+
     createAxis() {
         if (this.data.name === 'Sun') return;
 
@@ -285,14 +377,30 @@ export class CelestialBody {
     createRings() {
         if (!('rings' in this.data) || !this.data.rings) return;
 
-
         this.data.rings.forEach(ringData => {
-            const geometry = new THREE.RingGeometry(ringData.innerRadius, ringData.outerRadius, 64);
-            const material = new THREE.MeshBasicMaterial({
-                color: ringData.color,
+            const segments = 128;
+            const geometry = new THREE.RingGeometry(ringData.innerRadius, ringData.outerRadius, segments);
+
+            // Compute radial UV coordinates: u is radial distance (0 at inner to 1 at outer)
+            const pos = geometry.attributes.position;
+            const uvs = geometry.attributes.uv;
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                const r = Math.sqrt(x * x + y * y);
+                const u = Math.max(0, Math.min(1, (r - ringData.innerRadius) / (ringData.outerRadius - ringData.innerRadius)));
+                uvs.setXY(i, u, 0.5);
+            }
+            uvs.needsUpdate = true;
+
+            const ringTexture = TextureGenerator.getRingTexture(this.data.name);
+            const material = new THREE.MeshStandardMaterial({
+                map: ringTexture,
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: ringData.opacity !== undefined ? ringData.opacity : 0.8
+                roughness: 0.8,
+                metalness: 0.0,
+                depthWrite: false
             });
             const ringMesh = new THREE.Mesh(geometry, material);
 
@@ -300,13 +408,10 @@ export class CelestialBody {
             ringMesh.castShadow = true;
             ringMesh.receiveShadow = true;
 
-            // Rings are typically aligned with the planet's equator
-            // By default, RingGeometry is in the XY plane. We need it in the XZ plane for typical orbit.
+            // Rings are aligned with the planet's equator in the XZ plane
             ringMesh.rotation.x = Math.PI / 2;
 
-            // Since we applied tilt to tiltGroup, the rings will inherit this.
-            // We just need to attach them to tiltGroup or mesh. Let's attach to tiltGroup.
-
+            // Attach to tiltGroup so rings inherit planet's axial tilt
             if (this.mesh) {
                 this.tiltGroup.add(ringMesh);
             } else {
@@ -362,8 +467,7 @@ export class CelestialBody {
         positions[i6 + 2] = z;
 
         // Velocity (towards the planet center + some randomness)
-        const posVec = new THREE.Vector3(x, y, z);
-        const dir = posVec.clone().normalize().negate();
+        const dir = CelestialBody._tempMeteorDir.set(x, y, z).normalize().negate();
 
         // Add random scatter to direction
         dir.x += (THREE.MathUtils.seededRandom() - 0.5) * 0.5;
@@ -391,9 +495,10 @@ export class CelestialBody {
         colors[i6 + 5] = 0;
     }
 
-    updateMeteors(deltaTime: number) {
+    updateMeteors(deltaTime: number, rawDelta?: number) {
         if (!this.meteorParticles || !this.showMeteors) return;
 
+        const effectiveStep = (rawDelta !== undefined && rawDelta > 0) ? rawDelta : deltaTime;
         const positions = this.meteorParticles.geometry.attributes.position.array as Float32Array;
         const colors = this.meteorParticles.geometry.attributes.color.array as Float32Array;
         const radius = this.data.radius;
@@ -408,9 +513,9 @@ export class CelestialBody {
 
             // Move head
             const vel = this.meteorVelocities[i];
-            const nx = hx + vel.x * deltaTime * 10;
-            const ny = hy + vel.y * deltaTime * 10;
-            const nz = hz + vel.z * deltaTime * 10;
+            const nx = hx + vel.x * effectiveStep * 10;
+            const ny = hy + vel.y * effectiveStep * 10;
+            const nz = hz + vel.z * effectiveStep * 10;
 
             // Update positions
             // Tail becomes old head
@@ -433,6 +538,163 @@ export class CelestialBody {
 
         this.meteorParticles.geometry.attributes.position.needsUpdate = true;
         this.meteorParticles.geometry.attributes.color.needsUpdate = true;
+    }
+
+    createEarthAuroras() {
+        if (this.data.name !== 'Earth') return;
+
+        this.auroraMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                colorBase: { value: new THREE.Color(0.12, 0.95, 0.42) },
+                colorMid: { value: new THREE.Color(0.08, 0.78, 0.95) },
+                colorTop: { value: new THREE.Color(0.68, 0.18, 0.95) },
+                opacity: { value: 0.85 }
+            },
+            vertexShader: auroraVertexShader,
+            fragmentShader: auroraFragmentShader,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+
+        const r = this.data.radius;
+        // Auroral ovals hover at geomagnetic polar caps (~70-75 deg latitude)
+        const northGeo = new THREE.CylinderGeometry(r * 0.33, r * 0.28, r * 0.12, 48, 4, true);
+        this.auroraMeshNorth = new THREE.Mesh(northGeo, this.auroraMaterial);
+        this.auroraMeshNorth.position.set(0, r * 0.96, 0);
+        this.tiltGroup.add(this.auroraMeshNorth);
+
+        const southGeo = new THREE.CylinderGeometry(r * 0.28, r * 0.33, r * 0.12, 48, 4, true);
+        this.auroraMeshSouth = new THREE.Mesh(southGeo, this.auroraMaterial);
+        this.auroraMeshSouth.position.set(0, -r * 0.96, 0);
+        this.tiltGroup.add(this.auroraMeshSouth);
+    }
+
+    getOrbitalSpeed(): number {
+        const knownSpeeds: Record<string, number> = {
+            'Mercury': 47.4,
+            'Venus': 35.0,
+            'Earth': 29.8,
+            'Mars': 24.1,
+            'Jupiter': 13.1,
+            'Saturn': 9.7,
+            'Uranus': 6.8,
+            'Neptune': 5.4,
+            'Pluto': 4.7,
+            'Ceres': 17.9,
+            'Haumea': 4.5,
+            'Makemake': 4.4,
+            'Eris': 3.4,
+            'Moon': 1.0,
+            'Io': 17.3,
+            'Europa': 13.7,
+            'Ganymede': 10.9,
+            'Callisto': 8.2,
+            'Titan': 5.6
+        };
+        if (knownSpeeds[this.data.name] !== undefined) {
+            return knownSpeeds[this.data.name];
+        }
+        if (this.data.distance > 0 && this.data.period > 0) {
+            const speed = 29.8 / Math.sqrt(Math.max(0.1, this.data.distance));
+            return parseFloat(speed.toFixed(1));
+        }
+        return 20.0;
+    }
+
+    createVelocityVector() {
+        if (this.data.distance === 0 || this.data.name === 'Sun') return;
+        // Include all major planets, dwarf planets, and major moons (Moon, etc.)
+        if (this.isMoon && this.data.name !== 'Moon') return;
+
+        this.velocityVectorGroup = new THREE.Group();
+
+        // Responsive scaling based on celestial body radius
+        const r = this.data.radius;
+        const bodyScale = Math.max(0.55, Math.min(2.8, Math.pow(r, 0.65)));
+
+        // Direction shaft
+        const shaftLength = 1.1 * bodyScale;
+        const shaftRadius = 0.022 * bodyScale;
+        const shaftGeo = new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength, 8);
+        shaftGeo.rotateX(Math.PI / 2);
+        const shaftMat = new THREE.MeshBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.75
+        });
+        const shaftMesh = new THREE.Mesh(shaftGeo, shaftMat);
+        shaftMesh.position.z = shaftLength * 0.5;
+        this.velocityVectorGroup.add(shaftMesh);
+
+        // Arrow head
+        const headRadius = 0.09 * bodyScale;
+        const headHeight = 0.3 * bodyScale;
+        const headGeo = new THREE.ConeGeometry(headRadius, headHeight, 12);
+        headGeo.rotateX(Math.PI / 2);
+        const headMat = new THREE.MeshBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.95
+        });
+        const headMesh = new THREE.Mesh(headGeo, headMat);
+        headMesh.position.z = shaftLength + headHeight * 0.5;
+        this.velocityVectorGroup.add(headMesh);
+
+        // Forward-pulsing chevron
+        const pulseRadius = 0.065 * bodyScale;
+        const pulseHeight = 0.18 * bodyScale;
+        const pulseGeo = new THREE.ConeGeometry(pulseRadius, pulseHeight, 12);
+        pulseGeo.rotateX(Math.PI / 2);
+        const pulseMat = new THREE.MeshBasicMaterial({
+            color: 0x7dd3fc,
+            transparent: true,
+            opacity: 0.85
+        });
+        this.velocityPulseChevron = new THREE.Mesh(pulseGeo, pulseMat);
+        this.velocityPulseChevron.position.z = shaftLength * 0.5;
+        this.velocityVectorGroup.add(this.velocityPulseChevron);
+
+        // Telemetry readout sprite
+        const speed = this.getOrbitalSpeed();
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+            ctx.fillRect(0, 0, 256, 64);
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            if (typeof ctx.strokeRect === 'function') {
+                ctx.strokeRect(2, 2, 252, 60);
+            }
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 22px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`➜ ${speed} km/s`, 128, 32);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: true,
+            sizeAttenuation: true
+        });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.scale.set(1.4 * bodyScale, 0.35 * bodyScale, 1);
+        sprite.position.set(0, 0.38 * bodyScale, 0.65 * bodyScale);
+        this.velocityVectorGroup.add(sprite);
+
+        // Inherit orbit visibility
+        this.velocityVectorGroup.visible = this.orbitLine?.visible ?? true;
+
+        this.orbitGroup.add(this.velocityVectorGroup);
     }
 
     createTrail() {
@@ -462,15 +724,15 @@ export class CelestialBody {
         const maxTrailLength = 100;
 
         // Get the global position to accurately draw trails for moons and nested objects
-        const currentGlobalPos = new THREE.Vector3();
-        this.orbitGroup.getWorldPosition(currentGlobalPos);
+        this.orbitGroup.getWorldPosition(CelestialBody._tempWorldPos);
 
         // Transform the global position into the parent's local space
-        const currentPos = this.parent.worldToLocal(currentGlobalPos);
+        CelestialBody._tempLocalPos.copy(CelestialBody._tempWorldPos);
+        this.parent.worldToLocal(CelestialBody._tempLocalPos);
 
         // Only add a point if we've moved a certain distance to avoid too many points when slow
-        if (this.trailPositions.length === 0 || currentPos.distanceTo(this.trailPositions[this.trailPositions.length - 1]) > 0.01) {
-            this.trailPositions.push(currentPos);
+        if (this.trailPositions.length === 0 || CelestialBody._tempLocalPos.distanceTo(this.trailPositions[this.trailPositions.length - 1]) > 0.01) {
+            this.trailPositions.push(CelestialBody._tempLocalPos.clone());
             if (this.trailPositions.length > maxTrailLength) {
                 this.trailPositions.shift();
             }
@@ -539,14 +801,19 @@ export class CelestialBody {
         }
 
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const material = new THREE.LineBasicMaterial({ color: this.data.color || 0x444444, transparent: true, opacity: 0.3 });
+        const material = new THREE.LineBasicMaterial({
+            color: this.data.color || 0x38bdf8,
+            transparent: true,
+            opacity: 0.35,
+            blending: THREE.AdditiveBlending
+        });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
 
         this.parent.add(this.orbitLine);
     }
 
-    update(deltaTime: number, simTimePassed?: number) {
+    update(deltaTime: number, simTimePassed?: number, rawDelta?: number) {
         // Update position
         const speedMultiplier = 0.5;
         const speed = this.data.period === 0 ? 0 : (1 / this.data.period) * speedMultiplier;
@@ -593,21 +860,48 @@ export class CelestialBody {
              ring.rotation.z += 0.2 * deltaTime;
         });
 
-        // Rotate Clouds independently
+        // Rotate Clouds independently with real-time atmospheric circulation drift
         if (this.cloudMesh) {
-            this.cloudMesh.rotation.y += 0.55 * deltaTime; // Slightly faster than surface
+            const atmosphericDrift = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 0.045 : 0;
+            this.cloudMesh.rotation.y += 0.55 * deltaTime + atmosphericDrift;
         }
 
         // Update Shader Time
         if (this.shaderMaterial) {
-            this.shaderMaterial.uniforms.time.value += deltaTime;
+            // Solar surface plasma convection and coronal loops churn via wall-clock delta when running,
+            // ensuring the Sun is dynamic and alive in real-time (1:1) scale without freezing static.
+            const plasmaDelta = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 0.45 : deltaTime;
+            this.shaderMaterial.uniforms.time.value += plasmaDelta;
         }
 
-        this.updateMeteors(deltaTime);
+        // Update Earth Polar Auroras
+        if (this.auroraMaterial && rawDelta !== undefined && rawDelta > 0) {
+            this.auroraMaterial.uniforms.time.value += rawDelta * 1.8;
+        }
+
+        // Update Orbital Velocity Vector
+        if (this.velocityVectorGroup) {
+            // Tangent direction in orbital plane: (-sin(angle), 0, cos(angle))
+            const tangent = new THREE.Vector3(-Math.sin(this.angle), 0, Math.cos(this.angle)).normalize();
+            const r = this.data.radius;
+            const bodyScale = Math.max(0.55, Math.min(2.8, Math.pow(r, 0.65)));
+            const offsetDist = r * 1.35 + bodyScale * 0.4;
+            this.velocityVectorGroup.position.copy(tangent).multiplyScalar(offsetDist);
+            this.velocityVectorGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
+
+            if (this.velocityPulseChevron && rawDelta !== undefined && rawDelta > 0) {
+                this.velocityPulseTimer += rawDelta * 2.5;
+                const cycle = (this.velocityPulseTimer % 1.0);
+                this.velocityPulseChevron.position.z = (0.2 + cycle * 0.9) * bodyScale;
+                (this.velocityPulseChevron.material as THREE.MeshBasicMaterial).opacity = Math.sin(cycle * Math.PI) * 0.9;
+            }
+        }
+
+        this.updateMeteors(deltaTime, rawDelta);
         this.updateTrail();
 
         // Update moons
-        this.moons.forEach(moon => moon.update(deltaTime));
+        this.moons.forEach(moon => moon.update(deltaTime, simTimePassed, rawDelta));
     }
 
     toggleTrails(visible: boolean) {
@@ -637,6 +931,9 @@ export class CelestialBody {
         if (this.orbitLine) {
             this.orbitLine.visible = visible;
         }
+        if (this.velocityVectorGroup) {
+            this.velocityVectorGroup.visible = visible;
+        }
         this.moons.forEach(moon => moon.toggleOrbit(visible));
     }
 
@@ -656,5 +953,123 @@ export class CelestialBody {
             this.axesHelper.visible = visible;
         }
         this.moons.forEach(moon => moon.toggleAxes(visible));
+    }
+
+    dispose() {
+        if (this.auroraMeshNorth) {
+            this.auroraMeshNorth.geometry.dispose();
+            this.auroraMeshNorth = null;
+        }
+        if (this.auroraMeshSouth) {
+            this.auroraMeshSouth.geometry.dispose();
+            this.auroraMeshSouth = null;
+        }
+        if (this.auroraMaterial) {
+            this.auroraMaterial.dispose();
+            this.auroraMaterial = null;
+        }
+        if (this.velocityVectorGroup) {
+            this.velocityVectorGroup.traverse((child) => {
+                if ((child as any).geometry) (child as any).geometry.dispose();
+                if ((child as any).material) {
+                    if ((child as any).material.map) (child as any).material.map.dispose();
+                    (child as any).material.dispose();
+                }
+            });
+            this.velocityVectorGroup = null;
+        }
+
+        this.moons.forEach(moon => moon.dispose());
+        this.moons = [];
+
+        if (this.mesh) {
+            this.mesh.geometry?.dispose();
+            if (Array.isArray(this.mesh.material)) {
+                this.mesh.material.forEach(m => m.dispose());
+            } else {
+                this.mesh.material?.dispose();
+            }
+        }
+
+        if (this.cloudMesh) {
+            this.cloudMesh.geometry?.dispose();
+            if (Array.isArray(this.cloudMesh.material)) {
+                this.cloudMesh.material.forEach(m => m.dispose());
+            } else {
+                this.cloudMesh.material?.dispose();
+            }
+            this.cloudMesh = undefined;
+        }
+
+        if (this.atmosphereMesh) {
+            this.atmosphereMesh.geometry?.dispose();
+            if (Array.isArray(this.atmosphereMesh.material)) {
+                this.atmosphereMesh.material.forEach(m => m.dispose());
+            } else {
+                this.atmosphereMesh.material?.dispose();
+            }
+        }
+
+        this.ringMeshes.forEach(ring => {
+            ring.geometry?.dispose();
+            if (Array.isArray(ring.material)) {
+                ring.material.forEach(m => m.dispose());
+            } else {
+                ring.material?.dispose();
+            }
+        });
+        this.ringMeshes = [];
+
+        if (this.meteorParticles) {
+            this.meteorParticles.geometry?.dispose();
+            if (Array.isArray(this.meteorParticles.material)) {
+                this.meteorParticles.material.forEach(m => m.dispose());
+            } else {
+                this.meteorParticles.material?.dispose();
+            }
+        }
+
+        if (this.trailLine) {
+            this.trailLine.geometry?.dispose();
+            if (Array.isArray(this.trailLine.material)) {
+                this.trailLine.material.forEach(m => m.dispose());
+            } else {
+                this.trailLine.material?.dispose();
+            }
+        }
+
+        if (this.orbitLine) {
+            this.orbitLine.geometry?.dispose();
+            if (Array.isArray(this.orbitLine.material)) {
+                this.orbitLine.material.forEach(m => m.dispose());
+            } else {
+                this.orbitLine.material?.dispose();
+            }
+        }
+
+        if (this.axesHelper) {
+            this.axesHelper.geometry?.dispose();
+            if (Array.isArray(this.axesHelper.material)) {
+                this.axesHelper.material.forEach(m => m.dispose());
+            } else {
+                this.axesHelper.material?.dispose();
+            }
+        }
+
+        if (this.labelSprite) {
+            this.labelSprite.material?.map?.dispose();
+            this.labelSprite.material?.dispose();
+        }
+
+        if (this.shaderMaterial) {
+            this.shaderMaterial.dispose();
+        }
+
+        if (this.orbitGroup.parent) {
+            this.orbitGroup.parent.remove(this.orbitGroup);
+        }
+        if (this.tiltGroup.parent) {
+            this.tiltGroup.parent.remove(this.tiltGroup);
+        }
     }
 }

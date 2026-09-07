@@ -1,4 +1,4 @@
-import { ConstellationData } from './SolarSystemData.js';
+import { ConstellationData } from './SolarSystemData';
 
 export const MajorConstellations: ConstellationData[] = [
     {

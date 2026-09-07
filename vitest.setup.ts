@@ -41,6 +41,11 @@ vi.mock('three', async (importOriginal) => {
             toneMapping = 0;
             toneMappingExposure = 1;
             shadowMap = { enabled: false, type: 0 };
+            capabilities = { getMaxAnisotropy: () => 16 };
+            info = {
+                render: { calls: 12, triangles: 4500, points: 0, lines: 0 },
+                memory: { geometries: 10, textures: 8 }
+            };
         }
     }
 });

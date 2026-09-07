@@ -1,0 +1,28 @@
+// Typography Tokens
+$font-sans: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+$font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+$font-mono: 'Orbitron', 'Space Grotesk', monospace;
+
+// Cyber Deep Space Color Palette
+$color-bg: #030712;
+$color-text: rgba(248, 250, 252, 0.92);
+$color-text-muted: rgba(148, 163, 184, 0.85);
+
+$neon-cyan: #38bdf8;
+$neon-blue: #60a5fa;
+$neon-indigo: #818cf8;
+$neon-amber: #f59e0b;
+$neon-emerald: #10b981;
+$neon-rose: #f43f5e;
+
+$glass-bg: rgba(9, 14, 28, 0.72);
+$glass-bg-hover: rgba(15, 23, 42, 0.85);
+$glass-border: rgba(56, 189, 248, 0.22);
+$glass-border-hover: rgba(56, 189, 248, 0.45);
+$glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.12);
+
+$z-ui: 100;
+$z-modal: 1500;
+$z-dropdown: 1600;
+$z-tooltip: 2000;
+

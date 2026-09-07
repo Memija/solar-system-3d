@@ -1,4 +1,7 @@
-import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData, SolarSystemData } from './SolarSystemData.js';
+import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData, SolarSystemData } from './SolarSystemData';
+import { i18n } from '../i18n/index';
+import { EventBus } from './EventBus';
+import { AudioNarrator } from './AudioNarrator';
 
 type ModalData = CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData;
 
@@ -15,72 +18,114 @@ export class Modal {
     modalElement: HTMLElement;
     contentElement: HTMLElement;
     tooltipElement: HTMLElement;
+    public audioNarrator: AudioNarrator;
+    private audioGuideBtn: HTMLButtonElement | null = null;
+    public isOpen: boolean = false;
+    private currentData: ModalData | CustomModalData | null = null;
+    private unregisterI18n: (() => void) | null = null;
+    private hideTooltipHandler: () => void;
 
     constructor(container: HTMLElement) {
         this.container = container;
+        this.audioNarrator = new AudioNarrator();
         this.modalElement = this.createModal();
         this.contentElement = this.modalElement.querySelector('#modal-content') as HTMLElement;
         this.tooltipElement = this.createTooltipModal();
 
+        // Listen for language changes to immediately re-render active modal
+        this.unregisterI18n = i18n.onLanguageChange(() => {
+            if (this.isOpen && this.currentData) {
+                this.show(this.currentData);
+            }
+        });
+
         // Hide tooltip when clicking anywhere else (handle touch and click)
-        const hideTooltip = () => {
+        this.hideTooltipHandler = () => {
             if (this.tooltipElement.style.display === 'block') {
                 this.tooltipElement.style.display = 'none';
             }
         };
-        document.addEventListener('click', hideTooltip);
-        document.addEventListener('touchstart', hideTooltip, { passive: true });
+        document.addEventListener('click', this.hideTooltipHandler);
+        document.addEventListener('touchstart', this.hideTooltipHandler, { passive: true });
     }
 
     private createTooltipModal(): HTMLElement {
         const tooltip = document.createElement('div');
-        tooltip.style.position = 'absolute';
-        tooltip.style.backgroundColor = 'rgba(10, 10, 15, 0.95)';
-        tooltip.style.border = '1px solid #666';
-        tooltip.style.borderRadius = '6px';
-        tooltip.style.padding = '10px';
-        tooltip.style.color = '#fff';
-        tooltip.style.display = 'none';
-        tooltip.style.zIndex = '1001'; // Above main modal
-        tooltip.style.boxShadow = '0 0 10px rgba(0,0,0,0.8)';
-        tooltip.style.maxWidth = '250px';
-        tooltip.style.fontSize = '0.85em';
-        tooltip.style.lineHeight = '1.4';
-        tooltip.style.pointerEvents = 'none'; // Prevent tooltip from interfering with hovers
-
+        tooltip.className = 'modal-tooltip';
         this.container.appendChild(tooltip);
         return tooltip;
     }
 
     private createModal(): HTMLElement {
         const modal = document.createElement('div');
-        modal.style.position = 'fixed';
-        modal.style.top = '50%';
-        modal.style.right = '20px'; // Side positioning
-        modal.style.transform = 'translateY(-50%)'; // Only center vertically
-        modal.style.width = '350px';
-        modal.style.backgroundColor = 'rgba(20, 20, 30, 0.95)';
-        modal.style.border = '1px solid #444';
-        modal.style.borderRadius = '12px';
-        modal.style.padding = '20px';
-        modal.style.color = '#fff';
+        modal.className = 'dossier-modal';
         modal.style.display = 'none';
-        modal.style.zIndex = '1000';
-        modal.style.boxShadow = '0 0 20px rgba(0,0,0,0.8)';
-        modal.style.maxHeight = '90vh';
-        modal.style.overflowY = 'auto';
+
+        // Drag handle for mobile bottom sheet
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'sheet-drag-handle';
+        modal.appendChild(dragHandle);
+
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        dragHandle.addEventListener('touchstart', (e: TouchEvent) => {
+            if (e.touches.length > 0) {
+                startY = e.touches[0].clientY;
+                currentY = startY;
+                isDragging = true;
+            }
+        }, { passive: true });
+
+        dragHandle.addEventListener('touchmove', (e: TouchEvent) => {
+            if (!isDragging || e.touches.length === 0) return;
+            currentY = e.touches[0].clientY;
+            const delta = currentY - startY;
+            if (delta > 0) {
+                modal.style.transform = `translateY(${delta}px)`;
+            }
+        }, { passive: true });
+
+        const endDrag = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            const delta = currentY - startY;
+            if (delta > 70) {
+                this.hide();
+            }
+            modal.style.transform = '';
+        };
+
+        dragHandle.addEventListener('touchend', endDrag);
+        dragHandle.addEventListener('touchcancel', endDrag);
+
+        // Audio Guide narration button
+        const audioGuideBtn = document.createElement('button');
+        audioGuideBtn.className = 'modal-audio-guide-btn';
+        audioGuideBtn.innerHTML = `🎙️ <span class="audio-guide-label">${i18n.t('modal.audioGuide') || 'Listen'}</span>`;
+        audioGuideBtn.title = 'Audio Guide Narration';
+        audioGuideBtn.setAttribute('aria-label', 'Listen to celestial audio guide');
+        audioGuideBtn.onclick = () => {
+            if (this.currentData) {
+                const desc = (this.contentElement.querySelector('.description')?.textContent) || this.currentData.description || '';
+                const title = (this.contentElement.querySelector('h2')?.textContent) || this.currentData.name || '';
+                const fullText = `${title}. ${desc}`;
+                const activeLang = i18n.currentLanguage || 'en';
+                const isSpeaking = this.audioNarrator.toggle(fullText, activeLang, () => {
+                    this.updateAudioGuideButtonLabel(false);
+                });
+                this.updateAudioGuideButtonLabel(isSpeaking);
+            }
+        };
+        modal.appendChild(audioGuideBtn);
+        this.audioGuideBtn = audioGuideBtn;
 
         // Close button
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = '×';
-        closeBtn.style.position = 'absolute';
-        closeBtn.style.top = '10px';
-        closeBtn.style.right = '15px';
-        closeBtn.style.background = 'none';
-        closeBtn.style.border = 'none';
-        closeBtn.style.color = '#fff';
-        closeBtn.style.fontSize = '24px';
-        closeBtn.style.cursor = 'pointer';
+        closeBtn.className = 'modal-close-btn';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.setAttribute('aria-label', 'Close');
         closeBtn.onclick = () => {
             this.hide();
         };
@@ -95,22 +140,32 @@ export class Modal {
         return modal;
     }
 
+    private formatImageUrl(url: string): string {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+            return url;
+        }
+        const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+        const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
+        return `${base}${cleanUrl}`;
+    }
+
     private getGalleryHtml(data: ModalData | CustomModalData): string {
         if (data.images && data.images.length > 0) {
             return `
-                <div class="gallery-container" style="position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 8px; margin: 10px 0; background: #000;">
+                <div class="gallery-container">
                     ${data.images.map((img: string, index: number) => `
-                        <img src="${img}" class="gallery-img" data-index="${index}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: ${index === 0 ? 1 : 0}; transition: opacity 0.5s;">
+                        <img src="${this.formatImageUrl(img)}" alt="${data.name} visual ${index + 1}" class="gallery-img" data-index="${index}" style="opacity: ${index === 0 ? 1 : 0};">
                     `).join('')}
 
                     ${data.images.length > 1 ? `
-                        <button class="prev-btn" style="position: absolute; top: 50%; left: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; font-size: 24px; cursor: pointer; padding: 5px 10px; border-radius: 50%;">❮</button>
-                        <button class="next-btn" style="position: absolute; top: 50%; right: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; font-size: 24px; cursor: pointer; padding: 5px 10px; border-radius: 50%;">❯</button>
+                        <button class="gallery-btn prev-btn">❮</button>
+                        <button class="gallery-btn next-btn">❯</button>
                     ` : ''}
                 </div>
             `;
         } else if (data.imageUrl) {
-            return `<img src="${data.imageUrl}" alt="${data.name}" style="width: 100%; border-radius: 8px; margin: 10px 0;">`;
+            return `<div class="gallery-container"><img src="${this.formatImageUrl(data.imageUrl)}" alt="${data.name}" class="gallery-img" style="opacity: 1;"></div>`;
         }
         return '';
     }
@@ -119,12 +174,12 @@ export class Modal {
         if (data.links && data.links.length > 0) {
             const sortedLinks = [...data.links].sort((a, b) => a.title.localeCompare(b.title));
             return `
-                <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
-                    <h4 style="margin: 0 0 5px 0; font-size: 0.9em; color: #aaa;">Learn More:</h4>
-                    <ul style="list-style: none; padding: 0; margin: 0;">
+                <div class="modal-links-section">
+                    <h4>${i18n.t('modal.resourcesHeader')}</h4>
+                    <ul>
                         ${sortedLinks.map((link: any) => `
-                            <li style="margin-bottom: 5px;">
-                                <a href="${link.url}" target="_blank" style="color: #4da6ff; text-decoration: none; font-size: 0.9em;">${link.title} ↗</a>
+                            <li>
+                                <a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.title} ↗</a>
                             </li>
                         `).join('')}
                     </ul>
@@ -135,8 +190,12 @@ export class Modal {
     }
 
     private formatPeriodText(years: number): string {
+        const yr = i18n.t('modal.periodUnits.year');
+        const m = i18n.t('modal.periodUnits.month');
+        const d = i18n.t('modal.periodUnits.day');
+
         if (years >= 1 || years === 0) {
-            return `${years} years`;
+            return `${years} ${yr}`;
         }
 
         const totalDays = years * 365.25;
@@ -145,46 +204,68 @@ export class Modal {
 
         const parts = [];
         if (months > 0) {
-            parts.push(`${months} month${months !== 1 ? 's' : ''}`);
+            parts.push(`${months}${m}`);
         }
         if (days > 0) {
-            parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+            parts.push(`${days}${d}`);
         }
 
         if (parts.length === 0) {
-            return `${years} years`;
+            return `${years} ${yr}`;
         }
 
-        return `${years} years (${parts.join(' and ')})`;
+        return `${parts.join(' ')}`;
     }
 
     private getExtraInfo(data: ModalData | CustomModalData): string {
-        let info = '';
+        let stats: { label: string; value: string; tooltipTitle: string; tooltipText: string }[] = [];
+        let additionalHtml = '';
 
-        const createInfoButton = (title: string, text: string) => {
-            return `<span class="info-btn" data-title="${title}" data-text="${text}" style="cursor: help; background: #444; color: #fff; border-radius: 50%; display: inline-block; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 12px; margin-right: 5px;">i</span>`;
-        };
+        const createChip = (label: string, value: string, tooltipTitle: string, tooltipText: string) => `
+            <div class="stat-chip">
+                <div class="stat-label-wrap">
+                    <span class="stat-label">${label}</span>
+                    <span class="info-btn gui-info-icon" data-title="${tooltipTitle}" data-text="${tooltipText}">i</span>
+                </div>
+                <span class="stat-value">${value}</span>
+            </div>
+        `;
 
-        // A generic description addition for Spacecraft
         if ('targetBody' in data || 'escaping' in data) {
-            info += `<p style="display: flex; align-items: center;">${createInfoButton("Spacecraft", "A spacecraft is a vehicle or machine designed to fly in outer space.")}<strong>Type:</strong>&nbsp;Spacecraft</p>`;
+            stats.push({
+                label: i18n.t('modal.labels.type'),
+                value: i18n.t('modal.labels.spacecraftType'),
+                tooltipTitle: i18n.t('modal.tooltipTitles.spacecraft'),
+                tooltipText: i18n.t('modal.tooltips.spacecraft')
+            });
 
             if ('launchDate' in data && data.launchDate && (data.name === 'Sputnik 1' || data.name === 'Apollo 11')) {
-                info += `<div style="margin-top: 15px; text-align: center;"><button class="jump-to-date-btn" data-date="${data.launchDate}" style="background-color: #4da6ff; color: #fff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9em; width: 100%;">Jump to Active Date</button></div>`;
+                additionalHtml += `<button class="jump-to-date-btn" data-date="${data.launchDate}">${i18n.t('ui.jumpToDate', { date: data.launchDate })}</button>`;
             }
         }
 
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
-            info += `<p style="display: flex; align-items: center;">${createInfoButton("Right Ascension (RA)", "The celestial equivalent of terrestrial longitude. Measured in hours (h).")}<strong>RA:</strong>&nbsp;${data.ra}h&nbsp;&nbsp;|&nbsp;&nbsp;${createInfoButton("Declination (Dec)", "The celestial equivalent of terrestrial latitude. Measured in degrees (°).")}<strong>Dec:</strong>&nbsp;${data.dec}°</p>`;
+            stats.push({
+                label: i18n.t('modal.labels.rightAsc'),
+                value: `${data.ra}h`,
+                tooltipTitle: i18n.t('modal.tooltipTitles.rightAsc'),
+                tooltipText: i18n.t('modal.tooltips.rightAsc')
+            });
+            stats.push({
+                label: i18n.t('modal.labels.declination'),
+                value: `${data.dec}°`,
+                tooltipTitle: i18n.t('modal.tooltipTitles.declination'),
+                tooltipText: i18n.t('modal.tooltips.declination')
+            });
         }
 
         if ('semiMajorAxis' in data) {
             const comet = data as CometData;
             const displayRadius = comet.displayRadius !== undefined ? comet.displayRadius : comet.radius;
-            info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Semi-Major Axis", "One half of the major axis of the elliptical orbit; essentially the average distance from the Sun.")}<strong>Semi-Major Axis:</strong>&nbsp;${comet.semiMajorAxis} AU</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Eccentricity", "A measure of how much an elliptical orbit deviates from a perfect circle. 0 is a circle, closer to 1 is a highly elongated ellipse.")}<strong>Eccentricity:</strong>&nbsp;${comet.eccentricity}</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Orbital Period", "The time a given astronomical object takes to complete one orbit around our Sun.")}<strong>Orbital Period:</strong>&nbsp;${this.formatPeriodText(comet.period)}</p>`;
+            stats.push({ label: i18n.t('modal.labels.radius'), value: `${displayRadius} R⊕`, tooltipTitle: i18n.t('modal.tooltipTitles.radius'), tooltipText: i18n.t('modal.tooltips.radiusEarth') });
+            stats.push({ label: i18n.t('modal.labels.semiMajorAxis'), value: `${comet.semiMajorAxis} AU`, tooltipTitle: i18n.t('modal.tooltipTitles.semiMajorAxis'), tooltipText: i18n.t('modal.tooltips.semiMajorAxis') });
+            stats.push({ label: i18n.t('modal.labels.eccentricity'), value: `${comet.eccentricity}`, tooltipTitle: i18n.t('modal.tooltipTitles.eccentricity'), tooltipText: i18n.t('modal.tooltips.eccentricity') });
+            stats.push({ label: i18n.t('modal.labels.period'), value: this.formatPeriodText(comet.period), tooltipTitle: i18n.t('modal.tooltipTitles.period'), tooltipText: i18n.t('modal.tooltips.cometPeriod') });
         } else if ('radius' in data) {
             const body = data as CelestialBodyData;
             const displayRadius = body.displayRadius !== undefined ? body.displayRadius : body.radius;
@@ -198,26 +279,35 @@ export class Modal {
             }
 
             const displayDistance = body.distanceAU ?? body.distance;
-            info += `<p style="display: flex; align-items: center;">${createInfoButton("Radius", "The distance from the center of the object to its surface, relative to Earth's radius.")}<strong>Radius:</strong>&nbsp;${displayRadius} (relative)</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Distance", isMoon ? "The average distance from its host planet, measured in Astronomical Units (AU)." : "The average distance from the Sun, measured in Astronomical Units (AU). One AU is the average distance from Earth to the Sun.")}<strong>Distance:</strong>&nbsp;${displayDistance} AU</p>
-                     <p style="display: flex; align-items: center;">${createInfoButton("Period", isMoon ? "The time it takes for the object to complete one full orbit around its planet, measured in Earth years." : "The time it takes for the object to complete one full orbit around the Sun, measured in Earth years.")}<strong>Period:</strong>&nbsp;${this.formatPeriodText(body.period)}</p>`;
+            stats.push({ label: i18n.t('modal.labels.radius'), value: `${displayRadius} R⊕`, tooltipTitle: i18n.t('modal.tooltipTitles.radius'), tooltipText: i18n.t('modal.tooltips.radiusEarth') });
+            stats.push({ label: i18n.t('modal.labels.distance'), value: `${displayDistance} AU`, tooltipTitle: i18n.t('modal.tooltipTitles.distance'), tooltipText: isMoon ? i18n.t('modal.tooltips.distPlanet') : i18n.t('modal.tooltips.distSun') });
+            stats.push({ label: i18n.t('modal.labels.period'), value: this.formatPeriodText(body.period), tooltipTitle: i18n.t('modal.tooltipTitles.period'), tooltipText: isMoon ? i18n.t('modal.tooltips.orbitPlanet') : i18n.t('modal.tooltips.orbitSun') });
+            if (body.axialTilt !== undefined) {
+                stats.push({ label: i18n.t('modal.labels.axialTilt'), value: `${body.axialTilt}°`, tooltipTitle: i18n.t('modal.tooltipTitles.axialTilt'), tooltipText: i18n.t('modal.tooltips.axialTilt') });
+            }
         } else if ('stars' in data && 'connections' in data) {
             const constellation = data as ConstellationData;
             if (constellation.stars && constellation.stars.length > 0) {
-                info += `<p style="display: flex; align-items: center;">${createInfoButton("Main Stars", "The number of primary stars that make up the visual pattern of this constellation.")}<strong>Main Stars:</strong>&nbsp;${constellation.stars.length}</p>`;
+                stats.push({ label: i18n.t('modal.labels.stars'), value: `${constellation.stars.length}`, tooltipTitle: i18n.t('modal.tooltipTitles.stars'), tooltipText: i18n.t('modal.tooltips.constellationStars') });
             }
             if (constellation.brightestStar) {
-                info += `<p style="display: flex; align-items: center;">${createInfoButton("Brightest Star", "The most luminous star in the constellation as seen from Earth.")}<strong>Brightest Star:</strong>&nbsp;${constellation.brightestStar}</p>`;
+                stats.push({ label: i18n.t('modal.labels.brightest'), value: `${constellation.brightestStar}`, tooltipTitle: i18n.t('modal.tooltipTitles.brightest'), tooltipText: i18n.t('modal.tooltips.brightestStar') });
             }
             if (constellation.area) {
-                info += `<p style="display: flex; align-items: center;">${createInfoButton("Area", "The total area of the sky covered by this constellation, measured in square degrees.")}<strong>Area:</strong>&nbsp;${constellation.area} sq. deg.</p>`;
+                stats.push({ label: i18n.t('modal.labels.area'), value: `${constellation.area} sq°`, tooltipTitle: i18n.t('modal.tooltipTitles.area'), tooltipText: i18n.t('modal.tooltips.constellationArea') });
             }
             if (constellation.family) {
-                info += `<p style="display: flex; align-items: center;">${createInfoButton("Constellation Family", "A grouping of constellations typically sharing a common origin or mythological theme.")}<strong>Family:</strong>&nbsp;${constellation.family}</p>`;
+                const familyName = i18n.getConstellationFamily(constellation.name, constellation.family);
+                stats.push({ label: i18n.t('modal.labels.family'), value: `${familyName}`, tooltipTitle: i18n.t('modal.tooltipTitles.family'), tooltipText: i18n.t('modal.tooltips.constellationFamily') });
             }
         }
 
-        return info;
+        let gridHtml = '';
+        if (stats.length > 0) {
+            gridHtml = `<div class="telemetry-grid">${stats.map(s => createChip(s.label, s.value, s.tooltipTitle, s.tooltipText)).join('')}</div>`;
+        }
+
+        return gridHtml + additionalHtml;
     }
 
     private setupGalleryLogic(data: ModalData | CustomModalData) {
@@ -249,7 +339,7 @@ export class Modal {
         const title = btn.getAttribute('data-title') || '';
         const text = btn.getAttribute('data-text') || '';
 
-        this.tooltipElement.innerHTML = `<strong>${title}</strong><br/>${text}`;
+        this.tooltipElement.innerHTML = `<strong>${title}</strong>${text}`;
         this.tooltipElement.style.display = 'block';
 
         const rect = btn.getBoundingClientRect();
@@ -281,7 +371,7 @@ export class Modal {
                 e.stopPropagation();
                 const dateStr = btn.getAttribute('data-date');
                 if (dateStr) {
-                    window.dispatchEvent(new CustomEvent('jump-to-date', { detail: dateStr }));
+                    EventBus.emit('jump-to-date', dateStr);
                 }
             });
         });
@@ -330,28 +420,95 @@ export class Modal {
     public show(data: ModalData | CustomModalData) {
         if (!this.contentElement) return;
 
+        this.isOpen = true;
+        this.currentData = data;
+
+        let badgeLabel = i18n.t('modal.badges.celestialBody');
+        if ('targetBody' in data || 'escaping' in data) badgeLabel = i18n.t('modal.badges.missionDossier');
+        else if ('semiMajorAxis' in data) badgeLabel = i18n.t('modal.badges.cometTelemetry');
+        else if ('stars' in data && 'connections' in data) badgeLabel = i18n.t('modal.badges.constellation');
+        else if ('ra' in data && 'dec' in data) badgeLabel = i18n.t('modal.badges.stellarDossier');
+        else if ('radius' in data) {
+            let isMoon = false;
+            for (const p of SolarSystemData) {
+                if (p.moons && p.moons.find(m => m.name === data.name)) { isMoon = true; break; }
+            }
+            badgeLabel = isMoon ? i18n.t('modal.badges.lunarTelemetry') : (data.name === 'Sun' ? i18n.t('modal.badges.stellarCore') : i18n.t('modal.badges.planetaryDossier'));
+        }
+
+        let displayName = data.name;
+        let displayDesc = data.description;
+        if ('targetBody' in data || 'escaping' in data) {
+            displayName = i18n.getSpacecraftName(data.name);
+            displayDesc = i18n.getSpacecraftDescription(data.name, data.description);
+        } else if ('semiMajorAxis' in data) {
+            displayName = i18n.getCometName(data.name);
+            displayDesc = i18n.getCometDescription(data.name, data.description);
+        } else if ('stars' in data && 'connections' in data) {
+            displayName = i18n.getConstellationName(data.name);
+            displayDesc = i18n.getConstellationDescription(data.name, data.description);
+        } else if ('ra' in data && 'dec' in data) {
+            displayName = i18n.getStarName(data.name);
+            displayDesc = i18n.getStarDescription(data.name, data.description);
+        } else {
+            displayName = i18n.getBodyName(data.name);
+            displayDesc = i18n.getBodyDescription(data.name, data.description);
+        }
+
         const galleryHtml = this.getGalleryHtml(data);
         const linksHtml = this.getLinksHtml(data);
         const extraInfo = this.getExtraInfo(data);
 
         this.contentElement.innerHTML = `
-            <h2 style="margin-top: 0; margin-right: 30px; border-bottom: 1px solid #666; padding-bottom: 10px;">${data.name}</h2>
+            <div class="modal-header-badge">❖ ${badgeLabel}</div>
+            <h2>${displayName}</h2>
             ${galleryHtml}
-            <p style="line-height: 1.5; font-size: 0.95em;">${data.description || 'No description available.'}</p>
-            <div style="margin-top: 10px; font-size: 0.9em; color: #aaa;">
-                ${extraInfo}
-            </div>
+            <p class="description">${displayDesc || i18n.t('modal.noDescription')}</p>
+            ${extraInfo}
             ${linksHtml}
         `;
 
         this.setupGalleryLogic(data);
         this.setupInfoButtons();
         this.setupJumpToDateButtons();
+        this.audioNarrator.stop();
+        this.updateAudioGuideButtonLabel(false);
         this.modalElement.style.display = 'block';
     }
 
     public hide() {
+        this.isOpen = false;
+        this.currentData = null;
+        this.audioNarrator.stop();
+        this.updateAudioGuideButtonLabel(false);
         this.modalElement.style.display = 'none';
         this.tooltipElement.style.display = 'none';
+    }
+
+    private updateAudioGuideButtonLabel(isSpeaking: boolean): void {
+        if (!this.audioGuideBtn) return;
+        const listenLabel = i18n.t('modal.audioGuide') || 'Listen';
+        const playingLabel = i18n.t('modal.audioPlaying') || 'Playing...';
+        this.audioGuideBtn.classList.toggle('speaking', isSpeaking);
+        this.audioGuideBtn.innerHTML = isSpeaking
+            ? `🔊 <span class="audio-guide-label">${playingLabel}</span>`
+            : `🎙️ <span class="audio-guide-label">${listenLabel}</span>`;
+    }
+
+    public dispose() {
+        this.hide();
+        this.audioNarrator.dispose();
+        if (this.unregisterI18n) {
+            this.unregisterI18n();
+            this.unregisterI18n = null;
+        }
+        document.removeEventListener('click', this.hideTooltipHandler);
+        document.removeEventListener('touchstart', this.hideTooltipHandler);
+        if (this.modalElement.parentElement) {
+            this.modalElement.parentElement.removeChild(this.modalElement);
+        }
+        if (this.tooltipElement.parentElement) {
+            this.tooltipElement.parentElement.removeChild(this.tooltipElement);
+        }
     }
 }

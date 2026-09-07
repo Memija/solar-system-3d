@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { Spacecraft } from '../Spacecraft';
 import { SpacecraftData } from '../SolarSystemData';
@@ -16,8 +16,7 @@ describe('Spacecraft', () => {
             distance: 10,
             period: 1,
             color: 0xffffff,
-            description: 'A test spacecraft',
-            type: 'Satellite'
+            description: 'A test spacecraft'
         };
 
         const spacecraft = new Spacecraft(mockData, parentGroup);
@@ -37,8 +36,7 @@ describe('Spacecraft', () => {
             color: 0xffffff,
             description: 'Escaping',
             escaping: true,
-            speed: 2,
-            type: 'Probe'
+            speed: 2
         };
 
         const spacecraft = new Spacecraft(mockData, parentGroup);
@@ -60,8 +58,7 @@ describe('Spacecraft', () => {
             period: 1,
             color: 0xffffff,
             description: 'Future',
-            launchDate: '2050-01-01',
-            type: 'Satellite'
+            launchDate: '2050-01-01'
         };
 
         const spacecraft = new Spacecraft(mockData, parentGroup);
@@ -82,8 +79,7 @@ describe('Spacecraft', () => {
             period: 1,
             color: 0xffffff,
             description: 'Past',
-            endDate: '2020-01-01',
-            type: 'Satellite'
+            endDate: '2020-01-01'
         };
 
         const spacecraft = new Spacecraft(mockData, parentGroup);
@@ -95,5 +91,21 @@ describe('Spacecraft', () => {
         // Inactive
         spacecraft.update(1, 0, new Date('2021-01-01'));
         expect(spacecraft.isActive).toBe(false);
+    });
+
+    it('should pulse beacon when active and update is called', () => {
+        const mockData: SpacecraftData = {
+            name: 'BeaconCraft',
+            distance: 10,
+            period: 1,
+            color: 0xffffff,
+            description: 'Beacon test'
+        };
+
+        const spacecraft = new Spacecraft(mockData, parentGroup);
+        spacecraft.update(0.016, 0, new Date(), 0.016);
+        const beacon = spacecraft.mesh.children.find(c => (c as any).isMesh && ((c as any).material as any)?.transparent);
+        expect(beacon).toBeDefined();
+        expect(beacon?.visible).toBe(true);
     });
 });

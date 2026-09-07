@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { ConstellationManager } from '../ConstellationManager';
 
-vi.mock('../ConstellationData.js', () => {
+vi.mock('../ConstellationData', () => {
     return {
         MajorConstellations: [
             {

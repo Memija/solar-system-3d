@@ -3,10 +3,10 @@ export class CustomDatePicker {
     private displayElement: HTMLElement;
     private popupElement: HTMLElement;
     private daysGridElement: HTMLElement;
+    private daysHeader: HTMLElement;
 
     private monthSelect: HTMLSelectElement;
     private yearInput: HTMLInputElement;
-
 
     public currentDate: Date;
     private viewDate: Date;
@@ -18,9 +18,10 @@ export class CustomDatePicker {
     private yearModalBaseYear: number = new Date().getUTCFullYear();
     private isYearModalOpen: boolean = false;
 
-
     private onChange: (date: Date) => void;
     private onOpen?: () => void;
+    private onClickOutsideBound: (e: MouseEvent) => void;
+    private lastFormattedDate: string = '';
 
     private formatYear(year: number): string {
         return year <= 0 ? `${Math.abs(year) + 1} BC` : year.toString();
@@ -38,19 +39,10 @@ export class CustomDatePicker {
         this.onOpen = onOpen;
 
         this.domElement = document.createElement('div');
-        this.domElement.style.position = 'relative';
-        this.domElement.style.display = 'inline-block';
-        this.domElement.style.fontFamily = 'inherit';
+        this.domElement.className = 'custom-datepicker-container';
 
         this.displayElement = document.createElement('div');
-        this.displayElement.style.cursor = 'pointer';
-        this.displayElement.style.padding = '4px 8px';
-        this.displayElement.style.border = '1px solid rgba(255,255,255,0.3)';
-        this.displayElement.style.borderRadius = '4px';
-        this.displayElement.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        this.displayElement.style.color = '#fff';
-        this.displayElement.style.minWidth = '100px';
-        this.displayElement.style.textAlign = 'center';
+        this.displayElement.className = 'custom-datepicker-display';
 
         this.displayElement.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -60,31 +52,15 @@ export class CustomDatePicker {
         this.domElement.appendChild(this.displayElement);
 
         this.popupElement = document.createElement('div');
-        this.popupElement.style.position = 'absolute';
-        this.popupElement.style.bottom = '100%';
-        this.popupElement.style.left = '0';
-        this.popupElement.style.marginBottom = '4px';
-        this.popupElement.style.padding = '8px';
-        this.popupElement.style.backgroundColor = '#1a1a1a';
-        this.popupElement.style.border = '1px solid rgba(255,255,255,0.2)';
-        this.popupElement.style.borderRadius = '4px';
-        this.popupElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-        this.popupElement.style.zIndex = '1001';
+        this.popupElement.className = 'custom-datepicker-popup';
         this.popupElement.style.display = 'none';
-        this.popupElement.style.width = '220px';
 
         // Header (Month / Year)
         const header = document.createElement('div');
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.marginBottom = '8px';
+        header.className = 'custom-datepicker-header';
 
         this.monthSelect = document.createElement('select');
-        this.monthSelect.style.backgroundColor = '#333';
-        this.monthSelect.style.color = '#fff';
-        this.monthSelect.style.border = '1px solid #555';
-        this.monthSelect.style.borderRadius = '2px';
-        this.monthSelect.style.padding = '2px';
+        this.monthSelect.className = 'custom-datepicker-select';
 
         this.months.forEach((m, i) => {
             const opt = document.createElement('option');
@@ -99,37 +75,22 @@ export class CustomDatePicker {
             this.renderCalendar();
         });
 
-
         this.yearInput = document.createElement('input');
         this.yearInput.type = 'text';
         this.yearInput.readOnly = true;
-        this.yearInput.style.backgroundColor = '#333';
-        this.yearInput.style.color = '#fff';
-        this.yearInput.style.border = '1px solid #555';
-        this.yearInput.style.borderRadius = '2px';
-        this.yearInput.style.width = '60px';
-        this.yearInput.style.padding = '2px';
-        this.yearInput.style.cursor = 'pointer';
-        this.yearInput.style.textAlign = 'center';
+        this.yearInput.className = 'custom-datepicker-input';
 
         this.yearInput.addEventListener('click', (e) => {
             e.stopPropagation();
             this.openYearModal();
         });
 
-
         const yearContainer = document.createElement('div');
-        yearContainer.style.display = 'flex';
-        yearContainer.style.alignItems = 'center';
+        yearContainer.className = 'custom-datepicker-year-container';
 
         const decYearBtn = document.createElement('button');
         decYearBtn.innerHTML = '◀';
-        decYearBtn.style.background = 'none';
-        decYearBtn.style.border = 'none';
-        decYearBtn.style.color = '#3b82f6';
-        decYearBtn.style.cursor = 'pointer';
-        decYearBtn.style.padding = '0 5px';
-        decYearBtn.style.fontSize = '12px';
+        decYearBtn.className = 'custom-datepicker-nav-btn';
         decYearBtn.onclick = (e) => {
             e.stopPropagation();
             this.viewDate.setUTCDate(1);
@@ -139,12 +100,7 @@ export class CustomDatePicker {
 
         const incYearBtn = document.createElement('button');
         incYearBtn.innerHTML = '▶';
-        incYearBtn.style.background = 'none';
-        incYearBtn.style.border = 'none';
-        incYearBtn.style.color = '#3b82f6';
-        incYearBtn.style.cursor = 'pointer';
-        incYearBtn.style.padding = '0 5px';
-        incYearBtn.style.fontSize = '12px';
+        incYearBtn.className = 'custom-datepicker-nav-btn';
         incYearBtn.onclick = (e) => {
             e.stopPropagation();
             this.viewDate.setUTCDate(1);
@@ -161,42 +117,28 @@ export class CustomDatePicker {
         this.popupElement.appendChild(header);
 
         // Days of week
-        const daysHeader = document.createElement('div');
-        daysHeader.style.display = 'grid';
-        daysHeader.style.gridTemplateColumns = 'repeat(7, 1fr)';
-        daysHeader.style.gap = '2px';
-        daysHeader.style.marginBottom = '4px';
+        this.daysHeader = document.createElement('div');
+        this.daysHeader.className = 'custom-datepicker-days-header';
 
         ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(d => {
             const el = document.createElement('div');
             el.textContent = d;
-            el.style.textAlign = 'center';
-            el.style.fontSize = '12px';
-            el.style.color = '#aaa';
-            daysHeader.appendChild(el);
+            el.className = 'datepicker-weekday-cell';
+            this.daysHeader.appendChild(el);
         });
-        this.popupElement.appendChild(daysHeader);
+        this.popupElement.appendChild(this.daysHeader);
 
         // Days grid
         this.daysGridElement = document.createElement('div');
-        this.daysGridElement.style.display = 'grid';
-        this.daysGridElement.style.gridTemplateColumns = 'repeat(7, 1fr)';
-        this.daysGridElement.style.gap = '2px';
+        this.daysGridElement.className = 'custom-datepicker-days-grid';
         this.popupElement.appendChild(this.daysGridElement);
 
         // Historical Events
         const eventsContainer = document.createElement('div');
-        eventsContainer.style.marginTop = '8px';
-        eventsContainer.style.borderTop = '1px solid #444';
-        eventsContainer.style.paddingTop = '8px';
+        eventsContainer.className = 'custom-datepicker-events-container';
 
         const eventsSelect = document.createElement('select');
-        eventsSelect.style.width = '100%';
-        eventsSelect.style.backgroundColor = '#333';
-        eventsSelect.style.color = '#fff';
-        eventsSelect.style.border = '1px solid #555';
-        eventsSelect.style.borderRadius = '2px';
-        eventsSelect.style.padding = '2px';
+        eventsSelect.className = 'custom-datepicker-events-select';
 
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
@@ -242,35 +184,27 @@ export class CustomDatePicker {
         eventsContainer.appendChild(eventsSelect);
         this.popupElement.appendChild(eventsContainer);
 
-
         // Create Year Modal
         this.yearModalElement = document.createElement('div');
-        this.yearModalElement.style.position = 'absolute';
-        this.yearModalElement.style.backgroundColor = '#1a1a1a';
-        this.yearModalElement.style.border = '1px solid rgba(255,255,255,0.2)';
-        this.yearModalElement.style.borderRadius = '4px';
-        this.yearModalElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-        this.yearModalElement.style.zIndex = '1002'; // Above main popup
+        this.yearModalElement.className = 'custom-datepicker-year-modal';
         this.yearModalElement.style.display = 'none';
-        this.yearModalElement.style.width = '200px';
-        this.yearModalElement.style.padding = '8px';
         document.body.appendChild(this.yearModalElement);
 
         this.domElement.appendChild(this.popupElement);
 
         // Close on click outside
-        document.addEventListener('click', (e) => {
+        this.onClickOutsideBound = (e: MouseEvent) => {
             if (this.isOpen && !this.domElement.contains(e.target as Node) && !this.yearModalElement.contains(e.target as Node)) {
                 this.closePopup();
             }
             if (this.isYearModalOpen && !this.yearModalElement.contains(e.target as Node) && e.target !== this.yearInput) {
                 this.closeYearModal();
             }
-        });
+        };
+        document.addEventListener('click', this.onClickOutsideBound);
 
         this.updateDisplay();
     }
-
 
     private openYearModal() {
         this.isYearModalOpen = true;
@@ -295,29 +229,18 @@ export class CustomDatePicker {
         this.yearModalElement.innerHTML = '';
 
         const header = document.createElement('div');
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.alignItems = 'center';
-        header.style.marginBottom = '8px';
-        header.style.color = '#fff';
+        header.className = 'datepicker-modal-header';
 
         const prevBtn = document.createElement('button');
         prevBtn.innerHTML = '◀';
-        prevBtn.style.background = 'none';
-        prevBtn.style.border = 'none';
-        prevBtn.style.color = '#3b82f6';
-        prevBtn.style.cursor = 'pointer';
+        prevBtn.className = 'custom-datepicker-nav-btn';
 
         const nextBtn = document.createElement('button');
         nextBtn.innerHTML = '▶';
-        nextBtn.style.background = 'none';
-        nextBtn.style.border = 'none';
-        nextBtn.style.color = '#3b82f6';
-        nextBtn.style.cursor = 'pointer';
+        nextBtn.className = 'custom-datepicker-nav-btn';
 
         const titleSpan = document.createElement('span');
-        titleSpan.style.cursor = 'pointer';
-        titleSpan.style.fontWeight = 'bold';
+        titleSpan.className = 'datepicker-modal-title';
 
         header.appendChild(prevBtn);
         header.appendChild(titleSpan);
@@ -325,9 +248,7 @@ export class CustomDatePicker {
         this.yearModalElement.appendChild(header);
 
         const grid = document.createElement('div');
-        grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
-        grid.style.gap = '4px';
+        grid.className = 'datepicker-modal-grid';
         this.yearModalElement.appendChild(grid);
 
         let items: { label: string, value: number, isOutOfRange?: boolean }[] = [];
@@ -408,29 +329,15 @@ export class CustomDatePicker {
         items.forEach(item => {
             const el = document.createElement('div');
             el.textContent = item.label;
-            el.style.textAlign = 'center';
-            el.style.padding = '8px 4px';
-            el.style.cursor = 'pointer';
-            el.style.fontSize = '12px';
-            el.style.borderRadius = '2px';
-            el.style.backgroundColor = item.isOutOfRange ? '#1a1a1a' : '#2a2a2a';
-            el.style.color = item.isOutOfRange ? '#777' : '#ccc';
+            el.className = 'datepicker-modal-cell';
 
-            if (this.yearModalState === 'YEAR' && item.value === this.viewDate.getUTCFullYear()) {
-                el.style.backgroundColor = '#4CAF50';
-                el.style.color = '#fff';
+            if (item.isOutOfRange) {
+                el.classList.add('out-of-range');
             }
 
-            el.addEventListener('mouseenter', () => {
-                if (el.style.backgroundColor !== 'rgb(76, 175, 80)') { // #4CAF50
-                    el.style.backgroundColor = '#444';
-                }
-            });
-            el.addEventListener('mouseleave', () => {
-                if (el.style.backgroundColor !== 'rgb(76, 175, 80)') {
-                    el.style.backgroundColor = item.isOutOfRange ? '#1a1a1a' : '#2a2a2a';
-                }
-            });
+            if (this.yearModalState === 'YEAR' && item.value === this.viewDate.getUTCFullYear()) {
+                el.classList.add('active');
+            }
 
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -442,7 +349,7 @@ export class CustomDatePicker {
     }
 
     public setDate(date: Date) {
-        this.currentDate = new Date(date.getTime());
+        this.currentDate.setTime(date.getTime());
         this.updateDisplay();
     }
 
@@ -457,20 +364,18 @@ export class CustomDatePicker {
     private openPopup() {
         this.isOpen = true;
         this.popupElement.style.display = 'block';
-        this.viewDate = new Date(this.currentDate.getTime());
+        this.viewDate.setTime(this.currentDate.getTime());
         this.renderCalendar();
         if (this.onOpen) {
             this.onOpen();
         }
     }
 
-
     private closePopup() {
         this.isOpen = false;
         this.popupElement.style.display = 'none';
         this.closeYearModal();
     }
-
 
     private renderCalendar() {
         this.monthSelect.value = this.viewDate.getUTCMonth().toString();
@@ -496,11 +401,7 @@ export class CustomDatePicker {
         for (let i = 1; i <= daysInMonth; i++) {
             const dayEl = document.createElement('div');
             dayEl.textContent = i.toString();
-            dayEl.style.textAlign = 'center';
-            dayEl.style.padding = '4px 0';
-            dayEl.style.cursor = 'pointer';
-            dayEl.style.fontSize = '12px';
-            dayEl.style.borderRadius = '2px';
+            dayEl.className = 'datepicker-day-cell';
 
             const isSelected =
                 this.currentDate.getUTCFullYear() === year &&
@@ -508,19 +409,8 @@ export class CustomDatePicker {
                 this.currentDate.getUTCDate() === i;
 
             if (isSelected) {
-                dayEl.style.backgroundColor = '#4CAF50';
-                dayEl.style.color = '#fff';
-            } else {
-                dayEl.style.backgroundColor = '#2a2a2a';
-                dayEl.style.color = '#ccc';
+                dayEl.classList.add('active');
             }
-
-            dayEl.addEventListener('mouseenter', () => {
-                if (!isSelected) dayEl.style.backgroundColor = '#444';
-            });
-            dayEl.addEventListener('mouseleave', () => {
-                if (!isSelected) dayEl.style.backgroundColor = '#2a2a2a';
-            });
 
             dayEl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -539,6 +429,25 @@ export class CustomDatePicker {
         const yyyy = this.formatYear(this.currentDate.getUTCFullYear());
         const mm = String(this.currentDate.getUTCMonth() + 1).padStart(2, '0');
         const dd = String(this.currentDate.getUTCDate()).padStart(2, '0');
-        this.displayElement.textContent = `${yyyy}-${mm}-${dd}`;
+        const formatted = `${yyyy}-${mm}-${dd}`;
+        if (formatted !== this.lastFormattedDate) {
+            this.lastFormattedDate = formatted;
+            this.displayElement.textContent = formatted;
+        }
+    }
+
+    public dispose() {
+        this.closePopup();
+        this.closeYearModal();
+        if (this.onClickOutsideBound) {
+            document.removeEventListener('click', this.onClickOutsideBound);
+        }
+        if (this.yearModalElement && this.yearModalElement.parentElement) {
+            this.yearModalElement.parentElement.removeChild(this.yearModalElement);
+        }
+        if (this.domElement && this.domElement.parentElement) {
+            this.domElement.parentElement.removeChild(this.domElement);
+        }
     }
 }
+

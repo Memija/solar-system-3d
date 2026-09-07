@@ -75,4 +75,58 @@ describe('CelestialBody', () => {
          expect(earth.moons).toHaveLength(1);
          expect(moon.parent).toBe(earth.orbitGroup);
     });
+
+    it('should initialize Earth with polar auroras, velocity vector, and dynamic clouds', () => {
+        const earth = new CelestialBody(mockPlanetData, parentGroup);
+
+        expect(earth.auroraMeshNorth).toBeDefined();
+        expect(earth.auroraMeshSouth).toBeDefined();
+        expect(earth.auroraMaterial).toBeDefined();
+        expect(earth.velocityVectorGroup).toBeDefined();
+        expect(earth.cloudMesh).toBeDefined();
+
+        const initialCloudRotation = earth.cloudMesh!.rotation.y;
+        const initialAuroraTime = earth.auroraMaterial!.uniforms.time.value;
+
+        // Update in real-time mode (deltaTime ~ 0, rawDelta = 0.016)
+        earth.update(0.000001, 0, 0.016);
+
+        // Clouds should have drifted and aurora shader time advanced
+        expect(earth.cloudMesh!.rotation.y).toBeGreaterThan(initialCloudRotation);
+        expect(earth.auroraMaterial!.uniforms.time.value).toBeGreaterThan(initialAuroraTime);
+    });
+
+    it('should initialize holographic velocity vectors for other planets and moons', () => {
+        const mockMarsData: CelestialBodyData = {
+            name: 'Mars',
+            radius: 0.53,
+            distance: 1.52,
+            period: 1.88,
+            color: 0xff3300,
+            texture: 'mars.jpg',
+            description: 'Mock Mars',
+            imageUrl: 'mars.jpg'
+        };
+        const mars = new CelestialBody(mockMarsData, parentGroup);
+        expect(mars.velocityVectorGroup).toBeDefined();
+        expect(mars.getOrbitalSpeed()).toBe(24.1);
+
+        const mockJupiterData: CelestialBodyData = {
+            name: 'Jupiter',
+            radius: 11.2,
+            distance: 5.2,
+            period: 11.86,
+            color: 0xcc9966,
+            texture: 'jupiter.jpg',
+            description: 'Mock Jupiter',
+            imageUrl: 'jupiter.jpg'
+        };
+        const jupiter = new CelestialBody(mockJupiterData, parentGroup);
+        expect(jupiter.velocityVectorGroup).toBeDefined();
+        expect(jupiter.getOrbitalSpeed()).toBe(13.1);
+
+        const moon = new CelestialBody(mockMoonData, mars.orbitGroup);
+        expect(moon.velocityVectorGroup).toBeDefined();
+        expect(moon.getOrbitalSpeed()).toBe(1.0);
+    });
 });

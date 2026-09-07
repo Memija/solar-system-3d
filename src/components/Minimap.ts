@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SceneManager } from './SceneManager.js';
+import { SceneManager } from './SceneManager';
 
 export class Minimap {
     canvas: HTMLCanvasElement;
@@ -7,28 +7,46 @@ export class Minimap {
     sceneManager: SceneManager;
     size: number;
     maxDistance: number;
-    isVisible: boolean;
+    sweepAngle: number = 0;
+    public isVisible: boolean = true;
+    private static readonly _tempPos = new THREE.Vector3();
+    private static readonly _camDir = new THREE.Vector3();
+    private onPointerDownBound: (e: PointerEvent) => void;
+    private onResizeBound: () => void;
+
+    getEffectiveSize(): number {
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+            return 130;
+        }
+        return 210;
+    }
+
+    resize(newSize: number) {
+        this.size = newSize;
+        const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+        this.canvas.width = this.size * dpr;
+        this.canvas.height = this.size * dpr;
+        this.canvas.style.width = `${this.size}px`;
+        this.canvas.style.height = `${this.size}px`;
+    }
 
     constructor(sceneManager: SceneManager, container: HTMLElement) {
         this.sceneManager = sceneManager;
-        this.size = 200; // 200x200 pixels
-        // Neptune is at distance 640. Eris at 780. Voyager 1 is at 800+.
-        // Let's set max distance to 850.
+        this.size = this.getEffectiveSize();
         this.maxDistance = 850;
         this.isVisible = true;
 
+        const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
         this.canvas = document.createElement('canvas');
-        this.canvas.width = this.size;
-        this.canvas.height = this.size;
+        this.canvas.width = this.size * dpr;
+        this.canvas.height = this.size * dpr;
+        this.canvas.style.width = `${this.size}px`;
+        this.canvas.style.height = `${this.size}px`;
+        this.canvas.className = 'minimap-radar';
         this.canvas.style.position = 'absolute';
         this.canvas.style.bottom = '20px';
         this.canvas.style.right = '20px';
-        this.canvas.style.borderRadius = '50%';
-        this.canvas.style.border = '2px solid rgba(100, 150, 255, 0.5)';
-        this.canvas.style.backgroundColor = 'rgba(0, 10, 20, 0.7)';
-        this.canvas.style.pointerEvents = 'auto'; // allow clicks
-        this.canvas.style.boxShadow = '0 0 15px rgba(0, 100, 255, 0.3)';
-        this.canvas.style.cursor = 'crosshair';
+        this.canvas.style.pointerEvents = 'auto';
 
         const ctx = this.canvas.getContext('2d');
         if (!ctx) throw new Error("Could not get 2D context for minimap");
@@ -36,43 +54,55 @@ export class Minimap {
 
         container.appendChild(this.canvas);
 
-        this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+        this.onPointerDownBound = (e: PointerEvent) => this.onPointerDown(e);
+        this.onResizeBound = () => {
+            const eff = this.getEffectiveSize();
+            if (this.size !== eff) {
+                this.resize(eff);
+            }
+        };
+
+        this.canvas.addEventListener('pointerdown', this.onPointerDownBound);
+        if (typeof window !== 'undefined') {
+            window.addEventListener('resize', this.onResizeBound);
+        }
+    }
+
+    dispose() {
+        this.canvas.removeEventListener('pointerdown', this.onPointerDownBound);
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('resize', this.onResizeBound);
+        }
+        if (this.canvas.parentElement) {
+            this.canvas.parentElement.removeChild(this.canvas);
+        }
     }
 
     onPointerDown(event: PointerEvent) {
         if (!this.isVisible) return;
-
-        // Prevent click from propagating to the main scene raycaster if they overlap
         event.stopPropagation();
 
         const rect = this.canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        const cx = this.size / 2;
-        const cy = this.size / 2;
+        const radius = rect.width / 2;
+        const cx = radius;
+        const cy = radius;
 
-        // Check if click is inside the circular minimap
         const distFromCenter = Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2));
-        if (distFromCenter > this.size / 2) return;
+        if (distFromCenter > radius) return;
 
-        // Map radar click to 3D space
-        const scale = this.maxDistance / (this.size / 2);
+        const scale = this.maxDistance / radius;
         const x3d = (x - cx) * scale;
         const z3d = (y - cy) * scale;
 
-        // Detach camera from whatever it's following
         this.sceneManager.detachCamera();
 
-        // Keep current Y height or use a default height
         let currentY = this.sceneManager.camera.position.y;
-        if (currentY < 10) currentY = 100; // minimum height
+        if (currentY < 10) currentY = 100;
 
-        // Set new camera target
         this.sceneManager.controls.target.set(x3d, 0, z3d);
-
-        // Set new camera position, offset slightly so we look at the target
-        // E.g. keeping the same angle or simply looking down
         this.sceneManager.camera.position.set(x3d, currentY, z3d + currentY);
         this.sceneManager.controls.update();
     }
@@ -86,35 +116,85 @@ export class Minimap {
         if (!this.isVisible) return;
 
         const ctx = this.context;
-        const width = this.canvas.width;
-        const height = this.canvas.height;
+        const dpr = window.devicePixelRatio || 1;
+        const width = this.size * dpr;
+        const height = this.size * dpr;
         const cx = width / 2;
         const cy = height / 2;
 
         ctx.clearRect(0, 0, width, height);
 
-        // Draw radar background
-        ctx.strokeStyle = 'rgba(50, 100, 200, 0.3)';
-        ctx.lineWidth = 1;
+        // Update rotating radar sweep
+        this.sweepAngle = (this.sweepAngle + 0.025) % (Math.PI * 2);
 
-        // Concentric circles
+        // Holographic Radar Background Sector Sweep
+        const sweepGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
+        sweepGrad.addColorStop(0, 'rgba(56, 189, 248, 0.03)');
+        sweepGrad.addColorStop(1, 'rgba(56, 189, 248, 0.08)');
+        ctx.fillStyle = sweepGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cx - 2 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Trailing radar beam cone
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, cx - 4 * dpr, this.sweepAngle - 0.45, this.sweepAngle);
+        ctx.closePath();
+        const beamGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
+        beamGrad.addColorStop(0, 'rgba(56, 189, 248, 0.0)');
+        beamGrad.addColorStop(1, 'rgba(56, 189, 248, 0.22)');
+        ctx.fillStyle = beamGrad;
+        ctx.fill();
+
+        // Active scan line
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(this.sweepAngle) * (cx - 4 * dpr), cy + Math.sin(this.sweepAngle) * (cy - 4 * dpr));
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.stroke();
+        ctx.restore();
+
+        // Concentric range rings & labels
+        const ringLabels = ['10 AU', '20 AU', '30 AU', '40 AU'];
         for (let i = 1; i <= 4; i++) {
+            const r = (cx * i) / 4.2;
             ctx.beginPath();
-            ctx.arc(cx, cy, (cx * i) / 4, 0, Math.PI * 2);
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = i === 4 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.15)';
+            ctx.lineWidth = 1 * dpr;
             ctx.stroke();
+
+            // Label
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+            ctx.font = `${9 * dpr}px 'Orbitron', monospace`;
+            ctx.textAlign = 'center';
+            ctx.fillText(ringLabels[i - 1], cx, cy - r + 10 * dpr);
         }
 
-        // Crosshairs
+        // Reticle Crosshairs with breaks
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.lineWidth = 1 * dpr;
         ctx.beginPath();
-        ctx.moveTo(cx, 0);
-        ctx.lineTo(cx, height);
-        ctx.moveTo(0, cy);
-        ctx.lineTo(width, cy);
+        ctx.moveTo(cx, 8 * dpr); ctx.lineTo(cx, height - 8 * dpr);
+        ctx.moveTo(8 * dpr, cy); ctx.lineTo(width - 8 * dpr, cy);
         ctx.stroke();
+
+        // Cardinal Ticks
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.font = `bold ${8 * dpr}px 'Space Grotesk', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('N', cx, 10 * dpr);
+        ctx.fillText('S', cx, height - 10 * dpr);
+        ctx.fillText('W', 10 * dpr, cy);
+        ctx.fillText('E', width - 10 * dpr, cy);
 
         // Helper function to map 3D distance to radar radius
         const mapToRadar = (x3d: number, z3d: number) => {
-            const scale = (this.size / 2) / this.maxDistance;
+            const scale = (cx - 10 * dpr) / this.maxDistance;
             const rx = cx + x3d * scale;
             const ry = cy + z3d * scale;
             return { rx, ry };
@@ -122,23 +202,26 @@ export class Minimap {
 
         // Draw planets and dwarf planets
         this.sceneManager.planets.forEach(planet => {
-            // Ignore if dwarf planet and they are hidden
             if (planet.data.isDwarfPlanet && !this.sceneManager.showDwarfPlanets) return;
 
             const pos = planet.orbitGroup.position;
             const { rx, ry } = mapToRadar(pos.x, pos.z);
-
-            ctx.beginPath();
-            // Sun gets a bigger dot
             const isSun = planet.data.name === 'Sun';
-            const radius = isSun ? 4 : 2;
-            ctx.arc(rx, ry, radius, 0, Math.PI * 2);
 
+            // Glow Halo
+            ctx.beginPath();
+            ctx.arc(rx, ry, (isSun ? 7 : 4) * dpr, 0, Math.PI * 2);
+            ctx.fillStyle = isSun ? 'rgba(255, 180, 0, 0.35)' : 'rgba(56, 189, 248, 0.25)';
+            ctx.fill();
+
+            // Core Blip Dot
+            ctx.beginPath();
+            ctx.arc(rx, ry, (isSun ? 4.5 : 2.5) * dpr, 0, Math.PI * 2);
             ctx.fillStyle = '#' + planet.data.color.toString(16).padStart(6, '0');
             ctx.fill();
 
-            // Outline for visibility
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 0.8 * dpr;
             ctx.stroke();
         });
 
@@ -149,8 +232,8 @@ export class Minimap {
                 const { rx, ry } = mapToRadar(pos.x, pos.z);
 
                 ctx.beginPath();
-                ctx.arc(rx, ry, 1.5, 0, Math.PI * 2);
-                ctx.fillStyle = '#' + comet.data.color.toString(16).padStart(6, '0');
+                ctx.arc(rx, ry, 2 * dpr, 0, Math.PI * 2);
+                ctx.fillStyle = '#67e8f9';
                 ctx.fill();
             });
         }
@@ -158,47 +241,41 @@ export class Minimap {
         // Draw spacecrafts
         if (this.sceneManager.showSpacecrafts) {
             this.sceneManager.spacecrafts.forEach(sc => {
-                // If it's a child of a planet, use the world position
-                const pos = new THREE.Vector3();
-                sc.mesh.getWorldPosition(pos);
-
-                const { rx, ry } = mapToRadar(pos.x, pos.z);
+                sc.mesh.getWorldPosition(Minimap._tempPos);
+                const { rx, ry } = mapToRadar(Minimap._tempPos.x, Minimap._tempPos.z);
 
                 ctx.beginPath();
-                ctx.arc(rx, ry, 1, 0, Math.PI * 2);
-                ctx.fillStyle = '#' + sc.data.color.toString(16).padStart(6, '0');
+                ctx.arc(rx, ry, 1.8 * dpr, 0, Math.PI * 2);
+                ctx.fillStyle = '#f59e0b';
                 ctx.fill();
             });
         }
 
-        // Draw camera position and view direction
+        // Camera position and view field cone
         const camPos = this.sceneManager.camera.position;
         const { rx: camX, ry: camY } = mapToRadar(camPos.x, camPos.z);
 
-        // Get camera direction (projected on XZ plane)
-        const camDir = new THREE.Vector3();
-        this.sceneManager.camera.getWorldDirection(camDir);
+        this.sceneManager.camera.getWorldDirection(Minimap._camDir);
+        const angle = Math.atan2(Minimap._camDir.z, Minimap._camDir.x);
 
-        // The camera looks down the -Z axis of its local space
-        const angle = Math.atan2(camDir.z, camDir.x);
-
-        // Draw view cone
-        const coneLength = 20;
+        const coneLength = 22 * dpr;
         const fovRad = THREE.MathUtils.degToRad(this.sceneManager.camera.fov);
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
         ctx.beginPath();
         ctx.moveTo(camX, camY);
         ctx.arc(camX, camY, coneLength, angle - fovRad / 2, angle + fovRad / 2);
         ctx.lineTo(camX, camY);
         ctx.fill();
 
-        // Draw camera dot
+        // Camera Dot
         ctx.beginPath();
-        ctx.arc(camX, camY, 3, 0, Math.PI * 2);
-        ctx.fillStyle = 'white';
+        ctx.arc(camX, camY, 3.5 * dpr, 0, Math.PI * 2);
+        ctx.fillStyle = '#38bdf8';
         ctx.fill();
-        ctx.strokeStyle = 'black';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1 * dpr;
         ctx.stroke();
     }
 }
+

@@ -1,0 +1,329 @@
+@use './tokens' as *;
+
+// ==========================================
+// SCI-FI DAT.GUI THEME OVERRIDES
+// ==========================================
+.dg.ac {
+    z-index: 50 !important;
+}
+
+.dg {
+    font-family: $font-display !important;
+    letter-spacing: 0.3px;
+}
+
+.dg.main {
+    background: $glass-bg !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid $glass-border !important;
+    border-radius: 16px !important;
+    box-shadow: $glass-shadow !important;
+    overflow: hidden;
+    transition: border-color 0.3s ease;
+
+    &:hover {
+        border-color: $glass-border-hover !important;
+    }
+
+    .close-button {
+        background-color: rgba(15, 23, 42, 0.7) !important;
+        border-top: 1px solid rgba(56, 189, 248, 0.2) !important;
+        border-bottom-left-radius: 16px;
+        border-bottom-right-radius: 16px;
+        transition: all 0.25s ease;
+        height: 28px !important;
+        line-height: 28px !important;
+        color: $neon-cyan !important;
+        font-family: $font-display !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+
+        &:hover {
+            background-color: rgba(56, 189, 248, 0.15) !important;
+            color: #ffffff !important;
+        }
+    }
+
+    // Scrollbar
+    ::-webkit-scrollbar {
+        width: 5px;
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(56, 189, 248, 0.3);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(56, 189, 248, 0.6);
+    }
+}
+
+.dg li:not(.folder) {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+    transition: background 0.2s ease;
+    padding: 3px 6px !important;
+
+    &:hover {
+        background: rgba(56, 189, 248, 0.06) !important;
+    }
+}
+
+.dg li.title {
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.15) 0%, rgba(129, 140, 248, 0.1) 100%) !important;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.25) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    text-transform: uppercase;
+    font-family: $font-display !important;
+    font-size: 11px !important;
+    letter-spacing: 1.2px;
+    padding: 6px 12px !important;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+
+    &::before {
+        content: '❖';
+        color: $neon-cyan;
+        margin-right: 6px;
+        font-size: 10px;
+        filter: drop-shadow(0 0 4px $neon-cyan);
+    }
+
+    &:hover {
+        background: linear-gradient(90deg, rgba(56, 189, 248, 0.25) 0%, rgba(129, 140, 248, 0.2) 100%) !important;
+        color: $neon-cyan !important;
+    }
+}
+
+.dg .property-name {
+    color: #cbd5e1 !important;
+    font-family: $font-sans !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    line-height: 28px !important;
+}
+
+// Colored property accents
+.dg .cr.boolean {
+    border-left: 3px solid $neon-cyan !important;
+}
+.dg .cr.number {
+    border-left: 3px solid $neon-emerald !important;
+}
+.dg .cr.string {
+    border-left: 3px solid $neon-amber !important;
+}
+.dg .cr.function {
+    border-left: 3px solid $neon-indigo !important;
+}
+
+// Inputs
+.dg .c input[type=text], .dg .c input[type=number] {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(56, 189, 248, 0.2) !important;
+    border-radius: 6px !important;
+    color: #f8fafc !important;
+    font-family: $font-mono !important;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    transition: all 0.2s ease !important;
+
+    &:focus {
+        border-color: $neon-cyan !important;
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
+        outline: none !important;
+    }
+
+    &:hover {
+        background: rgba(30, 41, 59, 0.9) !important;
+        border-color: rgba(56, 189, 248, 0.4) !important;
+    }
+}
+
+// Dropdown Selects
+.dg .c select {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(56, 189, 248, 0.25) !important;
+    border-radius: 6px !important;
+    color: #f8fafc !important;
+    font-family: $font-mono !important;
+    font-size: 11.5px !important;
+    padding: 3px 8px !important;
+    width: 100% !important;
+    outline: none !important;
+    cursor: pointer;
+    transition: all 0.2s ease !important;
+
+    &:hover {
+        background: rgba(30, 41, 59, 0.95) !important;
+        border-color: rgba(56, 189, 248, 0.5) !important;
+    }
+
+    &:focus {
+        border-color: $neon-cyan !important;
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
+    }
+
+    option {
+        background: #0b1329 !important;
+        color: #f8fafc !important;
+        font-family: $font-sans !important;
+        font-size: 12px !important;
+        padding: 6px 10px !important;
+    }
+}
+
+// Sliders
+.dg .c .slider {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-radius: 4px !important;
+    height: 6px !important;
+    margin-top: 8px !important;
+    overflow: hidden;
+}
+.dg .c .slider-fg {
+    background: linear-gradient(90deg, #38bdf8, #818cf8) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    transition: background 0.2s ease;
+}
+.dg .c .slider:hover .slider-fg {
+    background: linear-gradient(90deg, #60a5fa, #a78bfa) !important;
+}
+
+// Checkboxes
+.dg .c input[type=checkbox] {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1.5px solid rgba(56, 189, 248, 0.4);
+    border-radius: 5px;
+    width: 17px;
+    height: 17px;
+    position: relative;
+    cursor: pointer;
+    margin-top: 5px !important;
+    transition: all 0.2s ease;
+
+    &:checked {
+        background: linear-gradient(135deg, $neon-cyan, $neon-indigo);
+        border-color: $neon-cyan;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+
+        &::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 2px;
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+    }
+
+    &:hover {
+        border-color: $neon-cyan;
+        transform: scale(1.05);
+    }
+}
+
+// Action Buttons
+.dg .c .button {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(129, 140, 248, 0.15)) !important;
+    border: 1px solid rgba(56, 189, 248, 0.3) !important;
+    border-radius: 6px !important;
+    color: #ffffff !important;
+    font-family: $font-display !important;
+    font-weight: 600 !important;
+    font-size: 11.5px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.25s ease !important;
+    margin-top: 3px !important;
+    margin-bottom: 3px !important;
+    padding: 5px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+
+    &:hover {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(129, 140, 248, 0.35)) !important;
+        border-color: $neon-cyan !important;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.35) !important;
+        transform: translateY(-1px);
+    }
+
+    &:active {
+        transform: translateY(1px);
+        box-shadow: none !important;
+    }
+}
+
+.dg .cr.function .property-name {
+    width: 100% !important;
+    text-align: center !important;
+}
+
+.dg ul.closed li:not(.title) {
+    border-bottom: none !important;
+    display: none !important;
+}
+
+// Info Icons
+.gui-info-icon {
+    cursor: help;
+    background: rgba(56, 189, 248, 0.15) !important;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: $neon-cyan !important;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    font-size: 9.5px;
+    font-family: $font-mono;
+    font-weight: 700;
+    margin-left: 6px;
+    vertical-align: middle;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: $neon-cyan !important;
+        color: #030712 !important;
+        box-shadow: 0 0 8px $neon-cyan;
+    }
+}
+
+.gui-tooltip {
+    position: absolute;
+    background: rgba(9, 14, 28, 0.95);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #f1f5f9;
+    z-index: $z-tooltip;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.2);
+    max-width: 280px;
+    font-family: $font-sans;
+    font-size: 12.5px;
+    line-height: 1.45;
+    pointer-events: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+
+    strong {
+        color: $neon-cyan;
+        font-family: $font-display;
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+}

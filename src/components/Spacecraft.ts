@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SpacecraftData } from './SolarSystemData.js';
+import { SpacecraftData } from './SolarSystemData';
 import { solveKepler } from './MathUtils';
 
 
@@ -14,11 +14,23 @@ export class Spacecraft {
     realisticDistances: boolean = false;
     isActive: boolean = true;
     materials: THREE.Material[] = [];
+    private launchTimestamp: number | null = null;
+    private endTimestamp: number | null = null;
+    private beaconMesh: THREE.Mesh | null = null;
+    private beaconMaterial: THREE.MeshBasicMaterial | null = null;
+    private beaconTimer: number = 0;
 
     constructor(data: SpacecraftData, parent: THREE.Object3D) {
         this.data = data;
         this.parent = parent;
         this.orbitLine = null;
+
+        if (this.data.launchDate) {
+            this.launchTimestamp = new Date(this.data.launchDate).getTime();
+        }
+        if (this.data.endDate) {
+            this.endTimestamp = new Date(this.data.endDate).getTime();
+        }
 
         // Secure random angle
         const randomArray = new Uint32Array(1);
@@ -103,6 +115,17 @@ export class Spacecraft {
             const mesh = new THREE.Mesh(geo, material);
             this.mesh.add(mesh);
         }
+
+        // Active telemetry beacon / navigation strobe indicator
+        const beaconGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        this.beaconMaterial = new THREE.MeshBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.8
+        });
+        this.beaconMesh = new THREE.Mesh(beaconGeo, this.beaconMaterial);
+        this.beaconMesh.position.set(0, 0.25, 0);
+        this.mesh.add(this.beaconMesh);
 
         // Apply shadows to all meshes in the spacecraft group
         this.mesh.traverse((child) => {
@@ -425,10 +448,20 @@ export class Spacecraft {
 
 
 
-    update(deltaTime: number, simTimePassed?: number, simDate?: Date) {
-        if (this.data.launchDate && simDate) {
-            const launchDate = new Date(this.data.launchDate);
-            if (simDate < launchDate) {
+    update(deltaTime: number, simTimePassed?: number, simDate?: Date, rawDelta?: number) {
+        if (this.beaconMesh && this.beaconMaterial) {
+            if (this.isActive && (deltaTime > 0 || (rawDelta !== undefined && rawDelta > 0))) {
+                const step = (rawDelta !== undefined && rawDelta > 0) ? rawDelta : deltaTime;
+                this.beaconTimer += step * 4;
+                const flash = (Math.sin(this.beaconTimer) > 0.3) ? 0.95 : 0.15;
+                this.beaconMaterial.opacity = flash;
+                this.beaconMesh.visible = true;
+            } else {
+                this.beaconMesh.visible = false;
+            }
+        }
+        if (this.launchTimestamp !== null && simDate) {
+            if (simDate.getTime() < this.launchTimestamp) {
                 this.baseGroup.visible = false;
                 return;
             } else {
@@ -438,9 +471,8 @@ export class Spacecraft {
             this.baseGroup.visible = true;
         }
 
-        if (this.data.endDate && simDate) {
-            const endDate = new Date(this.data.endDate);
-            const currentlyActive = simDate <= endDate;
+        if (this.endTimestamp !== null && simDate) {
+            const currentlyActive = simDate.getTime() <= this.endTimestamp;
             if (this.isActive !== currentlyActive) {
                 this.isActive = currentlyActive;
                 this.mesh.traverse((child) => {
@@ -493,9 +525,8 @@ export class Spacecraft {
             const speedMultiplier = 0.5;
             const speed = (1 / this.data.period) * speedMultiplier;
 
-            if (simTimePassed !== undefined && simDate && this.data.launchDate) {
-                const launchDate = new Date(this.data.launchDate);
-                const yearsSinceLaunch = (simDate.getTime() - launchDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+            if (simTimePassed !== undefined && simDate && this.launchTimestamp !== null) {
+                const yearsSinceLaunch = (simDate.getTime() - this.launchTimestamp) / (365.25 * 24 * 60 * 60 * 1000);
                 const earthYearInSimSeconds = 2 * Math.PI / 0.5;
                 const effectiveSimTimePassed = yearsSinceLaunch * earthYearInSimSeconds;
 
@@ -539,5 +570,36 @@ export class Spacecraft {
         }
     }
 
+    dispose() {
+        this.mesh.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+                const mesh = child as THREE.Mesh;
+                mesh.geometry?.dispose();
+                if (Array.isArray(mesh.material)) {
+                    mesh.material.forEach(m => m.dispose());
+                } else {
+                    mesh.material?.dispose();
+                }
+            }
+        });
 
+        if (this.orbitLine) {
+            this.orbitLine.geometry?.dispose();
+            if (Array.isArray(this.orbitLine.material)) {
+                this.orbitLine.material.forEach(m => m.dispose());
+            } else {
+                (this.orbitLine.material as any)?.dispose?.();
+            }
+        }
+
+        this.materials.forEach(m => m.dispose());
+        this.materials = [];
+
+        if (this.orbitGroup.parent) {
+            this.orbitGroup.parent.remove(this.orbitGroup);
+        }
+        if (this.baseGroup.parent) {
+            this.baseGroup.parent.remove(this.baseGroup);
+        }
+    }
 }

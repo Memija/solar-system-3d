@@ -13,12 +13,14 @@ describe('Comet', () => {
     it('should initialize a comet correctly', () => {
         const mockData: CometData = {
             name: 'Halley',
-            distance: 10,
+            radius: 0.1,
+            semiMajorAxis: 10,
             eccentricity: 0.9,
             period: 75,
+            inclination: 162.2,
+            argumentOfPeriapsis: 111.3,
             color: 0xcccccc,
-            description: 'Famous comet',
-            semiMajorAxis: 10
+            description: 'Famous comet'
         };
 
         const comet = new Comet(mockData, parentGroup);
@@ -34,12 +36,14 @@ describe('Comet', () => {
     it('should update orbit correctly and update sun direction', () => {
         const mockData: CometData = {
             name: 'Halley',
-            distance: 10,
+            radius: 0.1,
+            semiMajorAxis: 10,
             eccentricity: 0.9,
             period: 75,
+            inclination: 162.2,
+            argumentOfPeriapsis: 111.3,
             color: 0xcccccc,
-            description: 'Famous comet',
-            semiMajorAxis: 10
+            description: 'Famous comet'
         };
 
         const comet = new Comet(mockData, parentGroup);
@@ -58,12 +62,14 @@ describe('Comet', () => {
     it('should update tail visibility based on distance to sun', () => {
         const mockData: CometData = {
             name: 'Halley',
-            distance: 10,
+            radius: 0.1,
+            semiMajorAxis: 10,
             eccentricity: 0.9,
             period: 10,
+            inclination: 162.2,
+            argumentOfPeriapsis: 111.3,
             color: 0xcccccc,
-            description: 'Famous comet',
-            semiMajorAxis: 10
+            description: 'Famous comet'
         };
 
         const comet = new Comet(mockData, parentGroup);
@@ -83,13 +89,15 @@ describe('Comet', () => {
     it('should rebuild orbit with realistic distances', () => {
         const mockData: CometData = {
             name: 'Halley',
-            distance: 10,
+            radius: 0.1,
+            semiMajorAxis: 10,
             distanceAU: 17,
             eccentricity: 0.9,
             period: 75,
+            inclination: 162.2,
+            argumentOfPeriapsis: 111.3,
             color: 0xcccccc,
-            description: 'Famous comet',
-            semiMajorAxis: 10
+            description: 'Famous comet'
         };
 
         const comet = new Comet(mockData, parentGroup);

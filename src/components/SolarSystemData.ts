@@ -396,7 +396,7 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0549,
                 period: 0.074,
                 color: 0x888888,
-                texture: 'textures/moon.jpg',
+                texture: 'textures/moon.png',
                 axialTilt: 6.68,
                 description: "The Moon is Earth's only natural satellite. It is the fifth largest satellite in the Solar System and the largest and most massive relative to its parent planet.",
                 imageUrl: "images/800px-FullMoon2010.jpg",
