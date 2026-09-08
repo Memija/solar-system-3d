@@ -256,7 +256,9 @@ describe('I18n System', () => {
                 },
                 periodUnits: { year: 'an', month: 'm', day: 'j' },
                 resourcesHeader: 'Télémesure & Ressources',
-                noDescription: 'Aucune description.'
+                noDescription: 'Aucune description.',
+                audioGuide: 'Écouter',
+                audioPlaying: 'Lecture en cours...'
             },
             datepicker: {
                 months: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
