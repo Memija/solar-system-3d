@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-    base: '/',
+    base: '/solar-system-3d/',
     build: {
         chunkSizeWarningLimit: 600,
         rollupOptions: {
