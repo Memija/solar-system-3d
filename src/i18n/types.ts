@@ -23,6 +23,17 @@ export interface TranslationSchema {
         jumpToDate: string; // e.g. "Jump to Active Date ({date})"
         close: string;
         help: string;
+        audioAmbience: string;
+        audioAmbienceAria: string;
+        telemetry: string;
+        telemetryAria: string;
+        keyboardShortcuts: string;
+        keyboardShortcutsAria: string;
+        astrophotography: string;
+        astrophotographyAria: string;
+        speedPause: string;
+        utcTime: string;
+        liveRealTime: string;
     };
     categories: {
         star: string;
@@ -150,11 +161,39 @@ export interface TranslationSchema {
         noDescription: string;
         audioGuide: string;
         audioPlaying: string;
+        audioGuideTitle: string;
+        audioGuideStop: string;
+        audioGuideAria: string;
+        audioGuidePlayingAria: string;
+        prevImageAria: string;
+        nextImageAria: string;
         periodUnits: {
             year: string;
             month: string;
             day: string;
         };
+    };
+    shortcuts: {
+        title: string;
+        navTitle: string;
+        mercuryToNeptune: string;
+        pluto: string;
+        sun: string;
+        resetView: string;
+        timeTitle: string;
+        pauseResume: string;
+        warpSpeed: string;
+        cinematicTour: string;
+        toolsTitle: string;
+        orbits: string;
+        minimap: string;
+        constellations: string;
+        audio: string;
+        telemetry: string;
+        snapshot: string;
+        fullscreen: string;
+        help: string;
+        esc: string;
     };
     popups: {
         trueScaleTitle: string;
@@ -170,7 +209,31 @@ export interface TranslationSchema {
         century: string;
         decade: string;
         year: string;
+        historicalEvents: string;
     };
+    loading: {
+        boot: string;
+        subtitle: string;
+        core: string;
+        ephemerides: string;
+        surfaces: string;
+        controls: string;
+        acquiring: string;
+        calibrating: string;
+        streaming: string;
+        synchronizing: string;
+        loaded: string;
+        ready: string;
+        standby: string;
+        connecting: string;
+        assets: string;
+        online: string;
+        tagBoot: string;
+        tagCalibrating: string;
+        tagSynthesizing: string;
+        tagConfiguring: string;
+    };
+
     bodies: Record<string, ItemTranslation>;
     spacecraft: Record<string, ItemTranslation>;
     comets: Record<string, ItemTranslation>;

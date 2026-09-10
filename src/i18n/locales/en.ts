@@ -9,7 +9,18 @@ export const en: TranslationSchema = {
         orbiting: '(orbiting {planet})',
         jumpToDate: 'Jump to Active Date ({date})',
         close: 'Close',
-        help: 'Help'
+        help: 'Help',
+        audioAmbience: 'Cosmic Audio Ambience (S)',
+        audioAmbienceAria: 'Toggle cosmic audio',
+        telemetry: 'Performance Telemetry (P)',
+        telemetryAria: 'Toggle engine telemetry',
+        keyboardShortcuts: 'Keyboard Shortcuts (? / H)',
+        keyboardShortcutsAria: 'View keyboard shortcuts',
+        astrophotography: 'Astrophotography Snapshot (K)',
+        astrophotographyAria: 'Capture high-resolution screenshot',
+        speedPause: 'Click to Pause / Resume (Space)',
+        utcTime: 'Universal Time (UTC)',
+        liveRealTime: 'Physical Real-Time Active (1:1)'
     },
     categories: {
         star: '🌟 Stars',
@@ -137,11 +148,39 @@ export const en: TranslationSchema = {
         noDescription: 'No detailed description available in telemetry databanks.',
         audioGuide: 'Listen',
         audioPlaying: 'Playing...',
+        audioGuideTitle: 'Audio Guide Narration',
+        audioGuideStop: 'Stop Narration',
+        audioGuideAria: 'Listen to celestial audio guide',
+        audioGuidePlayingAria: 'Stop celestial audio guide narration',
+        prevImageAria: 'Previous image',
+        nextImageAria: 'Next image',
         periodUnits: {
             year: 'yr',
             month: 'm',
             day: 'd'
         }
+    },
+    shortcuts: {
+        title: 'Observatory Keyboard Shortcuts',
+        navTitle: 'Navigation & Quick Focus',
+        mercuryToNeptune: 'Mercury to Neptune',
+        pluto: 'Pluto (Dwarf Planet)',
+        sun: 'The Sun (Solar Core)',
+        resetView: 'Realistic Scale / Reset View',
+        timeTitle: 'Time & Simulation',
+        pauseResume: 'Pause / Resume Simulation',
+        warpSpeed: 'Decrease / Increase Warp Speed',
+        cinematicTour: 'Toggle Guided Cinematic Tour',
+        toolsTitle: 'Celestial Layers & Tools',
+        orbits: 'Toggle Planetary Orbits',
+        minimap: 'Toggle Radar Minimap',
+        constellations: 'Toggle Constellations',
+        audio: 'Toggle Cosmic Audio Ambience',
+        telemetry: 'Toggle Engine Telemetry HUD',
+        snapshot: 'Astrophotography Snapshot',
+        fullscreen: 'Toggle Fullscreen Display',
+        help: 'Open This Shortcuts Guide',
+        esc: 'Close Dialogs / Detach Target'
     },
     popups: {
         trueScaleTitle: 'True Scale of the Solar System',
@@ -159,7 +198,30 @@ export const en: TranslationSchema = {
         ad: 'AD',
         century: 'Century',
         decade: 'Decade',
-        year: 'Year'
+        year: 'Year',
+        historicalEvents: 'Historical Events...'
+    },
+    loading: {
+        boot: 'Observatory Boot',
+        subtitle: 'Deep Space Astronomical Observatory',
+        core: 'INITIALIZING OBSERVATORY CORE...',
+        ephemerides: 'CALIBRATING CELESTIAL EPHEMERIDES...',
+        surfaces: 'SYNTHESIZING PLANETARY SURFACES...',
+        controls: 'CONFIGURING OBSERVATORY CONTROLS...',
+        acquiring: 'ACQUIRING HIGH-RES ASTROPHOTOGRAPHY...',
+        calibrating: 'CALIBRATING ATMOSPHERIC SHADERS...',
+        streaming: 'STREAMING DEEP SPACE TEXTURES...',
+        synchronizing: 'SYNCHRONIZING CELESTIAL ORBITS...',
+        loaded: 'ASSETS LOADED',
+        ready: 'SYSTEMS OPERATIONAL • OBSERVATORY READY',
+        standby: 'STANDBY',
+        connecting: 'CONNECTING',
+        assets: 'ASSETS',
+        online: 'ONLINE',
+        tagBoot: 'BOOT',
+        tagCalibrating: 'CALIBRATING',
+        tagSynthesizing: 'SYNTHESIZING',
+        tagConfiguring: 'CONFIGURING'
     },
     bodies: {
         Sun: {
@@ -284,6 +346,10 @@ export const en: TranslationSchema = {
             name: 'International Space Station (ISS)',
             description: 'The International Space Station is the largest modular space station in low Earth orbit. A multinational collaborative project between NASA, Roscosmos, JAXA, ESA, and CSA.'
         },
+        'ISS (International Space Station)': {
+            name: 'International Space Station (ISS)',
+            description: 'The International Space Station is the largest modular space station in low Earth orbit. A multinational collaborative project between NASA, Roscosmos, JAXA, ESA, and CSA.'
+        },
         'Hubble Space Telescope': {
             name: 'Hubble Space Telescope',
             description: 'The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990 and remains in operation, transforming our understanding of the cosmos.'
@@ -296,7 +362,15 @@ export const en: TranslationSchema = {
             name: 'James Webb Space Telescope (JWST)',
             description: 'The James Webb Space Telescope is a space telescope designed primarily to conduct infrared astronomy. Orbiting the Sun-Earth L2 Lagrange point, it observes the earliest galaxies.'
         },
+        'James Webb Space Telescope': {
+            name: 'James Webb Space Telescope (JWST)',
+            description: 'The James Webb Space Telescope is a space telescope designed primarily to conduct infrared astronomy. Orbiting the Sun-Earth L2 Lagrange point, it observes the earliest galaxies.'
+        },
         'Cassini-Huygens': {
+            name: 'Cassini-Huygens',
+            description: 'Cassini-Huygens was a flagship-class space probe mission sent to the Saturn system. It extensively studied Saturn, its rings, and its moons between 2004 and 2017.'
+        },
+        'Cassini': {
             name: 'Cassini-Huygens',
             description: 'Cassini-Huygens was a flagship-class space probe mission sent to the Saturn system. It extensively studied Saturn, its rings, and its moons between 2004 and 2017.'
         },
@@ -313,6 +387,10 @@ export const en: TranslationSchema = {
         'Comet Hale-Bopp': {
             name: 'Comet Hale-Bopp',
             description: 'Comet Hale-Bopp was one of the most widely observed comets of the 20th century and one of the brightest seen for many decades, remaining visible to the naked eye for a record 18 months.'
+        },
+        'Hale-Bopp': {
+            name: 'Comet Hale-Bopp',
+            description: 'Comet Hale-Bopp was one of the most widely observed comets of the 20th century and one of the brightest seen for many decades, remaining visible to the naked eye for a record 18 months.'
         }
     },
     constellations: {
@@ -321,7 +399,17 @@ export const en: TranslationSchema = {
             family: 'Ursa Major',
             description: 'Ursa Major, the Great Bear, contains the prominent asterism known as the Big Dipper or Plough. It is visible throughout the year from most of the Northern Hemisphere.'
         },
+        'Ursa Major (Big Dipper)': {
+            name: 'Ursa Major',
+            family: 'Ursa Major',
+            description: 'Ursa Major, the Great Bear, contains the prominent asterism known as the Big Dipper or Plough. It is visible throughout the year from most of the Northern Hemisphere.'
+        },
         'Ursa Minor': {
+            name: 'Ursa Minor',
+            family: 'Ursa Major',
+            description: 'Ursa Minor, the Little Bear, is home to Polaris, the North Pole star. It has historically been crucial for northern maritime navigation.'
+        },
+        'Ursa Minor (Little Dipper)': {
             name: 'Ursa Minor',
             family: 'Ursa Major',
             description: 'Ursa Minor, the Little Bear, is home to Polaris, the North Pole star. It has historically been crucial for northern maritime navigation.'
@@ -341,12 +429,22 @@ export const en: TranslationSchema = {
             family: 'Hercules',
             description: 'Cygnus, the Swan, is an iconic constellation along the plane of the Milky Way, featuring the Northern Cross asterism and Deneb.'
         },
+        'Cygnus (The Swan)': {
+            name: 'Cygnus',
+            family: 'Hercules',
+            description: 'Cygnus, the Swan, is an iconic constellation along the plane of the Milky Way, featuring the Northern Cross asterism and Deneb.'
+        },
         'Scorpius': {
             name: 'Scorpius',
             family: 'Zodiac',
             description: 'Scorpius is a prominent zodiac constellation located in the southern celestial hemisphere, anchored by the red supergiant star Antares.'
         },
         'Crux': {
+            name: 'Crux',
+            family: 'Heavenly Waters',
+            description: 'Crux, the Southern Cross, is the smallest of all 88 modern constellations, yet among the most distinctive in the Southern Hemisphere.'
+        },
+        'Crux (Southern Cross)': {
             name: 'Crux',
             family: 'Heavenly Waters',
             description: 'Crux, the Southern Cross, is the smallest of all 88 modern constellations, yet among the most distinctive in the Southern Hemisphere.'

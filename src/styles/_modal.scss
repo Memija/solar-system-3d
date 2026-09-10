@@ -48,22 +48,6 @@
         border-radius: 4px;
     }
 
-    .modal-header-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 3px 10px;
-        border-radius: 20px;
-        background: rgba(56, 189, 248, 0.12);
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        color: $neon-cyan;
-        font-family: $font-mono;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin-bottom: 8px;
-    }
 
     h2 {
         margin: 0 0 12px 0;

@@ -236,7 +236,7 @@ export class UIManager {
         const speedBadge = document.createElement('button');
         speedBadge.type = 'button';
         speedBadge.className = 'sim-speed-badge';
-        speedBadge.title = 'Click to Pause / Resume (Space)';
+        speedBadge.title = i18n.t('ui.speedPause');
         const isPaused = this.sceneManager?.timeScale === 0;
         const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
             ? this.sceneManager.getFormattedTimeSpeed()
@@ -271,13 +271,13 @@ export class UIManager {
 
         const timeBadge = document.createElement('div');
         timeBadge.className = 'sim-time-badge';
-        timeBadge.title = 'Universal Time (UTC)';
+        timeBadge.title = i18n.t('ui.utcTime');
         mainRow.appendChild(timeBadge);
         this.timeBadge = timeBadge;
 
         const liveIndicator = document.createElement('div');
         liveIndicator.className = 'sim-live-indicator';
-        liveIndicator.title = 'Physical Real-Time Active (1:1)';
+        liveIndicator.title = i18n.t('ui.liveRealTime');
         liveIndicator.innerHTML = '<span class="live-pulse-dot"></span><span class="live-text">LIVE 1:1</span>';
         liveIndicator.style.display = 'none';
         mainRow.appendChild(liveIndicator);
@@ -1275,8 +1275,8 @@ export class UIManager {
         const soundBtn = document.createElement('button');
         soundBtn.className = 'hud-icon-btn';
         soundBtn.id = 'hudSoundBtn';
-        soundBtn.title = 'Cosmic Audio Ambience (S)';
-        soundBtn.setAttribute('aria-label', 'Toggle cosmic audio');
+        soundBtn.title = i18n.t('ui.audioAmbience');
+        soundBtn.setAttribute('aria-label', i18n.t('ui.audioAmbienceAria'));
         soundBtn.innerHTML = this.audioManager.getAudioEnabled() ? '🔊' : '🔇';
         if (this.audioManager.getAudioEnabled()) soundBtn.classList.add('active');
         soundBtn.onclick = (e) => {
@@ -1290,8 +1290,8 @@ export class UIManager {
         const perfBtn = document.createElement('button');
         perfBtn.className = 'hud-icon-btn';
         perfBtn.id = 'hudPerfBtn';
-        perfBtn.title = 'Performance Telemetry (P)';
-        perfBtn.setAttribute('aria-label', 'Toggle engine telemetry');
+        perfBtn.title = i18n.t('ui.telemetry');
+        perfBtn.setAttribute('aria-label', i18n.t('ui.telemetryAria'));
         perfBtn.innerHTML = '⚡';
         perfBtn.onclick = (e) => {
             e.stopPropagation();
@@ -1303,8 +1303,8 @@ export class UIManager {
         const helpBtn = document.createElement('button');
         helpBtn.className = 'hud-icon-btn';
         helpBtn.id = 'hudHelpBtn';
-        helpBtn.title = 'Keyboard Shortcuts (? / H)';
-        helpBtn.setAttribute('aria-label', 'View keyboard shortcuts');
+        helpBtn.title = i18n.t('ui.keyboardShortcuts');
+        helpBtn.setAttribute('aria-label', i18n.t('ui.keyboardShortcutsAria'));
         helpBtn.innerHTML = '⌨️';
         helpBtn.onclick = (e) => {
             e.stopPropagation();
@@ -1315,8 +1315,8 @@ export class UIManager {
         const snapshotBtn = document.createElement('button');
         snapshotBtn.className = 'hud-icon-btn';
         snapshotBtn.id = 'hudSnapshotBtn';
-        snapshotBtn.title = 'Astrophotography Snapshot (K)';
-        snapshotBtn.setAttribute('aria-label', 'Capture high-resolution screenshot');
+        snapshotBtn.title = i18n.t('ui.astrophotography');
+        snapshotBtn.setAttribute('aria-label', i18n.t('ui.astrophotographyAria'));
         snapshotBtn.innerHTML = '📸';
         snapshotBtn.onclick = (e) => {
             e.stopPropagation();
@@ -1338,8 +1338,34 @@ export class UIManager {
             const codeSpan = langBtn.querySelector('.lang-code');
             if (codeSpan) codeSpan.textContent = i18n.currentLanguage.toUpperCase();
             langBtn.title = i18n.t('ui.languageToggle');
+            langBtn.setAttribute('aria-label', i18n.t('ui.languageToggle'));
             radarBtn.title = i18n.t('ui.radarToggle');
+            radarBtn.setAttribute('aria-label', i18n.t('ui.radarToggle'));
             controlsBtn.title = i18n.t('ui.controlsToggle');
+            controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
+
+            soundBtn.title = i18n.t('ui.audioAmbience');
+            soundBtn.setAttribute('aria-label', i18n.t('ui.audioAmbienceAria'));
+            perfBtn.title = i18n.t('ui.telemetry');
+            perfBtn.setAttribute('aria-label', i18n.t('ui.telemetryAria'));
+            helpBtn.title = i18n.t('ui.keyboardShortcuts');
+            helpBtn.setAttribute('aria-label', i18n.t('ui.keyboardShortcutsAria'));
+            snapshotBtn.title = i18n.t('ui.astrophotography');
+            snapshotBtn.setAttribute('aria-label', i18n.t('ui.astrophotographyAria'));
+
+            if (this.speedBadge) {
+                this.speedBadge.title = i18n.t('ui.speedPause');
+                if (this.sceneManager?.timeScale === 0) {
+                    const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
+                    this.speedBadge.textContent = `⏸ ${pausedLabel}`;
+                }
+            }
+            if (this.timeBadge) {
+                this.timeBadge.title = i18n.t('ui.utcTime');
+            }
+            if (this.liveIndicator) {
+                this.liveIndicator.title = i18n.t('ui.liveRealTime');
+            }
 
             renderLangDropdown();
             populateTypeOptions();
@@ -1350,6 +1376,11 @@ export class UIManager {
             }
 
             this.updateGuiTranslations();
+
+            if (this.shortcutsModal && this.shortcutsModal.isOpen) {
+                this.toggleShortcutsModal();
+                this.toggleShortcutsModal();
+            }
         });
 
         this.uiContainer.appendChild(menuContainer);
@@ -1752,46 +1783,48 @@ export class UIManager {
             return;
         }
 
+        const s = (key: string) => i18n.t(`shortcuts.${key}`);
+
         const shortcutsContent = `
             <div class="shortcuts-guide-modal">
                 <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">🎯 Navigation & Quick Focus</h4>
+                    <h4 class="shortcuts-group-title">🎯 ${s('navTitle')}</h4>
                     <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>1</kbd>–<kbd>8</kbd><span>Mercury to Neptune</span></div>
-                        <div class="shortcut-item"><kbd>9</kbd><span>Pluto (Dwarf Planet)</span></div>
-                        <div class="shortcut-item"><kbd>0</kbd><span>The Sun (Solar Core)</span></div>
-                        <div class="shortcut-item"><kbd>R</kbd><span>Realistic Scale / Reset View</span></div>
+                        <div class="shortcut-item"><kbd>1</kbd>–<kbd>8</kbd><span>${s('mercuryToNeptune')}</span></div>
+                        <div class="shortcut-item"><kbd>9</kbd><span>${s('pluto')}</span></div>
+                        <div class="shortcut-item"><kbd>0</kbd><span>${s('sun')}</span></div>
+                        <div class="shortcut-item"><kbd>R</kbd><span>${s('resetView')}</span></div>
                     </div>
                 </div>
 
                 <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">⏳ Time & Simulation</h4>
+                    <h4 class="shortcuts-group-title">⏳ ${s('timeTitle')}</h4>
                     <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>Space</kbd><span>Pause / Resume Simulation</span></div>
-                        <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>Decrease / Increase Warp Speed</span></div>
-                        <div class="shortcut-item"><kbd>T</kbd><span>Toggle Guided Cinematic Tour</span></div>
+                        <div class="shortcut-item"><kbd>Space</kbd><span>${s('pauseResume')}</span></div>
+                        <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>${s('warpSpeed')}</span></div>
+                        <div class="shortcut-item"><kbd>T</kbd><span>${s('cinematicTour')}</span></div>
                     </div>
                 </div>
 
                 <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">🔭 Celestial Layers & Tools</h4>
+                    <h4 class="shortcuts-group-title">🔭 ${s('toolsTitle')}</h4>
                     <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>O</kbd><span>Toggle Planetary Orbits</span></div>
-                        <div class="shortcut-item"><kbd>M</kbd><span>Toggle Radar Minimap</span></div>
-                        <div class="shortcut-item"><kbd>C</kbd><span>Toggle Constellations</span></div>
-                        <div class="shortcut-item"><kbd>S</kbd><span>Toggle Cosmic Audio Ambience</span></div>
-                        <div class="shortcut-item"><kbd>P</kbd><span>Toggle Engine Telemetry HUD</span></div>
-                        <div class="shortcut-item"><kbd>K</kbd><span>Astrophotography Snapshot</span></div>
-                        <div class="shortcut-item"><kbd>F</kbd><span>Toggle Fullscreen Display</span></div>
-                        <div class="shortcut-item"><kbd>?</kbd> / <kbd>H</kbd><span>Open This Shortcuts Guide</span></div>
-                        <div class="shortcut-item"><kbd>Esc</kbd><span>Close Dialogs / Detach Target</span></div>
+                        <div class="shortcut-item"><kbd>O</kbd><span>${s('orbits')}</span></div>
+                        <div class="shortcut-item"><kbd>M</kbd><span>${s('minimap')}</span></div>
+                        <div class="shortcut-item"><kbd>C</kbd><span>${s('constellations')}</span></div>
+                        <div class="shortcut-item"><kbd>S</kbd><span>${s('audio')}</span></div>
+                        <div class="shortcut-item"><kbd>P</kbd><span>${s('telemetry')}</span></div>
+                        <div class="shortcut-item"><kbd>K</kbd><span>${s('snapshot')}</span></div>
+                        <div class="shortcut-item"><kbd>F</kbd><span>${s('fullscreen')}</span></div>
+                        <div class="shortcut-item"><kbd>?</kbd> / <kbd>H</kbd><span>${s('help')}</span></div>
+                        <div class="shortcut-item"><kbd>Esc</kbd><span>${s('esc')}</span></div>
                     </div>
                 </div>
             </div>
         `;
 
         this.shortcutsModal.show({
-            name: '⌨️ Observatory Keyboard Shortcuts',
+            name: `⌨️ ${s('title')}`,
             description: shortcutsContent
         });
     }

@@ -9,7 +9,18 @@ export const pl: TranslationSchema = {
         orbiting: '(krąży wokół: {planet})',
         jumpToDate: 'Przejdź do aktywnej daty ({date})',
         close: 'Zamknij',
-        help: 'Pomoc'
+        help: 'Pomoc',
+        audioAmbience: 'Kosmiczne tło dźwiękowe (S)',
+        audioAmbienceAria: 'Przełącz dźwięki kosmosu',
+        telemetry: 'Telemetria wydajności (P)',
+        telemetryAria: 'Przełącz telemetrię silnika',
+        keyboardShortcuts: 'Skróty klawiszowe (? / H)',
+        keyboardShortcutsAria: 'Wyświetl skróty klawiszowe',
+        astrophotography: 'Astrofotografia (K)',
+        astrophotographyAria: 'Wykonaj zrzut ekranu w wysokiej rozdzielczości',
+        speedPause: 'Kliknij, aby wstrzymać / wznowić (Spacja)',
+        utcTime: 'Czas uniwersalny (UTC)',
+        liveRealTime: 'Czas rzeczywisty fizyczny (1:1)'
     },
     categories: {
         star: '🌟 Gwiazdy',
@@ -137,11 +148,39 @@ export const pl: TranslationSchema = {
         noDescription: 'Brak szczegółowego opisu w bazach telemetrii.',
         audioGuide: 'Słuchaj',
         audioPlaying: 'Odtwarzanie...',
+        audioGuideTitle: 'Przewodnik audio (narracja)',
+        audioGuideStop: 'Zatrzymaj przewodnika audio',
+        audioGuideAria: 'Włącz przewodnika audio',
+        audioGuidePlayingAria: 'Zatrzymaj narrację przewodnika audio',
+        prevImageAria: 'Poprzednie zdjęcie',
+        nextImageAria: 'Następne zdjęcie',
         periodUnits: {
             year: 'lat',
             month: 'mies.',
             day: 'dni'
         }
+    },
+    shortcuts: {
+        title: 'Skróty klawiszowe obserwatorium',
+        navTitle: 'Nawigacja i szybkie centrowanie',
+        mercuryToNeptune: 'Od Merkurego do Neptuna',
+        pluto: 'Pluton (planeta karłowata)',
+        sun: 'Słońce (jądro słoneczne)',
+        resetView: 'Rzeczywista skala / Reset widoku',
+        timeTitle: 'Czas i symulacja',
+        pauseResume: 'Wstrzymaj / Wznów symulację',
+        warpSpeed: 'Zmniejsz / Zwiększ tempo symulacji',
+        cinematicTour: 'Włącz / Wyłącz wędrówkę filmową',
+        toolsTitle: 'Warstwy nieba i narzędzia',
+        orbits: 'Włącz / Wyłącz linie orbit',
+        minimap: 'Włącz / Wyłącz radar minimapy',
+        constellations: 'Włącz / Wyłącz gwiazdozbiory',
+        audio: 'Włącz / Wyłącz kosmiczne tło dźwiękowe',
+        telemetry: 'Włącz / Wyłącz panel telemetrii HUD',
+        snapshot: 'Zrzut ekranu astrofotografii',
+        fullscreen: 'Tryb pełnoekranowy',
+        help: 'Otwórz ten przewodnik po skrótach',
+        esc: 'Zamknij okna dialogowe / Odłącz cel'
     },
     popups: {
         trueScaleTitle: 'Rzeczywista skala Układu Słonecznego',
@@ -159,7 +198,30 @@ export const pl: TranslationSchema = {
         ad: 'n.e.',
         century: 'Wiek',
         decade: 'Dekada',
-        year: 'Rok'
+        year: 'Rok',
+        historicalEvents: 'Wydarzenia historyczne...'
+    },
+    loading: {
+        boot: 'Rozruch obserwatorium',
+        subtitle: 'Astronomiczne obserwatorium głębokiego kosmosu',
+        core: 'INICJALIZACJA RDZENIA OBSERWATORIUM...',
+        ephemerides: 'KALIBRACJA EFEMERYD ASTRONOMICZNYCH...',
+        surfaces: 'SYNTEZA POWIERZCHNI PLANETARNYCH...',
+        controls: 'KONFIGURACJA KONTROLI OBSERWATORIUM...',
+        acquiring: 'POBIERANIE ASTROFOTOGRAFII W WYSOKIEJ ROZDZIELCZOŚCI...',
+        calibrating: 'KALIBRACJA SHADERÓW ATMOSFERYCZNYCH...',
+        streaming: 'STRUMIENIOWANIE TEKSTUR GŁĘBOKIEGO KOSMOSU...',
+        synchronizing: 'SYNCHRONIZACJA ORBIT ASTRONOMICZNYCH...',
+        loaded: 'ZASOBY ZAŁADOWANE',
+        ready: 'SYSTEMY OPERACYJNE • OBSERWATORIUM GOTOWE',
+        standby: 'OCZEKIWANIE',
+        connecting: 'ŁĄCZENIE',
+        assets: 'ZASOBY',
+        online: 'ONLINE',
+        tagBoot: 'START',
+        tagCalibrating: 'KALIBRACJA',
+        tagSynthesizing: 'SYNTEZA',
+        tagConfiguring: 'KONFIGURACJA'
     },
     bodies: {
         Sun: {
@@ -284,6 +346,10 @@ export const pl: TranslationSchema = {
             name: 'Międzynarodowa Stacja Kosmiczna (ISS)',
             description: 'Największe orbitalne laboratorium badawcze na niskiej orbicie okołoziemskiej, wspólne dzieło agencji NASA, Roskosmos, JAXA, ESA i CSA.'
         },
+        'ISS (International Space Station)': {
+            name: 'Międzynarodowa Stacja Kosmiczna (ISS)',
+            description: 'Największe orbitalne laboratorium badawcze na niskiej orbicie okołoziemskiej, wspólne dzieło agencji NASA, Roskosmos, JAXA, ESA i CSA.'
+        },
         'Hubble Space Telescope': {
             name: 'Kosmiczny Teleskop Hubble’a',
             description: 'Legendarny teleskop kosmiczny wyniesiony na orbitę w 1990 roku, który zrewolucjonizował naszą wiedzę o wszechświecie i astrofizyce.'
@@ -296,7 +362,15 @@ export const pl: TranslationSchema = {
             name: 'Kosmiczny Teleskop Jamesa Webba (JWST)',
             description: 'Najpotężniejszy teleskop kosmiczny obserwujący wszechświat w podczerwieni z punktu Lagrange’a L2, rejestrujący światło pierwszych galaktyk.'
         },
+        'James Webb Space Telescope': {
+            name: 'Kosmiczny Teleskop Jamesa Webba (JWST)',
+            description: 'Najpotężniejszy teleskop kosmiczny obserwujący wszechświat w podczerwieni z punktu Lagrange’a L2, rejestrujący światło pierwszych galaktyk.'
+        },
         'Cassini-Huygens': {
+            name: 'Cassini-Huygens',
+            description: 'Przełomowa misja kosmiczna badająca układ Saturna, jego pierścienie i niezwykłe księżyce w latach 2004–2017.'
+        },
+        'Cassini': {
             name: 'Cassini-Huygens',
             description: 'Przełomowa misja kosmiczna badająca układ Saturna, jego pierścienie i niezwykłe księżyce w latach 2004–2017.'
         },
@@ -313,6 +387,10 @@ export const pl: TranslationSchema = {
         'Comet Hale-Bopp': {
             name: 'Kometa Hale’a-Boppa',
             description: 'Jedna z najjaśniejszych i najdłużej obserwowanych komet XX wieku, widoczna gołym okiem przez rekordowe 18 miesięcy.'
+        },
+        'Hale-Bopp': {
+            name: 'Kometa Hale’a-Boppa',
+            description: 'Jedna z najjaśniejszych i najdłużej obserwowanych komet XX wieku, widoczna gołym okiem przez rekordowe 18 miesięcy.'
         }
     },
     constellations: {
@@ -321,7 +399,17 @@ export const pl: TranslationSchema = {
             family: 'Ursa Major',
             description: 'Charakterystyczny gwiazdozbiór nieba północnego, zawierający popularny asteryzm Wielkiego Wozu.'
         },
+        'Ursa Major (Big Dipper)': {
+            name: 'Wielka Niedźwiedzica (Ursa Major)',
+            family: 'Ursa Major',
+            description: 'Charakterystyczny gwiazdozbiór nieba północnego, zawierający popularny asteryzm Wielkiego Wozu.'
+        },
         'Ursa Minor': {
+            name: 'Mała Niedźwiedzica (Ursa Minor)',
+            family: 'Ursa Major',
+            description: 'Gwiazdozbiór nieba północnego, którego najjaśniejszą gwiazdą jest Gwiazda Polarna (Polaris).'
+        },
+        'Ursa Minor (Little Dipper)': {
             name: 'Mała Niedźwiedzica (Ursa Minor)',
             family: 'Ursa Major',
             description: 'Gwiazdozbiór nieba północnego, którego najjaśniejszą gwiazdą jest Gwiazda Polarna (Polaris).'
@@ -341,12 +429,22 @@ export const pl: TranslationSchema = {
             family: 'Herkules',
             description: 'Słynny gwiazdozbiór położony w płaszczyźnie Drogi Mlecznej, zawierający Krzyż Północy i gwiazdę Deneb.'
         },
+        'Cygnus (The Swan)': {
+            name: 'Łabędź (Cygnus)',
+            family: 'Herkules',
+            description: 'Słynny gwiazdozbiór położony w płaszczyźnie Drogi Mlecznej, zawierający Krzyż Północy i gwiazdę Deneb.'
+        },
         'Scorpius': {
             name: 'Skorpion (Scorpius)',
             family: 'Zodiak',
             description: 'Wyrazisty zodiakalny gwiazdozbiór nieba południowego z rubinowym nadolbrzymem Antaresem w centrum.'
         },
         'Crux': {
+            name: 'Krzyż Południa (Crux)',
+            family: 'Wody Niebieskie',
+            description: 'Najmniejszy ze wszystkich 88 współczesnych gwiazdozbiorów, kluczowy dla nawigacji na półkuli południowej.'
+        },
+        'Crux (Southern Cross)': {
             name: 'Krzyż Południa (Crux)',
             family: 'Wody Niebieskie',
             description: 'Najmniejszy ze wszystkich 88 współczesnych gwiazdozbiorów, kluczowy dla nawigacji na półkuli południowej.'

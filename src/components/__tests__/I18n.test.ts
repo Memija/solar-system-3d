@@ -130,7 +130,18 @@ describe('I18n System', () => {
                 orbiting: '(en orbite autour de {planet})',
                 jumpToDate: 'Aller à la date ({date})',
                 close: 'Fermer',
-                help: 'Aide'
+                help: 'Aide',
+                audioAmbience: 'Ambiance audio',
+                audioAmbienceAria: 'Basculer audio',
+                telemetry: 'Télémétrie',
+                telemetryAria: 'Basculer télémétrie',
+                keyboardShortcuts: 'Raccourcis clavier',
+                keyboardShortcutsAria: 'Afficher raccourcis',
+                astrophotography: 'Astrophotographie',
+                astrophotographyAria: 'Capturer écran',
+                speedPause: 'Pause / Reprise',
+                utcTime: 'Temps universel (UTC)',
+                liveRealTime: 'Temps réel physique (1:1)'
             },
             categories: {
                 star: '🌟 Étoiles',
@@ -258,7 +269,35 @@ describe('I18n System', () => {
                 resourcesHeader: 'Télémesure & Ressources',
                 noDescription: 'Aucune description.',
                 audioGuide: 'Écouter',
-                audioPlaying: 'Lecture en cours...'
+                audioPlaying: 'Lecture en cours...',
+                audioGuideTitle: 'Guide audio',
+                audioGuideStop: 'Arrêter le guide audio',
+                audioGuideAria: 'Écouter le guide',
+                audioGuidePlayingAria: 'Arrêter la narration',
+                prevImageAria: 'Image précédente',
+                nextImageAria: 'Image suivante'
+            },
+            shortcuts: {
+                title: 'Raccourcis clavier',
+                navTitle: 'Navigation',
+                mercuryToNeptune: 'Mercure à Neptune',
+                pluto: 'Pluton',
+                sun: 'Le Soleil',
+                resetView: 'Échelle réelle',
+                timeTitle: 'Temps & Simulation',
+                pauseResume: 'Pause / Reprise',
+                warpSpeed: 'Vitesse de distorsion',
+                cinematicTour: 'Visite guidée',
+                toolsTitle: 'Outils',
+                orbits: 'Orbites',
+                minimap: 'Minicarte',
+                constellations: 'Constellations',
+                audio: 'Audio',
+                telemetry: 'Télémétrie',
+                snapshot: 'Capture',
+                fullscreen: 'Plein écran',
+                help: 'Aide',
+                esc: 'Fermer'
             },
             datepicker: {
                 months: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
@@ -267,7 +306,30 @@ describe('I18n System', () => {
                 ad: 'ap. J.-C.',
                 century: 'Siècle',
                 decade: 'Décennie',
-                year: 'Année'
+                year: 'Année',
+                historicalEvents: 'Événements historiques...'
+            },
+            loading: {
+                boot: 'Démarrage',
+                subtitle: 'Observatoire astronomique',
+                core: 'Initialisation...',
+                ephemerides: 'Éphémérides...',
+                surfaces: 'Surfaces...',
+                controls: 'Contrôles...',
+                acquiring: 'Acquisition...',
+                calibrating: 'Calibration...',
+                streaming: 'Streaming...',
+                synchronizing: 'Synchronisation...',
+                loaded: 'Ressources chargées',
+                ready: 'Prêt',
+                standby: 'En attente',
+                connecting: 'Connexion',
+                assets: 'Ressources',
+                online: 'En ligne',
+                tagBoot: 'Démarrage',
+                tagCalibrating: 'Calibration',
+                tagSynthesizing: 'Synthèse',
+                tagConfiguring: 'Configuration'
             },
             popups: {
                 trueScaleTitle: 'Vraie échelle',
@@ -293,5 +355,69 @@ describe('I18n System', () => {
         expect(i18n.t('categories.planet')).toBe('🪐 Planètes');
         expect(i18n.getBodyName('Earth')).toBe('Terre');
         expect(i18n.getBodyDescription('Earth')).toBe('Notre planète bleue.');
+    });
+
+    it('should resolve spacecraft, comet, and constellation aliases across all 6 languages', () => {
+        const languages: Array<'en' | 'bs' | 'de' | 'id' | 'pl' | 'sr'> = ['en', 'bs', 'de', 'id', 'pl', 'sr'];
+
+        languages.forEach(lang => {
+            i18n.setLanguage(lang);
+
+            // Spacecraft canonical and aliases
+            const issName = i18n.getSpacecraftName('ISS');
+            const issLongName = i18n.getSpacecraftName('ISS (International Space Station)');
+            expect(issName).toBeTruthy();
+            expect(issLongName).toBe(issName);
+
+            const jwstName = i18n.getSpacecraftName('JWST');
+            const jwstLongName = i18n.getSpacecraftName('James Webb Space Telescope');
+            expect(jwstName).toBeTruthy();
+            expect(jwstLongName).toBe(jwstName);
+
+            const cassiniName = i18n.getSpacecraftName('Cassini-Huygens');
+            const cassiniShortName = i18n.getSpacecraftName('Cassini');
+            expect(cassiniName).toBeTruthy();
+            expect(cassiniShortName).toBe(cassiniName);
+
+            // Comet canonical and aliases
+            const hbName = i18n.getCometName('Comet Hale-Bopp');
+            const hbShort = i18n.getCometName('Hale-Bopp');
+            expect(hbName).toBeTruthy();
+            expect(hbShort).toBe(hbName);
+
+            // Constellation canonical and aliases
+            const umName = i18n.getConstellationName('Ursa Major');
+            const umAlias = i18n.getConstellationName('Ursa Major (Big Dipper)');
+            expect(umName).toBeTruthy();
+            expect(umAlias).toBe(umName);
+
+            const cygName = i18n.getConstellationName('Cygnus');
+            const cygAlias = i18n.getConstellationName('Cygnus (The Swan)');
+            expect(cygName).toBeTruthy();
+            expect(cygAlias).toBe(cygName);
+
+            // Audio guide button and tooltip strings
+            expect(i18n.t('modal.audioGuideTitle')).toBeTruthy();
+            expect(i18n.t('modal.audioGuideStop')).toBeTruthy();
+            expect(i18n.t('modal.audioGuideAria')).toBeTruthy();
+            expect(i18n.t('modal.audioGuidePlayingAria')).toBeTruthy();
+
+            // Shortcuts strings
+            expect(i18n.t('shortcuts.title')).toBeTruthy();
+            expect(i18n.t('shortcuts.navTitle')).toBeTruthy();
+            expect(i18n.t('shortcuts.pauseResume')).toBeTruthy();
+
+            // UI action buttons
+            expect(i18n.t('ui.audioAmbience')).toBeTruthy();
+            expect(i18n.t('ui.telemetry')).toBeTruthy();
+            expect(i18n.t('ui.keyboardShortcuts')).toBeTruthy();
+            expect(i18n.t('ui.astrophotography')).toBeTruthy();
+            expect(i18n.t('ui.speedPause')).toBeTruthy();
+            expect(i18n.t('ui.utcTime')).toBeTruthy();
+            expect(i18n.t('ui.liveRealTime')).toBeTruthy();
+
+            // Datepicker historical events
+            expect(i18n.t('datepicker.historicalEvents')).toBeTruthy();
+        });
     });
 });

@@ -5,12 +5,14 @@
  */
 
 import * as THREE from 'three';
+import { i18n } from '../i18n';
 
 export class PerformanceMonitor {
     private renderer: THREE.WebGLRenderer;
     private container: HTMLElement;
     private domElement: HTMLElement;
     private isVisible: boolean = false;
+    private unregisterI18n: (() => void) | null = null;
 
     // Metric tracking
     private lastTimestamp: number = 0;
@@ -34,7 +36,11 @@ export class PerformanceMonitor {
         this.domElement.className = 'perf-monitor-hud';
         this.domElement.style.display = 'none';
         this.domElement.setAttribute('role', 'status');
-        this.domElement.setAttribute('aria-label', 'Engine Telemetry');
+        this.domElement.setAttribute('aria-label', i18n.t('ui.telemetry'));
+
+        this.unregisterI18n = i18n.onLanguageChange(() => {
+            this.domElement.setAttribute('aria-label', i18n.t('ui.telemetry'));
+        });
 
         this.domElement.innerHTML = `
             <div class="perf-row main">
@@ -142,6 +148,10 @@ export class PerformanceMonitor {
     }
 
     public dispose(): void {
+        if (this.unregisterI18n) {
+            this.unregisterI18n();
+            this.unregisterI18n = null;
+        }
         if (this.domElement.parentNode) {
             this.domElement.parentNode.removeChild(this.domElement);
         }

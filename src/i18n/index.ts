@@ -115,6 +115,10 @@ class I18nManager {
         return () => this.listeners.delete(callback);
     }
 
+    public subscribe(callback: (lang: SupportedLanguage | string) => void): () => void {
+        return this.onLanguageChange(callback);
+    }
+
     private notifyListeners(lang: SupportedLanguage | string) {
         this.listeners.forEach(cb => {
             try {
@@ -183,22 +187,78 @@ class I18nManager {
         return fallback?.description || fallbackDesc || '';
     }
 
+    private resolveSpacecraftEntry(lang: string, canonicalName: string) {
+        const scMap = this.locales.get(lang)?.translations.spacecraft;
+        if (!scMap) return undefined;
+        if (scMap[canonicalName]) return scMap[canonicalName];
+        const aliases: Record<string, string[]> = {
+            'ISS': ['ISS (International Space Station)', 'International Space Station (ISS)'],
+            'ISS (International Space Station)': ['ISS', 'International Space Station (ISS)'],
+            'JWST': ['James Webb Space Telescope', 'James Webb Space Telescope (JWST)'],
+            'James Webb Space Telescope': ['JWST', 'James Webb Space Telescope (JWST)'],
+            'Cassini': ['Cassini-Huygens'],
+            'Cassini-Huygens': ['Cassini']
+        };
+        const candidates = aliases[canonicalName] || [];
+        for (const cand of candidates) {
+            if (scMap[cand]) return scMap[cand];
+        }
+        return undefined;
+    }
+
+    private resolveCometEntry(lang: string, canonicalName: string) {
+        const cometMap = this.locales.get(lang)?.translations.comets;
+        if (!cometMap) return undefined;
+        if (cometMap[canonicalName]) return cometMap[canonicalName];
+        const aliases: Record<string, string[]> = {
+            'Hale-Bopp': ['Comet Hale-Bopp'],
+            'Comet Hale-Bopp': ['Hale-Bopp'],
+            "Halley's Comet": ['Halley', 'Comet Halley']
+        };
+        const candidates = aliases[canonicalName] || [];
+        for (const cand of candidates) {
+            if (cometMap[cand]) return cometMap[cand];
+        }
+        return undefined;
+    }
+
+    private resolveConstellationEntry(lang: string, canonicalName: string) {
+        const constMap = this.locales.get(lang)?.translations.constellations;
+        if (!constMap) return undefined;
+        if (constMap[canonicalName]) return constMap[canonicalName];
+        const aliases: Record<string, string[]> = {
+            'Ursa Major (Big Dipper)': ['Ursa Major'],
+            'Ursa Major': ['Ursa Major (Big Dipper)'],
+            'Ursa Minor (Little Dipper)': ['Ursa Minor'],
+            'Ursa Minor': ['Ursa Minor (Little Dipper)'],
+            'Cygnus (The Swan)': ['Cygnus'],
+            'Cygnus': ['Cygnus (The Swan)'],
+            'Crux (Southern Cross)': ['Crux'],
+            'Crux': ['Crux (Southern Cross)']
+        };
+        const candidates = aliases[canonicalName] || [];
+        for (const cand of candidates) {
+            if (constMap[cand]) return constMap[cand];
+        }
+        return undefined;
+    }
+
     /**
      * Translated Spacecraft Name & Description
      */
     public getSpacecraftName(canonicalName: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.spacecraft?.[canonicalName];
+        const current = this.resolveSpacecraftEntry(this.currentLang, canonicalName);
         if (current?.name) return current.name;
 
-        const fallback = this.locales.get('en')?.translations.spacecraft?.[canonicalName];
+        const fallback = this.resolveSpacecraftEntry('en', canonicalName);
         return fallback?.name || canonicalName;
     }
 
     public getSpacecraftDescription(canonicalName: string, fallbackDesc?: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.spacecraft?.[canonicalName];
+        const current = this.resolveSpacecraftEntry(this.currentLang, canonicalName);
         if (current?.description) return current.description;
 
-        const fallback = this.locales.get('en')?.translations.spacecraft?.[canonicalName];
+        const fallback = this.resolveSpacecraftEntry('en', canonicalName);
         return fallback?.description || fallbackDesc || '';
     }
 
@@ -206,18 +266,18 @@ class I18nManager {
      * Translated Comet Name & Description
      */
     public getCometName(canonicalName: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.comets?.[canonicalName];
+        const current = this.resolveCometEntry(this.currentLang, canonicalName);
         if (current?.name) return current.name;
 
-        const fallback = this.locales.get('en')?.translations.comets?.[canonicalName];
+        const fallback = this.resolveCometEntry('en', canonicalName);
         return fallback?.name || canonicalName;
     }
 
     public getCometDescription(canonicalName: string, fallbackDesc?: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.comets?.[canonicalName];
+        const current = this.resolveCometEntry(this.currentLang, canonicalName);
         if (current?.description) return current.description;
 
-        const fallback = this.locales.get('en')?.translations.comets?.[canonicalName];
+        const fallback = this.resolveCometEntry('en', canonicalName);
         return fallback?.description || fallbackDesc || '';
     }
 
@@ -225,26 +285,26 @@ class I18nManager {
      * Translated Constellation Name & Description
      */
     public getConstellationName(canonicalName: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.constellations?.[canonicalName];
+        const current = this.resolveConstellationEntry(this.currentLang, canonicalName);
         if (current?.name) return current.name;
 
-        const fallback = this.locales.get('en')?.translations.constellations?.[canonicalName];
+        const fallback = this.resolveConstellationEntry('en', canonicalName);
         return fallback?.name || canonicalName;
     }
 
     public getConstellationDescription(canonicalName: string, fallbackDesc?: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.constellations?.[canonicalName];
+        const current = this.resolveConstellationEntry(this.currentLang, canonicalName);
         if (current?.description) return current.description;
 
-        const fallback = this.locales.get('en')?.translations.constellations?.[canonicalName];
+        const fallback = this.resolveConstellationEntry('en', canonicalName);
         return fallback?.description || fallbackDesc || '';
     }
 
     public getConstellationFamily(canonicalName: string, fallbackFamily?: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.constellations?.[canonicalName];
+        const current = this.resolveConstellationEntry(this.currentLang, canonicalName);
         if (current?.family) return current.family;
 
-        const fallback = this.locales.get('en')?.translations.constellations?.[canonicalName];
+        const fallback = this.resolveConstellationEntry('en', canonicalName);
         return fallback?.family || fallbackFamily || '';
     }
 

@@ -9,7 +9,18 @@ export const bs: TranslationSchema = {
         orbiting: '(orbitira oko: {planet})',
         jumpToDate: 'Skoči na aktivni datum ({date})',
         close: 'Zatvori',
-        help: 'Pomoć'
+        help: 'Pomoć',
+        audioAmbience: 'Kosmički audio ambijent (S)',
+        audioAmbienceAria: 'Uključi/isključi kosmički zvuk',
+        telemetry: 'Telemetrija performansi (P)',
+        telemetryAria: 'Uključi/isključi telemetriju',
+        keyboardShortcuts: 'Prečice na tastaturi (? / H)',
+        keyboardShortcutsAria: 'Prikaži prečice na tastaturi',
+        astrophotography: 'Astrofotografski snimak (K)',
+        astrophotographyAria: 'Snimi sliku visoke rezolucije',
+        speedPause: 'Kliknite za pauzu / nastavak (Razmaknica)',
+        utcTime: 'Univerzalno vrijeme (UTC)',
+        liveRealTime: 'Fizičko stvarno vrijeme (1:1)'
     },
     categories: {
         star: '🌟 Zvijezde',
@@ -137,11 +148,39 @@ export const bs: TranslationSchema = {
         noDescription: 'Nema detaljnog opisa u bazama podataka telemetrije.',
         audioGuide: 'Slušaj',
         audioPlaying: 'Reprodukcija...',
+        audioGuideTitle: 'Audio vodič naracija',
+        audioGuideStop: 'Zaustavi naraciju',
+        audioGuideAria: 'Slušaj nebeski audio vodič',
+        audioGuidePlayingAria: 'Zaustavi naraciju nebeskog audio vodiča',
+        prevImageAria: 'Prethodna slika',
+        nextImageAria: 'Sljedeća slika',
         periodUnits: {
             year: 'god',
             month: 'mj',
             day: 'd'
         }
+    },
+    shortcuts: {
+        title: 'Prečice na tastaturi opservatorije',
+        navTitle: 'Navigacija i brzi fokus',
+        mercuryToNeptune: 'Merkur do Neptun',
+        pluto: 'Pluton (Patuljasta planeta)',
+        sun: 'Sunce (Solarno jezgro)',
+        resetView: 'Realna razmjera / Resetuj pogled',
+        timeTitle: 'Vrijeme i simulacija',
+        pauseResume: 'Pauziraj / Nastavi simulaciju',
+        warpSpeed: 'Smanji / Povećaj brzinu vremena',
+        cinematicTour: 'Uključi/isključi filmsku turu',
+        toolsTitle: 'Nebeski slojevi i alati',
+        orbits: 'Uključi/isključi planetarne orbite',
+        minimap: 'Uključi/isključi radarski minimap',
+        constellations: 'Uključi/isključi sazviježđa',
+        audio: 'Uključi/isključi kosmički zvuk',
+        telemetry: 'Uključi/isključi telemetrijski HUD',
+        snapshot: 'Astrofotografski snimak',
+        fullscreen: 'Cijeli ekran',
+        help: 'Otvori vodič za prečice',
+        esc: 'Zatvori dijaloge / Otkači metu'
     },
     popups: {
         trueScaleTitle: 'Prave razmjere Sunčevog sistema',
@@ -159,7 +198,30 @@ export const bs: TranslationSchema = {
         ad: 'n.e.',
         century: 'Stoljeće',
         decade: 'Decenija',
-        year: 'Godina'
+        year: 'Godina',
+        historicalEvents: 'Historijski događaji...'
+    },
+    loading: {
+        boot: 'Pokretanje opservatorije',
+        subtitle: 'Astronomski opservatorij dubokog svemira',
+        core: 'INICIJALIZACIJA JEZGRA OPSERVATORIJE...',
+        ephemerides: 'KALIBRACIJA NEBESKIH EFEMERIDA...',
+        surfaces: 'SINTEZA PLANETARNIH POVRŠINA...',
+        controls: 'KONFIGURISANJE KONTROLA OPSERVATORIJE...',
+        acquiring: 'PREUZIMANJE ASTROFOTOGRAFIJA VISOKE REZOLUCIJE...',
+        calibrating: 'KALIBRACIJA ATMOSFERSKIH SJENČENJA...',
+        streaming: 'UČITAVANJE TEKSTURA DUBOKOG SVEMIRA...',
+        synchronizing: 'SINHRONIZACIJA NEBESKIH ORBITA...',
+        loaded: 'RESURSI UČITANI',
+        ready: 'SISTEMI OPERATIVNI • OPSERVATORIJA SPREMNA',
+        standby: 'PRIPRAVNOST',
+        connecting: 'POVEZIVANJE',
+        assets: 'RESURSI',
+        online: 'AKTIVNO',
+        tagBoot: 'POKRETANJE',
+        tagCalibrating: 'KALIBRACIJA',
+        tagSynthesizing: 'SINTEZA',
+        tagConfiguring: 'KONFIGURISANJE'
     },
     bodies: {
         Sun: {
@@ -284,6 +346,10 @@ export const bs: TranslationSchema = {
             name: 'Međunarodna svemirska stanica (ISS)',
             description: 'Najveća modularna laboratorija u niskoj Zemljinoj orbiti, plod saradnje svemirskih agencija NASA, Roskosmos, JAXA, ESA i CSA.'
         },
+        'ISS (International Space Station)': {
+            name: 'Međunarodna svemirska stanica (ISS)',
+            description: 'Najveća modularna laboratorija u niskoj Zemljinoj orbiti, plod saradnje svemirskih agencija NASA, Roskosmos, JAXA, ESA i CSA.'
+        },
         'Hubble Space Telescope': {
             name: 'Svemirski teleskop Habl',
             description: 'Revolucionarni svemirski teleskop lansiran 1990. godine koji je iz temelja promijenio naše razumijevanje kosmosa i astrofizike.'
@@ -296,7 +362,15 @@ export const bs: TranslationSchema = {
             name: 'Svemirski teleskop Džejms Veb (JWST)',
             description: 'Najsavremeniji infracrveni svemirski teleskop koji posmatra prve galaksije nastale nakon Velikog praska iz tačke Lagranž L2.'
         },
+        'James Webb Space Telescope': {
+            name: 'Svemirski teleskop Džejms Veb (JWST)',
+            description: 'Najsavremeniji infracrveni svemirski teleskop koji posmatra prve galaksije nastale nakon Velikog praska iz tačke Lagranž L2.'
+        },
         'Cassini-Huygens': {
+            name: 'Kasini-Hojgens',
+            description: 'Vodeća svemirska misija koja je od 2004. do 2017. detaljno istraživala Saturn, njegove veličanstvene prstenove i neobične mjesece.'
+        },
+        'Cassini': {
             name: 'Kasini-Hojgens',
             description: 'Vodeća svemirska misija koja je od 2004. do 2017. detaljno istraživala Saturn, njegove veličanstvene prstenove i neobične mjesece.'
         },
@@ -313,6 +387,10 @@ export const bs: TranslationSchema = {
         'Comet Hale-Bopp': {
             name: 'Kometa Hejl-Bop',
             description: 'Jedna od najsjajnijih i najduže posmatranih kometa 20. vijeka, ostala je vidljiva golim okom tokom rekordnih 18 mjeseci.'
+        },
+        'Hale-Bopp': {
+            name: 'Kometa Hejl-Bop',
+            description: 'Jedna od najsjajnijih i najduže posmatranih kometa 20. vijeka, ostala je vidljiva golim okom tokom rekordnih 18 mjeseci.'
         }
     },
     constellations: {
@@ -321,7 +399,17 @@ export const bs: TranslationSchema = {
             family: 'Ursa Major',
             description: 'Sjeverno sazviježđe koje sadrži čuveni asterizam Velika kola.'
         },
+        'Ursa Major (Big Dipper)': {
+            name: 'Veliki medvjed (Ursa Major)',
+            family: 'Ursa Major',
+            description: 'Sjeverno sazviježđe koje sadrži čuveni asterizam Velika kola.'
+        },
         'Ursa Minor': {
+            name: 'Mali medvjed (Ursa Minor)',
+            family: 'Ursa Major',
+            description: 'Sjeverno sazviježđe čija je najsjajnija zvijezda Sjevernjača (Polaris), ključni orjentir u navigaciji.'
+        },
+        'Ursa Minor (Little Dipper)': {
             name: 'Mali medvjed (Ursa Minor)',
             family: 'Ursa Major',
             description: 'Sjeverno sazviježđe čija je najsjajnija zvijezda Sjevernjača (Polaris), ključni orjentir u navigaciji.'
@@ -341,12 +429,22 @@ export const bs: TranslationSchema = {
             family: 'Herkul',
             description: 'Sazviježđe koje leži na ravni Mliječnog puta, sa asterizmom Sjeverni krst i zvijezdom Deneb.'
         },
+        'Cygnus (The Swan)': {
+            name: 'Labud (Cygnus)',
+            family: 'Herkul',
+            description: 'Sazviježđe koje leži na ravni Mliječnog puta, sa asterizmom Sjeverni krst i zvijezdom Deneb.'
+        },
         'Scorpius': {
             name: 'Škorpija (Scorpius)',
             family: 'Zodijak',
             description: 'Upečatljivo zodijačko sazviježđe na južnom nebu sa sjajnim crvenim superdžinom Antaresom u svom srcu.'
         },
         'Crux': {
+            name: 'Južni krst (Crux)',
+            family: 'Nebeske vode',
+            description: 'Najmanje od svih 88 modernih sazviježđa, izuzetno važno za orjentaciju na južnoj polulopti.'
+        },
+        'Crux (Southern Cross)': {
             name: 'Južni krst (Crux)',
             family: 'Nebeske vode',
             description: 'Najmanje od svih 88 modernih sazviježđa, izuzetno važno za orjentaciju na južnoj polulopti.'

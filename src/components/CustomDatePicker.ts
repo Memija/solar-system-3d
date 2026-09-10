@@ -1,3 +1,5 @@
+import { i18n } from '../i18n';
+
 export class CustomDatePicker {
     public domElement: HTMLElement;
     private displayElement: HTMLElement;
@@ -7,6 +9,7 @@ export class CustomDatePicker {
 
     private monthSelect: HTMLSelectElement;
     private yearInput: HTMLInputElement;
+    private eventsDefaultOpt: HTMLOptionElement | null = null;
 
     public currentDate: Date;
     private viewDate: Date;
@@ -21,16 +24,43 @@ export class CustomDatePicker {
     private onChange: (date: Date) => void;
     private onOpen?: () => void;
     private onClickOutsideBound: (e: MouseEvent) => void;
+    private unregisterI18n: (() => void) | null = null;
     private lastFormattedDate: string = '';
 
     private formatYear(year: number): string {
-        return year <= 0 ? `${Math.abs(year) + 1} BC` : year.toString();
+        const bc = i18n.t('datepicker.bc') || 'BC';
+        return year <= 0 ? `${Math.abs(year) + 1} ${bc}` : year.toString();
     }
 
-    private months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
+    private populateMonths(): void {
+        const currentVal = this.monthSelect ? this.monthSelect.value : this.viewDate.getUTCMonth().toString();
+        this.monthSelect.innerHTML = '';
+        const months = i18n.getMonths();
+        months.forEach((m, i) => {
+            const opt = document.createElement('option');
+            opt.value = i.toString();
+            opt.textContent = m;
+            this.monthSelect.appendChild(opt);
+        });
+        this.monthSelect.value = currentVal;
+    }
+
+    private populateWeekdays(): void {
+        this.daysHeader.innerHTML = '';
+        const weekdays = i18n.getWeekdays();
+        weekdays.forEach(d => {
+            const el = document.createElement('div');
+            el.textContent = d;
+            el.className = 'datepicker-weekday-cell';
+            this.daysHeader.appendChild(el);
+        });
+    }
+
+    private updateHistoricalEventsLabel(): void {
+        if (this.eventsDefaultOpt) {
+            this.eventsDefaultOpt.textContent = i18n.t('datepicker.historicalEvents') || 'Historical Events...';
+        }
+    }
 
     constructor(initialDate: Date, onChange: (date: Date) => void, onOpen?: () => void) {
         this.currentDate = new Date(initialDate.getTime());
@@ -61,13 +91,7 @@ export class CustomDatePicker {
 
         this.monthSelect = document.createElement('select');
         this.monthSelect.className = 'custom-datepicker-select';
-
-        this.months.forEach((m, i) => {
-            const opt = document.createElement('option');
-            opt.value = i.toString();
-            opt.textContent = m;
-            this.monthSelect.appendChild(opt);
-        });
+        this.populateMonths();
 
         this.monthSelect.addEventListener('change', () => {
             this.viewDate.setUTCDate(1);
@@ -119,13 +143,7 @@ export class CustomDatePicker {
         // Days of week
         this.daysHeader = document.createElement('div');
         this.daysHeader.className = 'custom-datepicker-days-header';
-
-        ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(d => {
-            const el = document.createElement('div');
-            el.textContent = d;
-            el.className = 'datepicker-weekday-cell';
-            this.daysHeader.appendChild(el);
-        });
+        this.populateWeekdays();
         this.popupElement.appendChild(this.daysHeader);
 
         // Days grid
@@ -142,10 +160,11 @@ export class CustomDatePicker {
 
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
-        defaultOpt.textContent = 'Historical Events...';
+        defaultOpt.textContent = i18n.t('datepicker.historicalEvents') || 'Historical Events...';
         defaultOpt.hidden = true;
         defaultOpt.selected = true;
         eventsSelect.appendChild(defaultOpt);
+        this.eventsDefaultOpt = defaultOpt;
 
         const historicalEvents = [
             { name: 'Sputnik 1 Launch', date: new Date("1957-10-04T19:28:35Z"), target: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and the US-USSR space race, demonstrating the feasibility of artificial satellites.' },
@@ -204,6 +223,17 @@ export class CustomDatePicker {
         document.addEventListener('click', this.onClickOutsideBound);
 
         this.updateDisplay();
+
+        this.unregisterI18n = i18n.onLanguageChange(() => {
+            this.populateMonths();
+            this.populateWeekdays();
+            this.updateHistoricalEventsLabel();
+            this.renderCalendar();
+            this.updateDisplay();
+            if (this.isYearModalOpen) {
+                this.renderYearModal();
+            }
+        });
     }
 
     private openYearModal() {
@@ -439,6 +469,10 @@ export class CustomDatePicker {
     public dispose() {
         this.closePopup();
         this.closeYearModal();
+        if (this.unregisterI18n) {
+            this.unregisterI18n();
+            this.unregisterI18n = null;
+        }
         if (this.onClickOutsideBound) {
             document.removeEventListener('click', this.onClickOutsideBound);
         }

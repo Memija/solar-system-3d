@@ -9,7 +9,18 @@ export const de: TranslationSchema = {
         orbiting: '(umkreist {planet})',
         jumpToDate: 'Zum aktiven Datum springen ({date})',
         close: 'Schließen',
-        help: 'Hilfe'
+        help: 'Hilfe',
+        audioAmbience: 'Kosmische Audio-Atmosphäre (S)',
+        audioAmbienceAria: 'Kosmischen Ton umschalten',
+        telemetry: 'Leistungstelemetrie (P)',
+        telemetryAria: 'Telemetrie-HUD umschalten',
+        keyboardShortcuts: 'Tastaturkürzel (? / H)',
+        keyboardShortcutsAria: 'Tastaturkürzel anzeigen',
+        astrophotography: 'Astrophotographie-Schnappschuss (K)',
+        astrophotographyAria: 'Hochauflösenden Screenshot aufnehmen',
+        speedPause: 'Klicken zum Pausieren / Fortsetzen (Leertaste)',
+        utcTime: 'Koordinierte Weltzeit (UTC)',
+        liveRealTime: 'Physikalische Echtzeit aktiv (1:1)'
     },
     categories: {
         star: '🌟 Sterne',
@@ -137,11 +148,39 @@ export const de: TranslationSchema = {
         noDescription: 'Keine detaillierte Beschreibung in den Telemetriedatenbanken hinterlegt.',
         audioGuide: 'Anhören',
         audioPlaying: 'Wiedergabe...',
+        audioGuideTitle: 'Audioguide-Narration',
+        audioGuideStop: 'Narration stoppen',
+        audioGuideAria: 'Himmlischen Audioguide anhören',
+        audioGuidePlayingAria: 'Audioguide-Narration stoppen',
+        prevImageAria: 'Vorheriges Bild',
+        nextImageAria: 'Nächstes Bild',
         periodUnits: {
             year: 'J',
             month: 'M',
             day: 'T'
         }
+    },
+    shortcuts: {
+        title: 'Tastaturkürzel des Observatoriums',
+        navTitle: 'Navigation & Schnellfokus',
+        mercuryToNeptune: 'Merkur bis Neptun',
+        pluto: 'Pluto (Zwergplanet)',
+        sun: 'Die Sonne (Sonnentelemetrie)',
+        resetView: 'Realer Maßstab / Ansicht zurücksetzen',
+        timeTitle: 'Zeit & Simulation',
+        pauseResume: 'Simulation pausieren / fortsetzen',
+        warpSpeed: 'Zeitraffer verringern / erhöhen',
+        cinematicTour: 'Geführte Film-Tour umschalten',
+        toolsTitle: 'Himmelsschichten & Werkzeuge',
+        orbits: 'Planetenbahnen umschalten',
+        minimap: 'Radar-Minikarte umschalten',
+        constellations: 'Sternbilder umschalten',
+        audio: 'Kosmischen Ton umschalten',
+        telemetry: 'Telemetrie-HUD umschalten',
+        snapshot: 'Astrophotographie-Schnappschuss',
+        fullscreen: 'Vollbildanzeige umschalten',
+        help: 'Tastenkürzel-Übersicht öffnen',
+        esc: 'Dialoge schließen / Ziel abkoppeln'
     },
     popups: {
         trueScaleTitle: 'Echter Maßstab des Sonnensystems',
@@ -159,7 +198,30 @@ export const de: TranslationSchema = {
         ad: 'n. Chr.',
         century: 'Jahrhundert',
         decade: 'Jahrzehnt',
-        year: 'Jahr'
+        year: 'Jahr',
+        historicalEvents: 'Historische Ereignisse...'
+    },
+    loading: {
+        boot: 'Observatorium-Start',
+        subtitle: 'Astronomisches Tiefenraum-Observatorium',
+        core: 'INITIALISIERUNG DES OBSERVATORIUM-KERNS...',
+        ephemerides: 'KALIBRIERUNG DER HIMMELSEFPHEMERIDEN...',
+        surfaces: 'SYNTHESE PLANETARER OBERFLÄCHEN...',
+        controls: 'KONFIGURATION DER OBSERVATORIUMS-STEUERUNG...',
+        acquiring: 'LADEN HOCHAUFLÖSENDER ASTROFOTOGRAFIE...',
+        calibrating: 'KALIBRIERUNG ATMOSPHÄRISCHER SHADER...',
+        streaming: 'STREAMEN VON TIEFENRAUM-TEXTUREN...',
+        synchronizing: 'SYNCHRONISATION HIMMELSBANHEN...',
+        loaded: 'RESSOURCEN GELADEN',
+        ready: 'SYSTEME BEREIT • OBSERVATORIUM STARTKLAR',
+        standby: 'STANDBY',
+        connecting: 'VERBINDEN',
+        assets: 'RESSOURCEN',
+        online: 'ONLINE',
+        tagBoot: 'START',
+        tagCalibrating: 'KALIBRIERUNG',
+        tagSynthesizing: 'SYNTHESE',
+        tagConfiguring: 'KONFIGURATION'
     },
     bodies: {
         Sun: {
@@ -284,6 +346,10 @@ export const de: TranslationSchema = {
             name: 'Internationale Raumstation (ISS)',
             description: 'Das größte modulare Forschungslabor im erdnahen Orbit, betrieben von NASA, Roskosmos, JAXA, ESA und CSA.'
         },
+        'ISS (International Space Station)': {
+            name: 'Internationale Raumstation (ISS)',
+            description: 'Das größte modulare Forschungslabor im erdnahen Orbit, betrieben von NASA, Roskosmos, JAXA, ESA und CSA.'
+        },
         'Hubble Space Telescope': {
             name: 'Hubble-Weltraumteleskop',
             description: 'Das 1990 gestartete Weltraumteleskop revolutionierte mit seinen ikonischen Aufnahmen unser Verständnis des Universums.'
@@ -296,7 +362,15 @@ export const de: TranslationSchema = {
             name: 'James-Webb-Weltraumteleskop (JWST)',
             description: 'Das fortschrittlichste Infrarot-Weltraumteleskop am Lagrange-Punkt L2, das die frühesten Galaxien nach dem Urknall beobachtet.'
         },
+        'James Webb Space Telescope': {
+            name: 'James-Webb-Weltraumteleskop (JWST)',
+            description: 'Das fortschrittlichste Infrarot-Weltraumteleskop am Lagrange-Punkt L2, das die frühesten Galaxien nach dem Urknall beobachtet.'
+        },
         'Cassini-Huygens': {
+            name: 'Cassini-Huygens',
+            description: 'Erfolgreiche Raumfahrtmission, die von 2004 bis 2017 das Saturnsystem, seine Ringe und Monde intensiv erforschte.'
+        },
+        'Cassini': {
             name: 'Cassini-Huygens',
             description: 'Erfolgreiche Raumfahrtmission, die von 2004 bis 2017 das Saturnsystem, seine Ringe und Monde intensiv erforschte.'
         },
@@ -313,6 +387,10 @@ export const de: TranslationSchema = {
         'Comet Hale-Bopp': {
             name: 'Komet Hale-Bopp',
             description: 'Einer der hellsten und meistbeobachteten Kometen des 20. Jahrhunderts, der 18 Monate lang mit bloßem Auge sichtbar war.'
+        },
+        'Hale-Bopp': {
+            name: 'Komet Hale-Bopp',
+            description: 'Einer der hellsten und meistbeobachteten Kometen des 20. Jahrhunderts, der 18 Monate lang mit bloßem Auge sichtbar war.'
         }
     },
     constellations: {
@@ -321,7 +399,17 @@ export const de: TranslationSchema = {
             family: 'Ursa Major',
             description: 'Ein markantes Sternbild des Nordhimmels, das den bekannten Großen Wagen beinhaltet.'
         },
+        'Ursa Major (Big Dipper)': {
+            name: 'Großer Bär (Ursa Major)',
+            family: 'Ursa Major',
+            description: 'Ein markantes Sternbild des Nordhimmels, das den bekannten Großen Wagen beinhaltet.'
+        },
         'Ursa Minor': {
+            name: 'Kleiner Bär (Ursa Minor)',
+            family: 'Ursa Major',
+            description: 'Das Sternbild, in dem sich der Polarstern (Polaris) als Wegweiser nach Norden befindet.'
+        },
+        'Ursa Minor (Little Dipper)': {
             name: 'Kleiner Bär (Ursa Minor)',
             family: 'Ursa Major',
             description: 'Das Sternbild, in dem sich der Polarstern (Polaris) als Wegweiser nach Norden befindet.'
@@ -341,12 +429,22 @@ export const de: TranslationSchema = {
             family: 'Herkules',
             description: 'Ein ikonisches Sternbild entlang der Milchstraße mit dem Kreuz des Nordens und dem Stern Deneb.'
         },
+        'Cygnus (The Swan)': {
+            name: 'Schwan (Cygnus)',
+            family: 'Herkules',
+            description: 'Ein ikonisches Sternbild entlang der Milchstraße mit dem Kreuz des Nordens und dem Stern Deneb.'
+        },
         'Scorpius': {
             name: 'Skorpion (Scorpius)',
             family: 'Tierkreis',
             description: 'Ein prächtiges Sternbild des Südhimmels mit dem feuerroten Überriesen Antares im Zentrum.'
         },
         'Crux': {
+            name: 'Kreuz des Südens (Crux)',
+            family: 'Himmlische Wasser',
+            description: 'Das kleinste der 88 modernen Sternbilder und der wichtigste Wegweiser der Südhalbkugel.'
+        },
+        'Crux (Southern Cross)': {
             name: 'Kreuz des Südens (Crux)',
             family: 'Himmlische Wasser',
             description: 'Das kleinste der 88 modernen Sternbilder und der wichtigste Wegweiser der Südhalbkugel.'

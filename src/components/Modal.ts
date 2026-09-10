@@ -20,6 +20,7 @@ export class Modal {
     tooltipElement: HTMLElement;
     public audioNarrator: AudioNarrator;
     private audioGuideBtn: HTMLButtonElement | null = null;
+    private closeBtn: HTMLButtonElement | null = null;
     public isOpen: boolean = false;
     private currentData: ModalData | CustomModalData | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -34,8 +35,15 @@ export class Modal {
 
         // Listen for language changes to immediately re-render active modal
         this.unregisterI18n = i18n.onLanguageChange(() => {
+            if (this.closeBtn) {
+                this.closeBtn.setAttribute('aria-label', i18n.t('ui.close'));
+                this.closeBtn.title = i18n.t('ui.close');
+            }
+            const wasSpeaking = this.audioNarrator.isSpeaking();
             if (this.isOpen && this.currentData) {
-                this.show(this.currentData);
+                this.show(this.currentData, wasSpeaking);
+            } else {
+                this.updateAudioGuideButtonLabel(wasSpeaking);
             }
         });
 
@@ -63,7 +71,8 @@ export class Modal {
 
         // Drag handle for mobile bottom sheet
         const dragHandle = document.createElement('div');
-        dragHandle.className = 'sheet-drag-handle';
+        dragHandle.className = 'modal-drag-handle';
+        dragHandle.setAttribute('aria-hidden', 'true');
         modal.appendChild(dragHandle);
 
         let startY = 0;
@@ -103,9 +112,8 @@ export class Modal {
         // Audio Guide narration button
         const audioGuideBtn = document.createElement('button');
         audioGuideBtn.className = 'modal-audio-guide-btn';
-        audioGuideBtn.innerHTML = `🎙️ <span class="audio-guide-label">${i18n.t('modal.audioGuide') || 'Listen'}</span>`;
-        audioGuideBtn.title = 'Audio Guide Narration';
-        audioGuideBtn.setAttribute('aria-label', 'Listen to celestial audio guide');
+        this.audioGuideBtn = audioGuideBtn;
+        this.updateAudioGuideButtonLabel(false);
         audioGuideBtn.onclick = () => {
             if (this.currentData) {
                 const desc = (this.contentElement.querySelector('.description')?.textContent) || this.currentData.description || '';
@@ -119,17 +127,18 @@ export class Modal {
             }
         };
         modal.appendChild(audioGuideBtn);
-        this.audioGuideBtn = audioGuideBtn;
 
         // Close button
         const closeBtn = document.createElement('button');
         closeBtn.className = 'modal-close-btn';
         closeBtn.innerHTML = '&times;';
-        closeBtn.setAttribute('aria-label', 'Close');
+        closeBtn.setAttribute('aria-label', i18n.t('ui.close'));
+        closeBtn.title = i18n.t('ui.close');
         closeBtn.onclick = () => {
             this.hide();
         };
         modal.appendChild(closeBtn);
+        this.closeBtn = closeBtn;
 
         // Content Container
         const content = document.createElement('div');
@@ -159,8 +168,8 @@ export class Modal {
                     `).join('')}
 
                     ${data.images.length > 1 ? `
-                        <button class="gallery-btn prev-btn">❮</button>
-                        <button class="gallery-btn next-btn">❯</button>
+                        <button class="gallery-btn prev-btn" aria-label="${i18n.t('modal.prevImageAria') || 'Previous image'}">❮</button>
+                        <button class="gallery-btn next-btn" aria-label="${i18n.t('modal.nextImageAria') || 'Next image'}">❯</button>
                     ` : ''}
                 </div>
             `;
@@ -417,28 +426,15 @@ export class Modal {
         });
     }
 
-    public show(data: ModalData | CustomModalData) {
+    public show(data: ModalData | CustomModalData, preserveAudio: boolean = false) {
         if (!this.contentElement) return;
 
         this.isOpen = true;
         this.currentData = data;
 
-        let badgeLabel = i18n.t('modal.badges.celestialBody');
-        if ('targetBody' in data || 'escaping' in data) badgeLabel = i18n.t('modal.badges.missionDossier');
-        else if ('semiMajorAxis' in data) badgeLabel = i18n.t('modal.badges.cometTelemetry');
-        else if ('stars' in data && 'connections' in data) badgeLabel = i18n.t('modal.badges.constellation');
-        else if ('ra' in data && 'dec' in data) badgeLabel = i18n.t('modal.badges.stellarDossier');
-        else if ('radius' in data) {
-            let isMoon = false;
-            for (const p of SolarSystemData) {
-                if (p.moons && p.moons.find(m => m.name === data.name)) { isMoon = true; break; }
-            }
-            badgeLabel = isMoon ? i18n.t('modal.badges.lunarTelemetry') : (data.name === 'Sun' ? i18n.t('modal.badges.stellarCore') : i18n.t('modal.badges.planetaryDossier'));
-        }
-
         let displayName = data.name;
         let displayDesc = data.description;
-        if ('targetBody' in data || 'escaping' in data) {
+        if ('targetBody' in data || 'escaping' in data || 'launchDate' in data) {
             displayName = i18n.getSpacecraftName(data.name);
             displayDesc = i18n.getSpacecraftDescription(data.name, data.description);
         } else if ('semiMajorAxis' in data) {
@@ -460,7 +456,6 @@ export class Modal {
         const extraInfo = this.getExtraInfo(data);
 
         this.contentElement.innerHTML = `
-            <div class="modal-header-badge">❖ ${badgeLabel}</div>
             <h2>${displayName}</h2>
             ${galleryHtml}
             <p class="description">${displayDesc || i18n.t('modal.noDescription')}</p>
@@ -471,8 +466,12 @@ export class Modal {
         this.setupGalleryLogic(data);
         this.setupInfoButtons();
         this.setupJumpToDateButtons();
-        this.audioNarrator.stop();
-        this.updateAudioGuideButtonLabel(false);
+        if (!preserveAudio) {
+            this.audioNarrator.stop();
+            this.updateAudioGuideButtonLabel(false);
+        } else {
+            this.updateAudioGuideButtonLabel(this.audioNarrator.isSpeaking());
+        }
         this.modalElement.style.display = 'block';
     }
 
@@ -489,7 +488,16 @@ export class Modal {
         if (!this.audioGuideBtn) return;
         const listenLabel = i18n.t('modal.audioGuide') || 'Listen';
         const playingLabel = i18n.t('modal.audioPlaying') || 'Playing...';
+        const guideTitle = isSpeaking
+            ? (i18n.t('modal.audioGuideStop') || 'Stop Narration')
+            : (i18n.t('modal.audioGuideTitle') || 'Audio Guide Narration');
+        const guideAria = isSpeaking
+            ? (i18n.t('modal.audioGuidePlayingAria') || 'Stop celestial audio guide narration')
+            : (i18n.t('modal.audioGuideAria') || 'Listen to celestial audio guide');
+
         this.audioGuideBtn.classList.toggle('speaking', isSpeaking);
+        this.audioGuideBtn.title = guideTitle;
+        this.audioGuideBtn.setAttribute('aria-label', guideAria);
         this.audioGuideBtn.innerHTML = isSpeaking
             ? `🔊 <span class="audio-guide-label">${playingLabel}</span>`
             : `🎙️ <span class="audio-guide-label">${listenLabel}</span>`;

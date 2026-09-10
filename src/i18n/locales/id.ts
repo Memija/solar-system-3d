@@ -9,7 +9,18 @@ export const id: TranslationSchema = {
         orbiting: '(mengorbit {planet})',
         jumpToDate: 'Lompat ke Tanggal Aktif ({date})',
         close: 'Tutup',
-        help: 'Bantuan'
+        help: 'Bantuan',
+        audioAmbience: 'Ambien Audio Kosmik (S)',
+        audioAmbienceAria: 'Alihkan audio kosmik',
+        telemetry: 'Telemetri Kinerja (P)',
+        telemetryAria: 'Alihkan telemetri mesin',
+        keyboardShortcuts: 'Pintasan Keyboard (? / H)',
+        keyboardShortcutsAria: 'Lihat pintasan keyboard',
+        astrophotography: 'Tangkapan Astrofotografi (K)',
+        astrophotographyAria: 'Ambil tangkapan layar resolusi tinggi',
+        speedPause: 'Klik untuk Jeda / Lanjutkan (Spasi)',
+        utcTime: 'Waktu Universal (UTC)',
+        liveRealTime: 'Waktu Nyata Fisik Aktif (1:1)'
     },
     categories: {
         star: '🌟 Bintang',
@@ -137,11 +148,39 @@ export const id: TranslationSchema = {
         noDescription: 'Tidak ada deskripsi terperinci yang tersedia dalam basis data telemetri.',
         audioGuide: 'Dengarkan',
         audioPlaying: 'Memutar...',
+        audioGuideTitle: 'Narasi Panduan Audio',
+        audioGuideStop: 'Hentikan Narasi',
+        audioGuideAria: 'Dengarkan panduan audio langit',
+        audioGuidePlayingAria: 'Hentikan narasi panduan audio',
+        prevImageAria: 'Gambar sebelumnya',
+        nextImageAria: 'Gambar berikutnya',
         periodUnits: {
             year: 'thn',
             month: 'bln',
             day: 'hr'
         }
+    },
+    shortcuts: {
+        title: 'Pintasan Keyboard Observatorium',
+        navTitle: 'Navigasi & Fokus Cepat',
+        mercuryToNeptune: 'Merkurius ke Neptunus',
+        pluto: 'Pluto (Planet Kerdil)',
+        sun: 'Matahari (Inti Surya)',
+        resetView: 'Skala Nyata / Atur Ulang Tampilan',
+        timeTitle: 'Waktu & Simulasi',
+        pauseResume: 'Jeda / Lanjutkan Simulasi',
+        warpSpeed: 'Kurangi / Tambah Kecepatan Simulasi',
+        cinematicTour: 'Tur Sinematik Berpemandu',
+        toolsTitle: 'Lapisan Langit & Alat',
+        orbits: 'Alihkan Orbit Planet',
+        minimap: 'Alihkan Radar Minimap',
+        constellations: 'Alihkan Rasi Bintang',
+        audio: 'Alihkan Ambien Audio Kosmik',
+        telemetry: 'Alihkan HUD Telemetri',
+        snapshot: 'Tangkapan Astrofotografi',
+        fullscreen: 'Tampilan Layar Penuh',
+        help: 'Buka Panduan Pintasan Ini',
+        esc: 'Tutup Dialog / Lepaskan Target'
     },
     popups: {
         trueScaleTitle: 'Skala Sebenarnya Tata Surya',
@@ -159,7 +198,30 @@ export const id: TranslationSchema = {
         ad: 'M',
         century: 'Abad',
         decade: 'Dekade',
-        year: 'Tahun'
+        year: 'Tahun',
+        historicalEvents: 'Peristiwa Bersejarah...'
+    },
+    loading: {
+        boot: 'Memulai Observatorium',
+        subtitle: 'Observatorium Astronomi Luar Angkasa',
+        core: 'MENGINISIALISASI INTI OBSERVATORIUM...',
+        ephemerides: 'MENGKALIBRASI EFEMERIS BENDA LANGIT...',
+        surfaces: 'MENSINTESIS PERMUKAAN PLANET...',
+        controls: 'MENGONFIGURASI KONTROL OBSERVATORIUM...',
+        acquiring: 'MEMPEROLEH ASTROFOTOGRAFI RESOLUSI TINGGI...',
+        calibrating: 'MENGKALIBRASI SHADER ATMOSFER...',
+        streaming: 'MEMUAT TEKSTUR LUAR ANGKASA...',
+        synchronizing: 'MENYELARASKAN ORBIT LANGIT...',
+        loaded: 'ASET TELAH DIMUAT',
+        ready: 'SISTEM BEROPERASI • OBSERVATORIUM SIAP',
+        standby: 'SIAGA',
+        connecting: 'MENGHUBUNGKAN',
+        assets: 'ASET',
+        online: 'ONLINE',
+        tagBoot: 'BOOT',
+        tagCalibrating: 'KALIBRASI',
+        tagSynthesizing: 'SINTESIS',
+        tagConfiguring: 'KONFIGURASI'
     },
     bodies: {
         Sun: {
@@ -284,6 +346,10 @@ export const id: TranslationSchema = {
             name: 'Stasiun Luar Angkasa Internasional (ISS)',
             description: 'Laboratorium penelitian modular terbesar di orbit rendah Bumi, hasil kolaborasi multinasional antara NASA, Roscosmos, JAXA, ESA, dan CSA.'
         },
+        'ISS (International Space Station)': {
+            name: 'Stasiun Luar Angkasa Internasional (ISS)',
+            description: 'Laboratorium penelitian modular terbesar di orbit rendah Bumi, hasil kolaborasi multinasional antara NASA, Roscosmos, JAXA, ESA, dan CSA.'
+        },
         'Hubble Space Telescope': {
             name: 'Teleskop Luar Angkasa Hubble',
             description: 'Teleskop luar angkasa legendaris yang diluncurkan pada tahun 1990 dan terus beroperasi, merevolusi pemahaman astronomi modern tentang alam semesta.'
@@ -296,7 +362,15 @@ export const id: TranslationSchema = {
             name: 'Teleskop Luar Angkasa James Webb (JWST)',
             description: 'Teleskop astronomi inframerah paling canggih yang mengorbit titik Lagrange L2 Matahari-Bumi, mampu mengamati galaksi-galaksi terawal di alam semesta.'
         },
+        'James Webb Space Telescope': {
+            name: 'Teleskop Luar Angkasa James Webb (JWST)',
+            description: 'Teleskop astronomi inframerah paling canggih yang mengorbit titik Lagrange L2 Matahari-Bumi, mampu mengamati galaksi-galaksi terawal di alam semesta.'
+        },
         'Cassini-Huygens': {
+            name: 'Cassini-Huygens',
+            description: 'Misi wahana antariksa eksplorasi sistem Saturnus yang mempelajari cincin, atmosfer, dan bulan-bulan Saturnus secara mendalam antara 2004 dan 2017.'
+        },
+        'Cassini': {
             name: 'Cassini-Huygens',
             description: 'Misi wahana antariksa eksplorasi sistem Saturnus yang mempelajari cincin, atmosfer, dan bulan-bulan Saturnus secara mendalam antara 2004 dan 2017.'
         },
@@ -313,6 +387,10 @@ export const id: TranslationSchema = {
         'Comet Hale-Bopp': {
             name: 'Komet Hale-Bopp',
             description: 'Salah satu komet paling terang dan paling banyak diamati pada abad ke-20, dapat terlihat dengan mata telanjang selama rekor 18 bulan berturut-turut.'
+        },
+        'Hale-Bopp': {
+            name: 'Komet Hale-Bopp',
+            description: 'Salah satu komet paling terang dan paling banyak diamati pada abad ke-20, dapat terlihat dengan mata telanjang selama rekor 18 bulan berturut-turut.'
         }
     },
     constellations: {
@@ -321,7 +399,17 @@ export const id: TranslationSchema = {
             family: 'Ursa Major',
             description: 'Rasi bintang belahan utara yang memuat asterisma terkenal Biduk Besar (Big Dipper).'
         },
+        'Ursa Major (Big Dipper)': {
+            name: 'Ursa Mayor (Beruang Besar)',
+            family: 'Ursa Major',
+            description: 'Rasi bintang belahan utara yang memuat asterisma terkenal Biduk Besar (Big Dipper).'
+        },
         'Ursa Minor': {
+            name: 'Ursa Minor (Beruang Kecil)',
+            family: 'Ursa Major',
+            description: 'Rasi bintang utara yang memuat Polaris (Bintang Kutub Utara), pemandu navigasi maritim sepanjang zaman.'
+        },
+        'Ursa Minor (Little Dipper)': {
             name: 'Ursa Minor (Beruang Kecil)',
             family: 'Ursa Major',
             description: 'Rasi bintang utara yang memuat Polaris (Bintang Kutub Utara), pemandu navigasi maritim sepanjang zaman.'
@@ -341,12 +429,22 @@ export const id: TranslationSchema = {
             family: 'Hercules',
             description: 'Rasi bintang ikonik di sepanjang bidang Bima Sakti, memuat asterisma Salib Utara dan bintang maharaksasa Deneb.'
         },
+        'Cygnus (The Swan)': {
+            name: 'Cygnus (Sang Angsa)',
+            family: 'Hercules',
+            description: 'Rasi bintang ikonik di sepanjang bidang Bima Sakti, memuat asterisma Salib Utara dan bintang maharaksasa Deneb.'
+        },
         'Scorpius': {
             name: 'Scorpius (Kalajengking)',
             family: 'Zodiak',
             description: 'Rasi bintang zodiak megah di langit selatan dengan bintang maharaksasa merah Antares sebagai jantungnya.'
         },
         'Crux': {
+            name: 'Crux (Pari / Salib Selatan)',
+            family: 'Perairan Langit',
+            description: 'Rasi bintang terkecil dari 88 rasi modern, menjadi penunjuk arah selatan sejati yang sangat penting bagi navigasi maritim Nusantara.'
+        },
+        'Crux (Southern Cross)': {
             name: 'Crux (Pari / Salib Selatan)',
             family: 'Perairan Langit',
             description: 'Rasi bintang terkecil dari 88 rasi modern, menjadi penunjuk arah selatan sejati yang sangat penting bagi navigasi maritim Nusantara.'

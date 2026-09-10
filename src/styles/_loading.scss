@@ -1,0 +1,466 @@
+@use './tokens' as *;
+
+// ==========================================
+// DEEP SPACE OBSERVATORY — LOADING SCREEN
+// ==========================================
+
+$z-loading: 99999;
+
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: $z-loading;
+    background: radial-gradient(circle at 50% 45%, rgba(14, 28, 54, 0.96) 0%, rgba(5, 10, 24, 0.98) 60%, #030712 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: $color-text;
+    font-family: $font-sans;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.75s ease;
+    will-change: opacity, transform, filter;
+
+    &.is-complete {
+        opacity: 0;
+        transform: scale(1.05);
+        filter: blur(8px);
+        pointer-events: none;
+    }
+
+    &.is-hidden {
+        display: none !important;
+    }
+
+    // Ambient background stars and dust
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: 
+            radial-gradient(1.5px 1.5px at 15% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
+            radial-gradient(1px 1px at 40% 70%, rgba(56, 189, 248, 0.6) 0%, transparent 100%),
+            radial-gradient(2px 2px at 75% 25%, rgba(245, 158, 11, 0.7) 0%, transparent 100%),
+            radial-gradient(1.5px 1.5px at 85% 80%, rgba(129, 140, 248, 0.6) 0%, transparent 100%),
+            radial-gradient(1px 1px at 25% 85%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+            radial-gradient(2px 2px at 60% 15%, rgba(16, 185, 129, 0.6) 0%, transparent 100%),
+            radial-gradient(1px 1px at 90% 40%, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+        opacity: 0.65;
+        pointer-events: none;
+        animation: starTwinkle 4s ease-in-out infinite alternate;
+    }
+
+    // Subtle cosmic vignette
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.85);
+        pointer-events: none;
+    }
+}
+
+.loading-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 480px;
+    width: 90%;
+    padding: 20px;
+}
+
+// ------------------------------------------
+// 3D ORBITAL ORRERY ANIMATION
+// ------------------------------------------
+
+.loading-orrery {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 800px;
+    transform-style: preserve-3d;
+}
+
+// Glowing Sun at center
+.loading-sun {
+    position: absolute;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff 0%, #fde047 30%, #f59e0b 70%, #d97706 100%);
+    box-shadow: 
+        0 0 25px rgba(245, 158, 11, 0.8),
+        0 0 50px rgba(245, 158, 11, 0.4),
+        0 0 80px rgba(251, 191, 36, 0.25);
+    animation: sunPulse 3s ease-in-out infinite alternate;
+    z-index: 10;
+}
+
+// Subtle solar corona wave
+.loading-sun-corona {
+    position: absolute;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+    animation: coronaPulse 2.4s ease-in-out infinite;
+    z-index: 9;
+}
+
+// Tilted Orbital Rings
+.loading-orbit-system {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotateX(68deg) rotateY(-12deg);
+    transform-style: preserve-3d;
+}
+
+.loading-orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-style: preserve-3d;
+
+    &.ring-inner {
+        width: 100px;
+        height: 100px;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+        animation: ringSpin 3.2s linear infinite;
+
+        .loading-planet {
+            width: 8px;
+            height: 8px;
+            background: #38bdf8;
+            box-shadow: 0 0 12px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.8);
+            transform: translateY(-50px);
+        }
+    }
+
+    &.ring-middle {
+        width: 168px;
+        height: 168px;
+        border: 1px dashed rgba(16, 185, 129, 0.35);
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.12);
+        animation: ringSpinCounter 6.5s linear infinite;
+
+        .loading-planet {
+            width: 11px;
+            height: 11px;
+            background: #10b981;
+            box-shadow: 0 0 14px #10b981, 0 0 24px rgba(16, 185, 129, 0.7);
+            transform: translateY(-84px);
+        }
+    }
+
+    &.ring-outer {
+        width: 236px;
+        height: 236px;
+        border: 1px solid rgba(129, 140, 248, 0.3);
+        box-shadow: 0 0 16px rgba(129, 140, 248, 0.1);
+        animation: ringSpin 11s linear infinite;
+
+        .loading-planet {
+            width: 9px;
+            height: 9px;
+            background: #f59e0b;
+            box-shadow: 0 0 12px #f59e0b, 0 0 22px rgba(245, 158, 11, 0.8);
+            transform: translateY(-118px);
+        }
+    }
+}
+
+.loading-planet {
+    position: absolute;
+    border-radius: 50%;
+    transform-style: preserve-3d;
+}
+
+// ------------------------------------------
+// HUD TYPOGRAPHY & HEADER
+// ------------------------------------------
+
+.loading-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    font-family: $font-mono;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: $neon-cyan;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+
+    .status-live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background-color: $neon-emerald;
+        box-shadow: 0 0 8px $neon-emerald;
+        animation: livePulse 1.8s ease-in-out infinite;
+    }
+}
+
+.loading-title {
+    font-family: $font-mono;
+    font-size: clamp(20px, 5vw, 26px);
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    color: #f8fafc;
+    text-align: center;
+    margin: 0 0 6px 0;
+    text-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.loading-subtitle {
+    font-family: $font-display;
+    font-size: clamp(11px, 2.8vw, 12px);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    color: $color-text-muted;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 0 0 24px 0;
+}
+
+// ------------------------------------------
+// PROGRESS BAR & TELEMETRY
+// ------------------------------------------
+
+.loading-progress-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.loading-status-text {
+    font-family: $font-mono;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: $neon-cyan;
+    text-align: center;
+    text-transform: uppercase;
+    min-height: 18px;
+    opacity: 0.95;
+    transition: color 0.3s ease;
+
+    &.status-complete {
+        color: $neon-emerald;
+        text-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+    }
+}
+
+.loading-progress-bar-container {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    border-radius: 9999px;
+    background: rgba(9, 14, 28, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    overflow: hidden;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.08);
+}
+
+.loading-progress-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #2563eb 0%, #38bdf8 50%, #818cf8 100%);
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.7);
+    transition: none; // Synced with JS RAF loop to eliminate visual lag and mismatch with percentage
+    position: relative;
+    overflow: hidden; // Prevents shimmer highlight from spilling outside the filled bar
+
+
+    // Scanline shimmer sweeping across progress bar
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -50%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%);
+        animation: progressShimmer 1.5s ease-in-out infinite;
+    }
+}
+
+.loading-telemetry-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: $font-mono;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: $color-text-muted;
+    padding: 0 2px;
+}
+
+.loading-percentage {
+    color: #f8fafc;
+    font-weight: 700;
+}
+
+.loading-subsystems {
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+// ------------------------------------------
+// KEYFRAME ANIMATIONS
+// ------------------------------------------
+
+@keyframes ringSpin {
+    from {
+        transform: rotateZ(0deg);
+    }
+    to {
+        transform: rotateZ(360deg);
+    }
+}
+
+@keyframes ringSpinCounter {
+    from {
+        transform: rotateZ(360deg);
+    }
+    to {
+        transform: rotateZ(0deg);
+    }
+}
+
+@keyframes sunPulse {
+    0% {
+        transform: scale(0.96);
+        box-shadow: 
+            0 0 22px rgba(245, 158, 11, 0.75),
+            0 0 45px rgba(245, 158, 11, 0.35),
+            0 0 70px rgba(251, 191, 36, 0.2);
+    }
+    100% {
+        transform: scale(1.05);
+        box-shadow: 
+            0 0 32px rgba(245, 158, 11, 0.9),
+            0 0 65px rgba(245, 158, 11, 0.5),
+            0 0 95px rgba(251, 191, 36, 0.3);
+    }
+}
+
+@keyframes coronaPulse {
+    0% {
+        transform: scale(0.88);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.3;
+    }
+    100% {
+        transform: scale(1.3);
+        opacity: 0;
+    }
+}
+
+@keyframes livePulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.4;
+        transform: scale(0.85);
+    }
+}
+
+@keyframes starTwinkle {
+    0% {
+        opacity: 0.5;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0.85;
+        transform: translateY(-2px);
+    }
+}
+
+@keyframes progressShimmer {
+    0% {
+        left: -50%;
+    }
+    100% {
+        left: 150%;
+    }
+}
+
+// ------------------------------------------
+// ACCESSIBILITY & RESPONSIVE
+// ------------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-orbit-ring,
+    .loading-sun,
+    .loading-sun-corona,
+    .loading-screen::before,
+    .loading-progress-bar::after {
+        animation: none !important;
+    }
+
+    .loading-screen {
+        transition: opacity 0.3s ease !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .loading-orrery {
+        width: 210px;
+        height: 210px;
+        margin-bottom: 20px;
+    }
+
+    .loading-orbit-ring.ring-inner {
+        width: 80px;
+        height: 80px;
+        .loading-planet { transform: translateY(-40px); }
+    }
+
+    .loading-orbit-ring.ring-middle {
+        width: 135px;
+        height: 135px;
+        .loading-planet { transform: translateY(-67px); }
+    }
+
+    .loading-orbit-ring.ring-outer {
+        width: 190px;
+        height: 190px;
+        .loading-planet { transform: translateY(-95px); }
+    }
+}

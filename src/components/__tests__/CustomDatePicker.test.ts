@@ -74,4 +74,33 @@ describe('CustomDatePicker', () => {
         expect(document.body.querySelector('.custom-datepicker-container')).toBeNull();
         expect(document.body.querySelector('.custom-datepicker-year-modal')).toBeNull();
     });
+
+    it('updates month names, weekdays, and BC label when language changes', async () => {
+        const { i18n } = await import('../../i18n');
+        i18n.setLanguage('de');
+
+        const monthSelect = datePicker.domElement.querySelector('.custom-datepicker-select') as HTMLSelectElement;
+        expect(monthSelect.options[0].textContent).toBe('Januar');
+        expect(monthSelect.options[9].textContent).toBe('Oktober');
+
+        const weekdayCells = datePicker.domElement.querySelectorAll('.datepicker-weekday-cell');
+        expect(weekdayCells[0].textContent).toBe('So');
+        expect(weekdayCells[1].textContent).toBe('Mo');
+
+        // Test BC date formatting
+        const bcDate = new Date(Date.UTC(-44, 2, 15)); // 45 BC
+        datePicker.setDate(bcDate);
+        const display = datePicker.domElement.querySelector('.custom-datepicker-display');
+        expect(display?.textContent).toContain('v. Chr.');
+
+        // Switch to Bosnian
+        i18n.setLanguage('bs');
+        expect(display?.textContent).toContain('p.n.e.');
+        const updatedWeekdayCells = datePicker.domElement.querySelectorAll('.datepicker-weekday-cell');
+        expect(updatedWeekdayCells[0].textContent).toBe('Ned');
+
+        // Switch back to English
+        i18n.setLanguage('en');
+        expect(display?.textContent).toContain('BC');
+    });
 });
