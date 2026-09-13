@@ -139,4 +139,150 @@ describe('Modal Localization & Audio Guide', () => {
         const badge = modal.modalElement.querySelector('.modal-header-badge');
         expect(badge).toBeNull();
     });
+
+    it('aligns object name with Listen and Close buttons inside modal-header', () => {
+        modal.show({
+            name: 'Mars',
+            description: 'The red planet'
+        });
+
+        const header = modal.modalElement.querySelector('.modal-header');
+        expect(header).not.toBeNull();
+
+        const title = header?.querySelector('h2');
+        expect(title).not.toBeNull();
+        expect(title?.textContent).toBe('Mars');
+
+        const actions = header?.querySelector('.modal-header-actions');
+        expect(actions).not.toBeNull();
+
+        const audioBtn = actions?.querySelector('.modal-audio-guide-btn');
+        const closeBtn = actions?.querySelector('.modal-close-btn');
+
+        expect(audioBtn).not.toBeNull();
+        expect(closeBtn).not.toBeNull();
+        expect(actions?.children.length).toBe(2);
+    });
+
+    it('renders radius in kilometers and relative Earth comparison in telemetry chips', () => {
+        modal.show({
+            name: 'Kepler-452b',
+            radius: 2,
+            displayRadius: 1.0,
+            distance: 130,
+            period: 1,
+            description: 'Earth cousin'
+        });
+
+        const statChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        const radiusChip = statChips.find(chip => chip.querySelector('.stat-label')?.textContent === 'Radius');
+
+        expect(radiusChip).toBeDefined();
+        const valueElem = radiusChip?.querySelector('.stat-value');
+        const subValueElem = radiusChip?.querySelector('.stat-subvalue');
+        const infoBtn = radiusChip?.querySelector('.info-btn');
+
+        expect(valueElem?.textContent).toBe('6,371 km');
+        expect(subValueElem?.textContent).toBe('1.0 × Earth');
+        expect(infoBtn?.getAttribute('data-text')).toContain('Earth = 6,371 km');
+
+        // Test that tooltip title and text are rendered in separate structured elements
+        (infoBtn as HTMLElement).click();
+        const tooltipTitle = modal.tooltipElement.querySelector('.modal-tooltip-title');
+        const tooltipText = modal.tooltipElement.querySelector('.modal-tooltip-text');
+        expect(tooltipTitle?.textContent).toBe('Radius');
+        expect(tooltipText?.textContent).toContain('Earth = 6,371 km');
+    });
+
+    it('renders localized Earth comparison and handles comets/large planets properly', () => {
+        // Test Jupiter
+        modal.show({
+            name: 'Jupiter',
+            radius: 11.2,
+            displayRadius: 10.97,
+            distance: 300,
+            period: 11.86,
+            description: 'Gas giant'
+        });
+
+        let statChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        let radiusChip = statChips.find(chip => chip.querySelector('.stat-label')?.textContent === 'Radius');
+        expect(radiusChip?.querySelector('.stat-value')?.textContent).toBe('69,890 km');
+        expect(radiusChip?.querySelector('.stat-subvalue')?.textContent).toBe('10.97 × Earth');
+
+        // Switch to German and show Kepler-452b
+        i18n.setLanguage('de');
+        modal.show({
+            name: 'Kepler-452b',
+            radius: 2,
+            displayRadius: 1.0,
+            distance: 130,
+            period: 1,
+            description: 'Erd-Cousin'
+        });
+
+        statChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        radiusChip = statChips.find(chip => chip.querySelector('.stat-label')?.textContent === i18n.t('modal.labels.radius'));
+        expect(radiusChip?.querySelector('.stat-value')?.textContent).toBe('6.371 km');
+        expect(radiusChip?.querySelector('.stat-subvalue')?.textContent).toBe('1,0 × Erde');
+
+        // Switch to Bosnian and show Jupiter
+        i18n.setLanguage('bs');
+        modal.show({
+            name: 'Jupiter',
+            radius: 11.2,
+            displayRadius: 10.97,
+            distance: 300,
+            period: 11.86,
+            description: 'Plinski div'
+        });
+
+        statChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        radiusChip = statChips.find(chip => chip.querySelector('.stat-label')?.textContent === i18n.t('modal.labels.radius'));
+        expect(radiusChip?.querySelector('.stat-subvalue')?.textContent).toBe('10,97 × Zemlja');
+    });
+
+    it('does not render the Radius field for Earth', () => {
+        modal.show({
+            name: 'Earth',
+            radius: 2,
+            displayRadius: 1.0,
+            distance: 130,
+            period: 1,
+            axialTilt: 23.44,
+            description: 'Our home planet'
+        });
+
+        const statChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        const labels = statChips.map(chip => chip.querySelector('.stat-label')?.textContent);
+
+        expect(labels).not.toContain('Radius');
+        expect(labels).toContain('Distance');
+        expect(labels).toContain('Period');
+        expect(labels).toContain('Axial Tilt');
+        expect(statChips.length).toBe(3);
+    });
+
+    it('does not render distance and period chips for the Sun', () => {
+        modal.show({
+            name: 'Sun',
+            radius: 25,
+            displayRadius: 109.2,
+            distance: 0,
+            distanceAU: 0,
+            period: 0,
+            axialTilt: 7.25,
+            description: 'The star at the center of the Solar System'
+        });
+
+        const statChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        const labels = statChips.map(chip => chip.querySelector('.stat-label')?.textContent);
+
+        expect(labels).toContain('Radius');
+        expect(labels).toContain('Axial Tilt');
+        expect(labels).not.toContain('Distance');
+        expect(labels).not.toContain('Period');
+        expect(statChips.length).toBe(2);
+    });
 });
+

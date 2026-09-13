@@ -18,6 +18,8 @@ export class Modal {
     modalElement: HTMLElement;
     contentElement: HTMLElement;
     tooltipElement: HTMLElement;
+    public headerElement: HTMLElement | null = null;
+    public titleElement: HTMLElement | null = null;
     public audioNarrator: AudioNarrator;
     private audioGuideBtn: HTMLButtonElement | null = null;
     private closeBtn: HTMLButtonElement | null = null;
@@ -71,7 +73,7 @@ export class Modal {
 
         // Drag handle for mobile bottom sheet
         const dragHandle = document.createElement('div');
-        dragHandle.className = 'modal-drag-handle';
+        dragHandle.className = 'sheet-drag-handle modal-drag-handle';
         dragHandle.setAttribute('aria-hidden', 'true');
         modal.appendChild(dragHandle);
 
@@ -109,6 +111,19 @@ export class Modal {
         dragHandle.addEventListener('touchend', endDrag);
         dragHandle.addEventListener('touchcancel', endDrag);
 
+        // Header containing object name and action buttons (Listen, Close)
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        this.headerElement = header;
+
+        const title = document.createElement('h2');
+        title.className = 'modal-title';
+        this.titleElement = title;
+        header.appendChild(title);
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-header-actions';
+
         // Audio Guide narration button
         const audioGuideBtn = document.createElement('button');
         audioGuideBtn.className = 'modal-audio-guide-btn';
@@ -117,8 +132,8 @@ export class Modal {
         audioGuideBtn.onclick = () => {
             if (this.currentData) {
                 const desc = (this.contentElement.querySelector('.description')?.textContent) || this.currentData.description || '';
-                const title = (this.contentElement.querySelector('h2')?.textContent) || this.currentData.name || '';
-                const fullText = `${title}. ${desc}`;
+                const titleText = (this.titleElement?.textContent) || (this.modalElement.querySelector('h2')?.textContent) || this.currentData.name || '';
+                const fullText = `${titleText}. ${desc}`;
                 const activeLang = i18n.currentLanguage || 'en';
                 const isSpeaking = this.audioNarrator.toggle(fullText, activeLang, () => {
                     this.updateAudioGuideButtonLabel(false);
@@ -126,7 +141,7 @@ export class Modal {
                 this.updateAudioGuideButtonLabel(isSpeaking);
             }
         };
-        modal.appendChild(audioGuideBtn);
+        actions.appendChild(audioGuideBtn);
 
         // Close button
         const closeBtn = document.createElement('button');
@@ -137,8 +152,11 @@ export class Modal {
         closeBtn.onclick = () => {
             this.hide();
         };
-        modal.appendChild(closeBtn);
+        actions.appendChild(closeBtn);
         this.closeBtn = closeBtn;
+
+        header.appendChild(actions);
+        modal.appendChild(header);
 
         // Content Container
         const content = document.createElement('div');
@@ -204,7 +222,7 @@ export class Modal {
         const d = i18n.t('modal.periodUnits.day');
 
         if (years >= 1 || years === 0) {
-            return `${years} ${yr}`;
+            return `${i18n.formatNumber(years, { maximumFractionDigits: 2 })} ${yr}`;
         }
 
         const totalDays = years * 365.25;
@@ -213,30 +231,62 @@ export class Modal {
 
         const parts = [];
         if (months > 0) {
-            parts.push(`${months}${m}`);
+            parts.push(`${i18n.formatNumber(months)}${m}`);
         }
         if (days > 0) {
-            parts.push(`${days}${d}`);
+            parts.push(`${i18n.formatNumber(days)}${d}`);
         }
 
         if (parts.length === 0) {
-            return `${years} ${yr}`;
+            return `${i18n.formatNumber(years, { maximumFractionDigits: 2 })} ${yr}`;
         }
 
         return `${parts.join(' ')}`;
     }
 
+    private formatRadius(displayRadius: number): { value: string; subValue: string } {
+        const km = displayRadius * 6371;
+        let valueStr: string;
+
+        if (km >= 1000) {
+            valueStr = `${i18n.formatNumber(Math.round(km))} km`;
+        } else if (km >= 10) {
+            valueStr = `${i18n.formatNumber(km, { minimumFractionDigits: 0, maximumFractionDigits: 1 })} km`;
+        } else if (km >= 1) {
+            valueStr = `${i18n.formatNumber(km, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+        } else {
+            valueStr = `${i18n.formatNumber(km, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
+        }
+
+        const earthName = i18n.t('bodies.Earth.name');
+        let ratioStr: string;
+        if (displayRadius >= 100) {
+            ratioStr = `${i18n.formatNumber(displayRadius, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} × ${earthName}`;
+        } else if (displayRadius === 1) {
+            ratioStr = `${i18n.formatNumber(1, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} × ${earthName}`;
+        } else if (displayRadius >= 0.05) {
+            ratioStr = `${i18n.formatNumber(displayRadius, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × ${earthName}`;
+        } else if (displayRadius < 0.005) {
+            ratioStr = `< ${i18n.formatNumber(0.01, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × ${earthName}`;
+        } else {
+            ratioStr = `${i18n.formatNumber(displayRadius, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} × ${earthName}`;
+        }
+
+        return { value: valueStr, subValue: ratioStr };
+    }
+
     private getExtraInfo(data: ModalData | CustomModalData): string {
-        let stats: { label: string; value: string; tooltipTitle: string; tooltipText: string }[] = [];
+        let stats: { label: string; value: string; tooltipTitle: string; tooltipText: string; subValue?: string }[] = [];
         let additionalHtml = '';
 
-        const createChip = (label: string, value: string, tooltipTitle: string, tooltipText: string) => `
+        const createChip = (label: string, value: string, tooltipTitle: string, tooltipText: string, subValue?: string) => `
             <div class="stat-chip">
                 <div class="stat-label-wrap">
                     <span class="stat-label">${label}</span>
                     <span class="info-btn gui-info-icon" data-title="${tooltipTitle}" data-text="${tooltipText}">i</span>
                 </div>
                 <span class="stat-value">${value}</span>
+                ${subValue ? `<span class="stat-subvalue">${subValue}</span>` : ''}
             </div>
         `;
 
@@ -254,15 +304,17 @@ export class Modal {
         }
 
         if ('ra' in data && data.ra !== undefined && 'dec' in data && data.dec !== undefined) {
+            const raFormatted = typeof data.ra === 'number' ? i18n.formatNumber(data.ra, { maximumFractionDigits: 2 }) : data.ra;
+            const decFormatted = typeof data.dec === 'number' ? i18n.formatNumber(data.dec, { maximumFractionDigits: 2 }) : data.dec;
             stats.push({
                 label: i18n.t('modal.labels.rightAsc'),
-                value: `${data.ra}h`,
+                value: `${raFormatted}h`,
                 tooltipTitle: i18n.t('modal.tooltipTitles.rightAsc'),
                 tooltipText: i18n.t('modal.tooltips.rightAsc')
             });
             stats.push({
                 label: i18n.t('modal.labels.declination'),
-                value: `${data.dec}°`,
+                value: `${decFormatted}°`,
                 tooltipTitle: i18n.t('modal.tooltipTitles.declination'),
                 tooltipText: i18n.t('modal.tooltips.declination')
             });
@@ -271,9 +323,23 @@ export class Modal {
         if ('semiMajorAxis' in data) {
             const comet = data as CometData;
             const displayRadius = comet.displayRadius !== undefined ? comet.displayRadius : comet.radius;
-            stats.push({ label: i18n.t('modal.labels.radius'), value: `${displayRadius} R⊕`, tooltipTitle: i18n.t('modal.tooltipTitles.radius'), tooltipText: i18n.t('modal.tooltips.radiusEarth') });
-            stats.push({ label: i18n.t('modal.labels.semiMajorAxis'), value: `${comet.semiMajorAxis} AU`, tooltipTitle: i18n.t('modal.tooltipTitles.semiMajorAxis'), tooltipText: i18n.t('modal.tooltips.semiMajorAxis') });
-            stats.push({ label: i18n.t('modal.labels.eccentricity'), value: `${comet.eccentricity}`, tooltipTitle: i18n.t('modal.tooltipTitles.eccentricity'), tooltipText: i18n.t('modal.tooltips.eccentricity') });
+            const radiusInfo = this.formatRadius(displayRadius);
+            const smaFormatted = typeof comet.semiMajorAxis === 'number'
+                ? i18n.formatNumber(comet.semiMajorAxis, { maximumFractionDigits: 2 })
+                : comet.semiMajorAxis;
+            const eccFormatted = typeof comet.eccentricity === 'number'
+                ? i18n.formatNumber(comet.eccentricity, { maximumFractionDigits: 4 })
+                : comet.eccentricity;
+
+            stats.push({
+                label: i18n.t('modal.labels.radius'),
+                value: radiusInfo.value,
+                subValue: radiusInfo.subValue,
+                tooltipTitle: i18n.t('modal.tooltipTitles.radius'),
+                tooltipText: i18n.t('modal.tooltips.radiusEarth')
+            });
+            stats.push({ label: i18n.t('modal.labels.semiMajorAxis'), value: `${smaFormatted} AU`, tooltipTitle: i18n.t('modal.tooltipTitles.semiMajorAxis'), tooltipText: i18n.t('modal.tooltips.semiMajorAxis') });
+            stats.push({ label: i18n.t('modal.labels.eccentricity'), value: `${eccFormatted}`, tooltipTitle: i18n.t('modal.tooltipTitles.eccentricity'), tooltipText: i18n.t('modal.tooltips.eccentricity') });
             stats.push({ label: i18n.t('modal.labels.period'), value: this.formatPeriodText(comet.period), tooltipTitle: i18n.t('modal.tooltipTitles.period'), tooltipText: i18n.t('modal.tooltips.cometPeriod') });
         } else if ('radius' in data) {
             const body = data as CelestialBodyData;
@@ -288,22 +354,45 @@ export class Modal {
             }
 
             const displayDistance = body.distanceAU ?? body.distance;
-            stats.push({ label: i18n.t('modal.labels.radius'), value: `${displayRadius} R⊕`, tooltipTitle: i18n.t('modal.tooltipTitles.radius'), tooltipText: i18n.t('modal.tooltips.radiusEarth') });
-            stats.push({ label: i18n.t('modal.labels.distance'), value: `${displayDistance} AU`, tooltipTitle: i18n.t('modal.tooltipTitles.distance'), tooltipText: isMoon ? i18n.t('modal.tooltips.distPlanet') : i18n.t('modal.tooltips.distSun') });
-            stats.push({ label: i18n.t('modal.labels.period'), value: this.formatPeriodText(body.period), tooltipTitle: i18n.t('modal.tooltipTitles.period'), tooltipText: isMoon ? i18n.t('modal.tooltips.orbitPlanet') : i18n.t('modal.tooltips.orbitSun') });
+            const radiusInfo = this.formatRadius(displayRadius);
+            const distFormatted = typeof displayDistance === 'number'
+                ? i18n.formatNumber(displayDistance, { maximumFractionDigits: 3 })
+                : displayDistance;
+
+            const isEarth = body.name === 'Earth';
+            if (!isEarth) {
+                stats.push({
+                    label: i18n.t('modal.labels.radius'),
+                    value: radiusInfo.value,
+                    subValue: radiusInfo.subValue,
+                    tooltipTitle: i18n.t('modal.tooltipTitles.radius'),
+                    tooltipText: i18n.t('modal.tooltips.radiusEarth')
+                });
+            }
+
+            const isSun = body.name === 'Sun' || (body.distance === 0 && body.period === 0 && !isMoon);
+            if (!isSun) {
+                stats.push({ label: i18n.t('modal.labels.distance'), value: `${distFormatted} AU`, tooltipTitle: i18n.t('modal.tooltipTitles.distance'), tooltipText: isMoon ? i18n.t('modal.tooltips.distPlanet') : i18n.t('modal.tooltips.distSun') });
+                stats.push({ label: i18n.t('modal.labels.period'), value: this.formatPeriodText(body.period), tooltipTitle: i18n.t('modal.tooltipTitles.period'), tooltipText: isMoon ? i18n.t('modal.tooltips.orbitPlanet') : i18n.t('modal.tooltips.orbitSun') });
+            }
+
             if (body.axialTilt !== undefined) {
-                stats.push({ label: i18n.t('modal.labels.axialTilt'), value: `${body.axialTilt}°`, tooltipTitle: i18n.t('modal.tooltipTitles.axialTilt'), tooltipText: i18n.t('modal.tooltips.axialTilt') });
+                const tiltFormatted = typeof body.axialTilt === 'number'
+                    ? i18n.formatNumber(body.axialTilt, { maximumFractionDigits: 2 })
+                    : body.axialTilt;
+                stats.push({ label: i18n.t('modal.labels.axialTilt'), value: `${tiltFormatted}°`, tooltipTitle: i18n.t('modal.tooltipTitles.axialTilt'), tooltipText: i18n.t('modal.tooltips.axialTilt') });
             }
         } else if ('stars' in data && 'connections' in data) {
             const constellation = data as ConstellationData;
             if (constellation.stars && constellation.stars.length > 0) {
-                stats.push({ label: i18n.t('modal.labels.stars'), value: `${constellation.stars.length}`, tooltipTitle: i18n.t('modal.tooltipTitles.stars'), tooltipText: i18n.t('modal.tooltips.constellationStars') });
+                stats.push({ label: i18n.t('modal.labels.stars'), value: `${i18n.formatNumber(constellation.stars.length)}`, tooltipTitle: i18n.t('modal.tooltipTitles.stars'), tooltipText: i18n.t('modal.tooltips.constellationStars') });
             }
             if (constellation.brightestStar) {
                 stats.push({ label: i18n.t('modal.labels.brightest'), value: `${constellation.brightestStar}`, tooltipTitle: i18n.t('modal.tooltipTitles.brightest'), tooltipText: i18n.t('modal.tooltips.brightestStar') });
             }
             if (constellation.area) {
-                stats.push({ label: i18n.t('modal.labels.area'), value: `${constellation.area} sq°`, tooltipTitle: i18n.t('modal.tooltipTitles.area'), tooltipText: i18n.t('modal.tooltips.constellationArea') });
+                const areaFormatted = typeof constellation.area === 'number' ? i18n.formatNumber(constellation.area) : constellation.area;
+                stats.push({ label: i18n.t('modal.labels.area'), value: `${areaFormatted} sq°`, tooltipTitle: i18n.t('modal.tooltipTitles.area'), tooltipText: i18n.t('modal.tooltips.constellationArea') });
             }
             if (constellation.family) {
                 const familyName = i18n.getConstellationFamily(constellation.name, constellation.family);
@@ -313,7 +402,7 @@ export class Modal {
 
         let gridHtml = '';
         if (stats.length > 0) {
-            gridHtml = `<div class="telemetry-grid">${stats.map(s => createChip(s.label, s.value, s.tooltipTitle, s.tooltipText)).join('')}</div>`;
+            gridHtml = `<div class="telemetry-grid">${stats.map(s => createChip(s.label, s.value, s.tooltipTitle, s.tooltipText, s.subValue)).join('')}</div>`;
         }
 
         return gridHtml + additionalHtml;
@@ -348,7 +437,7 @@ export class Modal {
         const title = btn.getAttribute('data-title') || '';
         const text = btn.getAttribute('data-text') || '';
 
-        this.tooltipElement.innerHTML = `<strong>${title}</strong>${text}`;
+        this.tooltipElement.innerHTML = `<div class="modal-tooltip-title">${title}</div><div class="modal-tooltip-text">${text}</div>`;
         this.tooltipElement.style.display = 'block';
 
         const rect = btn.getBoundingClientRect();
@@ -451,12 +540,15 @@ export class Modal {
             displayDesc = i18n.getBodyDescription(data.name, data.description);
         }
 
+        if (this.titleElement) {
+            this.titleElement.textContent = displayName;
+        }
+
         const galleryHtml = this.getGalleryHtml(data);
         const linksHtml = this.getLinksHtml(data);
         const extraInfo = this.getExtraInfo(data);
 
         this.contentElement.innerHTML = `
-            <h2>${displayName}</h2>
             ${galleryHtml}
             <p class="description">${displayDesc || i18n.t('modal.noDescription')}</p>
             ${extraInfo}
@@ -478,6 +570,9 @@ export class Modal {
     public hide() {
         this.isOpen = false;
         this.currentData = null;
+        if (this.titleElement) {
+            this.titleElement.textContent = '';
+        }
         this.audioNarrator.stop();
         this.updateAudioGuideButtonLabel(false);
         this.modalElement.style.display = 'none';

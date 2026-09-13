@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const pl: TranslationSchema = {
     ui: {
-        simDate: '⏱ DATA SYMULACJI:',
+        simDate: '⏱ Data symulacji:',
         radarToggle: 'Przełącz radar minimapy (M)',
         controlsToggle: 'Przełącz panel sterowania',
         languageToggle: 'Zmień język',
@@ -86,14 +86,14 @@ export const pl: TranslationSchema = {
     },
     modal: {
         badges: {
-            celestialBody: 'CIAŁO NIEBIESKIE',
-            missionDossier: 'DOKUMENTACJA MISJI',
-            cometTelemetry: 'TELEMETRIA KOMETY',
-            constellation: 'GWIAZDOZBÓR',
-            stellarDossier: 'DOKUMENTACJA GWIAZDY',
-            lunarTelemetry: 'TELEMETRIA KSIĘŻYCA',
-            stellarCore: 'JĄDRO GWIEZDNE',
-            planetaryDossier: 'DOKUMENTACJA PLANETY'
+            celestialBody: 'Ciało niebieskie',
+            missionDossier: 'Dokumentacja misji',
+            cometTelemetry: 'Telemetria komety',
+            constellation: 'Gwiazdozbiór',
+            stellarDossier: 'Dokumentacja gwiazdy',
+            lunarTelemetry: 'Telemetria księżyca',
+            stellarCore: 'Jądro gwiezdne',
+            planetaryDossier: 'Dokumentacja planety'
         },
         labels: {
             type: 'Typ',
@@ -130,7 +130,7 @@ export const pl: TranslationSchema = {
             spacecraft: 'Sztuczny pojazd zaprojektowany do działania i eksploracji przestrzeni kosmicznej.',
             rightAsc: 'Współrzędna astronomiczna odpowiadająca długości geograficznej na Ziemi, mierzona w godzinach gwiazdowych.',
             declination: 'Współrzędna astronomiczna odpowiadająca szerokości geograficznej na Ziemi, mierzona na północ (+) lub południe (-) od równika niebieskiego.',
-            radiusEarth: 'Promień planety w odniesieniu do promienia Ziemi (R⊕).',
+            radiusEarth: 'Promień fizyczny w kilometrach oraz w odniesieniu do Ziemi (Ziemia = 6 371 km).',
             distSun: 'Średnia odległość od Słońca w jednostkach astronomicznych (AU).',
             distPlanet: 'Średnia odległość od planety macierzystej.',
             orbitSun: 'Czas potrzebny na wykonanie jednego pełnego obiegu wokół Słońca.',
@@ -204,24 +204,24 @@ export const pl: TranslationSchema = {
     loading: {
         boot: 'Rozruch obserwatorium',
         subtitle: 'Astronomiczne obserwatorium głębokiego kosmosu',
-        core: 'INICJALIZACJA RDZENIA OBSERWATORIUM...',
-        ephemerides: 'KALIBRACJA EFEMERYD ASTRONOMICZNYCH...',
-        surfaces: 'SYNTEZA POWIERZCHNI PLANETARNYCH...',
-        controls: 'KONFIGURACJA KONTROLI OBSERWATORIUM...',
-        acquiring: 'POBIERANIE ASTROFOTOGRAFII W WYSOKIEJ ROZDZIELCZOŚCI...',
-        calibrating: 'KALIBRACJA SHADERÓW ATMOSFERYCZNYCH...',
-        streaming: 'STRUMIENIOWANIE TEKSTUR GŁĘBOKIEGO KOSMOSU...',
-        synchronizing: 'SYNCHRONIZACJA ORBIT ASTRONOMICZNYCH...',
-        loaded: 'ZASOBY ZAŁADOWANE',
-        ready: 'SYSTEMY OPERACYJNE • OBSERWATORIUM GOTOWE',
-        standby: 'OCZEKIWANIE',
-        connecting: 'ŁĄCZENIE',
-        assets: 'ZASOBY',
-        online: 'ONLINE',
-        tagBoot: 'START',
-        tagCalibrating: 'KALIBRACJA',
-        tagSynthesizing: 'SYNTEZA',
-        tagConfiguring: 'KONFIGURACJA'
+        core: 'Inicjalizacja rdzenia obserwatorium...',
+        ephemerides: 'Kalibracja efemeryd astronomicznych...',
+        surfaces: 'Synteza powierzchni planetarnych...',
+        controls: 'Konfiguracja kontroli obserwatorium...',
+        acquiring: 'Pobieranie astrofotografii w wysokiej rozdzielczości...',
+        calibrating: 'Kalibracja shaderów atmosferycznych...',
+        streaming: 'Strumieniowanie tekstur głębokiego kosmosu...',
+        synchronizing: 'Synchronizacja orbit astronomicznych...',
+        loaded: 'Zasoby załadowane',
+        ready: 'Systemy operacyjne • Obserwatorium gotowe',
+        standby: 'Oczekiwanie',
+        connecting: 'Łączenie',
+        assets: 'Zasoby',
+        online: 'Online',
+        tagBoot: 'Start',
+        tagCalibrating: 'Kalibracja',
+        tagSynthesizing: 'Synteza',
+        tagConfiguring: 'Konfiguracja'
     },
     bodies: {
         Sun: {

@@ -190,7 +190,13 @@ export class CelestialBody {
         }
         if (this.data.name !== 'Sun') {
             this.mesh.castShadow = true;
+
             this.mesh.receiveShadow = true;
+        }
+        if (this.data.name === 'Haumea') {
+            // Haumea is a fast-spinning, triaxial Jacobi ellipsoid (approx 2,100 x 1,680 x 1,074 km)
+            // Normalized scale: equatorial X (longest) = 1.4, polar Y (shortest) = 0.7, equatorial Z (intermediate) = 1.05
+            this.mesh.scale.set(1.4, 0.7, 1.05);
         }
         this.tiltGroup.add(this.mesh);
 
@@ -529,7 +535,7 @@ export class CelestialBody {
             positions[i6 + 2] = nz;
 
             // Check if it hit the atmosphere/planet or flew away
-            const distSq = nx*nx + ny*ny + nz*nz;
+            const distSq = nx * nx + ny * ny + nz * nz;
             // Reset if inside planet or too far
             if (distSq < radius * radius * 1.05 || distSq > radius * radius * 25) {
                 this.resetMeteor(i, positions, colors);
@@ -604,6 +610,11 @@ export class CelestialBody {
         return 20.0;
     }
 
+    getVelocityBodyScale(): number {
+        const r = this.data.radius;
+        return r <= 1.0 ? Math.max(0.12, r) : Math.min(2.8, Math.pow(r, 0.65));
+    }
+
     createVelocityVector() {
         if (this.data.distance === 0 || this.data.name === 'Sun') return;
         // Include all major planets, dwarf planets, and major moons (Moon, etc.)
@@ -612,8 +623,7 @@ export class CelestialBody {
         this.velocityVectorGroup = new THREE.Group();
 
         // Responsive scaling based on celestial body radius
-        const r = this.data.radius;
-        const bodyScale = Math.max(0.55, Math.min(2.8, Math.pow(r, 0.65)));
+        const bodyScale = this.getVelocityBodyScale();
 
         // Direction shaft
         const shaftLength = 1.1 * bodyScale;
@@ -835,12 +845,12 @@ export class CelestialBody {
             const b = a * Math.sqrt(1 - e * e);
 
             if (e > 0) {
-            let M = this.angle;
-            let E = solveKepler(M, e);
-            x = a * (Math.cos(E) - e);
-            z = b * Math.sin(E);
-        } else {
-            x = Math.cos(this.angle) * a;
+                let M = this.angle;
+                let E = solveKepler(M, e);
+                x = a * (Math.cos(E) - e);
+                z = b * Math.sin(E);
+            } else {
+                x = Math.cos(this.angle) * a;
                 z = Math.sin(this.angle) * a;
             }
         }
@@ -851,13 +861,15 @@ export class CelestialBody {
         // Rotate planet on its axis
         if (this.mesh) {
             // Rotate around local Y axis (which is tilted via tiltGroup)
-            this.mesh.rotation.y += 0.5 * deltaTime;
+            // Haumea has an exceptionally rapid rotation period (~3.9 hours)
+            const rotationSpeed = this.data.name === 'Haumea' ? 2.5 : 0.5;
+            this.mesh.rotation.y += rotationSpeed * deltaTime;
         }
 
         // Rotate Rings
         this.ringMeshes.forEach(ring => {
-             // Rotate around local Z axis since they were rotated 90deg on X
-             ring.rotation.z += 0.2 * deltaTime;
+            // Rotate around local Z axis since they were rotated 90deg on X
+            ring.rotation.z += 0.2 * deltaTime;
         });
 
         // Rotate Clouds independently with real-time atmospheric circulation drift
@@ -884,8 +896,9 @@ export class CelestialBody {
             // Tangent direction in orbital plane: (-sin(angle), 0, cos(angle))
             const tangent = new THREE.Vector3(-Math.sin(this.angle), 0, Math.cos(this.angle)).normalize();
             const r = this.data.radius;
-            const bodyScale = Math.max(0.55, Math.min(2.8, Math.pow(r, 0.65)));
-            const offsetDist = r * 1.35 + bodyScale * 0.4;
+            const bodyScale = this.getVelocityBodyScale();
+            const clearanceR = this.data.name === 'Haumea' ? r * 1.45 : r;
+            const offsetDist = clearanceR * 1.35 + bodyScale * 0.4;
             this.velocityVectorGroup.position.copy(tangent).multiplyScalar(offsetDist);
             this.velocityVectorGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
 

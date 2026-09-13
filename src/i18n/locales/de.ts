@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const de: TranslationSchema = {
     ui: {
-        simDate: '⏱ SIM-DATUM:',
+        simDate: '⏱ Sim-Datum:',
         radarToggle: 'Minimap-Radar umschalten (M)',
         controlsToggle: 'Simulationssteuerung umschalten',
         languageToggle: 'Sprache ändern',
@@ -86,14 +86,14 @@ export const de: TranslationSchema = {
     },
     modal: {
         badges: {
-            celestialBody: 'HIMMELSKÖRPER',
-            missionDossier: 'MISSIONS-DOSSIER',
-            cometTelemetry: 'KOMETEN-TELEMETRIE',
-            constellation: 'STERNBILD',
-            stellarDossier: 'STERN-DOSSIER',
-            lunarTelemetry: 'MOND-TELEMETRIE',
-            stellarCore: 'STERNENKERN',
-            planetaryDossier: 'PLANETEN-DOSSIER'
+            celestialBody: 'Himmelskörper',
+            missionDossier: 'Missions-Dossier',
+            cometTelemetry: 'Kometen-Telemetrie',
+            constellation: 'Sternbild',
+            stellarDossier: 'Stern-Dossier',
+            lunarTelemetry: 'Mond-Telemetrie',
+            stellarCore: 'Sternenkern',
+            planetaryDossier: 'Planeten-Dossier'
         },
         labels: {
             type: 'Typ',
@@ -130,7 +130,7 @@ export const de: TranslationSchema = {
             spacecraft: 'Ein künstliches Raumfahrzeug zur Erforschung des Weltraums.',
             rightAsc: 'Himmelskoordinate analog zum Längengrad auf der Erde, gemessen in Sternstunden.',
             declination: 'Himmelskoordinate analog zum Breitengrad auf der Erde, gemessen nördlich (+) oder südlich (-) des Himmelsäquators.',
-            radiusEarth: 'Radius des Himmelskörpers im Verhältnis zum Erdradius (R⊕).',
+            radiusEarth: 'Physikalischer Radius in Kilometern und im Verhältnis zur Erde (Erde = 6.371 km).',
             distSun: 'Durchschnittliche Entfernung von der Sonne in Astronomischen Einheiten (AE).',
             distPlanet: 'Durchschnittlicher Abstand zum Mutterplaneten.',
             orbitSun: 'Benötigte Zeit für eine vollständige Umrundung der Sonne.',
@@ -204,24 +204,24 @@ export const de: TranslationSchema = {
     loading: {
         boot: 'Observatorium-Start',
         subtitle: 'Astronomisches Tiefenraum-Observatorium',
-        core: 'INITIALISIERUNG DES OBSERVATORIUM-KERNS...',
-        ephemerides: 'KALIBRIERUNG DER HIMMELSEFPHEMERIDEN...',
-        surfaces: 'SYNTHESE PLANETARER OBERFLÄCHEN...',
-        controls: 'KONFIGURATION DER OBSERVATORIUMS-STEUERUNG...',
-        acquiring: 'LADEN HOCHAUFLÖSENDER ASTROFOTOGRAFIE...',
-        calibrating: 'KALIBRIERUNG ATMOSPHÄRISCHER SHADER...',
-        streaming: 'STREAMEN VON TIEFENRAUM-TEXTUREN...',
-        synchronizing: 'SYNCHRONISATION HIMMELSBANHEN...',
-        loaded: 'RESSOURCEN GELADEN',
-        ready: 'SYSTEME BEREIT • OBSERVATORIUM STARTKLAR',
-        standby: 'STANDBY',
-        connecting: 'VERBINDEN',
-        assets: 'RESSOURCEN',
-        online: 'ONLINE',
-        tagBoot: 'START',
-        tagCalibrating: 'KALIBRIERUNG',
-        tagSynthesizing: 'SYNTHESE',
-        tagConfiguring: 'KONFIGURATION'
+        core: 'Initialisierung des Observatorium-Kerns...',
+        ephemerides: 'Kalibrierung der Himmelsephemeriden...',
+        surfaces: 'Synthese planetarer Oberflächen...',
+        controls: 'Konfiguration der Observatoriums-Steuerung...',
+        acquiring: 'Laden hochauflösender Astrofotografie...',
+        calibrating: 'Kalibrierung atmosphärischer Shader...',
+        streaming: 'Streamen von Tiefenraum-Texturen...',
+        synchronizing: 'Synchronisation der Himmelsbahnen...',
+        loaded: 'Ressourcen geladen',
+        ready: 'Systeme bereit • Observatorium startklar',
+        standby: 'Standby',
+        connecting: 'Verbinden',
+        assets: 'Ressourcen',
+        online: 'Online',
+        tagBoot: 'Start',
+        tagCalibrating: 'Kalibrierung',
+        tagSynthesizing: 'Synthese',
+        tagConfiguring: 'Konfiguration'
     },
     bodies: {
         Sun: {

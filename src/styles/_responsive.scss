@@ -124,12 +124,31 @@
             display: block !important;
         }
 
+        .modal-header {
+            margin-bottom: 10px !important;
+
+            h2, .modal-title {
+                font-size: 19px !important;
+                margin: 0 !important;
+            }
+        }
+
         .modal-close-btn {
-            top: 10px !important;
-            right: 14px !important;
+            position: static !important;
+            top: auto !important;
+            right: auto !important;
             width: 28px !important;
             height: 28px !important;
             font-size: 16px !important;
+        }
+
+        .modal-audio-guide-btn {
+            position: static !important;
+            top: auto !important;
+            right: auto !important;
+            height: 28px !important;
+            padding: 0 10px !important;
+            font-size: 10.5px !important;
         }
 
         h2 {
@@ -163,6 +182,10 @@
 
             .stat-value {
                 font-size: 11.5px !important;
+            }
+
+            .stat-subvalue {
+                font-size: 10px !important;
             }
         }
 

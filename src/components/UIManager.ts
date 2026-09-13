@@ -380,12 +380,12 @@ export class UIManager {
                 const targetName = (this.sceneManager.focusedBody as any)?.data?.name || 'Earth';
                 const vel = this.getOrbitalVelocity(targetName);
                 const distFormatted = this.realtimeDistanceKm >= 1000
-                    ? `${Math.round(this.realtimeDistanceKm).toLocaleString('en-US')} km`
-                    : `${this.realtimeDistanceKm.toFixed(1)} km`;
+                    ? `${i18n.formatNumber(Math.round(this.realtimeDistanceKm))} km`
+                    : `${i18n.formatNumber(this.realtimeDistanceKm, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
 
                 this.telemetryTicker.innerHTML = `
                     <span class="ticker-body">${vel.label}</span>
-                    <span class="ticker-speed">${vel.speedKmS} km/s</span>
+                    <span class="ticker-speed">${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s</span>
                     <span class="ticker-divider">•</span>
                     <span class="ticker-dist">Orbit: +${distFormatted}</span>
                 `;

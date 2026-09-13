@@ -68,12 +68,16 @@ describe('CelestialBody', () => {
 
     it('should add moons correctly', () => {
          const earth = new CelestialBody(mockPlanetData, parentGroup);
-         const moon = new CelestialBody(mockMoonData, earth.orbitGroup);
+         const moon = new CelestialBody(mockMoonData, earth.orbitGroup, true);
 
          earth.moons.push(moon);
 
          expect(earth.moons).toHaveLength(1);
          expect(moon.parent).toBe(earth.orbitGroup);
+         expect(earth.mesh?.castShadow).toBe(true);
+         expect(earth.mesh?.receiveShadow).toBe(true);
+         expect(moon.mesh?.castShadow).toBe(false);
+         expect(moon.mesh?.receiveShadow).toBe(true);
     });
 
     it('should initialize Earth with polar auroras, velocity vector, and dynamic clouds', () => {
@@ -128,5 +132,44 @@ describe('CelestialBody', () => {
         const moon = new CelestialBody(mockMoonData, mars.orbitGroup);
         expect(moon.velocityVectorGroup).toBeDefined();
         expect(moon.getOrbitalSpeed()).toBe(1.0);
+    });
+
+    it('should scale velocity vector marker proportionally for small dwarf planets like Ceres', () => {
+        const mockCeresData: CelestialBodyData = {
+            name: 'Ceres',
+            radius: 0.14,
+            distance: 2.77,
+            period: 4.6,
+            color: 0x888888,
+            texture: 'ceres.jpg',
+            description: 'Mock Ceres',
+            imageUrl: 'ceres.jpg'
+        };
+        const ceres = new CelestialBody(mockCeresData, parentGroup);
+        expect(ceres.velocityVectorGroup).toBeDefined();
+        expect(ceres.getVelocityBodyScale()).toBeCloseTo(0.14);
+        // The marker scale must not exceed the planet's diameter (2 * radius = 0.28)
+        expect(ceres.getVelocityBodyScale()).toBeLessThanOrEqual(mockCeresData.radius * 2);
+    });
+
+    it('should initialize Haumea with an elongated triaxial ellipsoidal shape', () => {
+        const mockHaumeaData: CelestialBodyData = {
+            name: 'Haumea',
+            radius: 0.3,
+            distance: 43.3,
+            period: 284,
+            color: 0xaaaaaa,
+            texture: 'haumea.jpg',
+            description: 'Mock Haumea',
+            imageUrl: 'haumea.jpg'
+        };
+        const haumea = new CelestialBody(mockHaumeaData, parentGroup);
+        expect(haumea.mesh).toBeDefined();
+        // Haumea's mesh should be an elongated ellipsoid (X > Z > Y)
+        expect(haumea.mesh!.scale.x).toBeCloseTo(1.4);
+        expect(haumea.mesh!.scale.y).toBeCloseTo(0.7);
+        expect(haumea.mesh!.scale.z).toBeCloseTo(1.05);
+        expect(haumea.mesh!.scale.x).toBeGreaterThan(haumea.mesh!.scale.z);
+        expect(haumea.mesh!.scale.z).toBeGreaterThan(haumea.mesh!.scale.y);
     });
 });

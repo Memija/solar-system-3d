@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const en: TranslationSchema = {
     ui: {
-        simDate: '⏱ SIM DATE:',
+        simDate: '⏱ Sim Date:',
         radarToggle: 'Toggle Minimap Radar (M)',
         controlsToggle: 'Toggle Simulation Controls',
         languageToggle: 'Change Language',
@@ -86,14 +86,14 @@ export const en: TranslationSchema = {
     },
     modal: {
         badges: {
-            celestialBody: 'CELESTIAL BODY',
-            missionDossier: 'MISSION DOSSIER',
-            cometTelemetry: 'COMET TELEMETRY',
-            constellation: 'CONSTELLATION',
-            stellarDossier: 'STELLAR DOSSIER',
-            lunarTelemetry: 'LUNAR TELEMETRY',
-            stellarCore: 'STELLAR CORE',
-            planetaryDossier: 'PLANETARY DOSSIER'
+            celestialBody: 'Celestial Body',
+            missionDossier: 'Mission Dossier',
+            cometTelemetry: 'Comet Telemetry',
+            constellation: 'Constellation',
+            stellarDossier: 'Stellar Dossier',
+            lunarTelemetry: 'Lunar Telemetry',
+            stellarCore: 'Stellar Core',
+            planetaryDossier: 'Planetary Dossier'
         },
         labels: {
             type: 'Type',
@@ -130,7 +130,7 @@ export const en: TranslationSchema = {
             spacecraft: 'An artificial vehicle designed to operate in outer space.',
             rightAsc: 'Celestial coordinate equivalent to longitude on Earth, measured in sidereal hours.',
             declination: 'Celestial coordinate equivalent to latitude on Earth, measured north (+) or south (-) of celestial equator.',
-            radiusEarth: 'Planetary radius relative to Earth.',
+            radiusEarth: "Physical radius in kilometers and compared to Earth's radius (Earth = 6,371 km).",
             distSun: 'Average distance from the Sun in Astronomical Units (AU).',
             distPlanet: 'Average distance from parent planet.',
             orbitSun: 'Time taken to complete one orbit around the Sun.',
@@ -204,24 +204,24 @@ export const en: TranslationSchema = {
     loading: {
         boot: 'Observatory Boot',
         subtitle: 'Deep Space Astronomical Observatory',
-        core: 'INITIALIZING OBSERVATORY CORE...',
-        ephemerides: 'CALIBRATING CELESTIAL EPHEMERIDES...',
-        surfaces: 'SYNTHESIZING PLANETARY SURFACES...',
-        controls: 'CONFIGURING OBSERVATORY CONTROLS...',
-        acquiring: 'ACQUIRING HIGH-RES ASTROPHOTOGRAPHY...',
-        calibrating: 'CALIBRATING ATMOSPHERIC SHADERS...',
-        streaming: 'STREAMING DEEP SPACE TEXTURES...',
-        synchronizing: 'SYNCHRONIZING CELESTIAL ORBITS...',
-        loaded: 'ASSETS LOADED',
-        ready: 'SYSTEMS OPERATIONAL • OBSERVATORY READY',
-        standby: 'STANDBY',
-        connecting: 'CONNECTING',
-        assets: 'ASSETS',
-        online: 'ONLINE',
-        tagBoot: 'BOOT',
-        tagCalibrating: 'CALIBRATING',
-        tagSynthesizing: 'SYNTHESIZING',
-        tagConfiguring: 'CONFIGURING'
+        core: 'Initializing observatory core...',
+        ephemerides: 'Calibrating celestial ephemerides...',
+        surfaces: 'Synthesizing planetary surfaces...',
+        controls: 'Configuring observatory controls...',
+        acquiring: 'Acquiring high-res astrophotography...',
+        calibrating: 'Calibrating atmospheric shaders...',
+        streaming: 'Streaming deep space textures...',
+        synchronizing: 'Synchronizing celestial orbits...',
+        loaded: 'Assets loaded',
+        ready: 'Systems operational • Observatory ready',
+        standby: 'Standby',
+        connecting: 'Connecting',
+        assets: 'Assets',
+        online: 'Online',
+        tagBoot: 'Boot',
+        tagCalibrating: 'Calibrating',
+        tagSynthesizing: 'Synthesizing',
+        tagConfiguring: 'Configuring'
     },
     bodies: {
         Sun: {

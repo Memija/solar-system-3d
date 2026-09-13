@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const id: TranslationSchema = {
     ui: {
-        simDate: '⏱ WAKTU SIMULASI:',
+        simDate: '⏱ Waktu simulasi:',
         radarToggle: 'Alihkan Radar Minimap (M)',
         controlsToggle: 'Alihkan Kontrol Simulasi',
         languageToggle: 'Ganti Bahasa',
@@ -86,14 +86,14 @@ export const id: TranslationSchema = {
     },
     modal: {
         badges: {
-            celestialBody: 'BENDA LANGIT',
-            missionDossier: 'BERKAS MISI',
-            cometTelemetry: 'TELEMETRI KOMET',
-            constellation: 'RASI BINTANG',
-            stellarDossier: 'BERKAS BINTANG',
-            lunarTelemetry: 'TELEMETRI SATELIT',
-            stellarCore: 'INTI BINTANG',
-            planetaryDossier: 'BERKAS PLANET'
+            celestialBody: 'Benda Langit',
+            missionDossier: 'Berkas Misi',
+            cometTelemetry: 'Telemetri Komet',
+            constellation: 'Rasi Bintang',
+            stellarDossier: 'Berkas Bintang',
+            lunarTelemetry: 'Telemetri Satelit',
+            stellarCore: 'Inti Bintang',
+            planetaryDossier: 'Berkas Planet'
         },
         labels: {
             type: 'Tipe',
@@ -130,7 +130,7 @@ export const id: TranslationSchema = {
             spacecraft: 'Kendaraan buatan yang dirancang untuk beroperasi di luar angkasa.',
             rightAsc: 'Koordinat langit yang setara dengan garis bujur di Bumi, diukur dalam jam sideris.',
             declination: 'Koordinat langit yang setara dengan garis lintang di Bumi, diukur ke utara (+) atau selatan (-) khatulistiwa langit.',
-            radiusEarth: 'Jari-jari planet relatif terhadap Bumi.',
+            radiusEarth: 'Radius fisik dalam kilometer dan relatif terhadap radius Bumi (Bumi = 6.371 km).',
             distSun: 'Jarak rata-rata dari Matahari dalam Satuan Astronomi (AU).',
             distPlanet: 'Jarak rata-rata dari planet induk.',
             orbitSun: 'Waktu yang dibutuhkan untuk menyelesaikan satu orbit penuh mengelilingi Matahari.',
@@ -204,24 +204,24 @@ export const id: TranslationSchema = {
     loading: {
         boot: 'Memulai Observatorium',
         subtitle: 'Observatorium Astronomi Luar Angkasa',
-        core: 'MENGINISIALISASI INTI OBSERVATORIUM...',
-        ephemerides: 'MENGKALIBRASI EFEMERIS BENDA LANGIT...',
-        surfaces: 'MENSINTESIS PERMUKAAN PLANET...',
-        controls: 'MENGONFIGURASI KONTROL OBSERVATORIUM...',
-        acquiring: 'MEMPEROLEH ASTROFOTOGRAFI RESOLUSI TINGGI...',
-        calibrating: 'MENGKALIBRASI SHADER ATMOSFER...',
-        streaming: 'MEMUAT TEKSTUR LUAR ANGKASA...',
-        synchronizing: 'MENYELARASKAN ORBIT LANGIT...',
-        loaded: 'ASET TELAH DIMUAT',
-        ready: 'SISTEM BEROPERASI • OBSERVATORIUM SIAP',
-        standby: 'SIAGA',
-        connecting: 'MENGHUBUNGKAN',
-        assets: 'ASET',
-        online: 'ONLINE',
-        tagBoot: 'BOOT',
-        tagCalibrating: 'KALIBRASI',
-        tagSynthesizing: 'SINTESIS',
-        tagConfiguring: 'KONFIGURASI'
+        core: 'Menginisialisasi inti observatorium...',
+        ephemerides: 'Mengkalibrasi efemeris benda langit...',
+        surfaces: 'Mensintesis permukaan planet...',
+        controls: 'Mengonfigurasi kontrol observatorium...',
+        acquiring: 'Memperoleh astrofotografi resolusi tinggi...',
+        calibrating: 'Mengkalibrasi shader atmosfer...',
+        streaming: 'Memuat tekstur luar angkasa...',
+        synchronizing: 'Menyelaraskan orbit langit...',
+        loaded: 'Aset telah dimuat',
+        ready: 'Sistem beroperasi • Observatorium siap',
+        standby: 'Siaga',
+        connecting: 'Menghubungkan',
+        assets: 'Aset',
+        online: 'Online',
+        tagBoot: 'Boot',
+        tagCalibrating: 'Kalibrasi',
+        tagSynthesizing: 'Sintesis',
+        tagConfiguring: 'Konfigurasi'
     },
     bodies: {
         Sun: {

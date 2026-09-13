@@ -166,6 +166,26 @@ class I18nManager {
     }
 
     /**
+     * Formats a numeric value according to the current locale using Intl.NumberFormat
+     */
+    public formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+        const localeMap: Record<string, string> = {
+            en: 'en-US',
+            de: 'de-DE',
+            bs: 'bs-BA',
+            sr: 'sr-RS',
+            pl: 'pl-PL',
+            id: 'id-ID'
+        };
+        const bcp47 = localeMap[this.currentLang] || this.currentLang || 'en-US';
+        try {
+            return new Intl.NumberFormat(bcp47, options).format(value);
+        } catch {
+            return new Intl.NumberFormat('en-US', options).format(value);
+        }
+    }
+
+    /**
      * Translated Celestial Body Name
      */
     public getBodyName(canonicalName: string): string {

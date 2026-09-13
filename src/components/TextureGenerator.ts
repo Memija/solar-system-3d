@@ -562,14 +562,6 @@ export class TextureGenerator {
         }
         ctx.putImageData(imgData, 0, 0);
 
-        // Valles Marineris canyon feature
-        ctx.strokeStyle = 'rgba(70, 25, 15, 0.7)';
-        ctx.lineWidth = 12;
-        ctx.beginPath();
-        ctx.moveTo(w * 0.33, h * 0.52);
-        ctx.bezierCurveTo(w * 0.42, h * 0.54, w * 0.52, h * 0.50, w * 0.62, h * 0.53);
-        ctx.stroke();
-
         // Olympus Mons volcano
         ctx.fillStyle = 'rgba(120, 45, 25, 0.7)';
         ctx.beginPath();
@@ -733,20 +725,6 @@ export class TextureGenerator {
             }
         }
         ctx.putImageData(imgData, 0, 0);
-
-        // Great Dark Spot
-        ctx.fillStyle = 'rgba(15, 35, 110, 0.75)';
-        ctx.beginPath();
-        ctx.ellipse(w * 0.38, h * 0.45, 55, 30, -0.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // White methane cirrus companion streaks
-        ctx.strokeStyle = 'rgba(240, 250, 255, 0.85)';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(w * 0.33, h * 0.42);
-        ctx.lineTo(w * 0.44, h * 0.42);
-        ctx.stroke();
     }
 
     private static drawPluto(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -770,22 +748,6 @@ export class TextureGenerator {
             }
         }
         ctx.putImageData(imgData, 0, 0);
-
-        // Tombaugh Regio (The iconic bright heart-shaped nitrogen ice sheet)
-        const heartX = w * 0.55;
-        const heartY = h * 0.52;
-
-        ctx.fillStyle = 'rgba(245, 238, 225, 0.92)';
-        ctx.beginPath();
-        ctx.arc(heartX - 35, heartY - 20, 50, 0, Math.PI * 2);
-        ctx.arc(heartX + 35, heartY - 20, 50, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(heartX - 80, heartY - 15);
-        ctx.lineTo(heartX, heartY + 75);
-        ctx.lineTo(heartX + 80, heartY - 15);
-        ctx.fill();
     }
 
     private static drawMoon(ctx: CanvasRenderingContext2D, w: number, h: number) {

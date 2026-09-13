@@ -326,7 +326,7 @@ export class LoadingScreen {
                         </div>
                     </div>
                 </div>
-                <h1 class="loading-title">SOLAR SYSTEM 3D</h1>
+                <h1 class="loading-title">Solar System 3D</h1>
                 <p class="loading-subtitle">${i18n.t('loading.subtitle')}</p>
                 <div class="loading-progress-wrapper">
                     <div class="loading-status-text">${i18n.t('loading.core')}</div>

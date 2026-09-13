@@ -56,19 +56,19 @@ describe('LoadingScreen', () => {
         const element = loadingScreen.getElement();
         expect(element).toBeDefined();
         expect(document.getElementById('loading-screen')).toBe(element);
-        expect(element.querySelector('.loading-title')?.textContent).toContain('SOLAR SYSTEM 3D');
+        expect(element.querySelector('.loading-title')?.textContent).toContain('Solar System 3D');
         loadingScreen.dispose();
     });
 
     it('should set progress, status text, and subsystems text', () => {
         const loadingScreen = new LoadingScreen({ minDisplayDuration: 100 });
-        loadingScreen.setProgress(60, 'SYNTHESIZING TEXTURES...', 'SYSTEMS: 3/5');
+        loadingScreen.setProgress(60, 'Synthesizing textures...', 'Systems: 3/5');
 
         const statusLabel = container.querySelector('.loading-status-text');
         const subsystemsLabel = container.querySelector('.loading-subsystems');
 
-        expect(statusLabel?.textContent).toBe('SYNTHESIZING TEXTURES...');
-        expect(subsystemsLabel?.textContent).toBe('SYSTEMS: 3/5');
+        expect(statusLabel?.textContent).toBe('Synthesizing textures...');
+        expect(subsystemsLabel?.textContent).toBe('Systems: 3/5');
 
         // Advance RAF loop to interpolate progress
         vi.advanceTimersByTime(500);
@@ -83,13 +83,13 @@ describe('LoadingScreen', () => {
 
     it('should update status class on setStatus with isComplete', () => {
         const loadingScreen = new LoadingScreen({ minDisplayDuration: 100 });
-        loadingScreen.setStatus('ONLINE', true);
+        loadingScreen.setStatus('Online', true);
 
         const statusLabel = container.querySelector('.loading-status-text');
-        expect(statusLabel?.textContent).toBe('ONLINE');
+        expect(statusLabel?.textContent).toBe('Online');
         expect(statusLabel?.classList.contains('status-complete')).toBe(true);
 
-        loadingScreen.setStatus('OFFLINE', false);
+        loadingScreen.setStatus('Offline', false);
         expect(statusLabel?.classList.contains('status-complete')).toBe(false);
 
         loadingScreen.dispose();
@@ -101,18 +101,18 @@ describe('LoadingScreen', () => {
         // Trigger onStart
         THREE.DefaultLoadingManager.onStart?.('milky_way.jpg', 0, 5);
         const statusLabel = container.querySelector('.loading-status-text');
-        expect(statusLabel?.textContent).toBe('ACQUIRING HIGH-RES ASTROPHOTOGRAPHY...');
+        expect(statusLabel?.textContent).toBe('Acquiring high-res astrophotography...');
 
         // Trigger onProgress
         THREE.DefaultLoadingManager.onProgress?.('milky_way.jpg', 3, 5);
-        expect(statusLabel?.textContent).toBe('STREAMING DEEP SPACE TEXTURES...');
+        expect(statusLabel?.textContent).toBe('Streaming deep space textures...');
         const subsystemsLabel = container.querySelector('.loading-subsystems');
-        expect(subsystemsLabel?.textContent).toBe('ASSETS: 3/5');
+        expect(subsystemsLabel?.textContent).toBe('Assets: 3/5');
 
         // Trigger onLoad
         THREE.DefaultLoadingManager.onLoad?.();
-        expect(statusLabel?.textContent).toBe('SYNCHRONIZING CELESTIAL ORBITS...');
-        expect(subsystemsLabel?.textContent).toBe('ASSETS LOADED');
+        expect(statusLabel?.textContent).toBe('Synchronizing celestial orbits...');
+        expect(subsystemsLabel?.textContent).toBe('Assets loaded');
 
         // Trigger onError without breaking
         expect(() => {
@@ -155,14 +155,14 @@ describe('LoadingScreen', () => {
         const subsystemsLabel = container.querySelector('.loading-subsystems');
 
         expect(badgeLabel?.textContent).toBe('Pokretanje opservatorije');
-        expect(statusLabel?.textContent).toBe('INICIJALIZACIJA JEZGRA OPSERVATORIJE...');
-        expect(subsystemsLabel?.textContent).toBe('PRIPRAVNOST');
+        expect(statusLabel?.textContent).toBe('Inicijalizacija jezgra opservatorije...');
+        expect(subsystemsLabel?.textContent).toBe('Pripravnost');
 
         // Dynamically switch language
         i18n.setLanguage('de');
         expect(badgeLabel?.textContent).toBe('Observatorium-Start');
-        expect(statusLabel?.textContent).toBe('INITIALISIERUNG DES OBSERVATORIUM-KERNS...');
-        expect(subsystemsLabel?.textContent).toBe('STANDBY');
+        expect(statusLabel?.textContent).toBe('Initialisierung des Observatorium-Kerns...');
+        expect(subsystemsLabel?.textContent).toBe('Standby');
 
         loadingScreen.dispose();
     });
@@ -173,13 +173,13 @@ describe('LoadingScreen', () => {
 
         THREE.DefaultLoadingManager.onProgress?.('texture.jpg', 2, 4);
         const subsystemsLabel = container.querySelector('.loading-subsystems');
-        expect(subsystemsLabel?.textContent).toBe('RESURSI: 2/4');
+        expect(subsystemsLabel?.textContent).toBe('Resursi: 2/4');
 
         const completePromise = loadingScreen.complete();
         await vi.advanceTimersByTimeAsync(300);
-        expect(subsystemsLabel?.textContent).toBe('AKTIVNO');
+        expect(subsystemsLabel?.textContent).toBe('Aktivno');
         const statusLabel = container.querySelector('.loading-status-text');
-        expect(statusLabel?.textContent).toBe('SISTEMI OPERATIVNI • OPSERVATORIJA SPREMNA');
+        expect(statusLabel?.textContent).toBe('Sistemi operativni • Opservatorija spremna');
 
         await vi.advanceTimersByTimeAsync(800);
         await completePromise;

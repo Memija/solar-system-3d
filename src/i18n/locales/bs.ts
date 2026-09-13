@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const bs: TranslationSchema = {
     ui: {
-        simDate: '⏱ VRIJEME SIMULACIJE:',
+        simDate: '⏱ Vrijeme simulacije:',
         radarToggle: 'Uključi/isključi radar (M)',
         controlsToggle: 'Uključi/isključi kontrole simulacije',
         languageToggle: 'Promijeni jezik',
@@ -86,14 +86,14 @@ export const bs: TranslationSchema = {
     },
     modal: {
         badges: {
-            celestialBody: 'NEBESKO TIJELO',
-            missionDossier: 'DOSIJE MISIJE',
-            cometTelemetry: 'TELEMETRIJA KOMETE',
-            constellation: 'SAZVIJEŽĐE',
-            stellarDossier: 'ZVJEZDANI DOSIJE',
-            lunarTelemetry: 'LUNARNA TELEMETRIJA',
-            stellarCore: 'ZVJEZDANO JEZGRO',
-            planetaryDossier: 'PLANETARNI DOSIJE'
+            celestialBody: 'Nebesko tijelo',
+            missionDossier: 'Dosije misije',
+            cometTelemetry: 'Telemetrija komete',
+            constellation: 'Sazviježđe',
+            stellarDossier: 'Zvjezdani dosije',
+            lunarTelemetry: 'Lunarna telemetrija',
+            stellarCore: 'Zvjezdano jezgro',
+            planetaryDossier: 'Planetarni dosije'
         },
         labels: {
             type: 'Tip',
@@ -130,7 +130,7 @@ export const bs: TranslationSchema = {
             spacecraft: 'Vještački objekat ili sonda dizajnirana za istraživanje svemira.',
             rightAsc: 'Nebeska koordinata ekvivalentna geografskoj dužini na Zemlji, mjerena u sideričkim satima.',
             declination: 'Nebeska koordinata ekvivalentna geografskoj širini na Zemlji, mjerena sjeverno (+) ili južno (-) od nebeskog ekvatora.',
-            radiusEarth: 'Poluprečnik tijela izražen u odnosu na poluprečnik Zemlje (R⊕).',
+            radiusEarth: 'Fizički poluprečnik u kilometrima i u odnosu na Zemlju (Zemlja = 6.371 km).',
             distSun: 'Prosječna udaljenost od Sunca u astronomskim jedinicama (AU).',
             distPlanet: 'Prosječna udaljenost od matične planete.',
             orbitSun: 'Vrijeme potrebno za jedan puni krug oko Sunca.',
@@ -204,24 +204,24 @@ export const bs: TranslationSchema = {
     loading: {
         boot: 'Pokretanje opservatorije',
         subtitle: 'Astronomski opservatorij dubokog svemira',
-        core: 'INICIJALIZACIJA JEZGRA OPSERVATORIJE...',
-        ephemerides: 'KALIBRACIJA NEBESKIH EFEMERIDA...',
-        surfaces: 'SINTEZA PLANETARNIH POVRŠINA...',
-        controls: 'KONFIGURISANJE KONTROLA OPSERVATORIJE...',
-        acquiring: 'PREUZIMANJE ASTROFOTOGRAFIJA VISOKE REZOLUCIJE...',
-        calibrating: 'KALIBRACIJA ATMOSFERSKIH SJENČENJA...',
-        streaming: 'UČITAVANJE TEKSTURA DUBOKOG SVEMIRA...',
-        synchronizing: 'SINHRONIZACIJA NEBESKIH ORBITA...',
-        loaded: 'RESURSI UČITANI',
-        ready: 'SISTEMI OPERATIVNI • OPSERVATORIJA SPREMNA',
-        standby: 'PRIPRAVNOST',
-        connecting: 'POVEZIVANJE',
-        assets: 'RESURSI',
-        online: 'AKTIVNO',
-        tagBoot: 'POKRETANJE',
-        tagCalibrating: 'KALIBRACIJA',
-        tagSynthesizing: 'SINTEZA',
-        tagConfiguring: 'KONFIGURISANJE'
+        core: 'Inicijalizacija jezgra opservatorije...',
+        ephemerides: 'Kalibracija nebeskih efemerida...',
+        surfaces: 'Sinteza planetarnih površina...',
+        controls: 'Konfigurisanje kontrola opservatorije...',
+        acquiring: 'Preuzimanje astrofotografija visoke rezolucije...',
+        calibrating: 'Kalibracija atmosferskih sjenčenja...',
+        streaming: 'Učitavanje tekstura dubokog svemira...',
+        synchronizing: 'Sinhronizacija nebeskih orbita...',
+        loaded: 'Resursi učitani',
+        ready: 'Sistemi operativni • Opservatorija spremna',
+        standby: 'Pripravnost',
+        connecting: 'Povezivanje',
+        assets: 'Resursi',
+        online: 'Aktivno',
+        tagBoot: 'Pokretanje',
+        tagCalibrating: 'Kalibracija',
+        tagSynthesizing: 'Sinteza',
+        tagConfiguring: 'Konfigurisanje'
     },
     bodies: {
         Sun: {

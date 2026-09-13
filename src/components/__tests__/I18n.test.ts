@@ -420,4 +420,17 @@ describe('I18n System', () => {
             expect(i18n.t('datepicker.historicalEvents')).toBeTruthy();
         });
     });
+
+    it('should correctly localize numbers across different languages', () => {
+        i18n.setLanguage('en');
+        expect(i18n.formatNumber(6371)).toBe('6,371');
+        expect(i18n.formatNumber(10.97)).toBe('10.97');
+
+        i18n.setLanguage('de');
+        expect(i18n.formatNumber(6371)).toBe('6.371');
+        expect(i18n.formatNumber(10.97)).toBe('10,97');
+
+        i18n.setLanguage('bs');
+        expect(i18n.formatNumber(10.97)).toBe('10,97');
+    });
 });

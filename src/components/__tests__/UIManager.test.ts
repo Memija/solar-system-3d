@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UIManager } from '../UIManager';
 import { Modal } from '../Modal';
+import { i18n } from '../../i18n';
 
 // Mock dat.gui
 vi.mock('dat.gui', () => ({
@@ -67,6 +68,7 @@ describe('UIManager', () => {
     let uiManager: UIManager;
 
     beforeEach(() => {
+        i18n.setLanguage('en');
         uiContainer = document.createElement('div');
         uiContainer.id = 'ui-container';
         document.body.appendChild(uiContainer);
@@ -101,6 +103,7 @@ describe('UIManager', () => {
     });
 
     afterEach(() => {
+        i18n.setLanguage('en');
         document.body.innerHTML = '';
         vi.clearAllMocks();
     });
