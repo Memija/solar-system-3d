@@ -133,11 +133,36 @@ export class CelestialBody {
         // Geometry - Adaptive segments based on scale and moon status
         let segments = 64;
         if (this.isMoon) {
-            segments = this.data.radius < 0.5 ? 24 : 32;
+            segments = (this.data.name === 'Iapetus') ? 64 : (this.data.radius < 0.5 ? 24 : 32);
         } else if (this.data.radius > 3) { // Gas giants
             segments = 128;
         }
         const geometry = new THREE.SphereGeometry(this.data.radius, segments, segments);
+
+        if (this.data.name === 'Iapetus') {
+            // Iapetus has an iconic walnut shape: polar flattening and a prominent equatorial mountain ridge
+            const pos = geometry.attributes.position;
+            const v = new THREE.Vector3();
+            for (let i = 0; i < pos.count; i++) {
+                v.fromBufferAttribute(pos, i);
+                const r = v.length();
+                if (r > 0) {
+                    const lat = Math.asin(Math.max(-1, Math.min(1, v.y / r)));
+                    // Oblate polar flattening (polar radius ~0.955 of equatorial)
+                    const oblateness = 1.0 - 0.045 * Math.sin(lat) * Math.sin(lat);
+                    // Equatorial ridge: sharp triangular peak along the equator (|lat| < 0.11 rad ~ 6.3 deg)
+                    let ridge = 0;
+                    if (Math.abs(lat) < 0.11) {
+                        const ridgeFactor = 1.0 - Math.abs(lat) / 0.11;
+                        ridge = Math.pow(ridgeFactor, 1.8) * 0.06;
+                    }
+                    const newR = r * oblateness * (1.0 + ridge);
+                    v.setLength(newR);
+                    pos.setXYZ(i, v.x, v.y, v.z);
+                }
+            }
+            geometry.computeVertexNormals();
+        }
 
         // Material
         let material: THREE.Material;
@@ -189,7 +214,7 @@ export class CelestialBody {
             this.mesh.frustumCulled = false;
         }
         if (this.data.name !== 'Sun') {
-            this.mesh.castShadow = true;
+            this.mesh.castShadow = !this.isMoon;
 
             this.mesh.receiveShadow = true;
         }
@@ -598,7 +623,8 @@ export class CelestialBody {
             'Europa': 13.7,
             'Ganymede': 10.9,
             'Callisto': 8.2,
-            'Titan': 5.6
+            'Titan': 5.6,
+            'Triton': 4.4
         };
         if (knownSpeeds[this.data.name] !== undefined) {
             return knownSpeeds[this.data.name];
@@ -825,15 +851,16 @@ export class CelestialBody {
 
     update(deltaTime: number, simTimePassed?: number, rawDelta?: number) {
         // Update position
+        const isRetrograde = 'retrograde' in this.data && Boolean(this.data.retrograde);
+        const dir = isRetrograde ? -1 : 1;
         const speedMultiplier = 0.5;
-        const speed = this.data.period === 0 ? 0 : (1 / this.data.period) * speedMultiplier;
+        const speed = this.data.period === 0 ? 0 : (dir / this.data.period) * speedMultiplier;
 
         if (simTimePassed !== undefined) {
             const baseAngle = ('baseLongitude' in this.data && typeof this.data.baseLongitude === 'number') ? this.data.baseLongitude : 0;
-            this.angle = (baseAngle + speed * simTimePassed) % (Math.PI * 2);
+            this.angle = (((baseAngle + speed * simTimePassed) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         } else {
-            this.angle += speed * deltaTime;
-            this.angle = this.angle % (Math.PI * 2);
+            this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         }
 
         let x = 0;
@@ -894,7 +921,8 @@ export class CelestialBody {
         // Update Orbital Velocity Vector
         if (this.velocityVectorGroup) {
             // Tangent direction in orbital plane: (-sin(angle), 0, cos(angle))
-            const tangent = new THREE.Vector3(-Math.sin(this.angle), 0, Math.cos(this.angle)).normalize();
+            // For retrograde bodies, orbital velocity points in the opposite direction (dir = -1)
+            const tangent = new THREE.Vector3(-Math.sin(this.angle) * dir, 0, Math.cos(this.angle) * dir).normalize();
             const r = this.data.radius;
             const bodyScale = this.getVelocityBodyScale();
             const clearanceR = this.data.name === 'Haumea' ? r * 1.45 : r;

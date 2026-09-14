@@ -116,6 +116,12 @@ export class TextureGenerator {
             case 'Triton':
                 this.drawTriton(ctx, width, height);
                 break;
+            case 'Iapetus':
+                this.drawIapetus(ctx, width, height);
+                break;
+            case 'Mimas':
+                this.drawMimas(ctx, width, height);
+                break;
             default:
                 this.drawGenericPlanet(ctx, width, height, name);
                 break;
@@ -995,6 +1001,218 @@ export class TextureGenerator {
             data[p + 3] = 255;
         }
         ctx.putImageData(imgData, 0, 0);
+    }
+
+    private static drawIapetus(ctx: CanvasRenderingContext2D, w: number, h: number) {
+        const imgData = this.safeCreateImageData(ctx, w, h);
+        if (!imgData) return;
+        const data = imgData.data;
+
+        const noiseFine = this.createNoise(w, h, 6, 0.55);
+        const noiseBroad = this.createNoise(w, h, 4, 0.5);
+
+        for (let y = 0; y < h; y++) {
+            const lat = (0.5 - y / h) * Math.PI; // -PI/2 (south) to PI/2 (north)
+            const cosLat = Math.cos(lat);
+            const ny = Math.sin(lat);
+            const absNy = Math.abs(ny);
+
+            for (let x = 0; x < w; x++) {
+                const lon = (x / w) * Math.PI * 2 - Math.PI; // -PI to PI
+                const nx = cosLat * Math.cos(lon);
+
+                const idx = y * w + x;
+                const p = idx * 4;
+                const nf = noiseFine[idx];
+                const nb = noiseBroad[idx];
+
+                // Cassini Regio is centered on leading hemisphere (nx > 0) and equatorial latitudes
+                // Polar regions (absNy > 0.6) remain bright ice-white even on the leading side
+                const latFalloff = Math.max(0, 1.0 - Math.pow(absNy / 0.68, 2.2));
+                const leadingDot = nx * latFalloff;
+
+                // Organic fractal transition edge between dark and bright hemispheres
+                const edgeNoise = (nb - 0.5) * 0.45 + (nf - 0.5) * 0.18;
+                const terrainValue = leadingDot + edgeNoise;
+
+                let r: number, g: number, b: number;
+
+                if (terrainValue > 0.08) {
+                    // Deep Cassini Regio: coal-dark, organic-rich carbonaceous tholin terrain
+                    // Albedo ~0.04. Very dark brownish-black/charcoal with subtle warmth
+                    const baseDark = 26 + nf * 22;
+                    r = Math.floor(baseDark + 8);
+                    g = Math.floor(baseDark + 4);
+                    b = Math.floor(baseDark);
+                } else if (terrainValue < -0.08) {
+                    // Roncevaux Terra / Saragossa Terra & Polar Caps: bright, reflective water ice
+                    // Albedo ~0.55. Brilliant white with subtle pale silvery-blue crater relief
+                    const baseIce = 210 + nf * 38;
+                    const polarBoost = absNy > 0.62 ? (absNy - 0.62) * 65 : 0;
+                    r = Math.min(255, Math.floor(baseIce + polarBoost));
+                    g = Math.min(255, Math.floor(baseIce + 4 + polarBoost));
+                    b = Math.min(255, Math.floor(baseIce + 10 + polarBoost));
+                } else {
+                    // High-contrast transition zone with thermal segregation:
+                    // Dark dust settles in warm crater floors, cold rims/peaks stay bright white frost
+                    const t = (terrainValue + 0.08) / 0.16;
+                    const smoothT = t * t * (3 - 2 * t);
+                    const frostMask = (nf * 0.7 + (1.0 - smoothT) * 0.6) > 0.55;
+
+                    if (frostMask) {
+                        r = Math.min(255, Math.floor(215 + nf * 35));
+                        g = Math.min(255, Math.floor(218 + nf * 35));
+                        b = Math.min(255, Math.floor(225 + nf * 30));
+                    } else {
+                        const darkBase = 32 + nf * 20;
+                        r = Math.floor(darkBase + 6);
+                        g = Math.floor(darkBase + 3);
+                        b = Math.floor(darkBase);
+                    }
+                }
+
+                // Equatorial ridge highlight on texture
+                if (Math.abs(lat) < 0.035) {
+                    const ridgeProximity = 1.0 - Math.abs(lat) / 0.035;
+                    const ridgeHighlight = Math.pow(ridgeProximity, 2) * 45;
+                    r = Math.min(255, r + Math.floor(ridgeHighlight * 1.2));
+                    g = Math.min(255, g + Math.floor(ridgeHighlight * 1.2));
+                    b = Math.min(255, b + Math.floor(ridgeHighlight * 1.3));
+                }
+
+                data[p] = r;
+                data[p + 1] = g;
+                data[p + 2] = b;
+                data[p + 3] = 255;
+            }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+
+        // Major Impact Basins (drawn with soft natural radial gradients instead of artificial circles)
+        const drawBasin = (cx: number, cy: number, r: number, isDarkTerrain: boolean) => {
+            // Elevated crater rim with subtle lighting
+            const rimGrad = ctx.createRadialGradient(cx - r * 0.15, cy - r * 0.15, r * 0.65, cx, cy, r * 1.12);
+            rimGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            rimGrad.addColorStop(0.75, isDarkTerrain ? 'rgba(75, 65, 55, 0.45)' : 'rgba(255, 255, 255, 0.6)');
+            rimGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = rimGrad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 1.12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Depressed crater floor with soft shadow
+            const floorGrad = ctx.createRadialGradient(cx + r * 0.1, cy + r * 0.1, 0, cx, cy, r * 0.85);
+            floorGrad.addColorStop(0, isDarkTerrain ? 'rgba(18, 14, 12, 0.55)' : 'rgba(165, 175, 190, 0.35)');
+            floorGrad.addColorStop(0.85, isDarkTerrain ? 'rgba(24, 20, 16, 0.3)' : 'rgba(195, 205, 215, 0.15)');
+            floorGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = floorGrad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.85, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Central peak for large basins
+            if (r > w * 0.035) {
+                const peakGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.22);
+                peakGrad.addColorStop(0, isDarkTerrain ? 'rgba(80, 70, 60, 0.6)' : 'rgba(255, 255, 255, 0.8)');
+                peakGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = peakGrad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r * 0.22, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        };
+
+        // Engelier Basin (~504 km diameter in southern bright Roncevaux Terra)
+        drawBasin(w * 0.82, h * 0.66, w * 0.085, false);
+
+        // Gerin Basin (~445 km diameter)
+        drawBasin(w * 0.74, h * 0.42, w * 0.075, false);
+
+        // Malun Basin (~121 km) near the transition boundary
+        drawBasin(w * 0.28, h * 0.46, w * 0.045, false);
+
+        // Roland Basin (~144 km in northern Roncevaux Terra)
+        drawBasin(w * 0.86, h * 0.28, w * 0.05, false);
+
+        // Degraded ancient basins in Cassini Regio
+        drawBasin(w * 0.42, h * 0.45, w * 0.065, true);
+        drawBasin(w * 0.55, h * 0.58, w * 0.055, true);
+        drawBasin(w * 0.48, h * 0.32, w * 0.048, true);
+    }
+
+    private static drawMimas(ctx: CanvasRenderingContext2D, w: number, h: number) {
+        // Mimas is heavily cratered grey icy body dominated by the colossal Herschel crater
+        const imgData = this.safeCreateImageData(ctx, w, h);
+        if (!imgData) return;
+        const data = imgData.data;
+        const noise = this.createNoise(w, h, 6, 0.55);
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = y * w + x;
+                const n = noise[idx];
+                const p = idx * 4;
+                const b = Math.floor(140 + n * 70);
+                data[p] = b;
+                data[p + 1] = b;
+                data[p + 2] = b + 4;
+                data[p + 3] = 255;
+            }
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        // Add standard impact craters
+        let seed = 1789;
+        const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+
+        ctx.fillStyle = 'rgba(70, 70, 75, 0.4)';
+        ctx.strokeStyle = 'rgba(230, 230, 235, 0.5)';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 300; i++) {
+            const cx = rand() * w;
+            const cy = (0.05 + rand() * 0.9) * h;
+            const r = 2 + rand() * 14;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // Herschel Crater: colossal impact crater spanning ~139 km (almost 1/3 of Mimas' diameter!)
+        const hx = w * 0.42;
+        const hy = h * 0.5;
+        const hr = w * 0.09;
+
+        // Outer elevated crater rim
+        const rimGrad = ctx.createRadialGradient(hx, hy, hr * 0.8, hx, hy, hr * 1.25);
+        rimGrad.addColorStop(0, 'rgba(245, 245, 250, 0.9)');
+        rimGrad.addColorStop(0.5, 'rgba(210, 210, 220, 0.7)');
+        rimGrad.addColorStop(1, 'rgba(160, 160, 170, 0.0)');
+        ctx.fillStyle = rimGrad;
+        ctx.beginPath();
+        ctx.arc(hx, hy, hr * 1.25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Deep crater floor depression
+        const floorGrad = ctx.createRadialGradient(hx, hy, 0, hx, hy, hr * 0.85);
+        floorGrad.addColorStop(0, 'rgba(80, 80, 85, 0.95)');
+        floorGrad.addColorStop(0.8, 'rgba(50, 50, 55, 0.95)');
+        floorGrad.addColorStop(1, 'rgba(40, 40, 45, 0.95)');
+        ctx.fillStyle = floorGrad;
+        ctx.beginPath();
+        ctx.arc(hx, hy, hr * 0.85, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Prominent central peak (rises ~6 km from the crater floor)
+        const peakGrad = ctx.createRadialGradient(hx, hy, 0, hx, hy, hr * 0.3);
+        peakGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+        peakGrad.addColorStop(0.6, 'rgba(200, 200, 210, 0.8)');
+        peakGrad.addColorStop(1, 'rgba(90, 90, 95, 0.0)');
+        ctx.fillStyle = peakGrad;
+        ctx.beginPath();
+        ctx.arc(hx, hy, hr * 0.3, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     private static drawGenericPlanet(ctx: CanvasRenderingContext2D, w: number, h: number, _name: string) {

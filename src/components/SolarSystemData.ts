@@ -19,6 +19,7 @@ export interface MoonData {
     distanceAU?: number;
     eccentricity?: number;
     period: number;
+    retrograde?: boolean;
     color: number;
     texture?: string;
     description?: string;
@@ -47,6 +48,7 @@ export interface CelestialBodyData {
     links?: LinkData[];
     moons?: MoonData[];
     rings?: RingData[];
+    retrograde?: boolean;
     ra?: number; // For stars
     dec?: number; // For stars
     isDwarfPlanet?: boolean;
@@ -542,32 +544,32 @@ export const SolarSystemData: CelestialBodyData[] = [
         ],
         moons: [
             {
-                name: "Enceladus", radius: 0.15, displayRadius: 0.04, distance: 9,
-                distanceAU: 0.00159, eccentricity: 0.0047, period: 0.0037, color: 0xffffff,
-                description: "Enceladus is the sixth-largest moon of Saturn. It is about 500 kilometers in diameter, about a tenth of that of Saturn's largest moon, Titan. It is mostly covered by fresh, clean ice, making it one of the most reflective bodies of the Solar System.",
-                imageUrl: "images/800px-Enceladus.jpg",
-                links: [{ title: "Wikipedia: Enceladus", url: "https://en.wikipedia.org/wiki/Enceladus" }]
-            },
-            {
-                name: "Mimas", radius: 0.12, displayRadius: 0.03, distance: 7,
+                name: "Mimas", radius: 0.12, displayRadius: 0.03, distance: 27,
                 distanceAU: 0.00124, eccentricity: 0.0202, period: 0.0026, color: 0xcccccc,
                 description: "Mimas is a moon of Saturn which was discovered in 1789 by William Herschel. It is named after Mimas, a son of Gaia in Greek mythology. With a diameter of 396 kilometres, it is the smallest astronomical body that is known to be rounded in shape because of self-gravitation.",
                 imageUrl: "images/800px-Mimas.jpg",
                 links: [{ title: "Wikipedia: Mimas", url: "https://en.wikipedia.org/wiki/Mimas_(moon)" }]
             },
             {
-                name: "Iapetus", radius: 0.25, displayRadius: 0.115, distance: 22,
-                distanceAU: 0.0238, eccentricity: 0.0286, period: 0.217, color: 0xaaaaaa,
-                description: "Iapetus is the third-largest natural satellite of Saturn, eleventh-largest in the Solar System, and the largest body in the Solar System known not to be in hydrostatic equilibrium. Iapetus is best known for its dramatic 'two-tone' coloration.",
-                imageUrl: "images/800px-Iapetus.jpg",
-                links: [{ title: "Wikipedia: Iapetus", url: "https://en.wikipedia.org/wiki/Iapetus_(moon)" }]
+                name: "Enceladus", radius: 0.15, displayRadius: 0.04, distance: 31,
+                distanceAU: 0.00159, eccentricity: 0.0047, period: 0.0037, color: 0xffffff,
+                description: "Enceladus is the sixth-largest moon of Saturn. It is about 500 kilometers in diameter, about a tenth of that of Saturn's largest moon, Titan. It is mostly covered by fresh, clean ice, making it one of the most reflective bodies of the Solar System.",
+                imageUrl: "images/800px-Enceladus.jpg",
+                links: [{ title: "Wikipedia: Enceladus", url: "https://en.wikipedia.org/wiki/Enceladus" }]
             },
             {
-                name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 15,
+                name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 37,
                 distanceAU: 0.00816, eccentricity: 0.0288, period: 0.044, color: 0xffaa00,
                 description: "Titan is the largest moon of Saturn and the second-largest natural satellite in the Solar System. It is the only moon known to have a dense atmosphere, and the only known body in space, other than Earth, where clear evidence of stable bodies of surface liquid has been found.",
                 imageUrl: "images/800px-Titan.jpg",
                 links: [{ title: "Wikipedia: Titan", url: "https://en.wikipedia.org/wiki/Titan_(moon)" }]
+            },
+            {
+                name: "Iapetus", radius: 0.25, displayRadius: 0.115, distance: 45,
+                distanceAU: 0.0238, eccentricity: 0.0286, period: 0.217, color: 0xaaaaaa,
+                description: "Iapetus is the third-largest natural satellite of Saturn, eleventh-largest in the Solar System, and the largest body in the Solar System known not to be in hydrostatic equilibrium. Iapetus is best known for its dramatic 'two-tone' coloration.",
+                imageUrl: "images/800px-Iapetus.jpg",
+                links: [{ title: "Wikipedia: Iapetus", url: "https://en.wikipedia.org/wiki/Iapetus_(moon)" }]
             }
         ],
         rings: [
@@ -629,9 +631,10 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Triton",
                 radius: 0.35, displayRadius: 0.212,
                 distance: 12,
-        distanceAU: 0.00237,
-        eccentricity: 0.00001,
-                period: 0.06,
+                distanceAU: 0.00237,
+                eccentricity: 0.00001,
+                period: 0.0161,
+                retrograde: true,
                 color: 0xcccccc,
                 description: "Triton is the largest natural satellite of the planet Neptune, and the first Neptunian moon to be discovered.",
                 imageUrl: "images/800px-Triton_moon_mosaic_Voyager_2_(large).jpg",

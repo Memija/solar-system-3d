@@ -172,4 +172,44 @@ describe('CelestialBody', () => {
         expect(haumea.mesh!.scale.x).toBeGreaterThan(haumea.mesh!.scale.z);
         expect(haumea.mesh!.scale.z).toBeGreaterThan(haumea.mesh!.scale.y);
     });
+
+    it('should initialize Iapetus with an equatorial walnut ridge and oblate shape', () => {
+        const mockIapetusData: MoonData = {
+            name: 'Iapetus',
+            radius: 0.25,
+            distance: 45,
+            period: 0.217,
+            color: 0xaaaaaa,
+            description: 'Mock Iapetus'
+        };
+        const iapetus = new CelestialBody(mockIapetusData, parentGroup, true);
+        expect(iapetus.mesh).toBeDefined();
+
+        const geom = iapetus.mesh!.geometry as THREE.BufferGeometry;
+        const pos = geom.attributes.position;
+        expect(pos).toBeDefined();
+
+        // Check that equatorial vertices have been displaced outward by the ridge
+        let foundEquatorialRidge = false;
+        let foundPolarFlattening = false;
+        const v = new THREE.Vector3();
+
+        for (let i = 0; i < pos.count; i++) {
+            v.fromBufferAttribute(pos, i);
+            const r = v.length();
+            const lat = Math.asin(v.y / r);
+
+            // Exact equator vertex should be displaced above base radius (0.25)
+            if (Math.abs(lat) < 0.02 && r > 0.25 * 1.04) {
+                foundEquatorialRidge = true;
+            }
+            // Pole vertex should be flattened below base radius (0.25)
+            if (Math.abs(lat) > 1.4 && r < 0.25 * 0.98) {
+                foundPolarFlattening = true;
+            }
+        }
+
+        expect(foundEquatorialRidge).toBe(true);
+        expect(foundPolarFlattening).toBe(true);
+    });
 });

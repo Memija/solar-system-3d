@@ -85,6 +85,24 @@ describe('SolarSystemData', () => {
         });
     });
 
+    it('should ensure all moons have orbits strictly outside their parent body radius and rings', () => {
+        SolarSystemData.forEach(body => {
+            if ('moons' in body && body.moons) {
+                const maxRingRadius = ('rings' in body && body.rings)
+                    ? Math.max(...body.rings.map(r => r.outerRadius))
+                    : 0;
+                const minAllowedDistance = Math.max(body.radius, maxRingRadius);
+
+                body.moons.forEach(moon => {
+                    expect(
+                        moon.distance,
+                        `${moon.name} orbital distance (${moon.distance}) should be greater than ${body.name} clearance limit (${minAllowedDistance})`
+                    ).toBeGreaterThan(minAllowedDistance);
+                });
+            }
+        });
+    });
+
     it('should have existing images for all spacecraft', () => {
         SpacecraftDataList.forEach(craft => {
             if (craft.imageUrl) {
