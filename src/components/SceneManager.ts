@@ -32,6 +32,9 @@ export class SceneManager {
     showTrails: boolean;
     focusedBody: CelestialBody | Comet | Spacecraft | null;
     surfaceViewBody: CelestialBody | null;
+    focusedStar: THREE.Object3D | null = null;
+    focusedConstellation: string | null = null;
+    constellationDistance: number = 20000;
     starMeshes: THREE.Object3D[];
     constellationManager: ConstellationManager;
     previousBodyPosition: THREE.Vector3 | null;
@@ -161,6 +164,9 @@ export class SceneManager {
         this.showTrails = true;
         this.focusedBody = null;
         this.surfaceViewBody = null;
+        this.focusedStar = null;
+        this.focusedConstellation = null;
+        this.constellationDistance = 20000;
         this.starMeshes = [];
         this.previousBodyPosition = null;
         this.asteroidBelt = null;
@@ -1228,6 +1234,8 @@ export class SceneManager {
 
             this.focusedBody = target;
             this.surfaceViewBody = null;
+            this.focusedStar = null;
+            this.focusedConstellation = null;
 
             // Initialize previous position for tracking
             this.previousBodyPosition = SceneManager._vPos.clone();
@@ -1240,32 +1248,45 @@ export class SceneManager {
         }
     }
 
-    focusOnStar(starMesh: THREE.Object3D) {
+    focusOnStar(starMesh: THREE.Object3D, smooth: boolean = true) {
         // Disable planet following
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.previousBodyPosition = null;
         this.controls.autoRotate = false;
+        this.focusedConstellation = null;
+        this.focusedStar = starMesh;
 
         const starPos = starMesh.position.clone();
-
-        // Look at the star
-        this.controls.target.copy(starPos);
-
-        // Move camera closer to the star, but not too close (it's a background object)
-        // Star is at radius ~48000. Let's move to ~40000 along the same vector
         const cameraPos = starPos.clone().normalize().multiplyScalar(40000);
 
-        this.camera.position.copy(cameraPos);
+        if (smooth) {
+            this.cameraTransition = {
+                startPos: this.camera.position.clone(),
+                endPos: cameraPos,
+                startTarget: this.controls.target.clone(),
+                endTarget: starPos.clone(),
+                progress: 0,
+                duration: 1.2
+            };
+        } else {
+            this.camera.position.copy(cameraPos);
+            this.controls.target.copy(starPos);
+            this.cameraTransition = null;
+        }
+
         this.controls.enabled = true;
-        this.cameraTransition = null;
         this.controls.minDistance = 200;
         this.controls.maxDistance = 20000;
     }
 
-    focusOnConstellation(name: string) {
+    focusOnConstellation(name: string, smooth: boolean = true) {
         const group = this.constellationManager.constellationMeshes.find(g => g.userData.name === name);
         if (!group) return;
+
+        if (!this.constellationManager.isVisible) {
+            this.constellationManager.toggleVisibility(true);
+        }
 
         const box = new THREE.Box3().setFromObject(group);
         const center = new THREE.Vector3();
@@ -1278,33 +1299,47 @@ export class SceneManager {
         this.surfaceViewBody = null;
         this.previousBodyPosition = null;
         this.controls.autoRotate = false;
+        this.focusedStar = null;
+        this.focusedConstellation = name;
 
-        this.controls.target.copy(center);
-
-        // Move camera to view the constellation
         // Calculate distance based on bounding sphere radius and camera fov
         const vFov = this.camera.fov * (Math.PI / 180);
         const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect);
         const minFov = Math.min(vFov, hFov);
 
-        // Add 20% padding to radius to ensure it fits well
-        const distance = (sphere.radius * 1.2) / Math.sin(minFov / 2);
+        // Padding factor to comfortably frame the entire constellation within the central viewport,
+        // leaving clear margins away from the HUD / sidebar dossier panels
+        const padding = 1.7;
+        const distance = (sphere.radius * padding) / Math.sin(minFov / 2);
+        this.constellationDistance = distance;
 
-        // Constellations are on a sphere of radius ~49000
-        // We move the camera along the vector from origin to center
-        // and place it at (center.length() - distance) from origin
-        let camDistFromOrigin = center.length() - distance;
+        // Position camera back along the line of sight from center toward origin
+        const dir = center.clone().normalize();
+        let targetCamPos = center.clone().sub(dir.clone().multiplyScalar(distance));
 
-        // Ensure the camera doesn't go too close to origin (e.g. into the sun)
-        // or too far outside the constellation sphere
-        if (camDistFromOrigin < 1000) camDistFromOrigin = 1000;
+        // Avoid placing camera inside the Sun at the origin
+        if (targetCamPos.length() < 50) {
+            targetCamPos.add(new THREE.Vector3(60, 60, 0));
+        }
 
-        const cameraPos = center.clone().normalize().multiplyScalar(camDistFromOrigin);
-        this.camera.position.copy(cameraPos);
+        if (smooth) {
+            this.cameraTransition = {
+                startPos: this.camera.position.clone(),
+                endPos: targetCamPos,
+                startTarget: this.controls.target.clone(),
+                endTarget: center.clone(),
+                progress: 0,
+                duration: 1.2
+            };
+        } else {
+            this.camera.position.copy(targetCamPos);
+            this.controls.target.copy(center);
+            this.cameraTransition = null;
+        }
+
         this.controls.enabled = true;
-        this.cameraTransition = null;
         this.controls.minDistance = Math.max(distance * 0.1, 100);
-        this.controls.maxDistance = Math.max(distance * 3, 20000);
+        this.controls.maxDistance = Math.max(distance * 3, 100000);
     }
 
     updateZoomLimits(): void {
@@ -1315,6 +1350,18 @@ export class SceneManager {
         if (this.cameraTransition) {
             this.controls.minDistance = 0.1;
             this.controls.maxDistance = 100000;
+            return;
+        }
+
+        if (this.focusedConstellation) {
+            this.controls.minDistance = Math.max(this.constellationDistance * 0.1, 100);
+            this.controls.maxDistance = Math.max(this.constellationDistance * 3, 100000);
+            return;
+        }
+
+        if (this.focusedStar) {
+            this.controls.minDistance = 200;
+            this.controls.maxDistance = 20000;
             return;
         }
 
@@ -1504,6 +1551,8 @@ export class SceneManager {
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.previousBodyPosition = null;
+        this.focusedStar = null;
+        this.focusedConstellation = null;
         this.controls.enabled = true;
         this.controls.autoRotate = false;
         this.cameraTransition = null;

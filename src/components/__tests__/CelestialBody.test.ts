@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { CelestialBody } from '../CelestialBody';
-import { CelestialBodyData, MoonData } from '../SolarSystemData';
+import { CelestialBodyData, MoonData, SolarSystemData } from '../SolarSystemData';
 
 vi.mock('../SunShader', () => ({
     vertexShader: 'mockVertexShader',
@@ -211,5 +211,58 @@ describe('CelestialBody', () => {
 
         expect(foundEquatorialRidge).toBe(true);
         expect(foundPolarFlattening).toBe(true);
+    });
+
+    it('should correctly propagate retrograde orbit for Triton', () => {
+        const neptuneData = SolarSystemData.find(b => b.name === 'Neptune');
+        expect(neptuneData).toBeDefined();
+        const tritonData = neptuneData?.moons?.find(m => m.name === 'Triton');
+        expect(tritonData).toBeDefined();
+        expect(tritonData?.retrograde).toBe(true);
+        expect(tritonData?.period).toBeCloseTo(0.0161);
+        expect(tritonData?.distanceAU).toBeCloseTo(0.00237);
+
+        const neptune = new CelestialBody(neptuneData!, parentGroup);
+        const triton = new CelestialBody(tritonData!, neptune.orbitGroup, true);
+
+        // Initial angle
+        triton.angle = Math.PI;
+        const initialAngle = triton.angle;
+
+        // Advance simulation time
+        triton.update(0.001);
+
+        // For retrograde orbit, angular velocity is negative (angle decreases)
+        expect(triton.angle).toBeLessThan(initialAngle);
+
+        // Orbital speed should match known speed
+        expect(triton.getOrbitalSpeed()).toBe(4.4);
+    });
+
+    it('should correctly propagate retrograde orbit for Charon around Pluto', () => {
+        const plutoData = SolarSystemData.find(b => b.name === 'Pluto');
+        expect(plutoData).toBeDefined();
+        const charonData = plutoData?.moons?.find(m => m.name === 'Charon');
+        expect(charonData).toBeDefined();
+        expect(charonData?.retrograde).toBe(true);
+        expect(charonData?.period).toBeCloseTo(0.0175);
+        expect(charonData?.distanceAU).toBeCloseTo(0.000131);
+        expect(charonData!.distance).toBeGreaterThan(plutoData!.radius);
+
+        const pluto = new CelestialBody(plutoData!, parentGroup);
+        const charon = new CelestialBody(charonData!, pluto.orbitGroup, true);
+
+        // Initial angle
+        charon.angle = Math.PI;
+        const initialAngle = charon.angle;
+
+        // Advance simulation time
+        charon.update(0.001);
+
+        // For retrograde orbit, angular velocity is negative (angle decreases)
+        expect(charon.angle).toBeLessThan(initialAngle);
+
+        // Orbital speed should match known speed (0.2 km/s)
+        expect(charon.getOrbitalSpeed()).toBe(0.2);
     });
 });

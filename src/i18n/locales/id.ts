@@ -441,12 +441,12 @@ export const id: TranslationSchema = {
         },
         'Crux': {
             name: 'Crux (Pari / Salib Selatan)',
-            family: 'Perairan Langit',
+            family: 'Hercules',
             description: 'Rasi bintang terkecil dari 88 rasi modern, menjadi penunjuk arah selatan sejati yang sangat penting bagi navigasi maritim Nusantara.'
         },
         'Crux (Southern Cross)': {
             name: 'Crux (Pari / Salib Selatan)',
-            family: 'Perairan Langit',
+            family: 'Hercules',
             description: 'Rasi bintang terkecil dari 88 rasi modern, menjadi penunjuk arah selatan sejati yang sangat penting bagi navigasi maritim Nusantara.'
         },
         'Leo': {

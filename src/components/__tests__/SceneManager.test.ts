@@ -45,6 +45,9 @@ vi.mock('../Comet', () => {
 vi.mock('../ConstellationManager', () => {
     return {
         ConstellationManager: class {
+            constellationMeshes: any[] = [];
+            isVisible: boolean = true;
+            toggleVisibility = vi.fn();
             createConstellations = vi.fn();
             update = vi.fn();
             dispose = vi.fn();
@@ -196,6 +199,45 @@ describe('SceneManager', () => {
             manager.focusOnStar(mockStarMesh);
             expect(manager.controls.minDistance).toBe(200);
             expect(manager.controls.maxDistance).toBe(20000);
+            expect(manager.focusedStar).toBe(mockStarMesh);
+
+            manager.cameraTransition = null;
+            manager.updateZoomLimits();
+            expect(manager.controls.maxDistance).toBe(20000);
+            expect(manager.controls.minDistance).toBe(200);
+        });
+
+        it('should focus completely on constellation, initiate camera transition, and maintain zoom limits', () => {
+            const manager = new SceneManager(container);
+
+            const constellationGroup = new THREE.Group();
+            constellationGroup.userData.name = 'Orion';
+
+            const geom = new THREE.BufferGeometry();
+            const positions = new Float32Array([
+                1000, 2000, 48000,
+                2000, 3000, 48000,
+                1500, 1500, 48000
+            ]);
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const points = new THREE.Points(geom);
+            constellationGroup.add(points);
+
+            manager.constellationManager.constellationMeshes = [constellationGroup];
+
+            manager.focusOnConstellation('Orion');
+
+            expect(manager.focusedConstellation).toBe('Orion');
+            expect(manager.cameraTransition).not.toBeNull();
+            expect(manager.controls.maxDistance).toBeGreaterThanOrEqual(100000);
+
+            manager.cameraTransition = null;
+            manager.updateZoomLimits();
+            expect(manager.controls.maxDistance).toBeGreaterThanOrEqual(100000);
+
+            manager.detachCamera();
+            expect(manager.focusedConstellation).toBeNull();
+            expect(manager.controls.maxDistance).toBe(5000);
         });
     });
 });

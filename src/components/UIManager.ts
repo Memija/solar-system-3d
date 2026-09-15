@@ -1640,6 +1640,7 @@ export class UIManager {
                 }
                 this.syncDropdownSelection(selectedObj.userData.name, 'Constellation');
                 this.showModal(selectedObj.userData);
+                this.sceneManager.focusOnConstellation(selectedObj.userData.name);
                 return true;
             }
         }

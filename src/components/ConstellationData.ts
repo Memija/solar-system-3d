@@ -49,7 +49,7 @@ export const MajorConstellations: ConstellationData[] = [
             { name: "Pherkad", ra: 15.34, dec: 71.83 },
             { name: "Kochab", ra: 14.84, dec: 74.15 }
         ],
-        connections: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 2]],
+        connections: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 3]],
         color: 0x00ff88
     },
     {
@@ -76,8 +76,13 @@ export const MajorConstellations: ConstellationData[] = [
             { name: "Saiph", ra: 5.79, dec: -9.67 }
         ],
         connections: [
-            [0, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 1], [1, 5], [3, 0], // Body
-            [0, 5] // Diagonal
+            [0, 2], // Shoulders: Betelgeuse to Bellatrix
+            [2, 3], // Right torso: Bellatrix to Mintaka
+            [3, 1], // Right leg: Mintaka to Rigel
+            [1, 6], // Feet: Rigel to Saiph
+            [6, 5], // Left leg: Saiph to Alnitak
+            [5, 0], // Left torso: Alnitak to Betelgeuse
+            [3, 4], [4, 5] // Belt: Mintaka to Alnilam to Alnitak
         ],
         color: 0xffaa00
     },
@@ -146,7 +151,7 @@ export const MajorConstellations: ConstellationData[] = [
             { name: "Dschubba", ra: 16, dec: -22.62 },
             { name: "Sargas", ra: 17.62, dec: -43 },
             { name: "Shaula", ra: 17.56, dec: -37.1 },
-            { name: "Wei", ra: 16.84, dec: -25.11 } // Approximate hook start
+            { name: "Wei", ra: 16.84, dec: -34.29 }
         ],
         connections: [[0, 2], [2, 1], [0, 5], [5, 3], [3, 4]], // Simplified hook
         color: 0xff4400

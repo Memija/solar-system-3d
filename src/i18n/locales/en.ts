@@ -441,12 +441,12 @@ export const en: TranslationSchema = {
         },
         'Crux': {
             name: 'Crux',
-            family: 'Heavenly Waters',
+            family: 'Hercules',
             description: 'Crux, the Southern Cross, is the smallest of all 88 modern constellations, yet among the most distinctive in the Southern Hemisphere.'
         },
         'Crux (Southern Cross)': {
             name: 'Crux',
-            family: 'Heavenly Waters',
+            family: 'Hercules',
             description: 'Crux, the Southern Cross, is the smallest of all 88 modern constellations, yet among the most distinctive in the Southern Hemisphere.'
         },
         'Leo': {

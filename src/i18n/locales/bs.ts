@@ -441,12 +441,12 @@ export const bs: TranslationSchema = {
         },
         'Crux': {
             name: 'Južni krst (Crux)',
-            family: 'Nebeske vode',
+            family: 'Herkul',
             description: 'Najmanje od svih 88 modernih sazviježđa, izuzetno važno za orjentaciju na južnoj polulopti.'
         },
         'Crux (Southern Cross)': {
             name: 'Južni krst (Crux)',
-            family: 'Nebeske vode',
+            family: 'Herkul',
             description: 'Najmanje od svih 88 modernih sazviježđa, izuzetno važno za orjentaciju na južnoj polulopti.'
         },
         'Leo': {

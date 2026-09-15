@@ -441,12 +441,12 @@ export const pl: TranslationSchema = {
         },
         'Crux': {
             name: 'Krzyż Południa (Crux)',
-            family: 'Wody Niebieskie',
+            family: 'Herkules',
             description: 'Najmniejszy ze wszystkich 88 współczesnych gwiazdozbiorów, kluczowy dla nawigacji na półkuli południowej.'
         },
         'Crux (Southern Cross)': {
             name: 'Krzyż Południa (Crux)',
-            family: 'Wody Niebieskie',
+            family: 'Herkules',
             description: 'Najmniejszy ze wszystkich 88 współczesnych gwiazdozbiorów, kluczowy dla nawigacji na półkuli południowej.'
         },
         'Leo': {

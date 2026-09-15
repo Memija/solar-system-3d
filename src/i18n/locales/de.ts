@@ -441,12 +441,12 @@ export const de: TranslationSchema = {
         },
         'Crux': {
             name: 'Kreuz des Südens (Crux)',
-            family: 'Himmlische Wasser',
+            family: 'Herkules',
             description: 'Das kleinste der 88 modernen Sternbilder und der wichtigste Wegweiser der Südhalbkugel.'
         },
         'Crux (Southern Cross)': {
             name: 'Kreuz des Südens (Crux)',
-            family: 'Himmlische Wasser',
+            family: 'Herkules',
             description: 'Das kleinste der 88 modernen Sternbilder und der wichtigste Wegweiser der Südhalbkugel.'
         },
         'Leo': {

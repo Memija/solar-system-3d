@@ -624,7 +624,8 @@ export class CelestialBody {
             'Ganymede': 10.9,
             'Callisto': 8.2,
             'Titan': 5.6,
-            'Triton': 4.4
+            'Triton': 4.4,
+            'Charon': 0.2
         };
         if (knownSpeeds[this.data.name] !== undefined) {
             return knownSpeeds[this.data.name];
