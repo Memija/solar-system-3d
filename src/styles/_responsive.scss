@@ -203,8 +203,8 @@
         height: 130px !important;
     }
 
-    // Date Panel on Mobile
-    .date-panel-hud {
+    // Standalone Date Panel on Mobile (fallback)
+    .date-panel-hud:not(.obs-mission-clock) {
         bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
         left: 12px !important;
         padding: 6px 10px !important;
@@ -267,7 +267,7 @@
         height: 100px !important;
     }
 
-    .date-panel-hud {
+    .date-panel-hud:not(.obs-mission-clock) {
         bottom: 6px !important;
         left: 6px !important;
         padding: 4px 8px !important;

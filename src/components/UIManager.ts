@@ -10,6 +10,7 @@ import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, Sp
 import { i18n, AVAILABLE_LOCALES } from '../i18n/index';
 import { AudioManager } from './AudioManager';
 import { PerformanceMonitor } from './PerformanceMonitor';
+import { ControlCenter } from './ControlCenter';
 
 export class UIManager {
     sceneManager: SceneManager;
@@ -24,6 +25,8 @@ export class UIManager {
     audioManager: AudioManager;
     performanceMonitor: PerformanceMonitor;
     menuContainer: HTMLElement | null = null;
+    controlCenter: ControlCenter | null = null;
+    targetPill: HTMLElement | null = null;
     gui: dat.GUI | null;
     mouseDownPos: THREE.Vector2;
     mouseUpPos: THREE.Vector2;
@@ -218,10 +221,7 @@ export class UIManager {
 
     createDatePanel(): HTMLElement {
         const panel = document.createElement('div');
-        panel.className = 'date-panel-hud';
-        panel.style.position = 'absolute';
-        panel.style.bottom = '20px';
-        panel.style.left = '20px';
+        panel.className = 'date-panel-hud obs-mission-clock';
         panel.style.zIndex = "1000";
         panel.style.pointerEvents = 'auto';
 
@@ -229,26 +229,10 @@ export class UIManager {
         mainRow.className = 'date-panel-main-row';
 
         const label = document.createElement('label');
-        label.textContent = i18n.t('ui.simDate');
+        label.className = 'sim-date-label';
+        label.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${i18n.t('ui.simDate')}</span>`;
         this.dateLabel = label;
         mainRow.appendChild(label);
-
-        const speedBadge = document.createElement('button');
-        speedBadge.type = 'button';
-        speedBadge.className = 'sim-speed-badge';
-        speedBadge.title = i18n.t('ui.speedPause');
-        const isPaused = this.sceneManager?.timeScale === 0;
-        const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
-            ? this.sceneManager.getFormattedTimeSpeed()
-            : '1.0 day/s';
-        const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
-        speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
-        if (isPaused) speedBadge.classList.add('paused');
-        speedBadge.onclick = () => {
-            this.togglePause();
-        };
-        this.speedBadge = speedBadge;
-        mainRow.appendChild(speedBadge);
 
         const initialDate = this.sceneManager.simDate || new Date();
         this.customDatePicker = new CustomDatePicker(initialDate, (newDate: Date) => {
@@ -274,6 +258,23 @@ export class UIManager {
         timeBadge.title = i18n.t('ui.utcTime');
         mainRow.appendChild(timeBadge);
         this.timeBadge = timeBadge;
+
+        const speedBadge = document.createElement('button');
+        speedBadge.type = 'button';
+        speedBadge.className = 'sim-speed-badge';
+        speedBadge.title = i18n.t('ui.speedPause');
+        const isPaused = this.sceneManager?.timeScale === 0;
+        const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
+            ? this.sceneManager.getFormattedTimeSpeed()
+            : '1.0 day/s';
+        const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
+        speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
+        if (isPaused) speedBadge.classList.add('paused');
+        speedBadge.onclick = () => {
+            this.togglePause();
+        };
+        this.speedBadge = speedBadge;
+        mainRow.appendChild(speedBadge);
 
         const liveIndicator = document.createElement('div');
         liveIndicator.className = 'sim-live-indicator';
@@ -403,6 +404,9 @@ export class UIManager {
         if (this.performanceMonitor) {
             this.performanceMonitor.update(timestamp);
         }
+        if (this.controlCenter && this.controlCenter.isOpen) {
+            this.controlCenter.syncTimePanel();
+        }
     }
 
     initControls() {
@@ -412,6 +416,7 @@ export class UIManager {
         gui.domElement.style.position = 'absolute';
         gui.domElement.style.top = '20px';
         gui.domElement.style.left = '20px';
+        gui.domElement.style.display = 'none';
 
         if (typeof window !== 'undefined' && window.innerWidth <= 768) {
             gui.domElement.classList.add('mobile-hidden');
@@ -724,6 +729,9 @@ export class UIManager {
             if (this.updatePauseCtrl) {
                 this.updatePauseCtrl();
             }
+            if (this.controlCenter) {
+                this.controlCenter.syncTimePanel();
+            }
         };
         const orbitsCtrl = simFolder.add(params, 'showOrbits').name(i18n.t('controls.showOrbits')).onChange(val => {
             this.sceneManager.toggleOrbits(val);
@@ -966,15 +974,15 @@ export class UIManager {
                 this.sceneManager.onTimeScaleChange(0);
             }
         }
+        if (this.controlCenter) {
+            this.controlCenter.syncTimePanel();
+        }
     }
 
     createSelectionMenu() {
         const menuContainer = document.createElement('div');
         this.menuContainer = menuContainer;
-        menuContainer.className = 'selection-menu-container';
-        menuContainer.style.position = 'absolute';
-        menuContainer.style.top = '20px';
-        menuContainer.style.right = '20px';
+        menuContainer.className = 'selection-menu-container observatory-header-bar';
         menuContainer.style.zIndex = '1600';
 
         // Type Selector
@@ -1168,12 +1176,60 @@ export class UIManager {
             }
         });
 
-        menuContainer.appendChild(typeSelect);
-        menuContainer.appendChild(bodySelect);
+        // Initialize the Unified Control Center
+        this.controlCenter = new ControlCenter(this, this.sceneManager, this.uiContainer);
+
+        // Place typeSelect and bodySelect inside ControlCenter target row
+        const targetSelectRow = this.controlCenter.drawerElement.querySelector('#unifiedTargetSelectRow');
+        if (targetSelectRow) {
+            targetSelectRow.appendChild(typeSelect);
+            targetSelectRow.appendChild(bodySelect);
+        } else {
+            menuContainer.appendChild(typeSelect);
+            menuContainer.appendChild(bodySelect);
+        }
+
+        // Left Brand element
+        const brand = document.createElement('div');
+        brand.className = 'obs-brand';
+        brand.title = 'Solar System 3D — Deep Space Astronomical Observatory';
+        brand.innerHTML = '<span class="brand-sparkle">✦</span><span>Solar System 3D</span><span class="brand-live-dot"></span>';
+        brand.onclick = () => {
+            if (typeof this.sceneManager?.detachCamera === 'function') {
+                this.sceneManager.detachCamera();
+            }
+        };
+        menuContainer.appendChild(brand);
+
+        // Center Island: Current Target Pill
+        const centerIsland = document.createElement('div');
+        centerIsland.className = 'obs-header-center';
+
+        const targetPill = document.createElement('button');
+        targetPill.type = 'button';
+        targetPill.className = 'obs-target-pill';
+        targetPill.id = 'obsTargetPill';
+        targetPill.title = 'Focused Celestial Object — Click to Open Navigator';
+        targetPill.innerHTML = '<span class="target-icon">🪐</span><span class="target-name">Earth</span>';
+        targetPill.onclick = () => {
+            this.controlCenter?.open('target');
+        };
+        centerIsland.appendChild(targetPill);
+        this.targetPill = targetPill;
+
+        const divider = document.createElement('div');
+        divider.className = 'obs-header-divider';
+        centerIsland.appendChild(divider);
+
+        if (this.datePanel) {
+            centerIsland.appendChild(this.datePanel);
+        }
+
+        menuContainer.appendChild(centerIsland);
 
         // Quick Action Buttons (Radar & Controls) for Mobile & Desktop
         const actionsContainer = document.createElement('div');
-        actionsContainer.className = 'top-actions-container';
+        actionsContainer.className = 'top-actions-container obs-header-actions';
 
         const radarBtn = document.createElement('button');
         radarBtn.className = 'hud-icon-btn';
@@ -1186,23 +1242,20 @@ export class UIManager {
             const next = !this.minimap.isVisible;
             this.minimap.setVisible(next);
             radarBtn.classList.toggle('active', next);
+            if (this.controlCenter) this.controlCenter.syncSwitches();
         };
         if (this.minimap.isVisible) radarBtn.classList.add('active');
 
         const controlsBtn = document.createElement('button');
-        controlsBtn.className = 'hud-icon-btn';
+        controlsBtn.className = 'hud-icon-btn obs-controls-btn';
         controlsBtn.id = 'hudControlsBtn';
         controlsBtn.title = i18n.t('ui.controlsToggle');
-        controlsBtn.innerHTML = '⚙️';
         controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
+        controlsBtn.innerHTML = '<span class="ctrl-icon">🎛️</span> <span class="ctrl-label">CONTROLS</span>';
         controlsBtn.onclick = (e) => {
             e.stopPropagation();
-            if (this.gui) {
-                const isHidden = this.gui.domElement.classList.toggle('mobile-hidden');
-                controlsBtn.classList.toggle('active', !isHidden);
-                if (!isHidden && this.gui.closed) {
-                    this.gui.open();
-                }
+            if (this.controlCenter) {
+                this.controlCenter.toggle();
             }
         };
 
@@ -1372,10 +1425,14 @@ export class UIManager {
             updateBodyOptions();
 
             if (this.dateLabel) {
-                this.dateLabel.textContent = i18n.t('ui.simDate');
+                this.dateLabel.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${i18n.t('ui.simDate')}</span>`;
             }
 
             this.updateGuiTranslations();
+
+            if (this.controlCenter) {
+                this.controlCenter.updateTranslations();
+            }
 
             if (this.shortcutsModal && this.shortcutsModal.isOpen) {
                 this.toggleShortcutsModal();
@@ -1384,6 +1441,16 @@ export class UIManager {
         });
 
         this.uiContainer.appendChild(menuContainer);
+    }
+
+    public getTargetIcon(name: string, type?: string): string {
+        if (name === 'Sun' || type === 'Star') return '☀️';
+        if (type === 'Moon' || name.includes('Moon')) return '🌕';
+        if (type === 'Constellation') return '🌌';
+        if (type === 'Comet') return '☄️';
+        if (type === 'Spacecraft' || name === 'ISS' || name === 'Voyager 1' || name === 'Hubble' || name === 'JWST') return '🛰️';
+        if (name === 'Earth') return '🌎';
+        return '🪐';
     }
 
     syncDropdownSelection(targetName: string, targetType?: string) {
@@ -1419,6 +1486,15 @@ export class UIManager {
                 typeSelect.dispatchEvent(new Event('change'));
             }
             bodySelect.value = targetName;
+
+            if (this.targetPill) {
+                const icon = this.getTargetIcon(targetName, determinedType);
+                const localizedName = i18n.getBodyName(targetName) || i18n.getStarName(targetName) || i18n.getCometName(targetName) || i18n.getSpacecraftName(targetName) || targetName;
+                this.targetPill.innerHTML = `<span class="target-icon">${icon}</span><span class="target-name">${localizedName}</span>`;
+            }
+            if (this.controlCenter) {
+                this.controlCenter.updateActiveTargetChips(targetName);
+            }
         }
     }
 
@@ -1440,6 +1516,9 @@ export class UIManager {
                 this.togglePause();
             } else if (event.key === 'Escape') {
                 if (this.closeLangDropdown) this.closeLangDropdown();
+                if (this.controlCenter && this.controlCenter.isOpen) {
+                    this.controlCenter.close();
+                }
                 this.modal.hide();
                 if (this.eventModal) this.eventModal.hide();
                 if (this.shortcutsModal) this.shortcutsModal.hide();
@@ -1867,6 +1946,11 @@ export class UIManager {
         if (this.gui) {
             this.gui.destroy();
             this.gui = null;
+        }
+
+        if (this.controlCenter) {
+            this.controlCenter.dispose();
+            this.controlCenter = null;
         }
 
         if (this.shortcutsModal) {
