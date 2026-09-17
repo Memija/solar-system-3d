@@ -131,6 +131,7 @@ export const en: TranslationSchema = {
             rightAsc: 'Celestial coordinate equivalent to longitude on Earth, measured in sidereal hours.',
             declination: 'Celestial coordinate equivalent to latitude on Earth, measured north (+) or south (-) of celestial equator.',
             radiusEarth: "Physical radius in kilometers and compared to Earth's radius (Earth = 6,371 km).",
+            cometRadius: 'Physical radius of the comet nucleus in kilometers.',
             distSun: 'Average distance from the Sun in Astronomical Units (AU).',
             distPlanet: 'Average distance from parent planet.',
             orbitSun: 'Time taken to complete one orbit around the Sun.',

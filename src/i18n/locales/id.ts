@@ -131,6 +131,7 @@ export const id: TranslationSchema = {
             rightAsc: 'Koordinat langit yang setara dengan garis bujur di Bumi, diukur dalam jam sideris.',
             declination: 'Koordinat langit yang setara dengan garis lintang di Bumi, diukur ke utara (+) atau selatan (-) khatulistiwa langit.',
             radiusEarth: 'Radius fisik dalam kilometer dan relatif terhadap radius Bumi (Bumi = 6.371 km).',
+            cometRadius: 'Radius fisik rata-rata inti komet dalam kilometer.',
             distSun: 'Jarak rata-rata dari Matahari dalam Satuan Astronomi (AU).',
             distPlanet: 'Jarak rata-rata dari planet induk.',
             orbitSun: 'Waktu yang dibutuhkan untuk menyelesaikan satu orbit penuh mengelilingi Matahari.',

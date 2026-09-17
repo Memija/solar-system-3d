@@ -334,9 +334,8 @@ export class Modal {
             stats.push({
                 label: i18n.t('modal.labels.radius'),
                 value: radiusInfo.value,
-                subValue: radiusInfo.subValue,
                 tooltipTitle: i18n.t('modal.tooltipTitles.radius'),
-                tooltipText: i18n.t('modal.tooltips.radiusEarth')
+                tooltipText: i18n.t('modal.tooltips.cometRadius')
             });
             stats.push({ label: i18n.t('modal.labels.semiMajorAxis'), value: `${smaFormatted} AU`, tooltipTitle: i18n.t('modal.tooltipTitles.semiMajorAxis'), tooltipText: i18n.t('modal.tooltips.semiMajorAxis') });
             stats.push({ label: i18n.t('modal.labels.eccentricity'), value: `${eccFormatted}`, tooltipTitle: i18n.t('modal.tooltipTitles.eccentricity'), tooltipText: i18n.t('modal.tooltips.eccentricity') });

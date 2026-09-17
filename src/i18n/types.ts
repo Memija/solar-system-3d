@@ -144,6 +144,7 @@ export interface TranslationSchema {
             rightAsc: string;
             declination: string;
             radiusEarth: string;
+            cometRadius: string;
             distSun: string;
             distPlanet: string;
             orbitSun: string;

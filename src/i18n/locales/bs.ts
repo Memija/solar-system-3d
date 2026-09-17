@@ -131,6 +131,7 @@ export const bs: TranslationSchema = {
             rightAsc: 'Nebeska koordinata ekvivalentna geografskoj dužini na Zemlji, mjerena u sideričkim satima.',
             declination: 'Nebeska koordinata ekvivalentna geografskoj širini na Zemlji, mjerena sjeverno (+) ili južno (-) od nebeskog ekvatora.',
             radiusEarth: 'Fizički poluprečnik u kilometrima i u odnosu na Zemlju (Zemlja = 6.371 km).',
+            cometRadius: 'Fizički poluprečnik jezgra komete u kilometrima.',
             distSun: 'Prosječna udaljenost od Sunca u astronomskim jedinicama (AU).',
             distPlanet: 'Prosječna udaljenost od matične planete.',
             orbitSun: 'Vrijeme potrebno za jedan puni krug oko Sunca.',

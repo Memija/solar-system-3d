@@ -252,6 +252,7 @@ describe('I18n System', () => {
                     rightAsc: '',
                     declination: '',
                     radiusEarth: '',
+                    cometRadius: '',
                     semiMajorAxis: '',
                     eccentricity: '',
                     cometPeriod: '',
@@ -397,6 +398,7 @@ describe('I18n System', () => {
             expect(cygAlias).toBe(cygName);
 
             // Audio guide button and tooltip strings
+            expect(i18n.t('modal.tooltips.cometRadius')).toBeTruthy();
             expect(i18n.t('modal.audioGuideTitle')).toBeTruthy();
             expect(i18n.t('modal.audioGuideStop')).toBeTruthy();
             expect(i18n.t('modal.audioGuideAria')).toBeTruthy();

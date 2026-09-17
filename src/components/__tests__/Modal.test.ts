@@ -194,7 +194,7 @@ describe('Modal Localization & Audio Guide', () => {
         expect(tooltipText?.textContent).toContain('Earth = 6,371 km');
     });
 
-    it('renders localized Earth comparison and handles comets/large planets properly', () => {
+    it('renders localized Earth comparison for planets properly', () => {
         // Test Jupiter
         modal.show({
             name: 'Jupiter',
@@ -283,6 +283,53 @@ describe('Modal Localization & Audio Guide', () => {
         expect(labels).not.toContain('Distance');
         expect(labels).not.toContain('Period');
         expect(statChips.length).toBe(2);
+    });
+
+    it('renders comet radius in kilometers without Earth comparison or subvalue', () => {
+        i18n.setLanguage('en');
+        modal.show({
+            name: "Halley's Comet",
+            radius: 0.1,
+            displayRadius: 0.00086,
+            semiMajorAxis: 180,
+            eccentricity: 0.967,
+            period: 75.3,
+            inclination: 162.2,
+            argumentOfPeriapsis: 111.3,
+            color: 0xffffff,
+            description: 'Famous short-period comet'
+        });
+
+        const statChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        const radiusChip = statChips.find(chip => chip.querySelector('.stat-label')?.textContent === 'Radius');
+
+        expect(radiusChip).toBeDefined();
+        expect(radiusChip?.querySelector('.stat-value')?.textContent).toBe('5.5 km');
+        expect(radiusChip?.querySelector('.stat-subvalue')).toBeNull();
+
+        const infoBtn = radiusChip?.querySelector('.info-btn');
+        expect(infoBtn?.getAttribute('data-text')).toBe(i18n.t('modal.tooltips.cometRadius'));
+        expect(infoBtn?.getAttribute('data-text')).not.toContain('Earth = 6,371 km');
+
+        // Verify Hale-Bopp formatting
+        modal.show({
+            name: 'Hale-Bopp',
+            radius: 0.3,
+            displayRadius: 0.0047,
+            semiMajorAxis: 300,
+            eccentricity: 0.995,
+            period: 2500,
+            inclination: 89.4,
+            argumentOfPeriapsis: 130.6,
+            color: 0xccffff,
+            description: 'Bright comet'
+        });
+
+        const hbChips = Array.from(modal.modalElement.querySelectorAll('.stat-chip'));
+        const hbRadiusChip = hbChips.find(chip => chip.querySelector('.stat-label')?.textContent === 'Radius');
+        expect(hbRadiusChip?.querySelector('.stat-value')?.textContent).toBe('29.9 km');
+        expect(hbRadiusChip?.querySelector('.stat-subvalue')).toBeNull();
+        expect(hbRadiusChip?.querySelector('.info-btn')?.getAttribute('data-text')).toBe(i18n.t('modal.tooltips.cometRadius'));
     });
 });
 

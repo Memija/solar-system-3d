@@ -131,6 +131,7 @@ export const pl: TranslationSchema = {
             rightAsc: 'Współrzędna astronomiczna odpowiadająca długości geograficznej na Ziemi, mierzona w godzinach gwiazdowych.',
             declination: 'Współrzędna astronomiczna odpowiadająca szerokości geograficznej na Ziemi, mierzona na północ (+) lub południe (-) od równika niebieskiego.',
             radiusEarth: 'Promień fizyczny w kilometrach oraz w odniesieniu do Ziemi (Ziemia = 6 371 km).',
+            cometRadius: 'Średni promień fizyczny jądra komety w kilometrach.',
             distSun: 'Średnia odległość od Słońca w jednostkach astronomicznych (AU).',
             distPlanet: 'Średnia odległość od planety macierzystej.',
             orbitSun: 'Czas potrzebny na wykonanie jednego pełnego obiegu wokół Słońca.',

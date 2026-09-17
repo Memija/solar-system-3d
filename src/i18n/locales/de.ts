@@ -131,6 +131,7 @@ export const de: TranslationSchema = {
             rightAsc: 'Himmelskoordinate analog zum Längengrad auf der Erde, gemessen in Sternstunden.',
             declination: 'Himmelskoordinate analog zum Breitengrad auf der Erde, gemessen nördlich (+) oder südlich (-) des Himmelsäquators.',
             radiusEarth: 'Physikalischer Radius in Kilometern und im Verhältnis zur Erde (Erde = 6.371 km).',
+            cometRadius: 'Physikalischer Radius des Kometenkerns in Kilometern.',
             distSun: 'Durchschnittliche Entfernung von der Sonne in Astronomischen Einheiten (AE).',
             distPlanet: 'Durchschnittlicher Abstand zum Mutterplaneten.',
             orbitSun: 'Benötigte Zeit für eine vollständige Umrundung der Sonne.',
