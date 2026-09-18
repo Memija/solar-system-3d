@@ -20,7 +20,9 @@ export const de: TranslationSchema = {
         astrophotographyAria: 'Hochauflösenden Screenshot aufnehmen',
         speedPause: 'Klicken zum Pausieren / Fortsetzen (Leertaste)',
         utcTime: 'Koordinierte Weltzeit (UTC)',
-        liveRealTime: 'Physikalische Echtzeit aktiv (1:1)'
+        liveRealTime: 'Physikalische Echtzeit aktiv (1:1)',
+        controls: 'Steuerung',
+        targetPillTitle: 'Fokussiertes Himmelsobjekt — Klicken zum Öffnen des Navigators'
     },
     categories: {
         star: '🌟 Sterne',
@@ -31,6 +33,38 @@ export const de: TranslationSchema = {
         spacecraft: '🛰️ Raumfahrzeuge'
     },
     controls: {
+        drawerTitle: 'Observatoriums-Kommando',
+        drawerSubtitle: 'Einheitliche Steuerung der Himmelssimulation',
+        tabs: {
+            target: 'Ziel',
+            time: 'Simulation',
+            layers: 'Ebenen',
+            camera: 'Kamera',
+            optics: 'Optik',
+            system: 'System'
+        },
+        sections: {
+            celestialNav: 'Himmelsnavigation',
+            quickTargets: 'Schnellfokus-Ziele',
+            focusAlign: 'Kamera fokussieren & ausrichten',
+            viewSurface: 'Blick von der Oberfläche',
+            simulationSpeed: 'Simulationsgeschwindigkeit',
+            entitiesTrails: 'Kosmische Objekte & Bahnen',
+            cameraPerspective: 'Kameraperspektive',
+            orbitFocus: 'Orbitalfokus',
+            surfaceView: 'Oberflächenansicht',
+            freeCam: 'Freie Kamera',
+            autonomousTour: 'Autonome Große Tour',
+            opticsScale: 'Optik & physikalischer Maßstab',
+            observatoryInstruments: 'Observatoriums-Instrumente',
+            languageLocalization: 'Sprache & Lokalisierung',
+            captureSnapshot: 'Astrofotografie aufnehmen',
+            enableAudio: 'Kosmisches Audio aktivieren',
+            muteAudio: 'Kosmisches Audio stummschalten',
+            shortcutsGuide: 'Tastaturkürzel-Übersicht',
+            pauseSimulation: 'Simulation pausieren',
+            resumeSimulation: 'Simulation fortsetzen'
+        },
         simulationFolder: 'Simulation',
         environmentFolder: 'Umgebung',
         cameraFolder: 'Kamerasteuerung',

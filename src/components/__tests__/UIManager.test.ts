@@ -56,8 +56,10 @@ vi.mock('../Minimap', () => {
         Minimap: class MockMinimap {
             update = vi.fn();
             dispose = vi.fn();
-            setVisible = vi.fn();
-            isVisible = false;
+            isVisible = true;
+            setVisible = vi.fn(function(this: any, val: boolean) {
+                this.isVisible = val;
+            });
         }
     };
 });
@@ -203,21 +205,40 @@ describe('UIManager', () => {
         const langContainer = uiContainer.querySelector('.lang-switcher-container') as HTMLElement;
         const menuContainer = uiContainer.querySelector('.selection-menu-container') as HTMLElement;
 
+        // Verify initial flag image on button
+        const initialBtnFlag = langBtn.querySelector<HTMLImageElement>('.lang-btn-flag');
+        expect(initialBtnFlag).toBeTruthy();
+        expect(initialBtnFlag?.src).toContain('flags/gb.png');
+
         // Open dropdown
         langBtn.click();
         expect(langDropdown.style.display).toBe('block');
 
-        // Select a language item (e.g. German 'de')
+        // Select a language item (e.g. Bosnian 'bs' or German 'de')
         const items = langDropdown.querySelectorAll('.lang-dropdown-item');
         expect(items.length).toBeGreaterThan(0);
-        const secondItem = items[1] as HTMLElement;
-        secondItem.click();
+
+        // Every dropdown item should contain a flag image
+        items.forEach(item => {
+            const flagImg = item.querySelector<HTMLImageElement>('.lang-flag-img');
+            expect(flagImg).toBeTruthy();
+            expect(flagImg?.src).toContain('flags/');
+        });
+
+        // Click Bosnian item
+        const bsItem = Array.from(items).find(el => el.textContent?.includes('Bosanski')) as HTMLElement;
+        expect(bsItem).toBeTruthy();
+        bsItem.click();
 
         // Should close dropdown and remove active classes
         expect(langDropdown.style.display).toBe('none');
         expect(langBtn.classList.contains('active')).toBe(false);
         expect(langContainer.classList.contains('open')).toBe(false);
         expect(menuContainer.classList.contains('has-lang-open')).toBe(false);
+
+        // Button flag should update to Bosnian flag (ba.png)
+        const updatedBtnFlag = langBtn.querySelector<HTMLImageElement>('.lang-btn-flag');
+        expect(updatedBtnFlag?.src).toContain('flags/ba.png');
     });
 
     it('should close language dropdown when Escape key is pressed', () => {
@@ -275,6 +296,23 @@ describe('UIManager', () => {
         expect(sceneManager.timeScale).toBeCloseTo(0.00273785);
     });
 
+    it('should toggle minimap visibility when M key is pressed', () => {
+        const radarBtn = uiContainer.querySelector('#hudRadarBtn') as HTMLElement;
+        const initialVisible = uiManager.minimap.isVisible;
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', code: 'KeyM' }));
+        expect(uiManager.minimap.isVisible).toBe(!initialVisible);
+        if (radarBtn) {
+            expect(radarBtn.classList.contains('active')).toBe(!initialVisible);
+        }
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'M', code: 'KeyM' }));
+        expect(uiManager.minimap.isVisible).toBe(initialVisible);
+        if (radarBtn) {
+            expect(radarBtn.classList.contains('active')).toBe(initialVisible);
+        }
+    });
+
     it('should not mark Real-Time preset as paused', () => {
         const speedBadge = uiContainer.querySelector('.sim-speed-badge') as HTMLElement;
         sceneManager.timeScale = 3.9817e-7;
@@ -314,6 +352,32 @@ describe('UIManager', () => {
 
         expect(liveIndicator.style.display).toBe('none');
         expect(telemetryTicker.style.display).toBe('none');
+    });
+
+    it('should dynamically update header controls button label and target pill when language changes', () => {
+        i18n.setLanguage('en');
+        const controlsBtn = uiContainer.querySelector('#hudControlsBtn') as HTMLButtonElement;
+        const targetPill = uiContainer.querySelector('#obsTargetPill') as HTMLButtonElement;
+        expect(controlsBtn).not.toBeNull();
+        expect(targetPill).not.toBeNull();
+
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('CONTROLS');
+        expect(targetPill.querySelector('.target-name')?.textContent).toBe('Earth');
+
+        // Switch to Bosnian
+        i18n.setLanguage('bs');
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('KONTROLE');
+        expect(targetPill.querySelector('.target-name')?.textContent).toBe('Zemlja');
+
+        // Switch to German
+        i18n.setLanguage('de');
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('STEUERUNG');
+        expect(targetPill.querySelector('.target-name')?.textContent).toBe('Erde');
+
+        // Switch to Serbian
+        i18n.setLanguage('sr');
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('КОНТРОЛЕ');
+        expect(targetPill.querySelector('.target-name')?.textContent).toBe('Земља');
     });
 });
 

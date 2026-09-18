@@ -20,7 +20,9 @@ export const en: TranslationSchema = {
         astrophotographyAria: 'Capture high-resolution screenshot',
         speedPause: 'Click to Pause / Resume (Space)',
         utcTime: 'Universal Time (UTC)',
-        liveRealTime: 'Physical Real-Time Active (1:1)'
+        liveRealTime: 'Physical Real-Time Active (1:1)',
+        controls: 'Controls',
+        targetPillTitle: 'Focused Celestial Object — Click to Open Navigator'
     },
     categories: {
         star: '🌟 Stars',
@@ -31,6 +33,38 @@ export const en: TranslationSchema = {
         spacecraft: '🛰️ Spacecraft'
     },
     controls: {
+        drawerTitle: 'Observatory Command',
+        drawerSubtitle: 'Unified Celestial Simulation Controls',
+        tabs: {
+            target: 'Target',
+            time: 'Simulation',
+            layers: 'Layers',
+            camera: 'Camera',
+            optics: 'Optics',
+            system: 'System'
+        },
+        sections: {
+            celestialNav: 'Celestial Navigation',
+            quickTargets: 'Quick Focus Targets',
+            focusAlign: 'Focus & Align Camera',
+            viewSurface: 'View From Surface',
+            simulationSpeed: 'Simulation Speed',
+            entitiesTrails: 'Cosmic Entities & Trails',
+            cameraPerspective: 'Camera Perspective',
+            orbitFocus: 'Orbit Focus',
+            surfaceView: 'Surface View',
+            freeCam: 'Free Camera',
+            autonomousTour: 'Autonomous Grand Tour',
+            opticsScale: 'Optics & Physical Scale',
+            observatoryInstruments: 'Observatory Instruments',
+            languageLocalization: 'Language & Localization',
+            captureSnapshot: 'Capture Astrophotography Snapshot',
+            enableAudio: 'Enable Cosmic Ambience',
+            muteAudio: 'Mute Cosmic Ambience',
+            shortcutsGuide: 'Keyboard Shortcuts Guide',
+            pauseSimulation: 'Pause Simulation',
+            resumeSimulation: 'Resume Simulation'
+        },
         simulationFolder: 'Simulation',
         environmentFolder: 'Environment',
         cameraFolder: 'Camera Controls',

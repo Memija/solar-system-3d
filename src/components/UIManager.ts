@@ -7,7 +7,7 @@ import { CustomDatePicker } from './CustomDatePicker';
 import { CelestialBody } from './CelestialBody';
 import { EventBus } from './EventBus';
 import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData';
-import { i18n, AVAILABLE_LOCALES } from '../i18n/index';
+import { i18n, AVAILABLE_LOCALES, getLocaleFlagUrl } from '../i18n/index';
 import { AudioManager } from './AudioManager';
 import { PerformanceMonitor } from './PerformanceMonitor';
 import { ControlCenter } from './ControlCenter';
@@ -979,6 +979,17 @@ export class UIManager {
         }
     }
 
+    public toggleMinimap(): boolean {
+        if (!this.minimap) return false;
+        const next = !this.minimap.isVisible;
+        this.minimap.setVisible(next);
+        const radarBtn = document.getElementById('hudRadarBtn');
+        if (radarBtn) radarBtn.classList.toggle('active', next);
+        if (this.controlCenter) this.controlCenter.syncSwitches();
+        if (this.audioManager) this.audioManager.playTick();
+        return next;
+    }
+
     createSelectionMenu() {
         const menuContainer = document.createElement('div');
         this.menuContainer = menuContainer;
@@ -1209,8 +1220,11 @@ export class UIManager {
         targetPill.type = 'button';
         targetPill.className = 'obs-target-pill';
         targetPill.id = 'obsTargetPill';
-        targetPill.title = 'Focused Celestial Object — Click to Open Navigator';
-        targetPill.innerHTML = '<span class="target-icon">🪐</span><span class="target-name">Earth</span>';
+        const initialTargetName = this.cameraTarget || 'Earth';
+        const initialLocalizedName = i18n.getBodyName(initialTargetName) || i18n.getStarName(initialTargetName) || i18n.getCometName(initialTargetName) || i18n.getSpacecraftName(initialTargetName) || initialTargetName;
+        const initialIcon = this.getTargetIcon(initialTargetName);
+        targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object — Click to Open Navigator';
+        targetPill.innerHTML = `<span class="target-icon">${initialIcon}</span><span class="target-name">${initialLocalizedName}</span>`;
         targetPill.onclick = () => {
             this.controlCenter?.open('target');
         };
@@ -1239,10 +1253,7 @@ export class UIManager {
         radarBtn.setAttribute('aria-label', i18n.t('ui.radarToggle'));
         radarBtn.onclick = (e) => {
             e.stopPropagation();
-            const next = !this.minimap.isVisible;
-            this.minimap.setVisible(next);
-            radarBtn.classList.toggle('active', next);
-            if (this.controlCenter) this.controlCenter.syncSwitches();
+            this.toggleMinimap();
         };
         if (this.minimap.isVisible) radarBtn.classList.add('active');
 
@@ -1251,7 +1262,7 @@ export class UIManager {
         controlsBtn.id = 'hudControlsBtn';
         controlsBtn.title = i18n.t('ui.controlsToggle');
         controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
-        controlsBtn.innerHTML = '<span class="ctrl-icon">🎛️</span> <span class="ctrl-label">CONTROLS</span>';
+        controlsBtn.innerHTML = `<span class="ctrl-icon">🎛️</span> <span class="ctrl-label">${(i18n.t('ui.controls') || 'CONTROLS').toUpperCase()}</span>`;
         controlsBtn.onclick = (e) => {
             e.stopPropagation();
             if (this.controlCenter) {
@@ -1268,7 +1279,7 @@ export class UIManager {
         langBtn.id = 'hudLanguageBtn';
         langBtn.title = i18n.t('ui.languageToggle');
         langBtn.setAttribute('aria-label', i18n.t('ui.languageToggle'));
-        langBtn.innerHTML = `<span class="lang-globe">🌐</span> <span class="lang-code">${i18n.currentLanguage.toUpperCase()}</span>`;
+        langBtn.innerHTML = `<span class="lang-flag-current"><img class="lang-btn-flag" src="${getLocaleFlagUrl(i18n.currentLanguage)}" alt="${i18n.getLocaleInfo().label}" /></span> <span class="lang-code">${i18n.currentLanguage.toUpperCase()}</span>`;
 
         const langDropdown = document.createElement('div');
         langDropdown.className = 'lang-dropdown-menu';
@@ -1295,7 +1306,13 @@ export class UIManager {
             AVAILABLE_LOCALES.forEach(loc => {
                 const item = document.createElement('div');
                 item.className = `lang-dropdown-item ${loc.code === i18n.currentLanguage ? 'active' : ''}`;
-                item.innerHTML = `<span class="lang-flag">${loc.flag}</span> <span class="lang-label">${loc.nativeName}</span>`;
+                item.innerHTML = `
+                    <span class="lang-flag">
+                        <img class="lang-flag-img" src="${getLocaleFlagUrl(loc)}" alt="${loc.label}" loading="lazy" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';" />
+                        <span class="lang-flag-fallback" style="display:none;">${loc.flag}</span>
+                    </span>
+                    <span class="lang-label">${loc.nativeName}</span>
+                `;
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
                     i18n.setLanguage(loc.code);
@@ -1350,6 +1367,7 @@ export class UIManager {
             e.stopPropagation();
             const visible = this.performanceMonitor.toggle();
             perfBtn.classList.toggle('active', visible);
+            if (this.controlCenter) this.controlCenter.syncSwitches();
         };
 
         // Keyboard Shortcuts Cheatsheet Guide
@@ -1388,6 +1406,11 @@ export class UIManager {
 
         // Language change reactive listener
         this.unsubscribeI18n = i18n.onLanguageChange(() => {
+            const flagImg = langBtn.querySelector<HTMLImageElement>('.lang-btn-flag');
+            if (flagImg) {
+                flagImg.src = getLocaleFlagUrl(i18n.currentLanguage);
+                flagImg.alt = i18n.getLocaleInfo().label;
+            }
             const codeSpan = langBtn.querySelector('.lang-code');
             if (codeSpan) codeSpan.textContent = i18n.currentLanguage.toUpperCase();
             langBtn.title = i18n.t('ui.languageToggle');
@@ -1396,6 +1419,16 @@ export class UIManager {
             radarBtn.setAttribute('aria-label', i18n.t('ui.radarToggle'));
             controlsBtn.title = i18n.t('ui.controlsToggle');
             controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
+            const ctrlLabel = controlsBtn.querySelector('.ctrl-label');
+            if (ctrlLabel) ctrlLabel.textContent = (i18n.t('ui.controls') || 'CONTROLS').toUpperCase();
+
+            if (this.targetPill) {
+                this.targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object — Click to Open Navigator';
+                const curTarget = this.cameraTarget || 'Earth';
+                const localizedTarget = i18n.getBodyName(curTarget) || i18n.getStarName(curTarget) || i18n.getCometName(curTarget) || i18n.getSpacecraftName(curTarget) || curTarget;
+                const curIcon = this.getTargetIcon(curTarget);
+                this.targetPill.innerHTML = `<span class="target-icon">${curIcon}</span><span class="target-name">${localizedTarget}</span>`;
+            }
 
             soundBtn.title = i18n.t('ui.audioAmbience');
             soundBtn.setAttribute('aria-label', i18n.t('ui.audioAmbienceAria'));
@@ -1508,8 +1541,17 @@ export class UIManager {
 
         // Keyboard navigation & shortcuts
         this.onKeyDownBound = (event: KeyboardEvent) => {
-            const tag = (event.target as HTMLElement)?.tagName?.toLowerCase();
-            if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+            const target = event.target as HTMLElement;
+            const tag = target?.tagName?.toLowerCase();
+            const inputType = (target as HTMLInputElement)?.type?.toLowerCase();
+            if (
+                tag === 'textarea' ||
+                tag === 'select' ||
+                (tag === 'input' && inputType !== 'checkbox' && inputType !== 'radio' && inputType !== 'range') ||
+                target?.isContentEditable
+            ) {
+                return;
+            }
 
             if (event.code === 'Space') {
                 event.preventDefault();
@@ -1562,9 +1604,12 @@ export class UIManager {
                     soundBtn.classList.toggle('active', enabled);
                 }
             } else if (event.key === 'p' || event.key === 'P') {
+                event.preventDefault();
                 const visible = this.performanceMonitor.toggle();
                 const perfBtn = document.getElementById('hudPerfBtn');
                 if (perfBtn) perfBtn.classList.toggle('active', visible);
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
             } else if (event.key === 'c' || event.key === 'C') {
                 if (this.sceneManager.constellationManager) {
                     const next = !this.sceneManager.constellationManager.isVisible;
@@ -1586,9 +1631,8 @@ export class UIManager {
                     this.tourController.setValue(!this.sceneManager.tourMode);
                 }
             } else if (event.key === 'm' || event.key === 'M') {
-                this.minimap.setVisible(!this.minimap.isVisible);
-                const radarBtn = document.getElementById('hudRadarBtn');
-                if (radarBtn) radarBtn.classList.toggle('active', this.minimap.isVisible);
+                event.preventDefault();
+                this.toggleMinimap();
             } else if (event.key === 'o' || event.key === 'O') {
                 this.sceneManager.toggleOrbits(!this.sceneManager.showOrbits);
             } else if (event.key === 'r' || event.key === 'R') {

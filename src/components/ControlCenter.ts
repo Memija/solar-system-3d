@@ -1,6 +1,6 @@
 import { SceneManager } from './SceneManager';
 import { UIManager } from './UIManager';
-import { i18n, AVAILABLE_LOCALES } from '../i18n';
+import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
@@ -25,12 +25,13 @@ export class ControlCenter {
     private pauseBtn: HTMLElement | null = null;
     private targetChipButtons: Map<string, HTMLElement> = new Map();
     private camModeButtons: Map<string, HTMLElement> = new Map();
-    private tourSpeedSlider: HTMLInputElement | null = null;
     private tourSpeedDisplay: HTMLElement | null = null;
-    private telemetryTickerContent: HTMLElement | null = null;
+    private mainTitleEl: HTMLElement | null = null;
+    private subTitleEl: HTMLElement | null = null;
+    private closeBtnEl: HTMLElement | null = null;
 
-    private onDocClickBound: ((e: MouseEvent) => void) | null = null;
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
+    private unregisterI18n: (() => void) | null = null;
 
     constructor(uiManager: UIManager, sceneManager: SceneManager, uiContainer: HTMLElement) {
         this.uiManager = uiManager;
@@ -68,23 +69,26 @@ export class ControlCenter {
 
         const mainTitle = document.createElement('span');
         mainTitle.className = 'drawer-main-title';
-        mainTitle.textContent = 'Observatory Command';
+        mainTitle.textContent = i18n.t('controls.drawerTitle') || 'Observatory Command';
         titleGroup.appendChild(mainTitle);
+        this.mainTitleEl = mainTitle;
 
         const subTitle = document.createElement('span');
         subTitle.className = 'drawer-sub-title';
-        subTitle.textContent = 'Unified Celestial Simulation Controls';
+        subTitle.textContent = i18n.t('controls.drawerSubtitle') || 'Unified Celestial Simulation Controls';
         titleGroup.appendChild(subTitle);
+        this.subTitleEl = subTitle;
 
         header.appendChild(titleGroup);
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'drawer-close-btn';
         closeBtn.type = 'button';
-        closeBtn.setAttribute('aria-label', 'Close Menu');
+        closeBtn.setAttribute('aria-label', i18n.t('ui.close') || 'Close Menu');
         closeBtn.innerHTML = '✕';
         closeBtn.onclick = () => this.close();
         header.appendChild(closeBtn);
+        this.closeBtnEl = closeBtn;
 
         drawer.appendChild(header);
 
@@ -114,8 +118,12 @@ export class ControlCenter {
 
             const labelSpan = document.createElement('span');
             labelSpan.className = 'tab-label';
-            labelSpan.textContent = this.getTabLabel(cfg.id);
+            const label = this.getTabLabel(cfg.id);
+            labelSpan.textContent = label;
             btn.appendChild(labelSpan);
+
+            btn.title = label;
+            btn.setAttribute('aria-label', label);
 
             btn.onclick = () => this.switchTab(cfg.id);
             tabsStrip.appendChild(btn);
@@ -141,12 +149,12 @@ export class ControlCenter {
 
     private getTabLabel(tab: ControlCenterTab): string {
         switch (tab) {
-            case 'target': return 'Target';
-            case 'time': return i18n.t('controls.simulationFolder') || 'Time';
-            case 'layers': return 'Layers';
-            case 'camera': return 'Camera';
-            case 'optics': return 'Optics';
-            case 'system': return 'System';
+            case 'target': return i18n.t('controls.tabs.target') || 'Target';
+            case 'time': return i18n.t('controls.tabs.time') || i18n.t('controls.simulationFolder') || 'Simulation';
+            case 'layers': return i18n.t('controls.tabs.layers') || 'Layers';
+            case 'camera': return i18n.t('controls.tabs.camera') || i18n.t('controls.cameraFolder') || 'Camera';
+            case 'optics': return i18n.t('controls.tabs.optics') || i18n.t('controls.environmentFolder') || 'Optics';
+            case 'system': return i18n.t('controls.tabs.system') || i18n.t('controls.toolsFolder') || 'System';
         }
     }
 
@@ -165,7 +173,7 @@ export class ControlCenter {
 
         const groupTitle = document.createElement('h4');
         groupTitle.className = 'ctrl-group-title';
-        groupTitle.innerHTML = '<span>Celestial Navigation</span><span class="group-tag">EPHEMERIS</span>';
+        groupTitle.innerHTML = `<span data-i18n-key="controls.sections.celestialNav">${i18n.t('controls.sections.celestialNav') || 'Celestial Navigation'}</span><span class="group-tag">EPHEMERIS</span>`;
         selectGroup.appendChild(groupTitle);
 
         const selectRow = document.createElement('div');
@@ -182,7 +190,7 @@ export class ControlCenter {
 
         const quickTitle = document.createElement('h4');
         quickTitle.className = 'ctrl-group-title';
-        quickTitle.innerHTML = '<span>Quick Focus Targets</span>';
+        quickTitle.innerHTML = `<span data-i18n-key="controls.sections.quickTargets">${i18n.t('controls.sections.quickTargets') || 'Quick Focus Targets'}</span>`;
         quickGroup.appendChild(quickTitle);
 
         const chipsWrap = document.createElement('div');
@@ -208,7 +216,8 @@ export class ControlCenter {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = `target-chip-btn ${this.uiManager?.cameraTarget === t.name ? 'active' : ''}`;
-            chip.innerHTML = `${t.icon} ${t.name}`;
+            const locName = i18n.getBodyName(t.name) || i18n.getStarName(t.name) || i18n.getSpacecraftName(t.name) || t.name;
+            chip.innerHTML = `${t.icon} <span class="chip-name">${locName}</span>`;
             chip.onclick = () => {
                 this.uiManager.syncDropdownSelection(t.name, t.type);
                 EventBus.emit('select-celestial-body', { name: t.name });
@@ -227,8 +236,8 @@ export class ControlCenter {
 
         const actionBtn1 = document.createElement('button');
         actionBtn1.type = 'button';
-        actionBtn1.className = 'master-action-btn';
-        actionBtn1.innerHTML = '<span>🎯 Focus & Align Camera</span>';
+        actionBtn1.className = 'master-action-btn focus-action-btn';
+        actionBtn1.innerHTML = `<span>🎯 <span data-i18n-key="controls.sections.focusAlign">${i18n.t('controls.sections.focusAlign') || 'Focus & Align Camera'}</span></span>`;
         actionBtn1.onclick = () => {
             this.sceneManager.focusOnBody(this.uiManager.cameraTarget);
         };
@@ -236,8 +245,8 @@ export class ControlCenter {
 
         const actionBtn2 = document.createElement('button');
         actionBtn2.type = 'button';
-        actionBtn2.className = 'master-action-btn';
-        actionBtn2.innerHTML = '<span>🪐 View From Surface</span>';
+        actionBtn2.className = 'master-action-btn surface-action-btn';
+        actionBtn2.innerHTML = `<span>🪐 <span data-i18n-key="controls.sections.viewSurface">${i18n.t('controls.sections.viewSurface') || 'View From Surface'}</span></span>`;
         actionBtn2.onclick = () => {
             this.sceneManager.setSurfaceView(this.uiManager.cameraTarget);
         };
@@ -260,19 +269,16 @@ export class ControlCenter {
         const masterGroup = document.createElement('div');
         masterGroup.className = 'ctrl-group';
 
-        const isPaused = this.sceneManager?.timeScale === 0;
         const pauseBtn = document.createElement('button');
         pauseBtn.type = 'button';
-        pauseBtn.className = 'master-action-btn';
-        pauseBtn.innerHTML = isPaused
-            ? '<span>▶ Resume Simulation</span>'
-            : '<span>⏸ Pause Simulation</span>';
+        pauseBtn.className = 'master-action-btn pause-action-btn';
         pauseBtn.onclick = () => {
             this.uiManager.togglePause();
             this.syncTimePanel();
         };
         masterGroup.appendChild(pauseBtn);
         this.pauseBtn = pauseBtn;
+        this.updatePauseButton();
 
         panel.appendChild(masterGroup);
 
@@ -282,26 +288,27 @@ export class ControlCenter {
 
         const presetTitle = document.createElement('h4');
         presetTitle.className = 'ctrl-group-title';
-        presetTitle.innerHTML = `<span>${i18n.t('controls.speedPreset') || 'Speed Presets'}</span>`;
+        presetTitle.innerHTML = `<span data-i18n-key="controls.speedPreset">${i18n.t('controls.speedPreset') || 'Speed Presets'}</span>`;
         presetGroup.appendChild(presetTitle);
 
         const presetGrid = document.createElement('div');
         presetGrid.className = 'speed-presets-grid';
 
-        const presets = [
-            { key: 'realTime', label: '1:1 Real', speed: SceneManager.SPEED_PRESETS.realTime },
-            { key: 'oneHour', label: '1 hr / s', speed: SceneManager.SPEED_PRESETS.oneHour },
-            { key: 'oneDay', label: '1 day / s', speed: SceneManager.SPEED_PRESETS.oneDay },
-            { key: 'oneWeek', label: '1 wk / s', speed: SceneManager.SPEED_PRESETS.oneWeek },
-            { key: 'oneMonth', label: '1 mo / s', speed: SceneManager.SPEED_PRESETS.oneMonth },
-            { key: 'paused', label: 'Paused', speed: 0 }
+        const presets: { key: string; labelKey: string; fallback: string; speed: number }[] = [
+            { key: 'realTime', labelKey: 'controls.speedPresets.realTime', fallback: '1:1 Real', speed: SceneManager.SPEED_PRESETS.realTime },
+            { key: 'oneHour', labelKey: 'controls.speedPresets.oneHourPerSec', fallback: '1 hr / s', speed: SceneManager.SPEED_PRESETS.oneHour },
+            { key: 'oneDay', labelKey: 'controls.speedPresets.oneDayPerSec', fallback: '1 day / s', speed: SceneManager.SPEED_PRESETS.oneDay },
+            { key: 'oneWeek', labelKey: 'controls.speedPresets.oneWeekPerSec', fallback: '1 wk / s', speed: SceneManager.SPEED_PRESETS.oneWeek },
+            { key: 'oneMonth', labelKey: 'controls.speedPresets.oneMonthPerSec', fallback: '1 mo / s', speed: SceneManager.SPEED_PRESETS.oneMonth },
+            { key: 'paused', labelKey: 'controls.speedPresets.paused', fallback: 'Paused', speed: 0 }
         ];
 
         presets.forEach(p => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'preset-btn';
-            btn.textContent = p.label;
+            btn.dataset.presetKey = p.key;
+            btn.textContent = i18n.t(p.labelKey) || p.fallback;
             btn.onclick = () => {
                 if (p.key === 'paused') {
                     if (this.sceneManager.timeScale !== 0) {
@@ -328,7 +335,7 @@ export class ControlCenter {
 
         const sliderTitle = document.createElement('h4');
         sliderTitle.className = 'ctrl-group-title';
-        sliderTitle.innerHTML = `<span>${i18n.t('controls.timeSpeed') || 'Time Speed Fine Scrubber'}</span>`;
+        sliderTitle.innerHTML = `<span data-i18n-key="controls.timeSpeed">${i18n.t('controls.timeSpeed') || 'Time Speed Fine Scrubber'}</span>`;
         sliderGroup.appendChild(sliderTitle);
 
         const sliderWrap = document.createElement('div');
@@ -392,13 +399,13 @@ export class ControlCenter {
 
         const dateTitle = document.createElement('h4');
         dateTitle.className = 'ctrl-group-title';
-        dateTitle.innerHTML = '<span>Observation Date</span>';
+        dateTitle.innerHTML = `<span data-i18n-key="ui.simDate">${i18n.t('ui.simDate') || 'Observation Date'}</span>`;
         dateGroup.appendChild(dateTitle);
 
         const jumpBtn = document.createElement('button');
         jumpBtn.type = 'button';
-        jumpBtn.className = 'master-action-btn';
-        jumpBtn.innerHTML = '<span>📅 Jump to Real-Time Today</span>';
+        jumpBtn.className = 'master-action-btn jump-date-action-btn';
+        jumpBtn.innerHTML = `<span>📅 <span data-i18n-key="ui.liveRealTime">${i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today'}</span></span>`;
         jumpBtn.onclick = () => {
             const now = new Date();
             if (this.sceneManager.setSimDate) {
@@ -428,7 +435,7 @@ export class ControlCenter {
 
         const title = document.createElement('h4');
         title.className = 'ctrl-group-title';
-        title.innerHTML = '<span>Cosmic Entities & Trails</span>';
+        title.innerHTML = `<span data-i18n-key="controls.sections.entitiesTrails">${i18n.t('controls.sections.entitiesTrails') || 'Cosmic Entities & Trails'}</span>`;
         group.appendChild(title);
 
         const layersConfig: { prop: string; key: string; icon: string; initial: boolean; onChange: (v: boolean) => void }[] = [
@@ -510,6 +517,7 @@ export class ControlCenter {
             labelWrap.appendChild(icon);
 
             const labelText = document.createElement('span');
+            labelText.dataset.i18nKey = cfg.key;
             labelText.textContent = i18n.t(cfg.key);
             labelWrap.appendChild(labelText);
 
@@ -553,23 +561,24 @@ export class ControlCenter {
 
         const modesTitle = document.createElement('h4');
         modesTitle.className = 'ctrl-group-title';
-        modesTitle.innerHTML = '<span>Camera Perspective</span>';
+        modesTitle.innerHTML = `<span data-i18n-key="controls.sections.cameraPerspective">${i18n.t('controls.sections.cameraPerspective') || 'Camera Perspective'}</span>`;
         modesGroup.appendChild(modesTitle);
 
         const segmented = document.createElement('div');
         segmented.className = 'camera-modes-segmented';
 
         const modes = [
-            { key: 'orbit', label: '🎯 Orbit Focus', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
-            { key: 'surface', label: '🪐 Surface View', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
-            { key: 'detach', label: '🚀 Free Camera', action: () => this.sceneManager.detachCamera() }
+            { key: 'orbit', icon: '🎯', labelKey: 'controls.sections.orbitFocus', fallback: 'Orbit Focus', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
+            { key: 'surface', icon: '🪐', labelKey: 'controls.sections.surfaceView', fallback: 'Surface View', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
+            { key: 'detach', icon: '🚀', labelKey: 'controls.sections.freeCam', fallback: 'Free Camera', action: () => this.sceneManager.detachCamera() }
         ];
 
         modes.forEach(m => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = `cam-mode-btn ${m.key === 'orbit' ? 'active' : ''}`;
-            btn.textContent = m.label;
+            btn.dataset.modeKey = m.key;
+            btn.innerHTML = `${m.icon} <span data-i18n-key="${m.labelKey}">${i18n.t(m.labelKey) || m.fallback}</span>`;
             btn.onclick = () => {
                 m.action();
                 this.camModeButtons.forEach(b => b.classList.remove('active'));
@@ -588,7 +597,7 @@ export class ControlCenter {
 
         const tourTitle = document.createElement('h4');
         tourTitle.className = 'ctrl-group-title';
-        tourTitle.innerHTML = `<span>${i18n.t('controls.cinematicTour') || 'Cinematic Grand Tour'}</span>`;
+        tourTitle.innerHTML = `<span data-i18n-key="controls.cinematicTour">${i18n.t('controls.cinematicTour') || 'Cinematic Grand Tour'}</span>`;
         tourGroup.appendChild(tourTitle);
 
         const tourRow = document.createElement('div');
@@ -596,7 +605,7 @@ export class ControlCenter {
 
         const tourLabel = document.createElement('label');
         tourLabel.className = 'toggle-label-wrap';
-        tourLabel.innerHTML = '<span class="toggle-icon">🎬</span><span>Autonomous Grand Tour</span>';
+        tourLabel.innerHTML = `<span class="toggle-icon">🎬</span><span data-i18n-key="controls.sections.autonomousTour">${i18n.t('controls.sections.autonomousTour') || 'Autonomous Grand Tour'}</span>`;
         tourRow.appendChild(tourLabel);
 
         const tourSwitch = document.createElement('label');
@@ -644,7 +653,6 @@ export class ControlCenter {
             }
         };
         tourSpeedWrap.appendChild(tourSlider);
-        this.tourSpeedSlider = tourSlider;
 
         const tourSpeedVal = document.createElement('span');
         tourSpeedVal.className = 'speed-val-display';
@@ -661,7 +669,7 @@ export class ControlCenter {
 
         const measureTitle = document.createElement('h4');
         measureTitle.className = 'ctrl-group-title';
-        measureTitle.innerHTML = `<span>${i18n.t('controls.measureDistance') || 'Distance Measuring Tool'}</span>`;
+        measureTitle.innerHTML = `<span data-i18n-key="controls.measureDistance">${i18n.t('controls.measureDistance') || 'Distance Measuring Tool'}</span>`;
         measureGroup.appendChild(measureTitle);
 
         const measureRow = document.createElement('div');
@@ -669,7 +677,7 @@ export class ControlCenter {
 
         const measureLabel = document.createElement('label');
         measureLabel.className = 'toggle-label-wrap';
-        measureLabel.innerHTML = '<span class="toggle-icon">📐</span><span>Measure Mode</span>';
+        measureLabel.innerHTML = `<span class="toggle-icon">📐</span><span data-i18n-key="controls.measureDistance">${i18n.t('controls.measureDistance') || 'Measure Mode'}</span>`;
         measureRow.appendChild(measureLabel);
 
         const measureSwitch = document.createElement('label');
@@ -705,7 +713,7 @@ export class ControlCenter {
 
         const title = document.createElement('h4');
         title.className = 'ctrl-group-title';
-        title.innerHTML = '<span>Optics & Physical Scale</span>';
+        title.innerHTML = `<span data-i18n-key="controls.sections.opticsScale">${i18n.t('controls.sections.opticsScale') || 'Optics & Physical Scale'}</span>`;
         group.appendChild(title);
 
         const opticsConfig = [
@@ -778,6 +786,7 @@ export class ControlCenter {
             labelWrap.appendChild(icon);
 
             const labelText = document.createElement('span');
+            labelText.dataset.i18nKey = cfg.key;
             labelText.textContent = i18n.t(cfg.key);
             labelWrap.appendChild(labelText);
 
@@ -821,13 +830,13 @@ export class ControlCenter {
 
         const toolsTitle = document.createElement('h4');
         toolsTitle.className = 'ctrl-group-title';
-        toolsTitle.innerHTML = '<span>Observatory Instruments</span>';
+        toolsTitle.innerHTML = `<span data-i18n-key="controls.sections.observatoryInstruments">${i18n.t('controls.sections.observatoryInstruments') || 'Observatory Instruments'}</span>`;
         toolsGroup.appendChild(toolsTitle);
 
         // Radar Toggle
         const radarRow = document.createElement('div');
         radarRow.className = 'ctrl-row-toggle';
-        radarRow.innerHTML = '<span class="toggle-label-wrap"><span class="toggle-icon">🛰️</span><span>Tactical Radar Minimap</span></span>';
+        radarRow.innerHTML = `<span class="toggle-label-wrap"><span class="toggle-icon">🛰️</span><span data-i18n-key="controls.showMinimap">${i18n.t('controls.showMinimap') || 'Tactical Radar Minimap'}</span><kbd class="ctrl-kbd-badge">M</kbd></span>`;
         const radarSwitch = document.createElement('label');
         radarSwitch.className = 'sci-switch';
         const radarInput = document.createElement('input');
@@ -837,6 +846,7 @@ export class ControlCenter {
             this.uiManager.minimap.setVisible(radarInput.checked);
             const radarBtn = document.getElementById('hudRadarBtn');
             if (radarBtn) radarBtn.classList.toggle('active', radarInput.checked);
+            if (this.uiManager.audioManager) this.uiManager.audioManager.playTick();
         };
         radarSwitch.appendChild(radarInput);
         radarSwitch.appendChild(document.createElement('span')).className = 'sci-slider';
@@ -844,71 +854,28 @@ export class ControlCenter {
         toolsGroup.appendChild(radarRow);
         this.switches.set('minimap', radarInput);
 
-        // Snapshot Button
-        const snapBtn = document.createElement('button');
-        snapBtn.type = 'button';
-        snapBtn.className = 'master-action-btn';
-        snapBtn.innerHTML = '<span>📸 Capture Astrophotography Snapshot</span>';
-        snapBtn.onclick = () => {
-            this.uiManager.audioManager.playShutter();
-            this.sceneManager.captureScreenshot(this.uiManager.cameraTarget);
+        // Performance Telemetry Toggle
+        const perfRow = document.createElement('div');
+        perfRow.className = 'ctrl-row-toggle';
+        perfRow.innerHTML = `<span class="toggle-label-wrap"><span class="toggle-icon">⚡</span><span data-i18n-key="ui.telemetry">${i18n.t('ui.telemetry') || 'Engine Performance Telemetry'}</span><kbd class="ctrl-kbd-badge">P</kbd></span>`;
+        const perfSwitch = document.createElement('label');
+        perfSwitch.className = 'sci-switch';
+        const perfInput = document.createElement('input');
+        perfInput.type = 'checkbox';
+        perfInput.checked = this.uiManager?.performanceMonitor?.getVisible() || false;
+        perfInput.onchange = () => {
+            this.uiManager.performanceMonitor.setVisible(perfInput.checked);
+            const perfBtn = document.getElementById('hudPerfBtn');
+            if (perfBtn) perfBtn.classList.toggle('active', perfInput.checked);
+            if (this.uiManager.audioManager) this.uiManager.audioManager.playTick();
         };
-        toolsGroup.appendChild(snapBtn);
-
-        // Audio Toggle Button
-        const audioBtn = document.createElement('button');
-        audioBtn.type = 'button';
-        audioBtn.className = 'master-action-btn';
-        const isAudioOn = this.uiManager?.audioManager?.getAudioEnabled();
-        audioBtn.innerHTML = `<span>${isAudioOn ? '🔊 Mute Cosmic Ambience' : '🔇 Enable Cosmic Ambience'}</span>`;
-        audioBtn.onclick = () => {
-            const next = this.uiManager.audioManager.toggle();
-            audioBtn.innerHTML = `<span>${next ? '🔊 Mute Cosmic Ambience' : '🔇 Enable Cosmic Ambience'}</span>`;
-            const soundBtn = document.getElementById('hudSoundBtn');
-            if (soundBtn) {
-                soundBtn.innerHTML = next ? '🔊' : '🔇';
-                soundBtn.classList.toggle('active', next);
-            }
-        };
-        toolsGroup.appendChild(audioBtn);
-
-        // Shortcuts Guide Button
-        const shortcutsBtn = document.createElement('button');
-        shortcutsBtn.type = 'button';
-        shortcutsBtn.className = 'master-action-btn';
-        shortcutsBtn.innerHTML = '<span>⌨️ Keyboard Shortcuts Guide</span>';
-        shortcutsBtn.onclick = () => {
-            this.uiManager.toggleShortcutsModal();
-        };
-        toolsGroup.appendChild(shortcutsBtn);
+        perfSwitch.appendChild(perfInput);
+        perfSwitch.appendChild(document.createElement('span')).className = 'sci-slider';
+        perfRow.appendChild(perfSwitch);
+        toolsGroup.appendChild(perfRow);
+        this.switches.set('telemetry', perfInput);
 
         panel.appendChild(toolsGroup);
-
-        // Language Selection Group
-        const langGroup = document.createElement('div');
-        langGroup.className = 'ctrl-group';
-
-        const langTitle = document.createElement('h4');
-        langTitle.className = 'ctrl-group-title';
-        langTitle.innerHTML = '<span>Language & Localization</span>';
-        langGroup.appendChild(langTitle);
-
-        const langGrid = document.createElement('div');
-        langGrid.className = 'speed-presets-grid';
-
-        AVAILABLE_LOCALES.forEach(loc => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = `preset-btn ${loc.code === i18n.currentLanguage ? 'active' : ''}`;
-            btn.innerHTML = `${loc.flag} ${loc.nativeName}`;
-            btn.onclick = () => {
-                i18n.setLanguage(loc.code);
-            };
-            langGrid.appendChild(btn);
-        });
-
-        langGroup.appendChild(langGrid);
-        panel.appendChild(langGroup);
         return panel;
     }
 
@@ -965,15 +932,21 @@ export class ControlCenter {
         });
     }
 
-    public syncTimePanel() {
+    public updatePauseButton() {
+        if (!this.pauseBtn) return;
         const isPaused = this.sceneManager?.timeScale === 0;
-        if (this.pauseBtn) {
-            this.pauseBtn.innerHTML = isPaused
-                ? '<span>▶ Resume Simulation</span>'
-                : '<span>⏸ Pause Simulation</span>';
-        }
+        const pauseText = i18n.t('controls.sections.pauseSimulation') || i18n.t('controls.pause') || 'Pause Simulation';
+        const resumeText = i18n.t('controls.sections.resumeSimulation') || i18n.t('controls.resume') || 'Resume Simulation';
+        this.pauseBtn.innerHTML = isPaused
+            ? `<span>▶ ${resumeText}</span>`
+            : `<span>⏸ ${pauseText}</span>`;
+    }
+
+    public syncTimePanel() {
+        this.updatePauseButton();
 
         const currentSpeed = this.sceneManager?.timeScale || 0;
+        const isPaused = this.sceneManager?.timeScale === 0;
         if (this.speedSlider) {
             this.speedSlider.value = currentSpeed.toString();
         }
@@ -982,7 +955,8 @@ export class ControlCenter {
             const formatted = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
                 ? this.sceneManager.getFormattedTimeSpeed()
                 : '1.0 day/s';
-            this.speedDisplay.textContent = isPaused ? 'Paused' : formatted;
+            const pausedText = i18n.t('controls.speedPresets.paused') || 'Paused';
+            this.speedDisplay.textContent = isPaused ? pausedText : formatted;
         }
 
         // Update active preset button
@@ -1026,13 +1000,61 @@ export class ControlCenter {
         setChecked('tourMode', sm.tourMode);
         setChecked('measureMode', sm.measureMode);
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
+        setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
     }
 
     public updateTranslations() {
+        if (this.mainTitleEl) {
+            this.mainTitleEl.textContent = i18n.t('controls.drawerTitle') || 'Observatory Command';
+        }
+        if (this.subTitleEl) {
+            this.subTitleEl.textContent = i18n.t('controls.drawerSubtitle') || 'Unified Celestial Simulation Controls';
+        }
+        if (this.closeBtnEl) {
+            this.closeBtnEl.setAttribute('aria-label', i18n.t('ui.close') || 'Close Menu');
+        }
+
         this.tabButtons.forEach((btn, id) => {
             const labelSpan = btn.querySelector('.tab-label');
-            if (labelSpan) labelSpan.textContent = this.getTabLabel(id);
+            const label = this.getTabLabel(id);
+            if (labelSpan) labelSpan.textContent = label;
+            btn.title = label;
+            btn.setAttribute('aria-label', label);
         });
+
+        if (this.drawerElement) {
+            this.drawerElement.querySelectorAll<HTMLElement>('[data-i18n-key]').forEach(el => {
+                const key = el.dataset.i18nKey;
+                if (key) {
+                    const text = i18n.t(key);
+                    if (text) el.textContent = text;
+                }
+            });
+        }
+
+        this.targetChipButtons.forEach((chip, name) => {
+            const locName = i18n.getBodyName(name) || i18n.getStarName(name) || i18n.getSpacecraftName(name) || name;
+            const span = chip.querySelector('.chip-name');
+            if (span) span.textContent = locName;
+        });
+
+        const presetLabelMap: Record<string, string> = {
+            realTime: 'controls.speedPresets.realTime',
+            oneHour: 'controls.speedPresets.oneHourPerSec',
+            oneDay: 'controls.speedPresets.oneDayPerSec',
+            oneWeek: 'controls.speedPresets.oneWeekPerSec',
+            oneMonth: 'controls.speedPresets.oneMonthPerSec',
+            paused: 'controls.speedPresets.paused'
+        };
+        this.presetButtons.forEach((btn, key) => {
+            const lk = presetLabelMap[key];
+            if (lk) {
+                const text = i18n.t(lk);
+                if (text) btn.textContent = text;
+            }
+        });
+
+        this.updatePauseButton();
         this.syncTimePanel();
         this.syncSwitches();
     }
@@ -1044,9 +1066,17 @@ export class ControlCenter {
             }
         };
         window.addEventListener('keydown', this.onKeyDownBound);
+
+        this.unregisterI18n = i18n.onLanguageChange(() => {
+            this.updateTranslations();
+        });
     }
 
     public dispose() {
+        if (this.unregisterI18n) {
+            this.unregisterI18n();
+            this.unregisterI18n = null;
+        }
         if (this.onKeyDownBound) {
             window.removeEventListener('keydown', this.onKeyDownBound);
             this.onKeyDownBound = null;

@@ -5,6 +5,7 @@ export interface LocaleInfo {
     label: string;
     nativeName: string;
     flag: string;
+    flagFile?: string;
 }
 
 export interface ItemTranslation {
@@ -34,6 +35,8 @@ export interface TranslationSchema {
         speedPause: string;
         utcTime: string;
         liveRealTime: string;
+        controls?: string;
+        targetPillTitle?: string;
     };
     categories: {
         star: string;
@@ -44,6 +47,38 @@ export interface TranslationSchema {
         spacecraft: string;
     };
     controls: {
+        drawerTitle?: string;
+        drawerSubtitle?: string;
+        tabs?: {
+            target: string;
+            time: string;
+            layers: string;
+            camera: string;
+            optics: string;
+            system: string;
+        };
+        sections?: {
+            celestialNav: string;
+            quickTargets: string;
+            focusAlign: string;
+            viewSurface: string;
+            simulationSpeed: string;
+            entitiesTrails: string;
+            cameraPerspective: string;
+            orbitFocus: string;
+            surfaceView: string;
+            freeCam: string;
+            autonomousTour: string;
+            opticsScale: string;
+            observatoryInstruments: string;
+            languageLocalization: string;
+            captureSnapshot: string;
+            enableAudio: string;
+            muteAudio: string;
+            shortcutsGuide: string;
+            pauseSimulation: string;
+            resumeSimulation: string;
+        };
         simulationFolder: string;
         environmentFolder: string;
         cameraFolder: string;

@@ -8,13 +8,40 @@ import { sr } from './locales/sr';
 
 export * from './types';
 
+export const FLAG_CODE_MAP: Record<string, string> = {
+    en: 'gb.png',
+    gb: 'gb.png',
+    id: 'id.png',
+    bs: 'ba.png',
+    ba: 'ba.png',
+    de: 'de.png',
+    pl: 'pl.png',
+    sr: 'rs.png',
+    rs: 'rs.png',
+    hr: 'hr.png',
+    ee: 'ee.png',
+    eg: 'eg.png',
+    et: 'et.png',
+    om: 'om.png'
+};
+
+export function getLocaleFlagUrl(localeOrCode: LocaleInfo | string): string {
+    const code = typeof localeOrCode === 'string' ? localeOrCode : localeOrCode?.code || 'en';
+    const customFile = typeof localeOrCode === 'object' ? localeOrCode.flagFile : undefined;
+    const flagFile = customFile || FLAG_CODE_MAP[code] || `${code}.png`;
+    const base = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL)
+        ? (import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`)
+        : '/';
+    return `${base}flags/${flagFile}`;
+}
+
 export const AVAILABLE_LOCALES: LocaleInfo[] = [
-    { code: 'en', label: 'English', nativeName: 'English', flag: '🇬🇧' },
-    { code: 'id', label: 'Indonesian', nativeName: 'Bahasa Indonesia', flag: '🇮🇩' },
-    { code: 'bs', label: 'Bosnian', nativeName: 'Bosanski', flag: '🇧🇦' },
-    { code: 'de', label: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
-    { code: 'pl', label: 'Polish', nativeName: 'Polski', flag: '🇵🇱' },
-    { code: 'sr', label: 'Serbian', nativeName: 'Српски (ћирилица)', flag: '🇷🇸' }
+    { code: 'id', label: 'Indonesian', nativeName: 'Bahasa Indonesia', flag: '🇮🇩', flagFile: 'id.png' },
+    { code: 'bs', label: 'Bosnian', nativeName: 'Bosanski', flag: '🇧🇦', flagFile: 'ba.png' },
+    { code: 'de', label: 'German', nativeName: 'Deutsch', flag: '🇩🇪', flagFile: 'de.png' },
+    { code: 'en', label: 'English', nativeName: 'English', flag: '🇬🇧', flagFile: 'gb.png' },
+    { code: 'pl', label: 'Polish', nativeName: 'Polski', flag: '🇵🇱', flagFile: 'pl.png' },
+    { code: 'sr', label: 'Serbian', nativeName: 'Serbian', flag: '🇷🇸', flagFile: 'rs.png' }
 ];
 
 const STORAGE_KEY = 'solar_system_language';
@@ -25,13 +52,11 @@ class I18nManager {
     private listeners: Set<(lang: SupportedLanguage | string) => void> = new Set();
 
     constructor() {
-        // Register built-in locales
-        this.registerLocale('en', AVAILABLE_LOCALES[0], en);
-        this.registerLocale('id', AVAILABLE_LOCALES[1], id);
-        this.registerLocale('bs', AVAILABLE_LOCALES[2], bs);
-        this.registerLocale('de', AVAILABLE_LOCALES[3], de);
-        this.registerLocale('pl', AVAILABLE_LOCALES[4], pl);
-        this.registerLocale('sr', AVAILABLE_LOCALES[5], sr);
+        // Register built-in locales in alphabetical order
+        const localeDataMap: Record<string, TranslationSchema> = { en, id, bs, de, pl, sr };
+        AVAILABLE_LOCALES.forEach(loc => {
+            this.registerLocale(loc.code as string, loc, localeDataMap[loc.code as string]);
+        });
 
         // Detect initial language
         this.currentLang = this.detectInitialLanguage();
@@ -76,7 +101,7 @@ class I18nManager {
     public getLocaleInfo(code?: string): LocaleInfo {
         const langCode = code || this.currentLang;
         const entry = this.locales.get(langCode);
-        return entry?.meta || AVAILABLE_LOCALES[0];
+        return entry?.meta || AVAILABLE_LOCALES.find(l => l.code === langCode) || AVAILABLE_LOCALES.find(l => l.code === 'en') || AVAILABLE_LOCALES[0];
     }
 
     public getAvailableLocales(): LocaleInfo[] {

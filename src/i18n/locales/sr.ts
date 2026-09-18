@@ -20,7 +20,9 @@ export const sr: TranslationSchema = {
         astrophotographyAria: 'Направи снимак екрана високе резолуције',
         speedPause: 'Кликните за паузу / наставак (Размак)',
         utcTime: 'Универзално време (UTC)',
-        liveRealTime: 'Физичко реално време (1:1)'
+        liveRealTime: 'Физичко реално време (1:1)',
+        controls: 'Контроле',
+        targetPillTitle: 'Фокусирани небески објекат — Кликните да отворите навигатор'
     },
     categories: {
         star: '🌟 Звезде',
@@ -31,6 +33,38 @@ export const sr: TranslationSchema = {
         spacecraft: '🛰️ Свемирске летелице'
     },
     controls: {
+        drawerTitle: 'Команда опсерваторије',
+        drawerSubtitle: 'Обједињене контроле симулације неба',
+        tabs: {
+            target: 'Циљ',
+            time: 'Симулација',
+            layers: 'Слојеви',
+            camera: 'Камера',
+            optics: 'Оптика',
+            system: 'Систем'
+        },
+        sections: {
+            celestialNav: 'Небеска навигација',
+            quickTargets: 'Брзи фокус на објекте',
+            focusAlign: 'Фокусирај и усмери камеру',
+            viewSurface: 'Поглед са површине',
+            simulationSpeed: 'Брзина симулације',
+            entitiesTrails: 'Космичка тела и путање',
+            cameraPerspective: 'Перспектива камере',
+            orbitFocus: 'Орбитални фокус',
+            surfaceView: 'Поглед са површине',
+            freeCam: 'Слободна камера',
+            autonomousTour: 'Аутоматска велика тура',
+            opticsScale: 'Оптика и физичке размере',
+            observatoryInstruments: 'Инструменти опсерваторије',
+            languageLocalization: 'Језик и локализација',
+            captureSnapshot: 'Сними астрофотографију',
+            enableAudio: 'Укључи космички звук',
+            muteAudio: 'Искључи космички звук',
+            shortcutsGuide: 'Водич за пречице на тастатури',
+            pauseSimulation: 'Паузирај симулацију',
+            resumeSimulation: 'Настави симулацију'
+        },
         simulationFolder: 'Симулација',
         environmentFolder: 'Окружење',
         cameraFolder: 'Контроле камере',

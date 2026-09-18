@@ -20,7 +20,9 @@ export const pl: TranslationSchema = {
         astrophotographyAria: 'Wykonaj zrzut ekranu w wysokiej rozdzielczości',
         speedPause: 'Kliknij, aby wstrzymać / wznowić (Spacja)',
         utcTime: 'Czas uniwersalny (UTC)',
-        liveRealTime: 'Czas rzeczywisty fizyczny (1:1)'
+        liveRealTime: 'Czas rzeczywisty fizyczny (1:1)',
+        controls: 'Sterowanie',
+        targetPillTitle: 'Wybrany obiekt kosmiczny — Kliknij, aby otworzyć nawigator'
     },
     categories: {
         star: '🌟 Gwiazdy',
@@ -31,6 +33,38 @@ export const pl: TranslationSchema = {
         spacecraft: '🛰️ Sondy kosmiczne'
     },
     controls: {
+        drawerTitle: 'Dowództwo obserwatorium',
+        drawerSubtitle: 'Zunifikowane sterowanie symulacją kosmiczną',
+        tabs: {
+            target: 'Cel',
+            time: 'Symulacja',
+            layers: 'Warstwy',
+            camera: 'Kamera',
+            optics: 'Optyka',
+            system: 'System'
+        },
+        sections: {
+            celestialNav: 'Nawigacja niebieska',
+            quickTargets: 'Szybki wybór obiektów',
+            focusAlign: 'Skup i wyrównaj kamerę',
+            viewSurface: 'Widok z powierzchni',
+            simulationSpeed: 'Prędkość symulacji',
+            entitiesTrails: 'Obiekty kosmiczne i orbity',
+            cameraPerspective: 'Perspektywa kamery',
+            orbitFocus: 'Fokus orbitalny',
+            surfaceView: 'Widok z powierzchni',
+            freeCam: 'Swobodna kamera',
+            autonomousTour: 'Autonomiczna Wielka Wyprawa',
+            opticsScale: 'Optyka i skala fizyczna',
+            observatoryInstruments: 'Instrumenty obserwatorium',
+            languageLocalization: 'Język i lokalizacja',
+            captureSnapshot: 'Zrób zdjęcie astrofotograficzne',
+            enableAudio: 'Włącz kosmiczny dźwięk',
+            muteAudio: 'Wycisz kosmiczny dźwięk',
+            shortcutsGuide: 'Przewodnik po skrótach klawiszowych',
+            pauseSimulation: 'Zatrzymaj symulację',
+            resumeSimulation: 'Wznów symulację'
+        },
         simulationFolder: 'Symulacja',
         environmentFolder: 'Otoczenie',
         cameraFolder: 'Sterowanie kamerą',

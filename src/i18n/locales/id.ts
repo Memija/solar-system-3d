@@ -20,7 +20,9 @@ export const id: TranslationSchema = {
         astrophotographyAria: 'Ambil tangkapan layar resolusi tinggi',
         speedPause: 'Klik untuk Jeda / Lanjutkan (Spasi)',
         utcTime: 'Waktu Universal (UTC)',
-        liveRealTime: 'Waktu Nyata Fisik Aktif (1:1)'
+        liveRealTime: 'Waktu Nyata Fisik Aktif (1:1)',
+        controls: 'Kontrol',
+        targetPillTitle: 'Objek Langit yang Difokuskan — Klik untuk Membuka Navigator'
     },
     categories: {
         star: '🌟 Bintang',
@@ -31,6 +33,38 @@ export const id: TranslationSchema = {
         spacecraft: '🛰️ Wahana Antariksa'
     },
     controls: {
+        drawerTitle: 'Komando Observatorium',
+        drawerSubtitle: 'Kontrol Simulasi Benda Langit Terpadu',
+        tabs: {
+            target: 'Target',
+            time: 'Simulasi',
+            layers: 'Lapisan',
+            camera: 'Kamera',
+            optics: 'Optik',
+            system: 'Sistem'
+        },
+        sections: {
+            celestialNav: 'Navigasi Langit',
+            quickTargets: 'Target Fokus Cepat',
+            focusAlign: 'Fokus & Sejajarkan Kamera',
+            viewSurface: 'Lihat Dari Permukaan',
+            simulationSpeed: 'Kecepatan Simulasi',
+            entitiesTrails: 'Entitas Kosmik & Jejak',
+            cameraPerspective: 'Perspektif Kamera',
+            orbitFocus: 'Fokus Orbit',
+            surfaceView: 'Tampilan Permukaan',
+            freeCam: 'Kamera Bebas',
+            autonomousTour: 'Tur Agung Otonom',
+            opticsScale: 'Optik & Skala Fisik',
+            observatoryInstruments: 'Instrumen Observatorium',
+            languageLocalization: 'Bahasa & Lokalisasi',
+            captureSnapshot: 'Ambil Foto Astrofotografi',
+            enableAudio: 'Aktifkan Suara Kosmik',
+            muteAudio: 'Bisukan Suara Kosmik',
+            shortcutsGuide: 'Panduan Pintasan Papan Ketik',
+            pauseSimulation: 'Jeda Simulasi',
+            resumeSimulation: 'Lanjutkan Simulasi'
+        },
         simulationFolder: 'Simulasi',
         environmentFolder: 'Lingkungan',
         cameraFolder: 'Kontrol Kamera',

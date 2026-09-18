@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { i18n, TranslationSchema } from '../../i18n/index';
+import { i18n, TranslationSchema, AVAILABLE_LOCALES, getLocaleFlagUrl } from '../../i18n/index';
 
 describe('I18n System', () => {
     beforeEach(() => {
@@ -435,4 +435,59 @@ describe('I18n System', () => {
         i18n.setLanguage('bs');
         expect(i18n.formatNumber(10.97)).toBe('10,97');
     });
+
+    it('should provide flag images and valid URLs for all supported locales', () => {
+        AVAILABLE_LOCALES.forEach(loc => {
+            expect(loc.flagFile).toBeTruthy();
+            const url = getLocaleFlagUrl(loc);
+            expect(url).toContain('flags/');
+            expect(url.endsWith('.png')).toBe(true);
+        });
+
+        expect(getLocaleFlagUrl('en')).toContain('flags/gb.png');
+        expect(getLocaleFlagUrl('bs')).toContain('flags/ba.png');
+        expect(getLocaleFlagUrl('id')).toContain('flags/id.png');
+        expect(getLocaleFlagUrl('de')).toContain('flags/de.png');
+        expect(getLocaleFlagUrl('pl')).toContain('flags/pl.png');
+        expect(getLocaleFlagUrl('sr')).toContain('flags/rs.png');
+    });
+
+    it('should order languages alphabetically and name Serbian as Serbian', () => {
+        const nativeNames = AVAILABLE_LOCALES.map(l => l.nativeName);
+        const sorted = [...nativeNames].sort((a, b) => a.localeCompare(b));
+        expect(nativeNames).toEqual(sorted);
+        expect(nativeNames).toEqual(['Bahasa Indonesia', 'Bosanski', 'Deutsch', 'English', 'Polski', 'Serbian']);
+
+        const serbian = AVAILABLE_LOCALES.find(l => l.code === 'sr');
+        expect(serbian).toBeDefined();
+        expect(serbian?.label).toBe('Serbian');
+        expect(serbian?.nativeName).toBe('Serbian');
+    });
+
+    it('should provide controls and header translations for all 6 languages', () => {
+        const codes = ['en', 'id', 'bs', 'de', 'pl', 'sr'];
+        codes.forEach(code => {
+            i18n.setLanguage(code);
+            expect(i18n.t('ui.controls')).toBeTruthy();
+            expect(i18n.t('ui.targetPillTitle')).toBeTruthy();
+            expect(i18n.t('controls.drawerTitle')).toBeTruthy();
+            expect(i18n.t('controls.drawerSubtitle')).toBeTruthy();
+            expect(i18n.t('controls.tabs.target')).toBeTruthy();
+            expect(i18n.t('controls.tabs.time')).toBeTruthy();
+            expect(i18n.t('controls.tabs.layers')).toBeTruthy();
+            expect(i18n.t('controls.tabs.camera')).toBeTruthy();
+            expect(i18n.t('controls.tabs.optics')).toBeTruthy();
+            expect(i18n.t('controls.tabs.system')).toBeTruthy();
+            expect(i18n.t('controls.sections.celestialNav')).toBeTruthy();
+            expect(i18n.t('controls.sections.quickTargets')).toBeTruthy();
+            expect(i18n.t('controls.sections.focusAlign')).toBeTruthy();
+            expect(i18n.t('controls.sections.viewSurface')).toBeTruthy();
+            expect(i18n.t('controls.sections.entitiesTrails')).toBeTruthy();
+            expect(i18n.t('controls.sections.cameraPerspective')).toBeTruthy();
+            expect(i18n.t('controls.sections.opticsScale')).toBeTruthy();
+            expect(i18n.t('controls.sections.observatoryInstruments')).toBeTruthy();
+            expect(i18n.t('controls.sections.languageLocalization')).toBeTruthy();
+        });
+    });
 });
+
