@@ -6,6 +6,8 @@ import { de } from './locales/de';
 import { pl } from './locales/pl';
 import { sr } from './locales/sr';
 
+import { PreferencesManager } from '../components/PreferencesManager';
+
 export * from './types';
 
 export const FLAG_CODE_MAP: Record<string, string> = {
@@ -44,8 +46,6 @@ export const AVAILABLE_LOCALES: LocaleInfo[] = [
     { code: 'sr', label: 'Serbian', nativeName: 'Serbian', flag: '🇷🇸', flagFile: 'rs.png' }
 ];
 
-const STORAGE_KEY = 'solar_system_language';
-
 class I18nManager {
     private currentLang: SupportedLanguage | string = 'en';
     private locales: Map<string, { meta: LocaleInfo; translations: TranslationSchema }> = new Map();
@@ -64,16 +64,10 @@ class I18nManager {
     }
 
     private detectInitialLanguage(): SupportedLanguage {
-        // 1. Check localStorage
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-                const stored = window.localStorage.getItem(STORAGE_KEY);
-                if (stored && this.locales.has(stored)) {
-                    return stored as SupportedLanguage;
-                }
-            } catch {
-                // Ignore storage errors
-            }
+        // 1. Check PreferencesManager
+        const stored = PreferencesManager.get('language');
+        if (stored && this.locales.has(stored)) {
+            return stored as SupportedLanguage;
         }
 
         // 2. Check navigator.language
@@ -117,13 +111,7 @@ class I18nManager {
         if (this.currentLang === lang) return;
 
         this.currentLang = lang;
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-                window.localStorage.setItem(STORAGE_KEY, lang);
-            } catch {
-                // Ignore storage errors
-            }
-        }
+        PreferencesManager.set('language', lang);
 
         this.applyDocumentLanguage(lang);
         this.notifyListeners(lang);

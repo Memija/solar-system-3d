@@ -1363,6 +1363,9 @@ export class UIManager {
         perfBtn.title = i18n.t('ui.telemetry');
         perfBtn.setAttribute('aria-label', i18n.t('ui.telemetryAria'));
         perfBtn.innerHTML = '⚡';
+        if (this.performanceMonitor?.getVisible?.()) {
+            perfBtn.classList.add('active');
+        }
         perfBtn.onclick = (e) => {
             e.stopPropagation();
             const visible = this.performanceMonitor.toggle();

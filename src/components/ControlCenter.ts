@@ -2,6 +2,7 @@ import { SceneManager } from './SceneManager';
 import { UIManager } from './UIManager';
 import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
+import { PreferencesManager } from './PreferencesManager';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
 
@@ -755,6 +756,7 @@ export class ControlCenter {
                     if (this.sceneManager.bloomPass) {
                         this.sceneManager.bloomPass.enabled = v;
                     }
+                    PreferencesManager.set('enableBloom', v);
                 }
             },
             {
@@ -862,7 +864,7 @@ export class ControlCenter {
         perfSwitch.className = 'sci-switch';
         const perfInput = document.createElement('input');
         perfInput.type = 'checkbox';
-        perfInput.checked = this.uiManager?.performanceMonitor?.getVisible() || false;
+        perfInput.checked = this.uiManager?.performanceMonitor?.getVisible() ?? true;
         perfInput.onchange = () => {
             this.uiManager.performanceMonitor.setVisible(perfInput.checked);
             const perfBtn = document.getElementById('hudPerfBtn');

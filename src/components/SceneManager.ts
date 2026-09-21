@@ -10,6 +10,7 @@ import { Comet } from './Comet';
 import { Spacecraft } from './Spacecraft';
 import { TextureGenerator } from './TextureGenerator';
 import { EventBus } from './EventBus';
+import { PreferencesManager } from './PreferencesManager';
 
 export class SceneManager {
     container: HTMLElement;
@@ -156,12 +157,12 @@ export class SceneManager {
         this.comets = [];
         this.spacecrafts = [];
         this.timeScale = SceneManager.REALISTIC_TIME_SCALE;
-        this.showOrbits = true;
-        this.showMoons = true;
-        this.showComets = true;
-        this.showSpacecrafts = true;
-        this.showMeteors = false;
-        this.showTrails = true;
+        this.showOrbits = PreferencesManager.get('showOrbits');
+        this.showMoons = PreferencesManager.get('showMoons');
+        this.showComets = PreferencesManager.get('showComets');
+        this.showSpacecrafts = PreferencesManager.get('showSpacecraft');
+        this.showMeteors = PreferencesManager.get('showMeteors');
+        this.showTrails = PreferencesManager.get('showTrails');
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.focusedStar = null;
@@ -171,13 +172,14 @@ export class SceneManager {
         this.previousBodyPosition = null;
         this.asteroidBelt = null;
         this.kuiperBelt = null;
-        this.showAsteroids = true;
-        this.showKuiperBelt = true;
-        this.showDwarfPlanets = true;
-        this.showHabitableZone = false;
-        this.showEclipticGrid = false;
-        this.realisticLighting = false;
-        this.showAxes = false;
+        this.showAsteroids = PreferencesManager.get('showAsteroids');
+        this.showKuiperBelt = PreferencesManager.get('showKuiperBelt');
+        this.showDwarfPlanets = PreferencesManager.get('showDwarfPlanets');
+        this.showHabitableZone = PreferencesManager.get('showHabitableZone');
+        this.showEclipticGrid = PreferencesManager.get('showEclipticGrid');
+        this.realisticLighting = PreferencesManager.get('realisticLighting');
+        this.showAxes = PreferencesManager.get('showAxes');
+        this.realisticDistances = PreferencesManager.get('realisticDistances');
 
         // Will be initialized in init()
         this.ambientLight = new THREE.AmbientLight();
@@ -256,6 +258,7 @@ export class SceneManager {
         this.composer = new EffectComposer(this.renderer, renderTarget);
         this.composer.addPass(renderScene);
         this.composer.addPass(this.bloomPass);
+        this.bloomPass.enabled = PreferencesManager.get('enableBloom');
 
         // Controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -334,6 +337,16 @@ export class SceneManager {
 
         this.createMeasureTools();
         this.updateZoomLimits();
+
+        if (this.realisticLighting) {
+            this.toggleRealisticLighting(this.realisticLighting);
+        }
+        if (this.realisticDistances) {
+            this.toggleRealisticDistances(this.realisticDistances);
+        }
+        if (this.showAxes) {
+            this.toggleAxes(this.showAxes);
+        }
     }
 
     createMeasureTools() {
@@ -471,6 +484,7 @@ export class SceneManager {
             this.asteroidBelt.instanceColor.needsUpdate = true;
         }
 
+        this.asteroidBelt.visible = this.showAsteroids;
         this.scene.add(this.asteroidBelt);
     }
 
@@ -612,6 +626,7 @@ export class SceneManager {
             this.kuiperBelt.instanceColor.needsUpdate = true;
         }
 
+        this.kuiperBelt.visible = this.showKuiperBelt;
         this.scene.add(this.kuiperBelt);
     }
 
@@ -1028,6 +1043,7 @@ export class SceneManager {
 
     toggleOrbits(visible: boolean) {
         this.showOrbits = visible;
+        PreferencesManager.set('showOrbits', visible);
         this.planets.forEach(planet => {
             if (planet.data.isDwarfPlanet) {
                 planet.toggleOrbit(visible && this.showDwarfPlanets);
@@ -1041,6 +1057,7 @@ export class SceneManager {
 
     toggleComets(visible: boolean) {
         this.showComets = visible;
+        PreferencesManager.set('showComets', visible);
         this.comets.forEach(comet => {
             comet.mesh.visible = visible;
             if (comet.orbitLine) comet.orbitLine.visible = visible && this.showOrbits;
@@ -1050,11 +1067,13 @@ export class SceneManager {
 
     toggleMoons(visible: boolean) {
         this.showMoons = visible;
+        PreferencesManager.set('showMoons', visible);
         this.planets.forEach(planet => planet.toggleMoons(visible));
     }
 
     toggleMeteors(visible: boolean) {
         this.showMeteors = visible;
+        PreferencesManager.set('showMeteors', visible);
         this.planets.forEach(planet => {
             if (planet.toggleMeteors) {
                 planet.toggleMeteors(visible);
@@ -1064,6 +1083,7 @@ export class SceneManager {
 
     toggleTrails(visible: boolean) {
         this.showTrails = visible;
+        PreferencesManager.set('showTrails', visible);
         this.planets.forEach(planet => {
             if (planet.toggleTrails) {
                 planet.toggleTrails(visible);
@@ -1073,6 +1093,7 @@ export class SceneManager {
 
     toggleSpacecrafts(visible: boolean) {
         this.showSpacecrafts = visible;
+        PreferencesManager.set('showSpacecraft', visible);
         this.spacecrafts.forEach(sc => {
             sc.mesh.visible = visible;
             if (sc.orbitLine) sc.orbitLine.visible = visible && this.showOrbits;
@@ -1081,6 +1102,7 @@ export class SceneManager {
 
     toggleAsteroids(visible: boolean) {
         this.showAsteroids = visible;
+        PreferencesManager.set('showAsteroids', visible);
         if (this.asteroidBelt) {
             this.asteroidBelt.visible = visible;
         }
@@ -1088,6 +1110,7 @@ export class SceneManager {
 
     toggleKuiperBelt(visible: boolean) {
         this.showKuiperBelt = visible;
+        PreferencesManager.set('showKuiperBelt', visible);
         if (this.kuiperBelt) {
             this.kuiperBelt.visible = visible;
         }
@@ -1095,6 +1118,7 @@ export class SceneManager {
 
     toggleDwarfPlanets(visible: boolean) {
         this.showDwarfPlanets = visible;
+        PreferencesManager.set('showDwarfPlanets', visible);
         this.planets.forEach(planet => {
             if (planet.data.isDwarfPlanet) {
                 planet.orbitGroup.visible = visible;
@@ -1107,6 +1131,7 @@ export class SceneManager {
 
     toggleHabitableZone(visible: boolean) {
         this.showHabitableZone = visible;
+        PreferencesManager.set('showHabitableZone', visible);
         if (this.habitableZoneMesh) {
             this.habitableZoneMesh.visible = visible;
         }
@@ -1114,6 +1139,7 @@ export class SceneManager {
 
     toggleEclipticGrid(visible: boolean) {
         this.showEclipticGrid = visible;
+        PreferencesManager.set('showEclipticGrid', visible);
         if (this.eclipticGridMesh) {
             this.eclipticGridMesh.visible = visible;
         }
@@ -1121,6 +1147,7 @@ export class SceneManager {
 
     toggleRealisticLighting(visible: boolean) {
         this.realisticLighting = visible;
+        PreferencesManager.set('realisticLighting', visible);
         if (this.ambientLight) {
             // Realistic lighting has very low ambient light to show stark shadows
             this.ambientLight.intensity = visible ? 0.05 : 0.4;
@@ -1132,6 +1159,7 @@ export class SceneManager {
 
     toggleAxes(visible: boolean) {
         this.showAxes = visible;
+        PreferencesManager.set('showAxes', visible);
         this.planets.forEach(planet => {
             if (planet.toggleAxes) {
                 planet.toggleAxes(visible);
@@ -1141,6 +1169,7 @@ export class SceneManager {
 
     toggleRealisticDistances(visible: boolean) {
         this.realisticDistances = visible;
+        PreferencesManager.set('realisticDistances', visible);
         this.updateRealisticSizes();
     }
 

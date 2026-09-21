@@ -6,12 +6,13 @@
 
 import * as THREE from 'three';
 import { i18n } from '../i18n';
+import { PreferencesManager } from './PreferencesManager';
 
 export class PerformanceMonitor {
     private renderer: THREE.WebGLRenderer;
     private container: HTMLElement;
     private domElement: HTMLElement;
-    private isVisible: boolean = false;
+    private isVisible: boolean = true;
     private unregisterI18n: (() => void) | null = null;
 
     // Metric tracking
@@ -28,13 +29,14 @@ export class PerformanceMonitor {
     private trisBadge: HTMLElement;
     private memBadge: HTMLElement;
 
-    constructor(renderer: THREE.WebGLRenderer, container: HTMLElement = document.body) {
+    constructor(renderer: THREE.WebGLRenderer, container: HTMLElement = document.body, initialVisible?: boolean) {
         this.renderer = renderer;
         this.container = container;
+        this.isVisible = initialVisible !== undefined ? initialVisible : PreferencesManager.get('telemetry');
 
         this.domElement = document.createElement('div');
         this.domElement.className = 'perf-monitor-hud';
-        this.domElement.style.display = 'none';
+        this.domElement.style.display = this.isVisible ? 'flex' : 'none';
         this.domElement.setAttribute('role', 'status');
         this.domElement.setAttribute('aria-label', i18n.t('ui.telemetry'));
 
@@ -62,6 +64,10 @@ export class PerformanceMonitor {
         this.memBadge = this.domElement.querySelector('#perfMem') as HTMLElement;
 
         this.container.appendChild(this.domElement);
+
+        if (this.isVisible) {
+            this.renderMetrics();
+        }
     }
 
     /**
@@ -140,6 +146,7 @@ export class PerformanceMonitor {
         if (visible) {
             this.renderMetrics();
         }
+        PreferencesManager.set('telemetry', visible);
         return this.isVisible;
     }
 

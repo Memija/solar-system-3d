@@ -5,6 +5,8 @@
  * with zero external audio assets.
  */
 
+import { PreferencesManager } from './PreferencesManager';
+
 export class AudioManager {
     private ctx: AudioContext | null = null;
     private masterGain: GainNode | null = null;
@@ -24,16 +26,10 @@ export class AudioManager {
     private isEnabled: boolean = false;
     private isInitialized: boolean = false;
     private volume: number = 0.5;
-    private storageKey: string = 'solar_system_audio_enabled';
 
     constructor() {
-        // Load initial state from localStorage if available
-        try {
-            const saved = localStorage.getItem(this.storageKey);
-            this.isEnabled = saved === 'true';
-        } catch {
-            this.isEnabled = false;
-        }
+        // Load initial state from unified preferences
+        this.isEnabled = PreferencesManager.get('audioEnabled');
 
         // Set up gesture listener to unlock AudioContext if user enabled sound
         this.bindUnlockGesture();
@@ -178,11 +174,7 @@ export class AudioManager {
      */
     public setEnabled(enable: boolean): boolean {
         this.isEnabled = enable;
-        try {
-            localStorage.setItem(this.storageKey, String(enable));
-        } catch {
-            // Ignore storage errors
-        }
+        PreferencesManager.set('audioEnabled', enable);
 
         if (enable) {
             if (!this.isInitialized) {

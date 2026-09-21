@@ -372,10 +372,19 @@
       (function() {
         var lang = 'en';
         try {
-          var stored = localStorage.getItem('solar_system_language');
-          if (stored) {
-            lang = stored;
-          } else if (navigator.language) {
+          var appPrefs = localStorage.getItem('solar-system-3d');
+          if (appPrefs) {
+            var parsed = JSON.parse(appPrefs);
+            if (parsed && parsed.language) {
+              lang = parsed.language;
+            }
+          } else {
+            var legacyStored = localStorage.getItem('solar_system_language');
+            if (legacyStored) {
+              lang = legacyStored;
+            }
+          }
+          if (lang === 'en' && navigator.language) {
             var bl = navigator.language.toLowerCase();
             if (bl.startsWith('id')) lang = 'id';
             else if (bl.startsWith('bs') || bl.startsWith('hr') || bl.startsWith('sh') || bl.startsWith('cnr')) lang = 'bs';

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SceneManager } from './SceneManager';
+import { PreferencesManager } from './PreferencesManager';
 
 export class Minimap {
     canvas: HTMLCanvasElement;
@@ -34,7 +35,7 @@ export class Minimap {
         this.sceneManager = sceneManager;
         this.size = this.getEffectiveSize();
         this.maxDistance = 850;
-        this.isVisible = true;
+        this.isVisible = PreferencesManager.get('minimap');
 
         const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
         this.canvas = document.createElement('canvas');
@@ -47,6 +48,7 @@ export class Minimap {
         this.canvas.style.bottom = '20px';
         this.canvas.style.right = '20px';
         this.canvas.style.pointerEvents = 'auto';
+        this.canvas.style.display = this.isVisible ? 'block' : 'none';
 
         const ctx = this.canvas.getContext('2d');
         if (!ctx) throw new Error("Could not get 2D context for minimap");
@@ -110,6 +112,7 @@ export class Minimap {
     setVisible(visible: boolean) {
         this.isVisible = visible;
         this.canvas.style.display = visible ? 'block' : 'none';
+        PreferencesManager.set('minimap', visible);
     }
 
     update() {

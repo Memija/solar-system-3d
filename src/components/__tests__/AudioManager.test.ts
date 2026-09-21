@@ -81,12 +81,14 @@ describe('AudioManager', () => {
         const enabled = audio.toggle();
         expect(enabled).toBe(true);
         expect(audio.getAudioEnabled()).toBe(true);
-        expect(localStorage.getItem('solar_system_audio_enabled')).toBe('true');
+        const prefsTrue = JSON.parse(localStorage.getItem('solar-system-3d') || '{}');
+        expect(prefsTrue.audioEnabled).toBe(true);
 
         const disabled = audio.toggle();
         expect(disabled).toBe(false);
         expect(audio.getAudioEnabled()).toBe(false);
-        expect(localStorage.getItem('solar_system_audio_enabled')).toBe('false');
+        const prefsFalse = JSON.parse(localStorage.getItem('solar-system-3d') || '{}');
+        expect(prefsFalse.audioEnabled).toBe(false);
 
         audio.dispose();
     });

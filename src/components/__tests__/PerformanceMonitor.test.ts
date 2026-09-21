@@ -21,24 +21,34 @@ describe('PerformanceMonitor', () => {
         }
     });
 
-    it('creates hidden telemetry DOM element inside container', () => {
+    it('creates active telemetry DOM element inside container by default', () => {
         const dom = container.querySelector('.perf-monitor-hud') as HTMLElement;
         expect(dom).not.toBeNull();
-        expect(dom.style.display).toBe('none');
-        expect(monitor.getVisible()).toBe(false);
+        expect(dom.style.display).toBe('flex');
+        expect(monitor.getVisible()).toBe(true);
     });
 
     it('toggles visibility and updates display style', () => {
-        const isVisible = monitor.toggle();
-        expect(isVisible).toBe(true);
-        expect(monitor.getVisible()).toBe(true);
-
-        const dom = container.querySelector('.perf-monitor-hud') as HTMLElement;
-        expect(dom.style.display).toBe('flex');
-
         const isHidden = monitor.toggle();
         expect(isHidden).toBe(false);
+        expect(monitor.getVisible()).toBe(false);
+
+        const dom = container.querySelector('.perf-monitor-hud') as HTMLElement;
         expect(dom.style.display).toBe('none');
+
+        const isVisible = monitor.toggle();
+        expect(isVisible).toBe(true);
+        expect(dom.style.display).toBe('flex');
+    });
+
+    it('persists telemetry visibility state to localStorage under solar-system-3d', () => {
+        monitor.setVisible(false);
+        const stored = JSON.parse(localStorage.getItem('solar-system-3d')!);
+        expect(stored.telemetry).toBe(false);
+
+        monitor.setVisible(true);
+        const updated = JSON.parse(localStorage.getItem('solar-system-3d')!);
+        expect(updated.telemetry).toBe(true);
     });
 
     it('updates metrics on animation frames without error', () => {
