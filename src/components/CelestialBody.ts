@@ -214,8 +214,7 @@ export class CelestialBody {
             this.mesh.frustumCulled = false;
         }
         if (this.data.name !== 'Sun') {
-            this.mesh.castShadow = !this.isMoon;
-
+            this.mesh.castShadow = true;
             this.mesh.receiveShadow = true;
         }
         if (this.data.name === 'Haumea') {
@@ -244,6 +243,7 @@ export class CelestialBody {
                 depthWrite: false
             });
             this.cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+            this.cloudMesh.receiveShadow = true;
             this.tiltGroup.add(this.cloudMesh);
 
             // Meteor Shower

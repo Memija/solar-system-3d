@@ -8,6 +8,8 @@ export interface SolarSystemEventMap {
     'tour-focus': string;
     'jump-to-date': string;
     'select-celestial-body': SelectCelestialBodyPayload | string;
+    'measure-mode-changed': { active: boolean; targetA?: any; targetB?: any };
+    'measure-targets-changed': { targetA?: any; targetB?: any };
 }
 
 export type SolarSystemEventType = keyof SolarSystemEventMap;

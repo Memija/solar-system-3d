@@ -76,7 +76,8 @@ describe('CelestialBody', () => {
          expect(moon.parent).toBe(earth.orbitGroup);
          expect(earth.mesh?.castShadow).toBe(true);
          expect(earth.mesh?.receiveShadow).toBe(true);
-         expect(moon.mesh?.castShadow).toBe(false);
+         expect(earth.cloudMesh?.receiveShadow).toBe(true);
+         expect(moon.mesh?.castShadow).toBe(true);
          expect(moon.mesh?.receiveShadow).toBe(true);
     });
 

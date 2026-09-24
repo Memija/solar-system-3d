@@ -63,7 +63,8 @@ export const de: TranslationSchema = {
             muteAudio: 'Kosmisches Audio stummschalten',
             shortcutsGuide: 'Tastaturkürzel-Übersicht',
             pauseSimulation: 'Simulation pausieren',
-            resumeSimulation: 'Simulation fortsetzen'
+            resumeSimulation: 'Simulation fortsetzen',
+            measureTool: 'Entfernungsmessung'
         },
         simulationFolder: 'Simulation',
         environmentFolder: 'Umgebung',
@@ -102,6 +103,8 @@ export const de: TranslationSchema = {
         viewFromSurface: 'Ansicht von der Oberfläche',
         freeCamera: 'Freie Kamera',
         measureDistance: 'Distanz messen',
+        measureTool: 'Entfernungsmesswerkzeug',
+        measureMode: 'Messmodus',
         cinematicTour: 'Kino-Tour',
         tourSpeed: 'Tour-Geschwindigkeit',
         tooltips: {
@@ -257,6 +260,16 @@ export const de: TranslationSchema = {
         tagCalibrating: 'Kalibrierung',
         tagSynthesizing: 'Synthese',
         tagConfiguring: 'Konfiguration'
+    },
+    measurement: {
+        distLabel: 'Abstand: {au} {unitAU} / {mkm} {unitMkm}',
+        unitAU: 'AE',
+        unitMkm: 'Mio. km',
+        selectFirstPrompt: 'Klicken Sie auf einen Himmelskörper, um die Messung zu starten',
+        selectSecondPrompt: 'Ausgewählt: {name}. Klicken Sie auf einen zweiten Himmelskörper',
+        measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
+        clear: 'Zurücksetzen',
+        close: 'Messung beenden'
     },
     bodies: {
         Sun: {

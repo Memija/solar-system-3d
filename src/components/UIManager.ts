@@ -33,6 +33,7 @@ export class UIManager {
     datePanel: HTMLElement;
     customDatePicker: CustomDatePicker | null = null;
     tourController: dat.GUIController | null = null;
+    realisticDistController: dat.GUIController | null = null;
     minimap: Minimap;
     previousTimeSpeed: number | null = null;
     cameraTarget: string = 'Earth';
@@ -60,6 +61,10 @@ export class UIManager {
     private onDocClickGuiTooltipBound: ((e: MouseEvent) => void) | null = null;
     private unsubscribeI18n: (() => void) | null = null;
     closeLangDropdown: (() => void) | null = null;
+    private measureHudBar: HTMLElement | null = null;
+    private measureCtrl: any = null;
+    private onMeasureModeChangedBound: ((e: any) => void) | null = null;
+    private onMeasureTargetsChangedBound: ((e: any) => void) | null = null;
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -102,6 +107,12 @@ export class UIManager {
         this.createSelectionMenu();
         this.initControls();
         this.initInteraction();
+
+        this.createMeasureHudBar();
+        this.onMeasureModeChangedBound = () => this.updateMeasureHud();
+        this.onMeasureTargetsChangedBound = () => this.updateMeasureHud();
+        EventBus.on('measure-mode-changed', this.onMeasureModeChangedBound);
+        EventBus.on('measure-targets-changed', this.onMeasureTargetsChangedBound);
 
         this.onTourFocusBound = (e: Event) => {
             const customEvent = e as CustomEvent;
@@ -444,9 +455,9 @@ export class UIManager {
             enableBloom: true,
             showHabitableZone: false,
             showEclipticGrid: false,
-            realisticLighting: false,
+            realisticLighting: this.sceneManager.realisticLighting,
             showAxes: false,
-            realisticDistances: false,
+            realisticDistances: this.sceneManager.realisticDistances,
             realSizeRatio: 1.0
         };
 
@@ -609,15 +620,18 @@ export class UIManager {
             this.sceneManager.toggleRealisticDistances(val);
             if (val) {
                 this.modal.show({
+                    titleKey: 'popups.trueScaleTitle',
+                    descKey: 'popups.trueScaleDesc',
                     name: i18n.t('popups.trueScaleTitle'),
                     description: i18n.t('popups.trueScaleDesc')
                 });
             } else {
-                if (this.modal.contentElement && this.modal.contentElement.innerHTML.includes(i18n.t('popups.trueScaleTitle'))) {
+                if (this.modal.isOpen && (this.modal.isShowingPopup('popups.trueScaleTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
                     this.modal.hide();
                 }
             }
         });
+        this.realisticDistController = distCtrl;
         this.registerGuiController(distCtrl, 'controls.realisticScale');
         addInfoIcon(distCtrl, "controls.tooltips.realisticScale");
 
@@ -773,11 +787,13 @@ export class UIManager {
             if (val) {
                 this.sceneManager.focusOnBody('Earth');
                 this.modal.show({
+                    titleKey: 'popups.meteorsTitle',
+                    descKey: 'popups.meteorsDesc',
                     name: i18n.t('popups.meteorsTitle'),
                     description: i18n.t('popups.meteorsDesc')
                 });
             } else {
-                if (this.modal.contentElement && this.modal.contentElement.innerHTML.includes(i18n.t('popups.meteorsTitle'))) {
+                if (this.modal.isOpen && (this.modal.isShowingPopup('popups.meteorsTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.meteorsTitle')))) {
                     this.modal.hide();
                 }
             }
@@ -867,6 +883,7 @@ export class UIManager {
                 distCtrl.setValue(false);
             }
         });
+        this.measureCtrl = measureCtrl;
         this.registerGuiController(measureCtrl, 'controls.measureDistance');
 
         this.sceneManager.onMeasureTargetsSet = () => {
@@ -1474,9 +1491,132 @@ export class UIManager {
                 this.toggleShortcutsModal();
                 this.toggleShortcutsModal();
             }
+
+            this.updateMeasureHud();
         });
 
         this.uiContainer.appendChild(menuContainer);
+    }
+
+    private createMeasureHudBar(): HTMLElement {
+        if (this.measureHudBar) return this.measureHudBar;
+
+        const hud = document.createElement('div');
+        hud.className = 'measure-hud-bar';
+        hud.id = 'measureHudBar';
+        hud.style.display = 'none';
+
+        const icon = document.createElement('span');
+        icon.className = 'measure-hud-icon';
+        icon.textContent = '📐';
+        hud.appendChild(icon);
+
+        const content = document.createElement('div');
+        content.className = 'measure-hud-text';
+        hud.appendChild(content);
+
+        const actions = document.createElement('div');
+        actions.className = 'measure-hud-actions';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'measure-action-btn clear-btn';
+        clearBtn.textContent = i18n.t('measurement.clear') || 'Clear';
+        clearBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.sceneManager.clearMeasureTargets();
+        };
+        actions.appendChild(clearBtn);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'measure-action-btn close-btn';
+        closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
+        closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
+        closeBtn.textContent = '✕';
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.sceneManager.toggleMeasureMode(false);
+            if (this.measureCtrl) {
+                this.measureCtrl.setValue(false);
+            }
+            if (this.controlCenter) {
+                this.controlCenter.syncSwitches();
+            }
+        };
+        actions.appendChild(closeBtn);
+
+        hud.appendChild(actions);
+
+        this.measureHudBar = hud;
+        this.uiContainer.appendChild(hud);
+        return hud;
+    }
+
+    public updateMeasureHud() {
+        if (!this.measureHudBar) return;
+
+        if (!this.sceneManager.measureMode) {
+            this.measureHudBar.style.display = 'none';
+            return;
+        }
+
+        this.measureHudBar.style.display = 'flex';
+
+        const content = this.measureHudBar.querySelector<HTMLElement>('.measure-hud-text');
+        const clearBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.clear-btn');
+        const closeBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.close-btn');
+
+        if (clearBtn) clearBtn.textContent = i18n.t('measurement.clear') || 'Clear';
+        if (closeBtn) {
+            closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
+            closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
+        }
+
+        if (!content) return;
+
+        const targetA = this.sceneManager.measureTargetA;
+        const targetB = this.sceneManager.measureTargetB;
+
+        const getLocalizedName = (target: any) => {
+            if (!target) return '';
+            const rawName = target.data?.name || target.name || '';
+            return i18n.getBodyName(rawName) || i18n.getStarName(rawName) || i18n.getCometName(rawName) || i18n.getSpacecraftName(rawName) || rawName;
+        };
+
+        if (targetA && targetB) {
+            const nameA = getLocalizedName(targetA);
+            const nameB = getLocalizedName(targetB);
+
+            const posA = new THREE.Vector3();
+            const posB = new THREE.Vector3();
+            const anyA = targetA as any;
+            const anyB = targetB as any;
+            if (anyA.orbitGroup) anyA.orbitGroup.getWorldPosition(posA);
+            else if (anyA.mesh) anyA.mesh.getWorldPosition(posA);
+            if (anyB.orbitGroup) anyB.orbitGroup.getWorldPosition(posB);
+            else if (anyB.mesh) anyB.mesh.getWorldPosition(posB);
+            const distScale = posA.distanceTo(posB);
+
+            const distanceAUVal = distScale / 130;
+            const distanceMkmVal = distanceAUVal * 149.6;
+            const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            const unitAU = i18n.t('measurement.unitAU') || 'AU';
+            const unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
+
+            content.innerHTML = `<span class="measure-hud-result"><span class="measure-body">${nameA}</span> ↔ <span class="measure-body">${nameB}</span>: <strong class="measure-val">${distanceAU} ${unitAU}</strong> (${distanceMkm} ${unitMkm})</span>`;
+            if (clearBtn) clearBtn.style.display = 'inline-block';
+        } else if (targetA) {
+            const nameA = getLocalizedName(targetA);
+            const prompt = i18n.t('measurement.selectSecondPrompt', { name: nameA }) || `Selected: ${nameA}. Click a second body`;
+            content.innerHTML = `<span class="measure-hud-hint">${prompt}</span>`;
+            if (clearBtn) clearBtn.style.display = 'inline-block';
+        } else {
+            const prompt = i18n.t('measurement.selectFirstPrompt') || 'Click a celestial body to begin measuring';
+            content.innerHTML = `<span class="measure-hud-hint">${prompt}</span>`;
+            if (clearBtn) clearBtn.style.display = 'none';
+        }
     }
 
     public getTargetIcon(name: string, type?: string): string {
@@ -1639,7 +1779,23 @@ export class UIManager {
             } else if (event.key === 'o' || event.key === 'O') {
                 this.sceneManager.toggleOrbits(!this.sceneManager.showOrbits);
             } else if (event.key === 'r' || event.key === 'R') {
-                this.sceneManager.toggleRealisticDistances(!this.sceneManager.realisticDistances);
+                if (this.realisticDistController) {
+                    this.realisticDistController.setValue(!this.sceneManager.realisticDistances);
+                } else {
+                    const newState = !this.sceneManager.realisticDistances;
+                    this.sceneManager.toggleRealisticDistances(newState);
+                    if (this.controlCenter) this.controlCenter.syncSwitches();
+                    if (newState) {
+                        this.modal.show({
+                            titleKey: 'popups.trueScaleTitle',
+                            descKey: 'popups.trueScaleDesc',
+                            name: i18n.t('popups.trueScaleTitle'),
+                            description: i18n.t('popups.trueScaleDesc')
+                        });
+                    } else if (this.modal.isOpen && (this.modal.isShowingPopup('popups.trueScaleTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
+                        this.modal.hide();
+                    }
+                }
             }
         };
         window.addEventListener('keydown', this.onKeyDownBound);

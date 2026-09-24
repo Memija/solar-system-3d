@@ -63,7 +63,8 @@ export const bs: TranslationSchema = {
             muteAudio: 'Isključi kosmički zvuk',
             shortcutsGuide: 'Vodič za prečice na tastaturi',
             pauseSimulation: 'Pauziraj simulaciju',
-            resumeSimulation: 'Nastavi simulaciju'
+            resumeSimulation: 'Nastavi simulaciju',
+            measureTool: 'Alat za mjerenje udaljenosti'
         },
         simulationFolder: 'Simulacija',
         environmentFolder: 'Okruženje',
@@ -102,6 +103,8 @@ export const bs: TranslationSchema = {
         viewFromSurface: 'Pogled sa površine',
         freeCamera: 'Slobodna kamera',
         measureDistance: 'Izmjeri udaljenost',
+        measureTool: 'Alat za mjerenje udaljenosti',
+        measureMode: 'Režim mjerenja',
         cinematicTour: 'Kinematska tura',
         tourSpeed: 'Brzina ture',
         tooltips: {
@@ -257,6 +260,16 @@ export const bs: TranslationSchema = {
         tagCalibrating: 'Kalibracija',
         tagSynthesizing: 'Sinteza',
         tagConfiguring: 'Konfigurisanje'
+    },
+    measurement: {
+        distLabel: 'Udaljenost: {au} {unitAU} / {mkm} {unitMkm}',
+        unitAU: 'AJ',
+        unitMkm: 'mil. km',
+        selectFirstPrompt: 'Kliknite na nebesko tijelo za početak mjerenja',
+        selectSecondPrompt: 'Odabrano: {name}. Kliknite na drugo tijelo za mjerenje udaljenosti',
+        measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
+        clear: 'Poništi',
+        close: 'Izađi iz mjerenja'
     },
     bodies: {
         Sun: {

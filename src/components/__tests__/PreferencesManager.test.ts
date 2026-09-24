@@ -18,6 +18,11 @@ describe('PreferencesManager', () => {
         expect(manager.get('telemetry')).toBe(true);
     });
 
+    it('has realisticLighting activated by default', () => {
+        expect(DEFAULT_PREFERENCES.realisticLighting).toBe(true);
+        expect(manager.get('realisticLighting')).toBe(true);
+    });
+
     it('uses the exact application name key for localStorage', () => {
         expect(APP_STORAGE_KEY).toBe('solar-system-3d');
     });

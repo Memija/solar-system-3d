@@ -11,6 +11,7 @@ import { Spacecraft } from './Spacecraft';
 import { TextureGenerator } from './TextureGenerator';
 import { EventBus } from './EventBus';
 import { PreferencesManager } from './PreferencesManager';
+import { i18n } from '../i18n';
 
 export class SceneManager {
     container: HTMLElement;
@@ -74,6 +75,7 @@ export class SceneManager {
     measureLabel: THREE.Sprite | null;
     onTimeScaleChange?: (newScale: number) => void;
     onMeasureTargetsSet?: () => void;
+    private unregisterI18n?: () => void;
 
     cameraTransition: {
         startPos: THREE.Vector3;
@@ -281,10 +283,10 @@ export class SceneManager {
 
         // Lighting (Sun)
         // Store ambient light to toggle realistic lighting later
-        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Balanced ambient light for space
+        this.ambientLight = new THREE.AmbientLight(0xffffff, this.realisticLighting ? 0.05 : 0.4); // Balanced ambient light for space
         this.scene.add(this.ambientLight);
 
-        this.pointLight = new THREE.PointLight(0xffffff, 2.0, 0, 0); // Balanced Sun light
+        this.pointLight = new THREE.PointLight(0xffffff, this.realisticLighting ? 2.8 : 2.0, 0, 0); // Balanced Sun light
         this.pointLight.castShadow = true;
 
         // Shadow map settings
@@ -338,6 +340,15 @@ export class SceneManager {
         this.createMeasureTools();
         this.updateZoomLimits();
 
+        this.unregisterI18n = i18n.onLanguageChange(() => {
+            if (this.measureLabel) {
+                (this.measureLabel as any).userData.lastText = null;
+            }
+            if (this.measureMode) {
+                this.updateMeasurement();
+            }
+        });
+
         if (this.realisticLighting) {
             this.toggleRealisticLighting(this.realisticLighting);
         }
@@ -388,7 +399,8 @@ export class SceneManager {
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        context.font = 'Bold 48px Arial';
+        const fontStyle = 'Bold 48px "Space Grotesk", "Outfit", "Inter", -apple-system, Arial, sans-serif';
+        context.font = fontStyle;
         const textMetrics = context.measureText(text);
         const textWidth = textMetrics.width;
 
@@ -398,7 +410,7 @@ export class SceneManager {
         if (canvas.width !== newWidth) {
             canvas.width = newWidth;
             // Updating canvas dimensions resets context state, so re-apply font
-            context.font = 'Bold 48px Arial';
+            context.font = fontStyle;
         }
 
         context.clearRect(0, 0, canvas.width, canvas.height);
@@ -406,7 +418,11 @@ export class SceneManager {
         // Background
         context.fillStyle = 'rgba(0, 0, 0, 0.7)';
         context.beginPath();
-        context.roundRect(0, 0, canvas.width, canvas.height, 20);
+        if (typeof (context as any).roundRect === 'function') {
+            (context as any).roundRect(0, 0, canvas.width, canvas.height, 20);
+        } else {
+            context.rect(0, 0, canvas.width, canvas.height);
+        }
         context.fill();
         context.strokeStyle = '#00ff00';
         context.lineWidth = 4;
@@ -1209,6 +1225,11 @@ export class SceneManager {
             }
         });
 
+        if (this.pointLight) {
+            this.pointLight.shadow.camera.far = this.realisticDistances ? 10000 : 2000;
+            this.pointLight.shadow.camera.updateProjectionMatrix();
+        }
+
         this.updateZoomLimits();
     }
 
@@ -1512,9 +1533,19 @@ export class SceneManager {
 
             // Update text (distance)
             // Note: Earth is at 130 in simulation. 1 AU = 130 units roughly.
-            const distanceAU = (distanceScale / 130).toFixed(2);
-            const distanceMkm = (parseFloat(distanceAU) * 149.6).toFixed(1);
-            this.updateMeasureLabel(`Dist: ${distanceAU} AU / ${distanceMkm} Mkm`);
+            const distanceAUVal = distanceScale / 130;
+            const distanceMkmVal = distanceAUVal * 149.6;
+            const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            const unitAU = i18n.t('measurement.unitAU') || 'AU';
+            const unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
+            const labelText = i18n.t('measurement.distLabel', {
+                au: distanceAU,
+                mkm: distanceMkm,
+                unitAU,
+                unitMkm
+            }) || `Dist: ${distanceAU} ${unitAU} / ${distanceMkm} ${unitMkm}`;
+            this.updateMeasureLabel(labelText);
 
             // Scale label size based on camera distance so it's readable
             const camDist = this.camera.position.distanceTo(this.measureLabel.position);
@@ -1542,8 +1573,30 @@ export class SceneManager {
             this.measureTargetA = null;
             this.measureTargetB = null;
             if (this.measureLine) this.measureLine.visible = false;
-            if (this.measureLabel) this.measureLabel.visible = false;
+            if (this.measureLabel) {
+                this.measureLabel.visible = false;
+                (this.measureLabel as any).userData.lastText = null;
+            }
         }
+        EventBus.emit('measure-mode-changed', {
+            active: visible,
+            targetA: this.measureTargetA,
+            targetB: this.measureTargetB
+        });
+    }
+
+    clearMeasureTargets() {
+        this.measureTargetA = null;
+        this.measureTargetB = null;
+        if (this.measureLine) this.measureLine.visible = false;
+        if (this.measureLabel) {
+            this.measureLabel.visible = false;
+            (this.measureLabel as any).userData.lastText = null;
+        }
+        EventBus.emit('measure-targets-changed', {
+            targetA: null,
+            targetB: null
+        });
     }
 
     setMeasureTarget(name: string) {
@@ -1573,6 +1626,13 @@ export class SceneManager {
                 this.measureTargetA = target;
                 this.measureTargetB = null;
             }
+            if (this.measureLabel) {
+                (this.measureLabel as any).userData.lastText = null;
+            }
+            EventBus.emit('measure-targets-changed', {
+                targetA: this.measureTargetA,
+                targetB: this.measureTargetB
+            });
         }
     }
 
@@ -1778,6 +1838,11 @@ export class SceneManager {
             if (this.renderer.domElement && this.renderer.domElement.parentElement) {
                 this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
             }
+        }
+
+        if (this.unregisterI18n) {
+            this.unregisterI18n();
+            this.unregisterI18n = undefined;
         }
 
         TextureGenerator.dispose();

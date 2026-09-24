@@ -63,7 +63,8 @@ export const en: TranslationSchema = {
             muteAudio: 'Mute Cosmic Ambience',
             shortcutsGuide: 'Keyboard Shortcuts Guide',
             pauseSimulation: 'Pause Simulation',
-            resumeSimulation: 'Resume Simulation'
+            resumeSimulation: 'Resume Simulation',
+            measureTool: 'Distance Measuring Tool'
         },
         simulationFolder: 'Simulation',
         environmentFolder: 'Environment',
@@ -102,6 +103,8 @@ export const en: TranslationSchema = {
         viewFromSurface: 'View from Surface',
         freeCamera: 'Free Camera',
         measureDistance: 'Measure Distance',
+        measureTool: 'Distance Measuring Tool',
+        measureMode: 'Measure Mode',
         cinematicTour: 'Cinematic Tour',
         tourSpeed: 'Tour Speed',
         tooltips: {
@@ -257,6 +260,16 @@ export const en: TranslationSchema = {
         tagCalibrating: 'Calibrating',
         tagSynthesizing: 'Synthesizing',
         tagConfiguring: 'Configuring'
+    },
+    measurement: {
+        distLabel: 'Dist: {au} {unitAU} / {mkm} {unitMkm}',
+        unitAU: 'AU',
+        unitMkm: 'Mkm',
+        selectFirstPrompt: 'Click a celestial body to begin measuring',
+        selectSecondPrompt: 'Selected: {name}. Click a second body to measure distance',
+        measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
+        clear: 'Clear',
+        close: 'Exit Measurement'
     },
     bodies: {
         Sun: {

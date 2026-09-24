@@ -63,7 +63,8 @@ export const pl: TranslationSchema = {
             muteAudio: 'Wycisz kosmiczny dźwięk',
             shortcutsGuide: 'Przewodnik po skrótach klawiszowych',
             pauseSimulation: 'Zatrzymaj symulację',
-            resumeSimulation: 'Wznów symulację'
+            resumeSimulation: 'Wznów symulację',
+            measureTool: 'Pomiar odległości'
         },
         simulationFolder: 'Symulacja',
         environmentFolder: 'Otoczenie',
@@ -102,6 +103,8 @@ export const pl: TranslationSchema = {
         viewFromSurface: 'Widok z powierzchni',
         freeCamera: 'Swobodna kamera',
         measureDistance: 'Zmierz odległość',
+        measureTool: 'Narzędzie pomiaru odległości',
+        measureMode: 'Tryb pomiaru',
         cinematicTour: 'Wędrówka filmowa',
         tourSpeed: 'Prędkość wędrówki',
         tooltips: {
@@ -257,6 +260,16 @@ export const pl: TranslationSchema = {
         tagCalibrating: 'Kalibracja',
         tagSynthesizing: 'Synteza',
         tagConfiguring: 'Konfiguracja'
+    },
+    measurement: {
+        distLabel: 'Odległość: {au} {unitAU} / {mkm} {unitMkm}',
+        unitAU: 'j.a.',
+        unitMkm: 'mln km',
+        selectFirstPrompt: 'Kliknij obiekt niebieski, aby rozpocząć pomiar',
+        selectSecondPrompt: 'Wybrano: {name}. Kliknij drugi obiekt, aby zmierzyć odległość',
+        measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
+        clear: 'Wyczyść',
+        close: 'Zakończ pomiar'
     },
     bodies: {
         Sun: {

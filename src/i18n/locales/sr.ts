@@ -63,7 +63,8 @@ export const sr: TranslationSchema = {
             muteAudio: 'Искључи космички звук',
             shortcutsGuide: 'Водич за пречице на тастатури',
             pauseSimulation: 'Паузирај симулацију',
-            resumeSimulation: 'Настави симулацију'
+            resumeSimulation: 'Настави симулацију',
+            measureTool: 'Алат за мерење удаљености'
         },
         simulationFolder: 'Симулација',
         environmentFolder: 'Окружење',
@@ -102,6 +103,8 @@ export const sr: TranslationSchema = {
         viewFromSurface: 'Поглед са површине',
         freeCamera: 'Слободна камера',
         measureDistance: 'Измери удаљеност',
+        measureTool: 'Алат за мерење удаљености',
+        measureMode: 'Режим мерења',
         cinematicTour: 'Филмска тура',
         tourSpeed: 'Брзина туре',
         tooltips: {
@@ -257,6 +260,16 @@ export const sr: TranslationSchema = {
         tagCalibrating: 'Калибрација',
         tagSynthesizing: 'Синтеза',
         tagConfiguring: 'Подешавање'
+    },
+    measurement: {
+        distLabel: 'Удаљеност: {au} {unitAU} / {mkm} {unitMkm}',
+        unitAU: 'АЈ',
+        unitMkm: 'мил. км',
+        selectFirstPrompt: 'Кликните на небеско тело за почетак мерења',
+        selectSecondPrompt: 'Изабрано: {name}. Кликните на друго тело за мерење удаљености',
+        measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
+        clear: 'Поништи',
+        close: 'Изађи из мерења'
     },
     bodies: {
         Sun: {

@@ -63,7 +63,8 @@ export const id: TranslationSchema = {
             muteAudio: 'Bisukan Suara Kosmik',
             shortcutsGuide: 'Panduan Pintasan Papan Ketik',
             pauseSimulation: 'Jeda Simulasi',
-            resumeSimulation: 'Lanjutkan Simulasi'
+            resumeSimulation: 'Lanjutkan Simulasi',
+            measureTool: 'Alat Pengukur Jarak'
         },
         simulationFolder: 'Simulasi',
         environmentFolder: 'Lingkungan',
@@ -102,6 +103,8 @@ export const id: TranslationSchema = {
         viewFromSurface: 'Pandangan dari Permukaan',
         freeCamera: 'Kamera Bebas',
         measureDistance: 'Ukur Jarak',
+        measureTool: 'Alat Pengukur Jarak',
+        measureMode: 'Mode Pengukuran',
         cinematicTour: 'Tur Sinematik',
         tourSpeed: 'Kecepatan Tur',
         tooltips: {
@@ -257,6 +260,16 @@ export const id: TranslationSchema = {
         tagCalibrating: 'Kalibrasi',
         tagSynthesizing: 'Sintesis',
         tagConfiguring: 'Konfigurasi'
+    },
+    measurement: {
+        distLabel: 'Jarak: {au} {unitAU} / {mkm} {unitMkm}',
+        unitAU: 'SA',
+        unitMkm: 'jt km',
+        selectFirstPrompt: 'Klik benda langit untuk memulai pengukuran',
+        selectSecondPrompt: 'Dipilih: {name}. Klik benda langit kedua untuk mengukur jarak',
+        measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
+        clear: 'Hapus',
+        close: 'Keluar dari Pengukuran'
     },
     bodies: {
         Sun: {

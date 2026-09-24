@@ -49,7 +49,7 @@ export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     showHabitableZone: false,
     showEclipticGrid: false,
     enableBloom: true,
-    realisticLighting: false,
+    realisticLighting: true,
     showAxes: false
 };
 
@@ -103,6 +103,14 @@ export class PreferencesManagerClass {
                 if (legacyAudio !== null) {
                     loaded.audioEnabled = legacyAudio === 'true';
                     window.localStorage.removeItem('solar_system_audio_enabled');
+                    migratedLegacy = true;
+                }
+
+                // Migration: enable realisticLighting by default for users transitioning to new default
+                const lightingDefaultMigrated = window.localStorage.getItem('solar_system_realistic_lighting_v1');
+                if (!lightingDefaultMigrated) {
+                    loaded.realisticLighting = true;
+                    window.localStorage.setItem('solar_system_realistic_lighting_v1', 'true');
                     migratedLegacy = true;
                 }
             } catch {

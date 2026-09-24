@@ -8,6 +8,8 @@ type ModalData = CelestialBodyData | MoonData | StarData | ConstellationData | C
 export interface CustomModalData {
     name: string;
     description: string;
+    titleKey?: string;
+    descKey?: string;
     images?: string[];
     imageUrl?: string;
     links?: any[];
@@ -24,7 +26,7 @@ export class Modal {
     private audioGuideBtn: HTMLButtonElement | null = null;
     private closeBtn: HTMLButtonElement | null = null;
     public isOpen: boolean = false;
-    private currentData: ModalData | CustomModalData | null = null;
+    public currentData: ModalData | CustomModalData | null = null;
     private unregisterI18n: (() => void) | null = null;
     private hideTooltipHandler: () => void;
 
@@ -514,6 +516,15 @@ export class Modal {
         });
     }
 
+    public isShowingPopup(key?: string): boolean {
+        if (!this.isOpen || !this.currentData) return false;
+        const custom = this.currentData as CustomModalData;
+        if (key) {
+            return custom.titleKey === key;
+        }
+        return !!custom.titleKey;
+    }
+
     public show(data: ModalData | CustomModalData, preserveAudio: boolean = false) {
         if (!this.contentElement) return;
 
@@ -522,21 +533,34 @@ export class Modal {
 
         let displayName = data.name;
         let displayDesc = data.description;
-        if ('targetBody' in data || 'escaping' in data || 'launchDate' in data) {
-            displayName = i18n.getSpacecraftName(data.name);
-            displayDesc = i18n.getSpacecraftDescription(data.name, data.description);
-        } else if ('semiMajorAxis' in data) {
-            displayName = i18n.getCometName(data.name);
-            displayDesc = i18n.getCometDescription(data.name, data.description);
-        } else if ('stars' in data && 'connections' in data) {
-            displayName = i18n.getConstellationName(data.name);
-            displayDesc = i18n.getConstellationDescription(data.name, data.description);
-        } else if ('ra' in data && 'dec' in data) {
-            displayName = i18n.getStarName(data.name);
-            displayDesc = i18n.getStarDescription(data.name, data.description);
+
+        const custom = data as CustomModalData;
+        if (custom.titleKey) {
+            displayName = i18n.t(custom.titleKey);
+            displayDesc = custom.descKey ? i18n.t(custom.descKey) : data.description;
         } else {
-            displayName = i18n.getBodyName(data.name);
-            displayDesc = i18n.getBodyDescription(data.name, data.description);
+            const popup = i18n.resolvePopup?.(data.name);
+            if (popup) {
+                custom.titleKey = popup.titleKey;
+                custom.descKey = popup.descKey;
+                displayName = i18n.t(popup.titleKey);
+                displayDesc = i18n.t(popup.descKey);
+            } else if ('targetBody' in data || 'escaping' in data || 'launchDate' in data) {
+                displayName = i18n.getSpacecraftName(data.name);
+                displayDesc = i18n.getSpacecraftDescription(data.name, data.description);
+            } else if ('semiMajorAxis' in data) {
+                displayName = i18n.getCometName(data.name);
+                displayDesc = i18n.getCometDescription(data.name, data.description);
+            } else if ('stars' in data && 'connections' in data) {
+                displayName = i18n.getConstellationName(data.name);
+                displayDesc = i18n.getConstellationDescription(data.name, data.description);
+            } else if ('ra' in data && 'dec' in data) {
+                displayName = i18n.getStarName(data.name);
+                displayDesc = i18n.getStarDescription(data.name, data.description);
+            } else {
+                displayName = i18n.getBodyName(data.name);
+                displayDesc = i18n.getBodyDescription(data.name, data.description);
+            }
         }
 
         if (this.titleElement) {

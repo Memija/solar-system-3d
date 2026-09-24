@@ -78,6 +78,7 @@ export interface TranslationSchema {
             shortcutsGuide: string;
             pauseSimulation: string;
             resumeSimulation: string;
+            measureTool?: string;
         };
         simulationFolder: string;
         environmentFolder: string;
@@ -116,6 +117,8 @@ export interface TranslationSchema {
         viewFromSurface: string;
         freeCamera: string;
         measureDistance: string;
+        measureTool?: string;
+        measureMode?: string;
         cinematicTour: string;
         tourSpeed: string;
         tooltips: {
@@ -268,6 +271,17 @@ export interface TranslationSchema {
         tagCalibrating: string;
         tagSynthesizing: string;
         tagConfiguring: string;
+    };
+
+    measurement?: {
+        distLabel: string;
+        unitAU: string;
+        unitMkm: string;
+        selectFirstPrompt: string;
+        selectSecondPrompt: string;
+        measuredDistancePrompt: string;
+        clear: string;
+        close: string;
     };
 
     bodies: Record<string, ItemTranslation>;

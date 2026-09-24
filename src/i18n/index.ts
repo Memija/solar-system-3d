@@ -371,6 +371,56 @@ class I18nManager {
         if (Array.isArray(entry) && entry.length === 7) return entry;
         return this.locales.get('en')!.translations.datepicker.weekdays;
     }
+
+    /**
+     * Resolves a popup identifier (key or localized title/description) to titleKey & descKey
+     */
+    public resolvePopup(identifier: string): { titleKey: string; descKey: string } | undefined {
+        if (!identifier) return undefined;
+
+        const clean = identifier.trim();
+
+        // Direct key matches
+        if (clean === 'popups.trueScaleTitle' || clean === 'trueScaleTitle' || clean === 'trueScale') {
+            return { titleKey: 'popups.trueScaleTitle', descKey: 'popups.trueScaleDesc' };
+        }
+        if (clean === 'popups.meteorsTitle' || clean === 'meteorsTitle' || clean === 'meteors') {
+            return { titleKey: 'popups.meteorsTitle', descKey: 'popups.meteorsDesc' };
+        }
+
+        // Localized string matches across all registered locales
+        for (const [, localeData] of this.locales) {
+            const popups = localeData.translations.popups;
+            if (!popups) continue;
+
+            if ((popups.trueScaleTitle && popups.trueScaleTitle.toLowerCase() === clean.toLowerCase()) ||
+                (popups.trueScaleDesc && popups.trueScaleDesc.toLowerCase() === clean.toLowerCase())) {
+                return { titleKey: 'popups.trueScaleTitle', descKey: 'popups.trueScaleDesc' };
+            }
+            if ((popups.meteorsTitle && popups.meteorsTitle.toLowerCase() === clean.toLowerCase()) ||
+                (popups.meteorsDesc && popups.meteorsDesc.toLowerCase() === clean.toLowerCase())) {
+                return { titleKey: 'popups.meteorsTitle', descKey: 'popups.meteorsDesc' };
+            }
+        }
+
+        return undefined;
+    }
+
+    public getPopupTitle(keyOrName: string): string {
+        const resolved = this.resolvePopup(keyOrName);
+        if (resolved) {
+            return this.t(resolved.titleKey);
+        }
+        return this.t(keyOrName);
+    }
+
+    public getPopupDescription(keyOrName: string, fallbackDesc?: string): string {
+        const resolved = this.resolvePopup(keyOrName);
+        if (resolved) {
+            return this.t(resolved.descKey);
+        }
+        return fallbackDesc ? this.t(fallbackDesc) : '';
+    }
 }
 
 export const i18n = new I18nManager();

@@ -670,7 +670,7 @@ export class ControlCenter {
 
         const measureTitle = document.createElement('h4');
         measureTitle.className = 'ctrl-group-title';
-        measureTitle.innerHTML = `<span data-i18n-key="controls.measureDistance">${i18n.t('controls.measureDistance') || 'Distance Measuring Tool'}</span>`;
+        measureTitle.innerHTML = `<span data-i18n-key="controls.measureTool">${i18n.t('controls.measureTool') || 'Distance Measuring Tool'}</span>`;
         measureGroup.appendChild(measureTitle);
 
         const measureRow = document.createElement('div');
@@ -678,7 +678,11 @@ export class ControlCenter {
 
         const measureLabel = document.createElement('label');
         measureLabel.className = 'toggle-label-wrap';
-        measureLabel.innerHTML = `<span class="toggle-icon">📐</span><span data-i18n-key="controls.measureDistance">${i18n.t('controls.measureDistance') || 'Measure Mode'}</span>`;
+        measureLabel.innerHTML = `
+            <span class="toggle-icon">📐</span>
+            <span data-i18n-key="controls.measureMode">${i18n.t('controls.measureMode') || 'Measure Mode'}</span>
+            <span class="toggle-info-hint" data-i18n-key="controls.tooltips.measureDistance" title="${i18n.t('controls.tooltips.measureDistance')}">?</span>
+        `;
         measureRow.appendChild(measureLabel);
 
         const measureSwitch = document.createElement('label');
@@ -727,9 +731,15 @@ export class ControlCenter {
                     this.sceneManager.toggleRealisticDistances(v);
                     if (v) {
                         this.uiManager.modal.show({
+                            titleKey: 'popups.trueScaleTitle',
+                            descKey: 'popups.trueScaleDesc',
                             name: i18n.t('popups.trueScaleTitle'),
                             description: i18n.t('popups.trueScaleDesc')
                         });
+                    } else {
+                        if (this.uiManager.modal.isOpen && (this.uiManager.modal.isShowingPopup('popups.trueScaleTitle') || (this.uiManager.modal.titleElement && this.uiManager.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
+                            this.uiManager.modal.hide();
+                        }
                     }
                 }
             },
@@ -763,7 +773,7 @@ export class ControlCenter {
                 prop: 'realisticLighting',
                 key: 'controls.realisticLighting',
                 icon: '💡',
-                initial: false,
+                initial: this.sceneManager.realisticLighting,
                 onChange: (v: boolean) => this.sceneManager.toggleRealisticLighting(v)
             },
             {
@@ -1029,7 +1039,13 @@ export class ControlCenter {
                 const key = el.dataset.i18nKey;
                 if (key) {
                     const text = i18n.t(key);
-                    if (text) el.textContent = text;
+                    if (text) {
+                        if (el.classList.contains('toggle-info-hint')) {
+                            el.title = text;
+                        } else {
+                            el.textContent = text;
+                        }
+                    }
                 }
             });
         }

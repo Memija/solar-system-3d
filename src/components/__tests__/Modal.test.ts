@@ -331,5 +331,71 @@ describe('Modal Localization & Audio Guide', () => {
         expect(hbRadiusChip?.querySelector('.stat-subvalue')).toBeNull();
         expect(hbRadiusChip?.querySelector('.info-btn')?.getAttribute('data-text')).toBe(i18n.t('modal.tooltips.cometRadius'));
     });
+
+    it('localizes True Scale modal title and description and dynamically updates on language changes', () => {
+        i18n.setLanguage('en');
+        modal.show({
+            titleKey: 'popups.trueScaleTitle',
+            descKey: 'popups.trueScaleDesc',
+            name: i18n.t('popups.trueScaleTitle'),
+            description: i18n.t('popups.trueScaleDesc')
+        });
+
+        expect(modal.isShowingPopup('popups.trueScaleTitle')).toBe(true);
+        expect(modal.titleElement?.textContent).toBe('True Scale of the Solar System');
+        expect(modal.contentElement.querySelector('.description')?.textContent).toBe(i18n.t('popups.trueScaleDesc'));
+
+        // Switch to German
+        i18n.setLanguage('de');
+        expect(modal.titleElement?.textContent).toBe('Echter Maßstab des Sonnensystems');
+        expect(modal.contentElement.querySelector('.description')?.textContent).toBe(i18n.t('popups.trueScaleDesc'));
+
+        // Switch to Bosnian
+        i18n.setLanguage('bs');
+        expect(modal.titleElement?.textContent).toBe('Prave razmjere Sunčevog sistema');
+        expect(modal.contentElement.querySelector('.description')?.textContent).toBe(i18n.t('popups.trueScaleDesc'));
+
+        // Switch to Serbian
+        i18n.setLanguage('sr');
+        expect(modal.titleElement?.textContent).toBe('Праве размере Сунчевог система');
+        expect(modal.contentElement.querySelector('.description')?.textContent).toBe(i18n.t('popups.trueScaleDesc'));
+
+        // Switch to Polish
+        i18n.setLanguage('pl');
+        expect(modal.titleElement?.textContent).toBe('Rzeczywista skala Układu Słonecznego');
+        expect(modal.contentElement.querySelector('.description')?.textContent).toBe(i18n.t('popups.trueScaleDesc'));
+
+        // Switch to Indonesian
+        i18n.setLanguage('id');
+        expect(modal.titleElement?.textContent).toBe('Skala Sebenarnya Tata Surya');
+        expect(modal.contentElement.querySelector('.description')?.textContent).toBe(i18n.t('popups.trueScaleDesc'));
+    });
+
+    it('automatically resolves True Scale popup when shown by name and narrates in the new language', () => {
+        i18n.setLanguage('en');
+        // Show by name without explicit titleKey
+        modal.show({
+            name: 'True Scale of the Solar System',
+            description: 'English description fallback'
+        });
+
+        expect(modal.isShowingPopup('popups.trueScaleTitle')).toBe(true);
+        expect(modal.titleElement?.textContent).toBe('True Scale of the Solar System');
+
+        // Switch to Bosnian
+        i18n.setLanguage('bs');
+        expect(modal.titleElement?.textContent).toBe('Prave razmjere Sunčevog sistema');
+
+        const audioBtn = modal.modalElement.querySelector('.modal-audio-guide-btn') as HTMLButtonElement;
+        const speakSpy = vi.spyOn(modal.audioNarrator, 'speak').mockReturnValue(true);
+
+        audioBtn.click();
+        expect(speakSpy).toHaveBeenCalled();
+        const calledText = speakSpy.mock.calls[0][0];
+        const calledLang = speakSpy.mock.calls[0][1];
+
+        expect(calledLang).toBe('bs');
+        expect(calledText).toContain('Prave razmjere Sunčevog sistema');
+    });
 });
 
