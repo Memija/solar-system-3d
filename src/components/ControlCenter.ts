@@ -2,7 +2,7 @@ import { SceneManager } from './SceneManager';
 import { UIManager } from './UIManager';
 import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
-import { PreferencesManager } from './PreferencesManager';
+import { HeaderSlotsManager } from './HeaderSlotsManager';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
 
@@ -726,6 +726,7 @@ export class ControlCenter {
                 prop: 'realisticDistances',
                 key: 'controls.realisticScale',
                 icon: '📏',
+                kbd: 'R',
                 initial: false,
                 onChange: (v: boolean) => {
                     this.sceneManager.toggleRealisticDistances(v);
@@ -747,6 +748,7 @@ export class ControlCenter {
                 prop: 'showHabitableZone',
                 key: 'controls.habitableZone',
                 icon: '🌱',
+                kbd: 'Z',
                 initial: false,
                 onChange: (v: boolean) => this.sceneManager.toggleHabitableZone(v)
             },
@@ -754,6 +756,7 @@ export class ControlCenter {
                 prop: 'showEclipticGrid',
                 key: 'controls.eclipticGrid',
                 icon: '🌐',
+                kbd: 'G',
                 initial: false,
                 onChange: (v: boolean) => this.sceneManager.toggleEclipticGrid(v)
             },
@@ -761,18 +764,15 @@ export class ControlCenter {
                 prop: 'enableBloom',
                 key: 'controls.enableBloom',
                 icon: '✨',
+                kbd: 'B',
                 initial: true,
-                onChange: (v: boolean) => {
-                    if (this.sceneManager.bloomPass) {
-                        this.sceneManager.bloomPass.enabled = v;
-                    }
-                    PreferencesManager.set('enableBloom', v);
-                }
+                onChange: (v: boolean) => this.sceneManager.toggleBloom(v)
             },
             {
                 prop: 'realisticLighting',
                 key: 'controls.realisticLighting',
                 icon: '💡',
+                kbd: 'L',
                 initial: this.sceneManager.realisticLighting,
                 onChange: (v: boolean) => this.sceneManager.toggleRealisticLighting(v)
             },
@@ -780,6 +780,7 @@ export class ControlCenter {
                 prop: 'showAxes',
                 key: 'controls.showAxes',
                 icon: '🧭',
+                kbd: 'X',
                 initial: false,
                 onChange: (v: boolean) => this.sceneManager.toggleAxes(v)
             }
@@ -801,6 +802,13 @@ export class ControlCenter {
             labelText.dataset.i18nKey = cfg.key;
             labelText.textContent = i18n.t(cfg.key);
             labelWrap.appendChild(labelText);
+
+            if (cfg.kbd) {
+                const kbdBadge = document.createElement('kbd');
+                kbdBadge.className = 'ctrl-kbd-badge';
+                kbdBadge.textContent = cfg.kbd;
+                labelWrap.appendChild(kbdBadge);
+            }
 
             row.appendChild(labelWrap);
 
@@ -888,6 +896,33 @@ export class ControlCenter {
         this.switches.set('telemetry', perfInput);
 
         panel.appendChild(toolsGroup);
+
+        // Header Quick Access Slots Group
+        const headerSlotsGroup = document.createElement('div');
+        headerSlotsGroup.className = 'ctrl-group';
+
+        const headerSlotsTitle = document.createElement('h4');
+        headerSlotsTitle.className = 'ctrl-group-title';
+        headerSlotsTitle.innerHTML = `<span data-i18n-key="controls.sections.headerQuickAccess">${i18n.t('controls.sections.headerQuickAccess') || 'Header Quick Access'}</span>`;
+        headerSlotsGroup.appendChild(headerSlotsTitle);
+
+        const headerSlotsDesc = document.createElement('p');
+        headerSlotsDesc.className = 'ctrl-group-desc';
+        headerSlotsDesc.dataset.i18nKey = 'ui.slotsDescription';
+        headerSlotsDesc.textContent = i18n.t('ui.slotsDescription') || 'Pin and organize your favorite tools, optics settings, and celestial layers directly to the observatory header bar.';
+        headerSlotsGroup.appendChild(headerSlotsDesc);
+
+        const customizeBtn = document.createElement('button');
+        customizeBtn.type = 'button';
+        customizeBtn.className = 'master-action-btn';
+        customizeBtn.id = 'controlCenterHeaderSlotsBtn';
+        customizeBtn.innerHTML = `<span>⚙️</span> <span data-i18n-key="controls.sections.customizeHeaderSlots">${i18n.t('controls.sections.customizeHeaderSlots') || 'Customize Quick Access Slots'}</span>`;
+        customizeBtn.onclick = () => {
+            this.uiManager.openHeaderSlotsCustomizer();
+        };
+        headerSlotsGroup.appendChild(customizeBtn);
+
+        panel.appendChild(headerSlotsGroup);
         return panel;
     }
 
@@ -1013,6 +1048,10 @@ export class ControlCenter {
         setChecked('measureMode', sm.measureMode);
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
         setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
+
+        if (this.uiManager?.headerSlotsContainer) {
+            HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+        }
     }
 
     public updateTranslations() {

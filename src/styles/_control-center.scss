@@ -1022,6 +1022,14 @@
             font-size: 11px;
             .ctrl-label { display: none; }
         }
+
+        .obs-header-slots {
+            gap: 4px;
+            max-width: 36vw;
+            overflow-x: auto;
+            scrollbar-width: none;
+            &::-webkit-scrollbar { display: none; }
+        }
     }
 
     .unified-control-drawer {

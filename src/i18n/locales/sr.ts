@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const sr: TranslationSchema = {
     ui: {
-        simDate: '⏱ Сим. датум:',
+        simDate: 'Сим. датум:',
         radarToggle: 'Укључи/искључи радар (M)',
         controlsToggle: 'Укључи/искључи контроле симулације',
         languageToggle: 'Промени језик',
@@ -22,7 +22,15 @@ export const sr: TranslationSchema = {
         utcTime: 'Универзално време (UTC)',
         liveRealTime: 'Физичко реално време (1:1)',
         controls: 'Контроле',
-        targetPillTitle: 'Фокусирани небески објекат — Кликните да отворите навигатор'
+        targetPillTitle: 'Фокусирани небески објекат — Кликните да отворите навигатор',
+        headerSlots: 'Брзи приступ у заглављу',
+        customizeSlots: 'Прилагоди слотове за брзи приступ',
+        slotsDescription: 'Прикачите и организујте омиљене алате, оптичке поставке и небеске слојеве директно у заглавље опсерваторије за тренутан приступ једним кликом.',
+        slotsActive: '{count} активних слотова',
+        resetSlots: 'Врати на подразумевано',
+        opticsCategory: '✨ Оптика и скала',
+        layersCategory: '🪐 Небески слојеви',
+        toolsCategory: '🛰️ Инструменти опсерваторије'
     },
     categories: {
         star: '🌟 Звезде',
@@ -64,7 +72,9 @@ export const sr: TranslationSchema = {
             shortcutsGuide: 'Водич за пречице на тастатури',
             pauseSimulation: 'Паузирај симулацију',
             resumeSimulation: 'Настави симулацију',
-            measureTool: 'Алат за мерење удаљености'
+            measureTool: 'Алат за мерење удаљености',
+            headerQuickAccess: 'Брзи приступ у заглављу',
+            customizeHeaderSlots: 'Прилагоди слотове у заглављу'
         },
         simulationFolder: 'Симулација',
         environmentFolder: 'Окружење',
@@ -94,6 +104,7 @@ export const sr: TranslationSchema = {
         showSpacecraft: 'Прикажи летелице',
         showMeteors: 'Прикажи метеоре',
         showTrails: 'Прикажи трагове путања',
+        showConstellations: 'Сазвежђа',
         habitableZone: 'Настањива зона',
         eclipticGrid: 'Еклиптичка мрежа',
         enableBloom: 'Омогући сјај (Bloom)',
@@ -209,6 +220,12 @@ export const sr: TranslationSchema = {
         pauseResume: 'Паузирај / Настави симулацију',
         warpSpeed: 'Смањи / Повећај брзину симулације',
         cinematicTour: 'Укључи / Искључи филмску туру',
+        opticsTitle: 'Оптика и визуелне размере',
+        bloom: 'Укључи / Искључи ефекат сјаја (Bloom)',
+        lighting: 'Укључи / Искључи реалистично осветљење',
+        eclipticGrid: 'Укључи / Искључи еклиптичку мрежу',
+        habitableZone: 'Укључи / Искључи настањиву зону',
+        axes: 'Укључи / Искључи координатне осе',
         toolsTitle: 'Небески слојеви и алати',
         orbits: 'Укључи / Искључи орбиталне путање',
         minimap: 'Укључи / Искључи радар мини-мапу',

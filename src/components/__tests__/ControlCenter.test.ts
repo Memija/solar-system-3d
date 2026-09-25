@@ -69,7 +69,8 @@ describe('ControlCenter Component', () => {
             minimap: { isVisible: true, setVisible: vi.fn() },
             performanceMonitor: { getVisible: vi.fn().mockReturnValue(false), setVisible: vi.fn() },
             audioManager: { getAudioEnabled: vi.fn().mockReturnValue(true), toggle: vi.fn().mockReturnValue(false), playShutter: vi.fn() },
-            customDatePicker: { setDate: vi.fn() }
+            customDatePicker: { setDate: vi.fn() },
+            openHeaderSlotsCustomizer: vi.fn()
         };
 
         controlCenter = new ControlCenter(mockUIManager, mockSceneManager, container);
@@ -213,6 +214,21 @@ describe('ControlCenter Component', () => {
         const badgeTexts = Array.from(kbdBadges).map(b => b.textContent);
         expect(badgeTexts).toContain('M');
         expect(badgeTexts).toContain('P');
+        expect(badgeTexts).toContain('R');
+        expect(badgeTexts).toContain('Z');
+        expect(badgeTexts).toContain('G');
+        expect(badgeTexts).toContain('B');
+        expect(badgeTexts).toContain('L');
+        expect(badgeTexts).toContain('X');
+    });
+
+    it('should provide a button in the system panel to open the header slots customizer', () => {
+        controlCenter.switchTab('system');
+        const customizeBtn = controlCenter.drawerElement.querySelector('#controlCenterHeaderSlotsBtn') as HTMLButtonElement;
+        expect(customizeBtn).not.toBeNull();
+
+        customizeBtn.click();
+        expect(mockUIManager.openHeaderSlotsCustomizer).toHaveBeenCalledTimes(1);
     });
 });
 

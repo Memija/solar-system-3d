@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const en: TranslationSchema = {
     ui: {
-        simDate: '⏱ Sim Date:',
+        simDate: 'Sim Date:',
         radarToggle: 'Toggle Minimap Radar (M)',
         controlsToggle: 'Toggle Simulation Controls',
         languageToggle: 'Change Language',
@@ -22,7 +22,15 @@ export const en: TranslationSchema = {
         utcTime: 'Universal Time (UTC)',
         liveRealTime: 'Physical Real-Time Active (1:1)',
         controls: 'Controls',
-        targetPillTitle: 'Focused Celestial Object — Click to Open Navigator'
+        targetPillTitle: 'Focused Celestial Object — Click to Open Navigator',
+        headerSlots: 'Header Quick Access',
+        customizeSlots: 'Customize Quick Access Slots',
+        slotsDescription: 'Pin and organize your favorite tools, optics settings, and celestial layers directly to the observatory header bar for instant 1-click access.',
+        slotsActive: '{count} active slots',
+        resetSlots: 'Reset to Defaults',
+        opticsCategory: '✨ Optics & Scale',
+        layersCategory: '🪐 Celestial Layers',
+        toolsCategory: '🛰️ Observatory Instruments'
     },
     categories: {
         star: '🌟 Stars',
@@ -64,7 +72,9 @@ export const en: TranslationSchema = {
             shortcutsGuide: 'Keyboard Shortcuts Guide',
             pauseSimulation: 'Pause Simulation',
             resumeSimulation: 'Resume Simulation',
-            measureTool: 'Distance Measuring Tool'
+            measureTool: 'Distance Measuring Tool',
+            headerQuickAccess: 'Header Quick Access',
+            customizeHeaderSlots: 'Customize Quick Access Slots'
         },
         simulationFolder: 'Simulation',
         environmentFolder: 'Environment',
@@ -94,6 +104,7 @@ export const en: TranslationSchema = {
         showSpacecraft: 'Show Spacecraft',
         showMeteors: 'Show Meteors',
         showTrails: 'Show Trails',
+        showConstellations: 'Constellations',
         habitableZone: 'Habitable Zone',
         eclipticGrid: 'Ecliptic Grid',
         enableBloom: 'Enable Bloom',
@@ -209,6 +220,12 @@ export const en: TranslationSchema = {
         pauseResume: 'Pause / Resume Simulation',
         warpSpeed: 'Decrease / Increase Warp Speed',
         cinematicTour: 'Toggle Guided Cinematic Tour',
+        opticsTitle: 'Optics & Visual Scale',
+        bloom: 'Toggle Bloom Glow Effect',
+        lighting: 'Toggle Realistic Lighting',
+        eclipticGrid: 'Toggle Ecliptic Plane Grid',
+        habitableZone: 'Toggle Habitable Zone',
+        axes: 'Toggle Coordinate Axes',
         toolsTitle: 'Celestial Layers & Tools',
         orbits: 'Toggle Planetary Orbits',
         minimap: 'Toggle Radar Minimap',

@@ -27,8 +27,17 @@ export interface UserPreferences {
     enableBloom: boolean;
     realisticLighting: boolean;
     showAxes: boolean;
+    headerSlots: string[];
     [key: string]: any;
 }
+
+export const DEFAULT_HEADER_SLOTS: readonly string[] = [
+    'minimap',
+    'snapshot',
+    'audio',
+    'telemetry',
+    'shortcuts'
+];
 
 export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     // Performance telemetry activated by default
@@ -50,7 +59,8 @@ export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     showEclipticGrid: false,
     enableBloom: true,
     realisticLighting: true,
-    showAxes: false
+    showAxes: false,
+    headerSlots: [...DEFAULT_HEADER_SLOTS]
 };
 
 export type PreferenceChangeListener = <K extends keyof UserPreferences>(
@@ -106,11 +116,13 @@ export class PreferencesManagerClass {
                     migratedLegacy = true;
                 }
 
-                // Migration: enable realisticLighting by default for users transitioning to new default
-                const lightingDefaultMigrated = window.localStorage.getItem('solar_system_realistic_lighting_v1');
-                if (!lightingDefaultMigrated) {
-                    loaded.realisticLighting = true;
-                    window.localStorage.setItem('solar_system_realistic_lighting_v1', 'true');
+                // Migration: clean up legacy realistic lighting key if present and consolidate into single object
+                const legacyLighting = window.localStorage.getItem('solar_system_realistic_lighting_v1');
+                if (legacyLighting !== null) {
+                    if (loaded.realisticLighting === undefined) {
+                        loaded.realisticLighting = legacyLighting === 'true';
+                    }
+                    window.localStorage.removeItem('solar_system_realistic_lighting_v1');
                     migratedLegacy = true;
                 }
             } catch {

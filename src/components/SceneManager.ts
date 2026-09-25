@@ -1142,8 +1142,14 @@ export class SceneManager {
             }
         });
     }
-
-
+    toggleBloom(visible?: boolean): boolean {
+        const next = visible !== undefined ? visible : (this.bloomPass ? !this.bloomPass.enabled : !PreferencesManager.get('enableBloom'));
+        if (this.bloomPass) {
+            this.bloomPass.enabled = next;
+        }
+        PreferencesManager.set('enableBloom', next);
+        return next;
+    }
 
     toggleHabitableZone(visible: boolean) {
         this.showHabitableZone = visible;

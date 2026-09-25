@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const pl: TranslationSchema = {
     ui: {
-        simDate: '⏱ Data symulacji:',
+        simDate: 'Data symulacji:',
         radarToggle: 'Przełącz radar minimapy (M)',
         controlsToggle: 'Przełącz panel sterowania',
         languageToggle: 'Zmień język',
@@ -22,7 +22,15 @@ export const pl: TranslationSchema = {
         utcTime: 'Czas uniwersalny (UTC)',
         liveRealTime: 'Czas rzeczywisty fizyczny (1:1)',
         controls: 'Sterowanie',
-        targetPillTitle: 'Wybrany obiekt kosmiczny — Kliknij, aby otworzyć nawigator'
+        targetPillTitle: 'Wybrany obiekt kosmiczny — Kliknij, aby otworzyć nawigator',
+        headerSlots: 'Szybki dostęp w nagłówku',
+        customizeSlots: 'Dostosuj sloty szybkiego dostępu',
+        slotsDescription: 'Przypinaj i organizuj ulubione narzędzia, ustawienia optyczne oraz warstwy ciał niebieskich bezpośrednio na pasku nagłówka obserwatorium, uzyskując natychmiastowy dostęp jednym kliknięciem.',
+        slotsActive: '{count} aktywnych slotów',
+        resetSlots: 'Przywróć domyślne',
+        opticsCategory: '✨ Optyka i skala',
+        layersCategory: '🪐 Warstwy ciał niebieskich',
+        toolsCategory: '🛰️ Przyrządy obserwatorium'
     },
     categories: {
         star: '🌟 Gwiazdy',
@@ -64,7 +72,9 @@ export const pl: TranslationSchema = {
             shortcutsGuide: 'Przewodnik po skrótach klawiszowych',
             pauseSimulation: 'Zatrzymaj symulację',
             resumeSimulation: 'Wznów symulację',
-            measureTool: 'Pomiar odległości'
+            measureTool: 'Pomiar odległości',
+            headerQuickAccess: 'Szybki dostęp w nagłówku',
+            customizeHeaderSlots: 'Dostosuj sloty w nagłówku'
         },
         simulationFolder: 'Symulacja',
         environmentFolder: 'Otoczenie',
@@ -94,6 +104,7 @@ export const pl: TranslationSchema = {
         showSpacecraft: 'Pokaż sondy kosmiczne',
         showMeteors: 'Pokaż meteory',
         showTrails: 'Pokaż ślady orbit',
+        showConstellations: 'Gwiazdozbiory',
         habitableZone: 'Ekosfera (Strefa życia)',
         eclipticGrid: 'Siatka ekliptyki',
         enableBloom: 'Włącz poświatę (Bloom)',
@@ -209,6 +220,12 @@ export const pl: TranslationSchema = {
         pauseResume: 'Wstrzymaj / Wznów symulację',
         warpSpeed: 'Zmniejsz / Zwiększ tempo symulacji',
         cinematicTour: 'Włącz / Wyłącz wędrówkę filmową',
+        opticsTitle: 'Optyka i skala wizualna',
+        bloom: 'Przełącz efekt poświaty (Bloom)',
+        lighting: 'Przełącz realistyczne oświetlenie',
+        eclipticGrid: 'Przełącz siatkę ekliptyki',
+        habitableZone: 'Przełącz strefę zdatną do zamieszkania',
+        axes: 'Przełącz osie współrzędnych',
         toolsTitle: 'Warstwy nieba i narzędzia',
         orbits: 'Włącz / Wyłącz linie orbit',
         minimap: 'Włącz / Wyłącz radar minimapy',

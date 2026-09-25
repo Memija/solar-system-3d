@@ -37,6 +37,14 @@ export interface TranslationSchema {
         liveRealTime: string;
         controls?: string;
         targetPillTitle?: string;
+        headerSlots?: string;
+        customizeSlots?: string;
+        slotsDescription?: string;
+        slotsActive?: string;
+        resetSlots?: string;
+        opticsCategory?: string;
+        layersCategory?: string;
+        toolsCategory?: string;
     };
     categories: {
         star: string;
@@ -79,6 +87,8 @@ export interface TranslationSchema {
             pauseSimulation: string;
             resumeSimulation: string;
             measureTool?: string;
+            headerQuickAccess?: string;
+            customizeHeaderSlots?: string;
         };
         simulationFolder: string;
         environmentFolder: string;
@@ -108,6 +118,7 @@ export interface TranslationSchema {
         showSpacecraft: string;
         showMeteors: string;
         showTrails: string;
+        showConstellations?: string;
         habitableZone: string;
         eclipticGrid: string;
         enableBloom: string;
@@ -223,6 +234,12 @@ export interface TranslationSchema {
         pauseResume: string;
         warpSpeed: string;
         cinematicTour: string;
+        opticsTitle?: string;
+        bloom?: string;
+        lighting?: string;
+        eclipticGrid?: string;
+        habitableZone?: string;
+        axes?: string;
         toolsTitle: string;
         orbits: string;
         minimap: string;

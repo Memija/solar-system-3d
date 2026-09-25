@@ -31,6 +31,8 @@ describe('PreferencesManager', () => {
         manager.set('telemetry', false);
 
         // Verify ONLY one item exists in localStorage and it is 'solar-system-3d'
+        expect(localStorage.length).toBe(1);
+        expect(Object.keys(localStorage)).toEqual(['solar-system-3d']);
         expect(localStorage.getItem('solar-system-3d')).not.toBeNull();
         const raw = localStorage.getItem('solar-system-3d')!;
         const parsed = JSON.parse(raw);
@@ -103,20 +105,34 @@ describe('PreferencesManager', () => {
         localStorage.clear();
         localStorage.setItem('solar_system_language', 'id');
         localStorage.setItem('solar_system_audio_enabled', 'true');
+        localStorage.setItem('solar_system_realistic_lighting_v1', 'true');
 
         const newManager = new PreferencesManagerClass('solar-system-3d');
 
         expect(newManager.get('language')).toBe('id');
         expect(newManager.get('audioEnabled')).toBe(true);
+        expect(newManager.get('realisticLighting')).toBe(true);
 
         // Verify legacy keys were cleaned up
         expect(localStorage.getItem('solar_system_language')).toBeNull();
         expect(localStorage.getItem('solar_system_audio_enabled')).toBeNull();
+        expect(localStorage.getItem('solar_system_realistic_lighting_v1')).toBeNull();
 
-        // Verify single unified object exists
+        // Verify single unified object exists and is the only key
+        expect(localStorage.length).toBe(1);
+        expect(Object.keys(localStorage)).toEqual(['solar-system-3d']);
         const parsed = JSON.parse(localStorage.getItem('solar-system-3d')!);
         expect(parsed.language).toBe('id');
         expect(parsed.audioEnabled).toBe(true);
+        expect(parsed.realisticLighting).toBe(true);
+    });
+
+    it('does not create extraneous legacy keys in localStorage on initialization', () => {
+        localStorage.clear();
+        new PreferencesManagerClass('solar-system-3d');
+        expect(localStorage.getItem('solar_system_realistic_lighting_v1')).toBeNull();
+        expect(localStorage.getItem('solar_system_language')).toBeNull();
+        expect(localStorage.getItem('solar_system_audio_enabled')).toBeNull();
     });
 
     it('handles corrupted JSON in localStorage gracefully without crashing', () => {

@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const id: TranslationSchema = {
     ui: {
-        simDate: '⏱ Waktu simulasi:',
+        simDate: 'Waktu simulasi:',
         radarToggle: 'Alihkan Radar Minimap (M)',
         controlsToggle: 'Alihkan Kontrol Simulasi',
         languageToggle: 'Ganti Bahasa',
@@ -22,7 +22,15 @@ export const id: TranslationSchema = {
         utcTime: 'Waktu Universal (UTC)',
         liveRealTime: 'Waktu Nyata Fisik Aktif (1:1)',
         controls: 'Kontrol',
-        targetPillTitle: 'Objek Langit yang Difokuskan — Klik untuk Membuka Navigator'
+        targetPillTitle: 'Objek Langit yang Difokuskan — Klik untuk Membuka Navigator',
+        headerSlots: 'Akses Cepat Header',
+        customizeSlots: 'Sesuaikan Slot Akses Cepat',
+        slotsDescription: 'Sematkan dan atur alat favorit, pengaturan optik, dan lapisan langit langsung ke bilah header observatorium untuk akses instan 1 klik.',
+        slotsActive: '{count} slot aktif',
+        resetSlots: 'Atur Ulang ke Default',
+        opticsCategory: '✨ Optik & Skala',
+        layersCategory: '🪐 Lapisan Langit',
+        toolsCategory: '🛰️ Instrumen Observatorium'
     },
     categories: {
         star: '🌟 Bintang',
@@ -51,7 +59,7 @@ export const id: TranslationSchema = {
             simulationSpeed: 'Kecepatan Simulasi',
             entitiesTrails: 'Entitas Kosmik & Jejak',
             cameraPerspective: 'Perspektif Kamera',
-            orbitFocus: 'Fokus Orbit',
+            orbitFocus: 'Orbit Focus',
             surfaceView: 'Tampilan Permukaan',
             freeCam: 'Kamera Bebas',
             autonomousTour: 'Tur Agung Otonom',
@@ -64,7 +72,9 @@ export const id: TranslationSchema = {
             shortcutsGuide: 'Panduan Pintasan Papan Ketik',
             pauseSimulation: 'Jeda Simulasi',
             resumeSimulation: 'Lanjutkan Simulasi',
-            measureTool: 'Alat Pengukur Jarak'
+            measureTool: 'Alat Pengukur Jarak',
+            headerQuickAccess: 'Akses Cepat Header',
+            customizeHeaderSlots: 'Sesuaikan Slot Header'
         },
         simulationFolder: 'Simulasi',
         environmentFolder: 'Lingkungan',
@@ -94,6 +104,7 @@ export const id: TranslationSchema = {
         showSpacecraft: 'Tampilkan Wahana Antariksa',
         showMeteors: 'Tampilkan Meteor',
         showTrails: 'Tampilkan Jejak Orbit',
+        showConstellations: 'Rasi Bintang',
         habitableZone: 'Zona Layak Huni',
         eclipticGrid: 'Kisi Ekliptika',
         enableBloom: 'Aktifkan Efek Cahaya (Bloom)',
@@ -209,6 +220,12 @@ export const id: TranslationSchema = {
         pauseResume: 'Jeda / Lanjutkan Simulasi',
         warpSpeed: 'Kurangi / Tambah Kecepatan Simulasi',
         cinematicTour: 'Tur Sinematik Berpemandu',
+        opticsTitle: 'Optik & Skala Visual',
+        bloom: 'Alihkan Efek Cahaya Pijar (Bloom)',
+        lighting: 'Alihkan Pencahayaan Realistis',
+        eclipticGrid: 'Alihkan Kisi Ekliptika',
+        habitableZone: 'Alihkan Zona Layak Huni',
+        axes: 'Alihkan Sumbu Koordinat',
         toolsTitle: 'Lapisan Langit & Alat',
         orbits: 'Alihkan Orbit Planet',
         minimap: 'Alihkan Radar Minimap',

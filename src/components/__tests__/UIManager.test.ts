@@ -97,8 +97,16 @@ describe('UIManager', () => {
         };
 
         // Mock modal to avoid errors
-        vi.spyOn(Modal.prototype, 'show').mockImplementation(vi.fn());
-        vi.spyOn(Modal.prototype, 'hide').mockImplementation(vi.fn());
+        vi.spyOn(Modal.prototype, 'show').mockImplementation(function(this: any, data: any) {
+            this.isOpen = true;
+            this.currentData = data;
+            if (this.contentElement) {
+                this.contentElement.innerHTML = data?.description || '';
+            }
+        });
+        vi.spyOn(Modal.prototype, 'hide').mockImplementation(function(this: any) {
+            this.isOpen = false;
+        });
         vi.spyOn(Modal.prototype, 'dispose').mockImplementation(vi.fn());
 
         uiManager = new UIManager(sceneManager);
@@ -313,6 +321,56 @@ describe('UIManager', () => {
         }
     });
 
+    it('should toggle optics options via keyboard shortcuts (B, L, G, Z, X)', () => {
+        sceneManager.toggleBloom = vi.fn();
+        sceneManager.toggleRealisticLighting = vi.fn();
+        sceneManager.toggleEclipticGrid = vi.fn();
+        sceneManager.toggleHabitableZone = vi.fn();
+        sceneManager.toggleAxes = vi.fn();
+        sceneManager.realisticLighting = false;
+        sceneManager.showEclipticGrid = false;
+        sceneManager.showHabitableZone = false;
+        sceneManager.showAxes = false;
+
+        // B toggles bloom
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', code: 'KeyB' }));
+        expect(sceneManager.toggleBloom).toHaveBeenCalledTimes(1);
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'B', code: 'KeyB' }));
+        expect(sceneManager.toggleBloom).toHaveBeenCalledTimes(2);
+
+        // L toggles realistic lighting
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l', code: 'KeyL' }));
+        expect(sceneManager.toggleRealisticLighting).toHaveBeenCalledWith(true);
+
+        // G toggles ecliptic grid
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', code: 'KeyG' }));
+        expect(sceneManager.toggleEclipticGrid).toHaveBeenCalledWith(true);
+
+        // Z toggles habitable zone
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ' }));
+        expect(sceneManager.toggleHabitableZone).toHaveBeenCalledWith(true);
+
+        // X toggles axes
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', code: 'KeyX' }));
+        expect(sceneManager.toggleAxes).toHaveBeenCalledWith(true);
+    });
+
+    it('should include optics section in the keyboard shortcuts guide modal', () => {
+        const modalShowSpy = vi.spyOn(uiManager.shortcutsModal, 'show');
+
+        uiManager.toggleShortcutsModal();
+
+        expect(modalShowSpy).toHaveBeenCalledTimes(1);
+        const modalArg = modalShowSpy.mock.calls[0][0] as any;
+        expect(modalArg.description).toContain('<kbd>B</kbd>');
+        expect(modalArg.description).toContain('<kbd>L</kbd>');
+        expect(modalArg.description).toContain('<kbd>G</kbd>');
+        expect(modalArg.description).toContain('<kbd>Z</kbd>');
+        expect(modalArg.description).toContain('<kbd>X</kbd>');
+        expect(modalArg.description).toContain('<kbd>R</kbd>');
+    });
+
     it('should not mark Real-Time preset as paused', () => {
         const speedBadge = uiContainer.querySelector('.sim-speed-badge') as HTMLElement;
         sceneManager.timeScale = 3.9817e-7;
@@ -378,6 +436,59 @@ describe('UIManager', () => {
         i18n.setLanguage('sr');
         expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('КОНТРОЛЕ');
         expect(targetPill.querySelector('.target-name')?.textContent).toBe('Земља');
+    });
+
+    it('should have customize header slots button (+) in the observatory header bar', () => {
+        const slotAddBtn = uiContainer.querySelector('#hudSlotAddBtn') as HTMLButtonElement;
+        expect(slotAddBtn).not.toBeNull();
+        expect(slotAddBtn.textContent).toContain('＋');
+
+        const slotsContainer = uiContainer.querySelector('.obs-header-slots') as HTMLElement;
+        expect(slotsContainer).not.toBeNull();
+        expect(slotsContainer.children.length).toBeGreaterThan(0);
+    });
+
+    it('should open header slots customizer modal when (+) button is clicked', () => {
+        const slotAddBtn = uiContainer.querySelector('#hudSlotAddBtn') as HTMLButtonElement;
+        const modalShowSpy = vi.spyOn(uiManager.headerSlotsModal, 'show');
+
+        slotAddBtn.click();
+        expect(modalShowSpy).toHaveBeenCalledTimes(1);
+        const modalArg = modalShowSpy.mock.calls[0][0] as any;
+        expect(modalArg.name).toContain('Header Quick Access');
+        expect(modalArg.description).toContain('header-slots-customizer-modal');
+        expect(modalArg.description).toContain('slotsResetBtn');
+        expect(modalArg.description).toContain('slotsDoneBtn');
+        modalShowSpy.mockRestore();
+    });
+
+    it('should allow toggling slots in customizer and update header buttons immediately', () => {
+        uiManager.openHeaderSlotsCustomizer();
+        const content = uiManager.headerSlotsModal.contentElement;
+        expect(content).not.toBeNull();
+
+        // Find checkbox for showOrbits (which is off by default)
+        const orbitsCheckbox = content.querySelector('.slot-toggle-input[data-slot-id="showOrbits"]') as HTMLInputElement;
+        expect(orbitsCheckbox).not.toBeNull();
+        expect(orbitsCheckbox.checked).toBe(false);
+
+        // Toggle on
+        orbitsCheckbox.checked = true;
+        if (orbitsCheckbox.onchange) {
+            orbitsCheckbox.onchange(new Event('change'));
+        }
+
+        const slotsContainer = uiContainer.querySelector('.obs-header-slots') as HTMLElement;
+        const orbitsBtn = slotsContainer.querySelector('#hudSlot_showOrbits');
+        expect(orbitsBtn).not.toBeNull();
+
+        // Toggle off
+        orbitsCheckbox.checked = false;
+        if (orbitsCheckbox.onchange) {
+            orbitsCheckbox.onchange(new Event('change'));
+        }
+        const orbitsBtnAfter = slotsContainer.querySelector('#hudSlot_showOrbits');
+        expect(orbitsBtnAfter).toBeNull();
     });
 });
 

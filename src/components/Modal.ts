@@ -18,7 +18,7 @@ export interface CustomModalData {
 export class Modal {
     container: HTMLElement;
     modalElement: HTMLElement;
-    contentElement: HTMLElement;
+    contentElement!: HTMLElement;
     tooltipElement: HTMLElement;
     public headerElement: HTMLElement | null = null;
     public titleElement: HTMLElement | null = null;
@@ -34,7 +34,6 @@ export class Modal {
         this.container = container;
         this.audioNarrator = new AudioNarrator();
         this.modalElement = this.createModal();
-        this.contentElement = this.modalElement.querySelector('#modal-content') as HTMLElement;
         this.tooltipElement = this.createTooltipModal();
 
         // Listen for language changes to immediately re-render active modal
@@ -163,6 +162,7 @@ export class Modal {
         // Content Container
         const content = document.createElement('div');
         content.id = 'modal-content';
+        this.contentElement = content;
         modal.appendChild(content);
 
         this.container.appendChild(modal);

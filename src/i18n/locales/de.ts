@@ -2,7 +2,7 @@ import { TranslationSchema } from '../types';
 
 export const de: TranslationSchema = {
     ui: {
-        simDate: '⏱ Sim-Datum:',
+        simDate: 'Sim-Datum:',
         radarToggle: 'Minimap-Radar umschalten (M)',
         controlsToggle: 'Simulationssteuerung umschalten',
         languageToggle: 'Sprache ändern',
@@ -22,7 +22,15 @@ export const de: TranslationSchema = {
         utcTime: 'Koordinierte Weltzeit (UTC)',
         liveRealTime: 'Physikalische Echtzeit aktiv (1:1)',
         controls: 'Steuerung',
-        targetPillTitle: 'Fokussiertes Himmelsobjekt — Klicken zum Öffnen des Navigators'
+        targetPillTitle: 'Fokussiertes Himmelsobjekt — Klicken zum Öffnen des Navigators',
+        headerSlots: 'Kopfzeilen-Schnellzugriff',
+        customizeSlots: 'Schnellzugriff-Slots anpassen',
+        slotsDescription: 'Heften und organisieren Sie bevorzugte Werkzeuge, Optikeinstellungen und Himmelsebenen direkt in die Observatoriums-Kopfzeile für sofortigen 1-Klick-Zugriff.',
+        slotsActive: '{count} aktive Slots',
+        resetSlots: 'Auf Standard zurücksetzen',
+        opticsCategory: '✨ Optik & Maßstab',
+        layersCategory: '🪐 Himmelsebenen',
+        toolsCategory: '🛰️ Observatoriums-Instrumente'
     },
     categories: {
         star: '🌟 Sterne',
@@ -64,7 +72,9 @@ export const de: TranslationSchema = {
             shortcutsGuide: 'Tastaturkürzel-Übersicht',
             pauseSimulation: 'Simulation pausieren',
             resumeSimulation: 'Simulation fortsetzen',
-            measureTool: 'Entfernungsmessung'
+            measureTool: 'Entfernungsmessung',
+            headerQuickAccess: 'Kopfzeilen-Schnellzugriff',
+            customizeHeaderSlots: 'Kopfzeilen-Slots anpassen'
         },
         simulationFolder: 'Simulation',
         environmentFolder: 'Umgebung',
@@ -94,6 +104,7 @@ export const de: TranslationSchema = {
         showSpacecraft: 'Raumfahrzeuge anzeigen',
         showMeteors: 'Meteore anzeigen',
         showTrails: 'Bahnspuren anzeigen',
+        showConstellations: 'Sternbilder',
         habitableZone: 'Habitable Zone',
         eclipticGrid: 'Ekliptik-Gitter',
         enableBloom: 'Lichtglanz (Bloom) aktivieren',
@@ -209,6 +220,12 @@ export const de: TranslationSchema = {
         pauseResume: 'Simulation pausieren / fortsetzen',
         warpSpeed: 'Zeitraffer verringern / erhöhen',
         cinematicTour: 'Geführte Film-Tour umschalten',
+        opticsTitle: 'Optik & Maßstab',
+        bloom: 'Bloom-Leuchteffekt umschalten',
+        lighting: 'Realistische Beleuchtung umschalten',
+        eclipticGrid: 'Ekliptik-Gitter umschalten',
+        habitableZone: 'Habitable Zone umschalten',
+        axes: 'Koordinatenachsen umschalten',
         toolsTitle: 'Himmelsschichten & Werkzeuge',
         orbits: 'Planetenbahnen umschalten',
         minimap: 'Radar-Minikarte umschalten',

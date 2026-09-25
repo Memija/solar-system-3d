@@ -191,6 +191,23 @@ describe('SceneManager', () => {
             expect(manager.controls.maxDistance).toBe(5000);
         });
 
+        it('should toggle bloom post-processing pass and update preferences', () => {
+            const manager = new SceneManager(container);
+            expect(manager.bloomPass).toBeDefined();
+
+            manager.bloomPass.enabled = true;
+            const res1 = manager.toggleBloom();
+            expect(res1).toBe(false);
+            expect(manager.bloomPass.enabled).toBe(false);
+
+            const res2 = manager.toggleBloom();
+            expect(res2).toBe(true);
+            expect(manager.bloomPass.enabled).toBe(true);
+
+            manager.toggleBloom(false);
+            expect(manager.bloomPass.enabled).toBe(false);
+        });
+
         it('should configure appropriate zoom limits for stars and constellations', () => {
             const manager = new SceneManager(container);
             const mockStarMesh = new THREE.Mesh();

@@ -11,6 +11,8 @@ import { i18n, AVAILABLE_LOCALES, getLocaleFlagUrl } from '../i18n/index';
 import { AudioManager } from './AudioManager';
 import { PerformanceMonitor } from './PerformanceMonitor';
 import { ControlCenter } from './ControlCenter';
+import { PreferencesManager } from './PreferencesManager';
+import { HeaderSlotsManager, stripShortcutFromLabel } from './HeaderSlotsManager';
 
 export class UIManager {
     sceneManager: SceneManager;
@@ -22,6 +24,8 @@ export class UIManager {
     modal: Modal;
     eventModal: Modal;
     shortcutsModal: Modal;
+    headerSlotsModal: Modal;
+    headerSlotsContainer: HTMLElement | null = null;
     audioManager: AudioManager;
     performanceMonitor: PerformanceMonitor;
     menuContainer: HTMLElement | null = null;
@@ -96,6 +100,18 @@ export class UIManager {
         this.shortcutsModal.modalElement.style.maxWidth = '580px';
         this.shortcutsModal.modalElement.style.width = '92vw';
         this.shortcutsModal.modalElement.style.borderTop = '3px solid #38bdf8';
+
+        this.headerSlotsModal = new Modal(this.uiContainer);
+        this.headerSlotsModal.modalElement.style.top = '50%';
+        this.headerSlotsModal.modalElement.style.left = '50%';
+        this.headerSlotsModal.modalElement.style.right = 'auto';
+        this.headerSlotsModal.modalElement.style.transform = 'translate(-50%, -50%)';
+        this.headerSlotsModal.modalElement.style.maxWidth = '760px';
+        this.headerSlotsModal.modalElement.style.width = '94vw';
+        this.headerSlotsModal.modalElement.style.maxHeight = '85vh';
+        this.headerSlotsModal.modalElement.style.overflowY = 'auto';
+        this.headerSlotsModal.modalElement.style.borderTop = '3px solid #38bdf8';
+        this.headerSlotsModal.modalElement.style.boxShadow = '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.2)';
 
         this.audioManager = new AudioManager();
         this.performanceMonitor = new PerformanceMonitor(this.sceneManager.renderer, this.uiContainer);
@@ -241,7 +257,8 @@ export class UIManager {
 
         const label = document.createElement('label');
         label.className = 'sim-date-label';
-        label.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${i18n.t('ui.simDate')}</span>`;
+        const simDateText = (i18n.t('ui.simDate') || '').replace(/^⏱\s*/, '').trim();
+        label.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${simDateText}</span>`;
         this.dateLabel = label;
         mainRow.appendChild(label);
 
@@ -824,9 +841,7 @@ export class UIManager {
         addInfoIcon(eclipticCtrl, "controls.tooltips.eclipticGrid");
 
         const bloomCtrl = envFolder.add(params, 'enableBloom').name(i18n.t('controls.enableBloom')).onChange(val => {
-            if (this.sceneManager.bloomPass) {
-                this.sceneManager.bloomPass.enabled = val;
-            }
+            this.sceneManager.toggleBloom(val);
         });
         this.registerGuiController(bloomCtrl, 'controls.enableBloom');
         addInfoIcon(bloomCtrl, "controls.tooltips.enableBloom");
@@ -1004,6 +1019,9 @@ export class UIManager {
         if (radarBtn) radarBtn.classList.toggle('active', next);
         if (this.controlCenter) this.controlCenter.syncSwitches();
         if (this.audioManager) this.audioManager.playTick();
+        if (this.headerSlotsContainer) {
+            HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+        }
         return next;
     }
 
@@ -1258,22 +1276,31 @@ export class UIManager {
 
         menuContainer.appendChild(centerIsland);
 
-        // Quick Action Buttons (Radar & Controls) for Mobile & Desktop
+        // Quick Action Buttons (Header Slots & Controls)
         const actionsContainer = document.createElement('div');
         actionsContainer.className = 'top-actions-container obs-header-actions';
 
-        const radarBtn = document.createElement('button');
-        radarBtn.className = 'hud-icon-btn';
-        radarBtn.id = 'hudRadarBtn';
-        radarBtn.title = i18n.t('ui.radarToggle');
-        radarBtn.innerHTML = '🛰️';
-        radarBtn.setAttribute('aria-label', i18n.t('ui.radarToggle'));
-        radarBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.toggleMinimap();
-        };
-        if (this.minimap.isVisible) radarBtn.classList.add('active');
+        // Dynamic Quick Action Slots (Header Slots)
+        const slotsContainer = document.createElement('div');
+        slotsContainer.className = 'obs-header-slots';
+        this.headerSlotsContainer = slotsContainer;
+        HeaderSlotsManager.renderSlots(slotsContainer, this);
+        actionsContainer.appendChild(slotsContainer);
 
+        // Customize Header Slots Button (+)
+        const slotAddBtn = document.createElement('button');
+        slotAddBtn.className = 'hud-icon-btn obs-slot-add-btn';
+        slotAddBtn.id = 'hudSlotAddBtn';
+        slotAddBtn.title = i18n.t('ui.customizeSlots') || 'Customize Quick Access Slots';
+        slotAddBtn.setAttribute('aria-label', slotAddBtn.title);
+        slotAddBtn.innerHTML = '<span class="slot-add-glyph">＋</span>';
+        slotAddBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.openHeaderSlotsCustomizer();
+        };
+        actionsContainer.appendChild(slotAddBtn);
+
+        // Observatory Controls Drawer Toggle Button
         const controlsBtn = document.createElement('button');
         controlsBtn.className = 'hud-icon-btn obs-controls-btn';
         controlsBtn.id = 'hudControlsBtn';
@@ -1358,68 +1385,6 @@ export class UIManager {
         langContainer.appendChild(langBtn);
         langContainer.appendChild(langDropdown);
 
-        // Cosmic Audio Ambience Toggle
-        const soundBtn = document.createElement('button');
-        soundBtn.className = 'hud-icon-btn';
-        soundBtn.id = 'hudSoundBtn';
-        soundBtn.title = i18n.t('ui.audioAmbience');
-        soundBtn.setAttribute('aria-label', i18n.t('ui.audioAmbienceAria'));
-        soundBtn.innerHTML = this.audioManager.getAudioEnabled() ? '🔊' : '🔇';
-        if (this.audioManager.getAudioEnabled()) soundBtn.classList.add('active');
-        soundBtn.onclick = (e) => {
-            e.stopPropagation();
-            const enabled = this.audioManager.toggle();
-            soundBtn.innerHTML = enabled ? '🔊' : '🔇';
-            soundBtn.classList.toggle('active', enabled);
-        };
-
-        // Engine Performance Telemetry Toggle
-        const perfBtn = document.createElement('button');
-        perfBtn.className = 'hud-icon-btn';
-        perfBtn.id = 'hudPerfBtn';
-        perfBtn.title = i18n.t('ui.telemetry');
-        perfBtn.setAttribute('aria-label', i18n.t('ui.telemetryAria'));
-        perfBtn.innerHTML = '⚡';
-        if (this.performanceMonitor?.getVisible?.()) {
-            perfBtn.classList.add('active');
-        }
-        perfBtn.onclick = (e) => {
-            e.stopPropagation();
-            const visible = this.performanceMonitor.toggle();
-            perfBtn.classList.toggle('active', visible);
-            if (this.controlCenter) this.controlCenter.syncSwitches();
-        };
-
-        // Keyboard Shortcuts Cheatsheet Guide
-        const helpBtn = document.createElement('button');
-        helpBtn.className = 'hud-icon-btn';
-        helpBtn.id = 'hudHelpBtn';
-        helpBtn.title = i18n.t('ui.keyboardShortcuts');
-        helpBtn.setAttribute('aria-label', i18n.t('ui.keyboardShortcutsAria'));
-        helpBtn.innerHTML = '⌨️';
-        helpBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.toggleShortcutsModal();
-        };
-
-        // Astrophotography Snapshot Tool
-        const snapshotBtn = document.createElement('button');
-        snapshotBtn.className = 'hud-icon-btn';
-        snapshotBtn.id = 'hudSnapshotBtn';
-        snapshotBtn.title = i18n.t('ui.astrophotography');
-        snapshotBtn.setAttribute('aria-label', i18n.t('ui.astrophotographyAria'));
-        snapshotBtn.innerHTML = '📸';
-        snapshotBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.audioManager.playShutter();
-            this.sceneManager.captureScreenshot(this.cameraTarget);
-        };
-
-        actionsContainer.appendChild(radarBtn);
-        actionsContainer.appendChild(snapshotBtn);
-        actionsContainer.appendChild(soundBtn);
-        actionsContainer.appendChild(perfBtn);
-        actionsContainer.appendChild(helpBtn);
         actionsContainer.appendChild(controlsBtn);
         actionsContainer.appendChild(langContainer);
         menuContainer.appendChild(actionsContainer);
@@ -1435,8 +1400,13 @@ export class UIManager {
             if (codeSpan) codeSpan.textContent = i18n.currentLanguage.toUpperCase();
             langBtn.title = i18n.t('ui.languageToggle');
             langBtn.setAttribute('aria-label', i18n.t('ui.languageToggle'));
-            radarBtn.title = i18n.t('ui.radarToggle');
-            radarBtn.setAttribute('aria-label', i18n.t('ui.radarToggle'));
+
+            if (this.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+            }
+            slotAddBtn.title = i18n.t('ui.customizeSlots') || 'Customize Quick Access Slots';
+            slotAddBtn.setAttribute('aria-label', slotAddBtn.title);
+
             controlsBtn.title = i18n.t('ui.controlsToggle');
             controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
             const ctrlLabel = controlsBtn.querySelector('.ctrl-label');
@@ -1450,14 +1420,9 @@ export class UIManager {
                 this.targetPill.innerHTML = `<span class="target-icon">${curIcon}</span><span class="target-name">${localizedTarget}</span>`;
             }
 
-            soundBtn.title = i18n.t('ui.audioAmbience');
-            soundBtn.setAttribute('aria-label', i18n.t('ui.audioAmbienceAria'));
-            perfBtn.title = i18n.t('ui.telemetry');
-            perfBtn.setAttribute('aria-label', i18n.t('ui.telemetryAria'));
-            helpBtn.title = i18n.t('ui.keyboardShortcuts');
-            helpBtn.setAttribute('aria-label', i18n.t('ui.keyboardShortcutsAria'));
-            snapshotBtn.title = i18n.t('ui.astrophotography');
-            snapshotBtn.setAttribute('aria-label', i18n.t('ui.astrophotographyAria'));
+            if (this.headerSlotsModal && this.headerSlotsModal.isOpen) {
+                this.openHeaderSlotsCustomizer();
+            }
 
             if (this.speedBadge) {
                 this.speedBadge.title = i18n.t('ui.speedPause');
@@ -1478,7 +1443,8 @@ export class UIManager {
             updateBodyOptions();
 
             if (this.dateLabel) {
-                this.dateLabel.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${i18n.t('ui.simDate')}</span>`;
+                const simDateText = (i18n.t('ui.simDate') || '').replace(/^⏱\s*/, '').trim();
+                this.dateLabel.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${simDateText}</span>`;
             }
 
             this.updateGuiTranslations();
@@ -1707,6 +1673,7 @@ export class UIManager {
                 this.modal.hide();
                 if (this.eventModal) this.eventModal.hide();
                 if (this.shortcutsModal) this.shortcutsModal.hide();
+                if (this.headerSlotsModal) this.headerSlotsModal.hide();
                 if (typeof this.sceneManager?.detachCamera === 'function') {
                     this.sceneManager.detachCamera();
                 }
@@ -1778,6 +1745,8 @@ export class UIManager {
                 this.toggleMinimap();
             } else if (event.key === 'o' || event.key === 'O') {
                 this.sceneManager.toggleOrbits(!this.sceneManager.showOrbits);
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
             } else if (event.key === 'r' || event.key === 'R') {
                 if (this.realisticDistController) {
                     this.realisticDistController.setValue(!this.sceneManager.realisticDistances);
@@ -1785,6 +1754,7 @@ export class UIManager {
                     const newState = !this.sceneManager.realisticDistances;
                     this.sceneManager.toggleRealisticDistances(newState);
                     if (this.controlCenter) this.controlCenter.syncSwitches();
+                    if (this.audioManager) this.audioManager.playTick();
                     if (newState) {
                         this.modal.show({
                             titleKey: 'popups.trueScaleTitle',
@@ -1796,6 +1766,45 @@ export class UIManager {
                         this.modal.hide();
                     }
                 }
+            } else if (event.key === 'b' || event.key === 'B') {
+                if (typeof this.sceneManager?.toggleBloom === 'function') {
+                    this.sceneManager.toggleBloom();
+                } else if (this.sceneManager?.bloomPass) {
+                    this.sceneManager.bloomPass.enabled = !this.sceneManager.bloomPass.enabled;
+                    PreferencesManager.set('enableBloom', this.sceneManager.bloomPass.enabled);
+                } else {
+                    PreferencesManager.set('enableBloom', !PreferencesManager.get('enableBloom'));
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'l' || event.key === 'L') {
+                if (typeof this.sceneManager?.toggleRealisticLighting === 'function') {
+                    this.sceneManager.toggleRealisticLighting(!this.sceneManager.realisticLighting);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'g' || event.key === 'G') {
+                if (typeof this.sceneManager?.toggleEclipticGrid === 'function') {
+                    this.sceneManager.toggleEclipticGrid(!this.sceneManager.showEclipticGrid);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'z' || event.key === 'Z') {
+                if (typeof this.sceneManager?.toggleHabitableZone === 'function') {
+                    this.sceneManager.toggleHabitableZone(!this.sceneManager.showHabitableZone);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'x' || event.key === 'X') {
+                if (typeof this.sceneManager?.toggleAxes === 'function') {
+                    this.sceneManager.toggleAxes(!this.sceneManager.showAxes);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            }
+
+            if (this.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
             }
         };
         window.addEventListener('keydown', this.onKeyDownBound);
@@ -2076,7 +2085,6 @@ export class UIManager {
                         <div class="shortcut-item"><kbd>1</kbd>–<kbd>8</kbd><span>${s('mercuryToNeptune')}</span></div>
                         <div class="shortcut-item"><kbd>9</kbd><span>${s('pluto')}</span></div>
                         <div class="shortcut-item"><kbd>0</kbd><span>${s('sun')}</span></div>
-                        <div class="shortcut-item"><kbd>R</kbd><span>${s('resetView')}</span></div>
                     </div>
                 </div>
 
@@ -2086,6 +2094,18 @@ export class UIManager {
                         <div class="shortcut-item"><kbd>Space</kbd><span>${s('pauseResume')}</span></div>
                         <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>${s('warpSpeed')}</span></div>
                         <div class="shortcut-item"><kbd>T</kbd><span>${s('cinematicTour')}</span></div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-section">
+                    <h4 class="shortcuts-group-title">✨ ${s('opticsTitle') || 'Optics & Scale'}</h4>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item"><kbd>B</kbd><span>${s('bloom') || 'Toggle Bloom Glow'}</span></div>
+                        <div class="shortcut-item"><kbd>L</kbd><span>${s('lighting') || 'Toggle Realistic Lighting'}</span></div>
+                        <div class="shortcut-item"><kbd>G</kbd><span>${s('eclipticGrid') || 'Toggle Ecliptic Grid'}</span></div>
+                        <div class="shortcut-item"><kbd>Z</kbd><span>${s('habitableZone') || 'Toggle Habitable Zone'}</span></div>
+                        <div class="shortcut-item"><kbd>X</kbd><span>${s('axes') || 'Toggle Coordinate Axes'}</span></div>
+                        <div class="shortcut-item"><kbd>R</kbd><span>${s('resetView')}</span></div>
                     </div>
                 </div>
 
@@ -2110,6 +2130,176 @@ export class UIManager {
             name: `⌨️ ${s('title')}`,
             description: shortcutsContent
         });
+    }
+
+    openHeaderSlotsCustomizer() {
+        const availableSlots = HeaderSlotsManager.getAvailableSlots();
+        const currentActive = HeaderSlotsManager.getActiveSlotIds();
+
+        const categories: { id: 'optics' | 'layers' | 'tools'; titleKey: string; defaultTitle: string }[] = [
+            { id: 'optics', titleKey: 'ui.opticsCategory', defaultTitle: '✨ Optics & Scale' },
+            { id: 'layers', titleKey: 'ui.layersCategory', defaultTitle: '🪐 Celestial Layers' },
+            { id: 'tools', titleKey: 'ui.toolsCategory', defaultTitle: '🛰️ Observatory Instruments' }
+        ];
+
+        const activeText = i18n.t('ui.slotsActive', { count: currentActive.length.toString() }) || `${currentActive.length} active slots`;
+
+        let html = `
+            <div class="header-slots-customizer-modal">
+                <div class="slots-modal-header-desc">
+                    <p class="slots-desc-text">${i18n.t('ui.slotsDescription') || 'Pin and organize your favorite tools, optics settings, and celestial layers directly to the observatory header bar for instant 1-click access.'}</p>
+                    <div class="slots-active-counter" id="slotsCounterBadge">
+                        <span class="slots-live-dot">●</span>
+                        <span class="counter-text">${activeText}</span>
+                    </div>
+                </div>
+        `;
+
+        categories.forEach(cat => {
+            const slotsInCat = availableSlots.filter(s => s.category === cat.id);
+            if (slotsInCat.length === 0) return;
+
+            const activeInCat = slotsInCat.filter(s => currentActive.includes(s.id)).length;
+            const catTitle = i18n.t(cat.titleKey) || cat.defaultTitle;
+            html += `
+                <div class="slots-category-section" data-cat-id="${cat.id}">
+                    <div class="slots-category-header">
+                        <h4 class="slots-category-title">${catTitle}</h4>
+                        <span class="category-pinned-pill" data-cat-counter="${cat.id}">${activeInCat} / ${slotsInCat.length}</span>
+                    </div>
+                    <div class="slots-grid">
+            `;
+
+            slotsInCat.forEach(slot => {
+                const isActive = currentActive.includes(slot.id);
+                const rawLabel = i18n.t(slot.labelKey) || slot.id;
+                const label = stripShortcutFromLabel(rawLabel);
+                const icon = typeof slot.icon === 'function' ? slot.icon(this) : slot.icon;
+
+                html += `
+                    <div class="slot-config-card ${isActive ? 'is-active' : ''}" data-slot-id="${slot.id}">
+                        <div class="slot-card-left">
+                            <span class="slot-card-icon">${icon}</span>
+                            <div class="slot-card-details">
+                                <span class="slot-card-name" title="${label}">${label}</span>
+                                ${slot.shortcut ? `<kbd class="ctrl-kbd-badge">${slot.shortcut}</kbd>` : ''}
+                            </div>
+                        </div>
+                        <label class="sci-switch" title="${isActive ? 'Remove from header' : 'Add to header'}">
+                            <input type="checkbox" class="slot-toggle-input" data-slot-id="${slot.id}" ${isActive ? 'checked' : ''} />
+                            <span class="sci-slider"></span>
+                        </label>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                <div class="slots-modal-footer">
+                    <button type="button" class="slot-footer-btn reset-btn" id="slotsResetBtn">
+                        <span>↺</span> <span>${i18n.t('ui.resetSlots') || 'Reset to Defaults'}</span>
+                    </button>
+                    <button type="button" class="slot-footer-btn done-btn" id="slotsDoneBtn">
+                        <span>✓</span> <span>${i18n.t('ui.close') || 'Done'}</span>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        this.headerSlotsModal.show({
+            name: `⚙️ ${i18n.t('ui.headerSlots') || 'Header Quick Access'}`,
+            description: html
+        });
+
+        this.wireHeaderSlotsModalEvents();
+    }
+
+    private wireHeaderSlotsModalEvents() {
+        const modalContent = this.headerSlotsModal.contentElement;
+        if (!modalContent) return;
+
+        const checkboxes = modalContent.querySelectorAll<HTMLInputElement>('.slot-toggle-input');
+        checkboxes.forEach(input => {
+            input.onchange = () => {
+                const slotId = input.dataset.slotId;
+                if (!slotId) return;
+
+                const willBeActive = input.checked;
+                if (willBeActive) {
+                    HeaderSlotsManager.addSlot(slotId);
+                } else {
+                    HeaderSlotsManager.removeSlot(slotId);
+                }
+
+                const card = modalContent.querySelector(`.slot-config-card[data-slot-id="${slotId}"]`);
+                if (card) card.classList.toggle('is-active', willBeActive);
+
+                const currentCount = HeaderSlotsManager.getActiveSlotIds().length;
+                const counterBadge = modalContent.querySelector('#slotsCounterBadge');
+                if (counterBadge) {
+                    const text = i18n.t('ui.slotsActive', { count: currentCount.toString() }) || `${currentCount} active slots`;
+                    counterBadge.innerHTML = `<span class="slots-live-dot">●</span> <span class="counter-text">${text}</span>`;
+                }
+
+                const catSection = card?.closest('.slots-category-section');
+                if (catSection) {
+                    const catCounter = catSection.querySelector<HTMLElement>('.category-pinned-pill');
+                    if (catCounter) {
+                        const catActiveCount = catSection.querySelectorAll('.slot-config-card.is-active').length;
+                        const catTotal = catSection.querySelectorAll('.slot-config-card').length;
+                        catCounter.textContent = `${catActiveCount} / ${catTotal}`;
+                    }
+                }
+
+                if (this.headerSlotsContainer) {
+                    HeaderSlotsManager.renderSlots(this.headerSlotsContainer, this);
+                }
+
+                if (this.audioManager) this.audioManager.playTick();
+            };
+        });
+
+        // Click on card to toggle switch
+        const cards = modalContent.querySelectorAll<HTMLElement>('.slot-config-card');
+        cards.forEach(card => {
+            card.onclick = (e) => {
+                if ((e.target as HTMLElement).closest('.sci-switch')) return;
+                const input = card.querySelector<HTMLInputElement>('.slot-toggle-input');
+                if (input) {
+                    input.checked = !input.checked;
+                    if (input.onchange) {
+                        input.onchange(new Event('change'));
+                    } else {
+                        input.dispatchEvent(new Event('change'));
+                    }
+                }
+            };
+        });
+
+        const resetBtn = modalContent.querySelector<HTMLButtonElement>('#slotsResetBtn');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                HeaderSlotsManager.resetDefaults();
+                if (this.headerSlotsContainer) {
+                    HeaderSlotsManager.renderSlots(this.headerSlotsContainer, this);
+                }
+                if (this.audioManager) this.audioManager.playTick();
+                this.openHeaderSlotsCustomizer();
+            };
+        }
+
+        const doneBtn = modalContent.querySelector<HTMLButtonElement>('#slotsDoneBtn');
+        if (doneBtn) {
+            doneBtn.onclick = () => {
+                this.headerSlotsModal.hide();
+                if (this.audioManager) this.audioManager.playTick();
+            };
+        }
     }
 
     dispose() {
@@ -2158,6 +2348,10 @@ export class UIManager {
 
         if (this.shortcutsModal) {
             this.shortcutsModal.dispose();
+        }
+
+        if (this.headerSlotsModal) {
+            this.headerSlotsModal.dispose();
         }
 
         if (this.audioManager) {
