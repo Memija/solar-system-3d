@@ -877,6 +877,10 @@
 
     .cam-mode-btn {
         flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
         background: transparent;
         border: none;
         border-radius: 8px;
@@ -889,6 +893,18 @@
         transition: all 0.2s ease;
         text-align: center;
 
+        .ctrl-kbd-badge {
+            margin-left: 2px;
+            padding: 0 4px;
+            font-size: 9.5px;
+            font-weight: 700;
+            line-height: 14px;
+            color: $neon-cyan;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 3px;
+        }
+
         &:hover {
             color: #f1f5f9;
         }
@@ -898,6 +914,11 @@
             color: #ffffff;
             font-weight: 700;
             box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+
+            .ctrl-kbd-badge {
+                background: $neon-cyan;
+                color: #030712;
+            }
         }
     }
 }

@@ -91,6 +91,7 @@ describe('UIManager', () => {
                 constellationMeshes: []
             },
             focusOnBody: vi.fn(),
+            setSurfaceView: vi.fn(),
             detachCamera: vi.fn(),
             tourMode: false,
             tourTargets: []
@@ -369,7 +370,68 @@ describe('UIManager', () => {
         expect(modalArg.description).toContain('<kbd>Z</kbd>');
         expect(modalArg.description).toContain('<kbd>X</kbd>');
         expect(modalArg.description).toContain('<kbd>R</kbd>');
+        expect(modalArg.description).toContain('<kbd>A</kbd>');
+        expect(modalArg.description).toContain('<kbd>V</kbd>');
+        expect(modalArg.description).toContain('<kbd>D</kbd>');
+        expect(modalArg.description).toContain('<kbd>T</kbd>');
     });
+
+    it('should handle camera keyboard shortcuts (A, V, D)', () => {
+        uiManager.cameraTarget = 'Mars';
+
+        // A attaches / focuses camera
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', code: 'KeyA' }));
+        expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Mars');
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'A', code: 'KeyA' }));
+        expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Mars');
+
+        // V enters surface view
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', code: 'KeyV' }));
+        expect(sceneManager.setSurfaceView).toHaveBeenCalledWith('Mars');
+
+        // D detaches camera (free camera)
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD' }));
+        expect(sceneManager.detachCamera).toHaveBeenCalled();
+    });
+
+    it('should stay in surface view mode when switching from one planet to another', () => {
+        sceneManager.surfaceViewBody = { data: { name: 'Earth' }, mesh: {} };
+        sceneManager.setSurfaceView = vi.fn().mockReturnValue(true);
+
+        const bodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
+        bodySelect.value = 'Mars';
+        bodySelect.dispatchEvent(new Event('change'));
+
+        expect(sceneManager.setSurfaceView).toHaveBeenCalledWith('Mars');
+        expect(sceneManager.focusOnBody).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to focusOnBody when switching to a target that does not support surface view', () => {
+        sceneManager.surfaceViewBody = { data: { name: 'Earth' }, mesh: {} };
+        sceneManager.setSurfaceView = vi.fn().mockImplementation(() => {
+            sceneManager.surfaceViewBody = null;
+            return false;
+        });
+
+        const bodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
+        bodySelect.value = 'Jupiter';
+        bodySelect.dispatchEvent(new Event('change'));
+
+        expect(sceneManager.setSurfaceView).toHaveBeenCalledWith('Jupiter');
+        expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Jupiter');
+    });
+
+    it('should retain surface view when select-celestial-body event is dispatched', () => {
+        sceneManager.surfaceViewBody = { data: { name: 'Earth' }, mesh: {} };
+        sceneManager.setSurfaceView = vi.fn().mockReturnValue(true);
+
+        window.dispatchEvent(new CustomEvent('select-celestial-body', { detail: { name: 'Mars' } }));
+
+        expect(sceneManager.setSurfaceView).toHaveBeenCalledWith('Mars');
+        expect(sceneManager.focusOnBody).not.toHaveBeenCalled();
+    });
+
 
     it('should not mark Real-Time preset as paused', () => {
         const speedBadge = uiContainer.querySelector('.sim-speed-badge') as HTMLElement;
@@ -489,6 +551,24 @@ describe('UIManager', () => {
         }
         const orbitsBtnAfter = slotsContainer.querySelector('#hudSlot_showOrbits');
         expect(orbitsBtnAfter).toBeNull();
+    });
+
+    it('should render camera related settings in their own section in the slots customizer', () => {
+        uiManager.openHeaderSlotsCustomizer();
+        const content = uiManager.headerSlotsModal.contentElement;
+        expect(content).not.toBeNull();
+
+        const cameraSection = content.querySelector('.slots-category-section[data-cat-id="camera"]');
+        expect(cameraSection).not.toBeNull();
+
+        const cameraTitle = cameraSection?.querySelector('.slots-category-title');
+        expect(cameraTitle?.textContent).toContain('Camera Controls');
+
+        const freeCamCard = cameraSection?.querySelector('.slot-config-card[data-slot-id="freeCamera"]');
+        expect(freeCamCard).not.toBeNull();
+
+        const tourCard = cameraSection?.querySelector('.slot-config-card[data-slot-id="cinematicTour"]');
+        expect(tourCard).not.toBeNull();
     });
 });
 

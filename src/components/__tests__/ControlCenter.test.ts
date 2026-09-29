@@ -220,15 +220,49 @@ describe('ControlCenter Component', () => {
         expect(badgeTexts).toContain('B');
         expect(badgeTexts).toContain('L');
         expect(badgeTexts).toContain('X');
+        expect(badgeTexts).toContain('A');
+        expect(badgeTexts).toContain('V');
+        expect(badgeTexts).toContain('D');
+        expect(badgeTexts).toContain('T');
     });
 
-    it('should provide a button in the system panel to open the header slots customizer', () => {
+    it('should not contain unnecessary header quick access section in system controls', () => {
         controlCenter.switchTab('system');
-        const customizeBtn = controlCenter.drawerElement.querySelector('#controlCenterHeaderSlotsBtn') as HTMLButtonElement;
-        expect(customizeBtn).not.toBeNull();
+        const customizeBtn = controlCenter.drawerElement.querySelector('#controlCenterHeaderSlotsBtn');
+        expect(customizeBtn).toBeNull();
+    });
 
-        customizeBtn.click();
-        expect(mockUIManager.openHeaderSlotsCustomizer).toHaveBeenCalledTimes(1);
+    it('should synchronize camera mode buttons based on sceneManager state', () => {
+        controlCenter.switchTab('camera');
+        const orbitBtn = controlCenter.drawerElement.querySelector('.cam-mode-btn[data-mode-key="orbit"]');
+        const surfaceBtn = controlCenter.drawerElement.querySelector('.cam-mode-btn[data-mode-key="surface"]');
+        const detachBtn = controlCenter.drawerElement.querySelector('.cam-mode-btn[data-mode-key="detach"]');
+
+        // Focused on body (Orbit Focus)
+        mockSceneManager.focusedBody = { data: { name: 'Earth' } };
+        mockSceneManager.surfaceViewBody = null;
+        controlCenter.syncSwitches();
+        expect(orbitBtn?.classList.contains('active')).toBe(true);
+        expect(surfaceBtn?.classList.contains('active')).toBe(false);
+        expect(detachBtn?.classList.contains('active')).toBe(false);
+
+        // Surface View active
+        mockSceneManager.surfaceViewBody = { data: { name: 'Mars' } };
+        mockSceneManager.focusedBody = null;
+        controlCenter.syncSwitches();
+        expect(orbitBtn?.classList.contains('active')).toBe(false);
+        expect(surfaceBtn?.classList.contains('active')).toBe(true);
+        expect(detachBtn?.classList.contains('active')).toBe(false);
+
+        // Free Camera active
+        mockSceneManager.surfaceViewBody = null;
+        mockSceneManager.focusedBody = null;
+        mockSceneManager.focusedStar = null;
+        mockSceneManager.focusedConstellation = null;
+        controlCenter.syncSwitches();
+        expect(orbitBtn?.classList.contains('active')).toBe(false);
+        expect(surfaceBtn?.classList.contains('active')).toBe(false);
+        expect(detachBtn?.classList.contains('active')).toBe(true);
     });
 });
 

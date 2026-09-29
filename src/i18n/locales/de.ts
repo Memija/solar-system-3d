@@ -28,6 +28,7 @@ export const de: TranslationSchema = {
         slotsDescription: 'Heften und organisieren Sie bevorzugte Werkzeuge, Optikeinstellungen und Himmelsebenen direkt in die Observatoriums-Kopfzeile für sofortigen 1-Klick-Zugriff.',
         slotsActive: '{count} aktive Slots',
         resetSlots: 'Auf Standard zurücksetzen',
+        cameraCategory: '🔭 Kamerasteuerung',
         opticsCategory: '✨ Optik & Maßstab',
         layersCategory: '🪐 Himmelsebenen',
         toolsCategory: '🛰️ Observatoriums-Instrumente'
@@ -226,6 +227,10 @@ export const de: TranslationSchema = {
         eclipticGrid: 'Ekliptik-Gitter umschalten',
         habitableZone: 'Habitable Zone umschalten',
         axes: 'Koordinatenachsen umschalten',
+        cameraTitle: 'Kamera & Perspektive',
+        attachCamera: 'Kamera fokussieren / anheften',
+        surfaceView: 'Ansicht von der Oberfläche',
+        freeCamera: 'Freie Kamera / Lösen',
         toolsTitle: 'Himmelsschichten & Werkzeuge',
         orbits: 'Planetenbahnen umschalten',
         minimap: 'Radar-Minikarte umschalten',

@@ -12,7 +12,7 @@ import { AudioManager } from './AudioManager';
 import { PerformanceMonitor } from './PerformanceMonitor';
 import { ControlCenter } from './ControlCenter';
 import { PreferencesManager } from './PreferencesManager';
-import { HeaderSlotsManager, stripShortcutFromLabel } from './HeaderSlotsManager';
+import { HeaderSlotsManager, HeaderSlotCategory, stripShortcutFromLabel } from './HeaderSlotsManager';
 
 export class UIManager {
     sceneManager: SceneManager;
@@ -185,7 +185,7 @@ export class UIManager {
             const eventImpact = customEvent.detail?.eventImpact;
 
             this.cameraTarget = targetName;
-            this.sceneManager.focusOnBody(targetName);
+            this.focusOrSurfaceTarget(targetName);
 
             const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
             const bodySelect = document.getElementById('bodySelect') as HTMLSelectElement;
@@ -207,8 +207,10 @@ export class UIManager {
                     determinedType = 'Spacecraft';
                 }
 
-                typeSelect.value = determinedType;
-                typeSelect.dispatchEvent(new Event('change'));
+                if (typeSelect.value !== determinedType) {
+                    typeSelect.value = determinedType;
+                    typeSelect.dispatchEvent(new Event('change'));
+                }
                 bodySelect.value = targetName;
             }
 
@@ -1174,7 +1176,7 @@ export class UIManager {
                     if (sun) {
                         this.showModal(sun.data);
                     }
-                    this.sceneManager.focusOnBody('Sun');
+                    this.focusOrSurfaceTarget('Sun');
                 } else {
                     const star = this.sceneManager.starMeshes.find(m => m.userData.name === selectedName);
                     if (star && star.userData) {
@@ -1183,6 +1185,8 @@ export class UIManager {
                     if (star) {
                         this.sceneManager.focusOnStar(star);
                     }
+                    if (this.controlCenter) this.controlCenter.syncSwitches();
+                    if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
                 }
             } else if (selectedType === 'Constellation') {
                 const center = this.sceneManager.constellationManager?.getConstellationCenter(selectedName);
@@ -1194,6 +1198,8 @@ export class UIManager {
                     }
                 }
                 this.sceneManager.focusOnConstellation(selectedName);
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
             } else {
                 // Find planet, comet, spacecraft or moon
                 let foundData: any = null;
@@ -1218,7 +1224,7 @@ export class UIManager {
                 if (foundData) {
                     this.showModal(foundData);
                 }
-                this.sceneManager.focusOnBody(selectedName);
+                this.focusOrSurfaceTarget(selectedName);
             }
         });
 
@@ -1640,6 +1646,31 @@ export class UIManager {
         }
     }
 
+    focusOrSurfaceTarget(targetName: string): void {
+        if (!targetName) return;
+        this.cameraTarget = targetName;
+
+        if (this.sceneManager?.surfaceViewBody) {
+            let surfaceSuccess = false;
+            if (typeof this.sceneManager.setSurfaceView === 'function') {
+                const res = this.sceneManager.setSurfaceView(targetName);
+                surfaceSuccess = res === true || (res === undefined && !!this.sceneManager.surfaceViewBody);
+            }
+            if (!surfaceSuccess) {
+                if (typeof this.sceneManager?.focusOnBody === 'function') {
+                    this.sceneManager.focusOnBody(targetName);
+                }
+            }
+        } else {
+            if (typeof this.sceneManager?.focusOnBody === 'function') {
+                this.sceneManager.focusOnBody(targetName);
+            }
+        }
+
+        if (this.controlCenter) this.controlCenter.syncSwitches();
+        if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+    }
+
     initInteraction() {
         const canvas = this.sceneManager.renderer.domElement;
         // Use pointer events for better compatibility and to match OrbitControls
@@ -1739,6 +1770,45 @@ export class UIManager {
             } else if (event.key === 't' || event.key === 'T') {
                 if (this.tourController) {
                     this.tourController.setValue(!this.sceneManager.tourMode);
+                } else if (this.sceneManager) {
+                    const next = !this.sceneManager.tourMode;
+                    this.sceneManager.tourMode = next;
+                    if (next) {
+                        this.sceneManager.tourTimer = 0;
+                        const targetName = this.sceneManager.tourTargets ? this.sceneManager.tourTargets[this.sceneManager.tourIndex || 0] : 'Mercury';
+                        this.sceneManager.focusOnBody(targetName);
+                    } else {
+                        this.sceneManager.detachCamera();
+                    }
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'a' || event.key === 'A') {
+                if (this.cameraTarget) {
+                    const target = this.cameraTarget;
+                    const star = this.sceneManager?.starMeshes?.find(m => m.userData?.name === target);
+                    if (star) {
+                        this.sceneManager?.focusOnStar(star);
+                    } else if (typeof this.sceneManager?.focusOnBody === 'function') {
+                        this.sceneManager.focusOnBody(target);
+                    }
+                    if (this.controlCenter) this.controlCenter.syncSwitches();
+                    if (this.audioManager) this.audioManager.playTick();
+                    if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+                }
+            } else if (event.key === 'v' || event.key === 'V') {
+                if (this.cameraTarget && typeof this.sceneManager?.setSurfaceView === 'function') {
+                    this.sceneManager.setSurfaceView(this.cameraTarget);
+                    if (this.controlCenter) this.controlCenter.syncSwitches();
+                    if (this.audioManager) this.audioManager.playTick();
+                    if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+                }
+            } else if (event.key === 'd' || event.key === 'D') {
+                if (typeof this.sceneManager?.detachCamera === 'function') {
+                    this.sceneManager.detachCamera();
+                    if (this.controlCenter) this.controlCenter.syncSwitches();
+                    if (this.audioManager) this.audioManager.playTick();
+                    if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
                 }
             } else if (event.key === 'm' || event.key === 'M') {
                 event.preventDefault();
@@ -1890,7 +1960,7 @@ export class UIManager {
 
                     this.syncDropdownSelection(foundData.name);
                     this.showModal(foundData);
-                    this.sceneManager.focusOnBody(foundData.name);
+                    this.focusOrSurfaceTarget(foundData.name);
                     return true;
                 }
             }
@@ -1911,6 +1981,8 @@ export class UIManager {
                 this.syncDropdownSelection(selectedStar.userData.name, 'Star');
                 this.showModal(selectedStar.userData);
                 this.sceneManager.focusOnStar(selectedStar);
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
             }
             return true;
         }
@@ -1932,6 +2004,8 @@ export class UIManager {
                 this.syncDropdownSelection(selectedObj.userData.name, 'Constellation');
                 this.showModal(selectedObj.userData);
                 this.sceneManager.focusOnConstellation(selectedObj.userData.name);
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
                 return true;
             }
         }
@@ -2022,7 +2096,7 @@ export class UIManager {
             }
             this.syncDropdownSelection(closestBody.name);
             this.showModal(closestBody);
-            this.sceneManager.focusOnBody(closestBody.name);
+            this.focusOrSurfaceTarget(closestBody.name);
             return true;
         }
 
@@ -2089,11 +2163,20 @@ export class UIManager {
                 </div>
 
                 <div class="shortcuts-section">
+                    <h4 class="shortcuts-group-title">🔭 ${s('cameraTitle') || 'Camera & Perspective'}</h4>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item"><kbd>A</kbd><span>${s('attachCamera') || 'Focus / Attach Camera'}</span></div>
+                        <div class="shortcut-item"><kbd>V</kbd><span>${s('surfaceView') || 'View from Surface'}</span></div>
+                        <div class="shortcut-item"><kbd>D</kbd><span>${s('freeCamera') || 'Free Camera / Detach'}</span></div>
+                        <div class="shortcut-item"><kbd>T</kbd><span>${s('cinematicTour')}</span></div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-section">
                     <h4 class="shortcuts-group-title">⏳ ${s('timeTitle')}</h4>
                     <div class="shortcuts-grid">
                         <div class="shortcut-item"><kbd>Space</kbd><span>${s('pauseResume')}</span></div>
                         <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>${s('warpSpeed')}</span></div>
-                        <div class="shortcut-item"><kbd>T</kbd><span>${s('cinematicTour')}</span></div>
                     </div>
                 </div>
 
@@ -2136,7 +2219,8 @@ export class UIManager {
         const availableSlots = HeaderSlotsManager.getAvailableSlots();
         const currentActive = HeaderSlotsManager.getActiveSlotIds();
 
-        const categories: { id: 'optics' | 'layers' | 'tools'; titleKey: string; defaultTitle: string }[] = [
+        const categories: { id: HeaderSlotCategory; titleKey: string; defaultTitle: string }[] = [
+            { id: 'camera', titleKey: 'ui.cameraCategory', defaultTitle: '🔭 Camera Controls' },
             { id: 'optics', titleKey: 'ui.opticsCategory', defaultTitle: '✨ Optics & Scale' },
             { id: 'layers', titleKey: 'ui.layersCategory', defaultTitle: '🪐 Celestial Layers' },
             { id: 'tools', titleKey: 'ui.toolsCategory', defaultTitle: '🛰️ Observatory Instruments' }

@@ -984,50 +984,17 @@ export class SceneManager {
             this.kuiperBelt.rotation.y -= 0.01 * deltaTime;
         }
 
-        if (this.cameraTransition) {
-            this.cameraTransition.progress += rawDelta / this.cameraTransition.duration;
-            const p = Math.min(this.cameraTransition.progress, 1);
-            // Cubic ease-in-out curve
-            const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-
-            this.camera.position.lerpVectors(this.cameraTransition.startPos, this.cameraTransition.endPos, ease);
-            this.controls.target.lerpVectors(this.cameraTransition.startTarget, this.cameraTransition.endTarget, ease);
-
-            if (p >= 1) {
-                this.cameraTransition = null;
-                this.updateZoomLimits();
-            }
-        } else if (this.focusedBody?.mesh) {
-            this.focusedBody.mesh.getWorldPosition(SceneManager._vPos);
-
-            // Calculate delta movement of the body
-            if (this.previousBodyPosition) {
-                SceneManager._vDelta.copy(SceneManager._vPos).sub(this.previousBodyPosition);
-                this.camera.position.add(SceneManager._vDelta);
-                this.previousBodyPosition.copy(SceneManager._vPos);
-            } else {
-                this.previousBodyPosition = SceneManager._vPos.clone();
-            }
-
-            this.controls.target.copy(SceneManager._vPos);
-            this.controls.enabled = true;
-        } else {
-            this.controls.enabled = true;
-            this.previousBodyPosition = null;
-            this.updateZoomLimits();
-        }
-
-        this.controls.update(); // Required for OrbitControls to work
-
         if (this.surfaceViewBody?.mesh) {
+            this.controls.enabled = false;
+
             // Force update matrix world so we don't lag behind the animation frame
             this.surfaceViewBody.mesh.updateMatrixWorld(true);
-            const scale = this.surfaceViewBody.tiltGroup.scale.x;
-            const actualRadius = this.surfaceViewBody.data.radius * scale;
+            const scale = this.surfaceViewBody.tiltGroup ? this.surfaceViewBody.tiltGroup.scale.x : 1;
+            const actualRadius = (this.surfaceViewBody.data?.radius || 1) * scale;
             const worldMargin = Math.max(actualRadius * 0.1, 2);
 
             // To ensure we don't clip into clouds or atmosphere, we need the local distance
-            const localDistance = this.surfaceViewBody.data.radius + (worldMargin / scale);
+            const localDistance = (this.surfaceViewBody.data?.radius || 1) + (worldMargin / scale);
 
             // We place the camera on the +X equator of the planet in its local space
             SceneManager._vLocalPos.set(localDistance, 0, 0);
@@ -1048,7 +1015,43 @@ export class SceneManager {
                 .add(SceneManager._vCamPos);
 
             this.camera.lookAt(SceneManager._vLookTarget);
-            this.controls.enabled = false;
+
+            // Keep OrbitControls target aligned with the planet center to prevent any jump or shake on switch
+            this.controls.target.copy(SceneManager._vPlanetPos);
+        } else if (this.cameraTransition) {
+            this.cameraTransition.progress += rawDelta / this.cameraTransition.duration;
+            const p = Math.min(this.cameraTransition.progress, 1);
+            // Cubic ease-in-out curve
+            const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+            this.camera.position.lerpVectors(this.cameraTransition.startPos, this.cameraTransition.endPos, ease);
+            this.controls.target.lerpVectors(this.cameraTransition.startTarget, this.cameraTransition.endTarget, ease);
+
+            if (p >= 1) {
+                this.cameraTransition = null;
+                this.updateZoomLimits();
+            }
+            this.controls.update();
+        } else if (this.focusedBody?.mesh) {
+            this.focusedBody.mesh.getWorldPosition(SceneManager._vPos);
+
+            // Calculate delta movement of the body
+            if (this.previousBodyPosition) {
+                SceneManager._vDelta.copy(SceneManager._vPos).sub(this.previousBodyPosition);
+                this.camera.position.add(SceneManager._vDelta);
+                this.previousBodyPosition.copy(SceneManager._vPos);
+            } else {
+                this.previousBodyPosition = SceneManager._vPos.clone();
+            }
+
+            this.controls.target.copy(SceneManager._vPos);
+            this.controls.enabled = true;
+            this.controls.update();
+        } else {
+            this.controls.enabled = true;
+            this.previousBodyPosition = null;
+            this.updateZoomLimits();
+            this.controls.update();
         }
 
         // Update Measurement Tool after camera updates so labels don't lag
@@ -1654,7 +1657,7 @@ export class SceneManager {
         this.updateZoomLimits();
     }
 
-    setSurfaceView(name: string) {
+    setSurfaceView(name: string): boolean {
         let target: CelestialBody | undefined;
 
         const findTarget = (body: CelestialBody) => {
@@ -1670,8 +1673,40 @@ export class SceneManager {
             this.surfaceViewBody = target;
             this.focusedBody = null;
             this.previousBodyPosition = null;
+            this.focusedStar = null;
+            this.focusedConstellation = null;
+            this.cameraTransition = null;
+            this.controls.enabled = false;
+            this.controls.autoRotate = false;
+
+            if (typeof target.mesh.updateMatrixWorld === 'function') {
+                target.mesh.updateMatrixWorld(true);
+                const scale = target.tiltGroup?.scale ? target.tiltGroup.scale.x : 1;
+                const actualRadius = (target.data?.radius || 1) * scale;
+                const worldMargin = Math.max(actualRadius * 0.1, 2);
+                const localDistance = (target.data?.radius || 1) + (worldMargin / scale);
+
+                SceneManager._vLocalPos.set(localDistance, 0, 0);
+                SceneManager._vCamPos.copy(SceneManager._vLocalPos).applyMatrix4(target.mesh.matrixWorld);
+                target.mesh.getWorldPosition(SceneManager._vPlanetPos);
+
+                this.camera.position.copy(SceneManager._vCamPos);
+                SceneManager._vLookTarget.copy(SceneManager._vCamPos)
+                    .sub(SceneManager._vPlanetPos)
+                    .normalize()
+                    .multiplyScalar(100)
+                    .add(SceneManager._vCamPos);
+
+                this.camera.lookAt(SceneManager._vLookTarget);
+                this.controls.target.copy(SceneManager._vPlanetPos);
+            }
+            return true;
+        } else {
+            this.surfaceViewBody = null;
+            return false;
         }
     }
+
 
     captureScreenshot(targetName?: string): void {
         if (!this.renderer) return;

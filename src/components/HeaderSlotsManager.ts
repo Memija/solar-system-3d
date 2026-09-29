@@ -1,7 +1,7 @@
 import { PreferencesManager, DEFAULT_HEADER_SLOTS } from './PreferencesManager';
 import { i18n } from '../i18n';
 
-export type HeaderSlotCategory = 'optics' | 'layers' | 'tools';
+export type HeaderSlotCategory = 'camera' | 'optics' | 'layers' | 'tools';
 
 export function stripShortcutFromLabel(label: string): string {
     return label.replace(/\s*\([A-Z0-9?/\s-]+\)\s*$/i, '').trim();
@@ -19,6 +19,84 @@ export interface HeaderSlotDefinition {
 }
 
 export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
+    // -------------------------------------------------------------------------
+    // CAMERA & PERSPECTIVE
+    // -------------------------------------------------------------------------
+    {
+        id: 'attachCamera',
+        category: 'camera',
+        labelKey: 'controls.attachCamera',
+        icon: '🎯',
+        shortcut: 'A',
+        domId: 'hudSlot_attachCamera',
+        getState: (ui) => !!ui.sceneManager?.focusedBody && !ui.sceneManager?.surfaceViewBody,
+        action: (ui) => {
+            if (ui.cameraTarget) {
+                const target = ui.cameraTarget;
+                const star = ui.sceneManager?.starMeshes?.find((m: any) => m.userData?.name === target);
+                if (star) {
+                    ui.sceneManager?.focusOnStar(star);
+                } else if (typeof ui.sceneManager?.focusOnBody === 'function') {
+                    ui.sceneManager.focusOnBody(target);
+                }
+            }
+        }
+    },
+    {
+        id: 'surfaceView',
+        category: 'camera',
+        labelKey: 'controls.viewFromSurface',
+        icon: '🪐',
+        shortcut: 'V',
+        domId: 'hudSlot_surfaceView',
+        getState: (ui) => !!ui.sceneManager?.surfaceViewBody,
+        action: (ui) => {
+            if (ui.cameraTarget && typeof ui.sceneManager?.setSurfaceView === 'function') {
+                ui.sceneManager.setSurfaceView(ui.cameraTarget);
+            }
+        }
+    },
+    {
+        id: 'freeCamera',
+        category: 'camera',
+        labelKey: 'controls.freeCamera',
+        icon: '🚀',
+        shortcut: 'D',
+        domId: 'hudSlot_freeCamera',
+        getState: (ui) => !ui.sceneManager?.focusedBody && !ui.sceneManager?.surfaceViewBody && !ui.sceneManager?.focusedStar && !ui.sceneManager?.focusedConstellation,
+        action: (ui) => {
+            if (typeof ui.sceneManager?.detachCamera === 'function') {
+                ui.sceneManager.detachCamera();
+            }
+        }
+    },
+    {
+        id: 'cinematicTour',
+        category: 'camera',
+        labelKey: 'controls.cinematicTour',
+        icon: '🎬',
+        shortcut: 'T',
+        domId: 'hudSlot_cinematicTour',
+        getState: (ui) => !!ui.sceneManager?.tourMode,
+        action: (ui) => {
+            if (ui.tourController) {
+                ui.tourController.setValue(!ui.sceneManager.tourMode);
+            } else if (ui.sceneManager) {
+                const next = !ui.sceneManager.tourMode;
+                ui.sceneManager.tourMode = next;
+                if (next) {
+                    ui.sceneManager.tourTimer = 0;
+                    const targetName = ui.sceneManager.tourTargets ? ui.sceneManager.tourTargets[ui.sceneManager.tourIndex || 0] : 'Mercury';
+                    if (typeof ui.sceneManager.focusOnBody === 'function') {
+                        ui.sceneManager.focusOnBody(targetName);
+                    }
+                } else if (typeof ui.sceneManager.detachCamera === 'function') {
+                    ui.sceneManager.detachCamera();
+                }
+            }
+        }
+    },
+
     // -------------------------------------------------------------------------
     // OPTICS & PHYSICAL SCALE
     // -------------------------------------------------------------------------
@@ -324,20 +402,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
             ui.toggleShortcutsModal?.();
         }
     },
-    {
-        id: 'cinematicTour',
-        category: 'tools',
-        labelKey: 'controls.cinematicTour',
-        icon: '🎬',
-        shortcut: 'T',
-        domId: 'hudSlot_cinematicTour',
-        getState: (ui) => !!ui.sceneManager?.tourMode,
-        action: (ui) => {
-            if (ui.tourController) {
-                ui.tourController.setValue(!ui.sceneManager.tourMode);
-            }
-        }
-    },
+
     {
         id: 'measureMode',
         category: 'tools',

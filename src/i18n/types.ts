@@ -42,6 +42,7 @@ export interface TranslationSchema {
         slotsDescription?: string;
         slotsActive?: string;
         resetSlots?: string;
+        cameraCategory?: string;
         opticsCategory?: string;
         layersCategory?: string;
         toolsCategory?: string;
@@ -240,6 +241,10 @@ export interface TranslationSchema {
         eclipticGrid?: string;
         habitableZone?: string;
         axes?: string;
+        cameraTitle?: string;
+        attachCamera?: string;
+        surfaceView?: string;
+        freeCamera?: string;
         toolsTitle: string;
         orbits: string;
         minimap: string;

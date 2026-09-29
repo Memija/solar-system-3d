@@ -28,6 +28,7 @@ export const id: TranslationSchema = {
         slotsDescription: 'Sematkan dan atur alat favorit, pengaturan optik, dan lapisan langit langsung ke bilah header observatorium untuk akses instan 1 klik.',
         slotsActive: '{count} slot aktif',
         resetSlots: 'Atur Ulang ke Default',
+        cameraCategory: '🔭 Kontrol Kamera',
         opticsCategory: '✨ Optik & Skala',
         layersCategory: '🪐 Lapisan Langit',
         toolsCategory: '🛰️ Instrumen Observatorium'
@@ -226,6 +227,10 @@ export const id: TranslationSchema = {
         eclipticGrid: 'Alihkan Kisi Ekliptika',
         habitableZone: 'Alihkan Zona Layak Huni',
         axes: 'Alihkan Sumbu Koordinat',
+        cameraTitle: 'Kamera & Perspektif',
+        attachCamera: 'Fokus / Kunci Kamera',
+        surfaceView: 'Pandangan dari Permukaan',
+        freeCamera: 'Kamera Bebas / Lepas',
         toolsTitle: 'Lapisan Langit & Alat',
         orbits: 'Alihkan Orbit Planet',
         minimap: 'Alihkan Radar Minimap',

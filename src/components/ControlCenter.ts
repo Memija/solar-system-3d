@@ -241,6 +241,7 @@ export class ControlCenter {
         actionBtn1.innerHTML = `<span>🎯 <span data-i18n-key="controls.sections.focusAlign">${i18n.t('controls.sections.focusAlign') || 'Focus & Align Camera'}</span></span>`;
         actionBtn1.onclick = () => {
             this.sceneManager.focusOnBody(this.uiManager.cameraTarget);
+            this.syncSwitches();
         };
         actionsGroup.appendChild(actionBtn1);
 
@@ -250,6 +251,7 @@ export class ControlCenter {
         actionBtn2.innerHTML = `<span>🪐 <span data-i18n-key="controls.sections.viewSurface">${i18n.t('controls.sections.viewSurface') || 'View From Surface'}</span></span>`;
         actionBtn2.onclick = () => {
             this.sceneManager.setSurfaceView(this.uiManager.cameraTarget);
+            this.syncSwitches();
         };
         actionsGroup.appendChild(actionBtn2);
 
@@ -569,9 +571,9 @@ export class ControlCenter {
         segmented.className = 'camera-modes-segmented';
 
         const modes = [
-            { key: 'orbit', icon: '🎯', labelKey: 'controls.sections.orbitFocus', fallback: 'Orbit Focus', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
-            { key: 'surface', icon: '🪐', labelKey: 'controls.sections.surfaceView', fallback: 'Surface View', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
-            { key: 'detach', icon: '🚀', labelKey: 'controls.sections.freeCam', fallback: 'Free Camera', action: () => this.sceneManager.detachCamera() }
+            { key: 'orbit', icon: '🎯', labelKey: 'controls.sections.orbitFocus', fallback: 'Orbit Focus', kbd: 'A', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
+            { key: 'surface', icon: '🪐', labelKey: 'controls.sections.surfaceView', fallback: 'Surface View', kbd: 'V', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
+            { key: 'detach', icon: '🚀', labelKey: 'controls.sections.freeCam', fallback: 'Free Camera', kbd: 'D', action: () => this.sceneManager.detachCamera() }
         ];
 
         modes.forEach(m => {
@@ -579,11 +581,10 @@ export class ControlCenter {
             btn.type = 'button';
             btn.className = `cam-mode-btn ${m.key === 'orbit' ? 'active' : ''}`;
             btn.dataset.modeKey = m.key;
-            btn.innerHTML = `${m.icon} <span data-i18n-key="${m.labelKey}">${i18n.t(m.labelKey) || m.fallback}</span>`;
+            btn.innerHTML = `${m.icon} <span data-i18n-key="${m.labelKey}">${i18n.t(m.labelKey) || m.fallback}</span> <kbd class="ctrl-kbd-badge">${m.kbd}</kbd>`;
             btn.onclick = () => {
                 m.action();
-                this.camModeButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                this.syncSwitches();
             };
             segmented.appendChild(btn);
             this.camModeButtons.set(m.key, btn);
@@ -606,7 +607,7 @@ export class ControlCenter {
 
         const tourLabel = document.createElement('label');
         tourLabel.className = 'toggle-label-wrap';
-        tourLabel.innerHTML = `<span class="toggle-icon">🎬</span><span data-i18n-key="controls.sections.autonomousTour">${i18n.t('controls.sections.autonomousTour') || 'Autonomous Grand Tour'}</span>`;
+        tourLabel.innerHTML = `<span class="toggle-icon">🎬</span><span data-i18n-key="controls.sections.autonomousTour">${i18n.t('controls.sections.autonomousTour') || 'Autonomous Grand Tour'}</span><kbd class="ctrl-kbd-badge">T</kbd>`;
         tourRow.appendChild(tourLabel);
 
         const tourSwitch = document.createElement('label');
@@ -628,6 +629,9 @@ export class ControlCenter {
                 EventBus.emit('tour-focus', targetName);
             } else {
                 this.sceneManager.detachCamera();
+            }
+            if (this.uiManager?.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
             }
         };
         tourSwitch.appendChild(tourInput);
@@ -896,33 +900,6 @@ export class ControlCenter {
         this.switches.set('telemetry', perfInput);
 
         panel.appendChild(toolsGroup);
-
-        // Header Quick Access Slots Group
-        const headerSlotsGroup = document.createElement('div');
-        headerSlotsGroup.className = 'ctrl-group';
-
-        const headerSlotsTitle = document.createElement('h4');
-        headerSlotsTitle.className = 'ctrl-group-title';
-        headerSlotsTitle.innerHTML = `<span data-i18n-key="controls.sections.headerQuickAccess">${i18n.t('controls.sections.headerQuickAccess') || 'Header Quick Access'}</span>`;
-        headerSlotsGroup.appendChild(headerSlotsTitle);
-
-        const headerSlotsDesc = document.createElement('p');
-        headerSlotsDesc.className = 'ctrl-group-desc';
-        headerSlotsDesc.dataset.i18nKey = 'ui.slotsDescription';
-        headerSlotsDesc.textContent = i18n.t('ui.slotsDescription') || 'Pin and organize your favorite tools, optics settings, and celestial layers directly to the observatory header bar.';
-        headerSlotsGroup.appendChild(headerSlotsDesc);
-
-        const customizeBtn = document.createElement('button');
-        customizeBtn.type = 'button';
-        customizeBtn.className = 'master-action-btn';
-        customizeBtn.id = 'controlCenterHeaderSlotsBtn';
-        customizeBtn.innerHTML = `<span>⚙️</span> <span data-i18n-key="controls.sections.customizeHeaderSlots">${i18n.t('controls.sections.customizeHeaderSlots') || 'Customize Quick Access Slots'}</span>`;
-        customizeBtn.onclick = () => {
-            this.uiManager.openHeaderSlotsCustomizer();
-        };
-        headerSlotsGroup.appendChild(customizeBtn);
-
-        panel.appendChild(headerSlotsGroup);
         return panel;
     }
 
@@ -1048,6 +1025,17 @@ export class ControlCenter {
         setChecked('measureMode', sm.measureMode);
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
         setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
+
+        // Sync camera mode segmented buttons
+        const isSurface = !!sm.surfaceViewBody;
+        const isFree = !sm.focusedBody && !sm.surfaceViewBody && !sm.focusedStar && !sm.focusedConstellation;
+        const isOrbit = !isSurface && !isFree;
+
+        this.camModeButtons.forEach((btn, key) => {
+            if (key === 'surface') btn.classList.toggle('active', isSurface);
+            else if (key === 'detach') btn.classList.toggle('active', isFree);
+            else if (key === 'orbit') btn.classList.toggle('active', isOrbit);
+        });
 
         if (this.uiManager?.headerSlotsContainer) {
             HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);

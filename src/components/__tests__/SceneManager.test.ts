@@ -256,5 +256,23 @@ describe('SceneManager', () => {
             expect(manager.focusedConstellation).toBeNull();
             expect(manager.controls.maxDistance).toBe(5000);
         });
+
+        it('should correctly set and reset surfaceViewBody on setSurfaceView', () => {
+            const manager = new SceneManager(container);
+            manager.planets[0].data.name = 'Earth';
+            manager.planets[0].mesh = new THREE.Mesh();
+
+            // Succeeded surface view
+            const result1 = manager.setSurfaceView('Earth');
+            expect(result1).toBe(true);
+            expect(manager.surfaceViewBody).toBe(manager.planets[0]);
+            expect(manager.focusedBody).toBeNull();
+            expect(manager.cameraTransition).toBeNull();
+
+            // Non-existent target surface view
+            const result2 = manager.setSurfaceView('UnknownBody');
+            expect(result2).toBe(false);
+            expect(manager.surfaceViewBody).toBeNull();
+        });
     });
 });

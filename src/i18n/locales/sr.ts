@@ -28,6 +28,7 @@ export const sr: TranslationSchema = {
         slotsDescription: 'Прикачите и организујте омиљене алате, оптичке поставке и небеске слојеве директно у заглавље опсерваторије за тренутан приступ једним кликом.',
         slotsActive: '{count} активних слотова',
         resetSlots: 'Врати на подразумевано',
+        cameraCategory: '🔭 Контроле камере',
         opticsCategory: '✨ Оптика и скала',
         layersCategory: '🪐 Небески слојеви',
         toolsCategory: '🛰️ Инструменти опсерваторије'
@@ -226,6 +227,10 @@ export const sr: TranslationSchema = {
         eclipticGrid: 'Укључи / Искључи еклиптичку мрежу',
         habitableZone: 'Укључи / Искључи настањиву зону',
         axes: 'Укључи / Искључи координатне осе',
+        cameraTitle: 'Камера и перспектива',
+        attachCamera: 'Фокусирај / Вежи камеру',
+        surfaceView: 'Поглед са површине',
+        freeCamera: 'Слободна камера / Одвежи',
         toolsTitle: 'Небески слојеви и алати',
         orbits: 'Укључи / Искључи орбиталне путање',
         minimap: 'Укључи / Искључи радар мини-мапу',

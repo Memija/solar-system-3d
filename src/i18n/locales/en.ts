@@ -28,6 +28,7 @@ export const en: TranslationSchema = {
         slotsDescription: 'Pin and organize your favorite tools, optics settings, and celestial layers directly to the observatory header bar for instant 1-click access.',
         slotsActive: '{count} active slots',
         resetSlots: 'Reset to Defaults',
+        cameraCategory: '🔭 Camera Controls',
         opticsCategory: '✨ Optics & Scale',
         layersCategory: '🪐 Celestial Layers',
         toolsCategory: '🛰️ Observatory Instruments'
@@ -226,6 +227,10 @@ export const en: TranslationSchema = {
         eclipticGrid: 'Toggle Ecliptic Plane Grid',
         habitableZone: 'Toggle Habitable Zone',
         axes: 'Toggle Coordinate Axes',
+        cameraTitle: 'Camera & Perspective',
+        attachCamera: 'Focus / Attach Camera',
+        surfaceView: 'View from Surface',
+        freeCamera: 'Free Camera / Detach',
         toolsTitle: 'Celestial Layers & Tools',
         orbits: 'Toggle Planetary Orbits',
         minimap: 'Toggle Radar Minimap',

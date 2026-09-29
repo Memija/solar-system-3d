@@ -28,6 +28,7 @@ export const pl: TranslationSchema = {
         slotsDescription: 'Przypinaj i organizuj ulubione narzędzia, ustawienia optyczne oraz warstwy ciał niebieskich bezpośrednio na pasku nagłówka obserwatorium, uzyskując natychmiastowy dostęp jednym kliknięciem.',
         slotsActive: '{count} aktywnych slotów',
         resetSlots: 'Przywróć domyślne',
+        cameraCategory: '🔭 Sterowanie kamerą',
         opticsCategory: '✨ Optyka i skala',
         layersCategory: '🪐 Warstwy ciał niebieskich',
         toolsCategory: '🛰️ Przyrządy obserwatorium'
@@ -226,6 +227,10 @@ export const pl: TranslationSchema = {
         eclipticGrid: 'Przełącz siatkę ekliptyki',
         habitableZone: 'Przełącz strefę zdatną do zamieszkania',
         axes: 'Przełącz osie współrzędnych',
+        cameraTitle: 'Kamera i perspektywa',
+        attachCamera: 'Skup / Przyczep kamerę',
+        surfaceView: 'Widok z powierzchni',
+        freeCamera: 'Swobodna kamera / Odczep',
         toolsTitle: 'Warstwy nieba i narzędzia',
         orbits: 'Włącz / Wyłącz linie orbit',
         minimap: 'Włącz / Wyłącz radar minimapy',

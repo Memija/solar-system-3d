@@ -8,11 +8,12 @@ describe('HeaderSlotsManager', () => {
         HeaderSlotsManager.resetDefaults();
     });
 
-    it('provides a catalog of available slots across optics, layers, and tools', () => {
+    it('provides a catalog of available slots across camera, optics, layers, and tools', () => {
         const slots = HeaderSlotsManager.getAvailableSlots();
         expect(slots.length).toBeGreaterThan(15);
 
         const categories = new Set(slots.map(s => s.category));
+        expect(categories.has('camera')).toBe(true);
         expect(categories.has('optics')).toBe(true);
         expect(categories.has('layers')).toBe(true);
         expect(categories.has('tools')).toBe(true);
@@ -152,5 +153,36 @@ describe('HeaderSlotsManager', () => {
         HeaderSlotsManager.updateSlotStates(container, mockUi);
         expect(soundBtn.textContent).toContain('🔊');
         expect(soundBtn.classList.contains('active')).toBe(true);
+    });
+
+    it('defines camera slots with their own camera category', () => {
+        const cameraSlots = HeaderSlotsManager.getAvailableSlots().filter(s => s.category === 'camera');
+        const ids = cameraSlots.map(s => s.id);
+        expect(ids).toContain('attachCamera');
+        expect(ids).toContain('surfaceView');
+        expect(ids).toContain('freeCamera');
+        expect(ids).toContain('cinematicTour');
+
+        const freeCamSlot = HeaderSlotsManager.getSlot('freeCamera');
+        expect(freeCamSlot).toBeDefined();
+        expect(freeCamSlot?.category).toBe('camera');
+
+        const mockUi = {
+            sceneManager: {
+                detachCamera: vi.fn(),
+                focusedBody: null,
+                surfaceViewBody: null,
+                focusedStar: null,
+                focusedConstellation: null
+            }
+        };
+        expect(freeCamSlot?.getState?.(mockUi)).toBe(true);
+        freeCamSlot?.action(mockUi);
+        expect(mockUi.sceneManager.detachCamera).toHaveBeenCalledTimes(1);
+
+        expect(HeaderSlotsManager.getSlot('attachCamera')?.shortcut).toBe('A');
+        expect(HeaderSlotsManager.getSlot('surfaceView')?.shortcut).toBe('V');
+        expect(HeaderSlotsManager.getSlot('freeCamera')?.shortcut).toBe('D');
+        expect(HeaderSlotsManager.getSlot('cinematicTour')?.shortcut).toBe('T');
     });
 });
