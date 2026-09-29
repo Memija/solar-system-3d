@@ -96,6 +96,7 @@ export class SceneManager {
     private static readonly _vPosB = new THREE.Vector3();
     private static readonly _vMid = new THREE.Vector3();
     private static readonly _vOffset = new THREE.Vector3();
+    private static readonly _vLocalUp = new THREE.Vector3();
 
     // Earth period is 1. speedMultiplier is 0.5.
     // 1 orbit = 2*PI radians. Speed = 0.5 rad/sec (sim time).
@@ -987,8 +988,13 @@ export class SceneManager {
         if (this.surfaceViewBody?.mesh) {
             this.controls.enabled = false;
 
-            // Force update matrix world so we don't lag behind the animation frame
-            this.surfaceViewBody.mesh.updateMatrixWorld(true);
+            // Force update world matrix through all ancestors so we don't lag behind the animation frame
+            if (typeof this.surfaceViewBody.mesh.updateWorldMatrix === 'function') {
+                this.surfaceViewBody.mesh.updateWorldMatrix(true, false);
+            } else if (typeof this.surfaceViewBody.mesh.updateMatrixWorld === 'function') {
+                this.surfaceViewBody.mesh.updateMatrixWorld(true);
+            }
+
             const scale = this.surfaceViewBody.tiltGroup ? this.surfaceViewBody.tiltGroup.scale.x : 1;
             const actualRadius = (this.surfaceViewBody.data?.radius || 1) * scale;
             const worldMargin = Math.max(actualRadius * 0.1, 2);
@@ -1014,6 +1020,9 @@ export class SceneManager {
                 .multiplyScalar(100)
                 .add(SceneManager._vCamPos);
 
+            // Set camera up to local North transformed to world coordinates to prevent gimbal lock and roll twitching
+            SceneManager._vLocalUp.set(0, 1, 0).transformDirection(this.surfaceViewBody.mesh.matrixWorld);
+            this.camera.up.copy(SceneManager._vLocalUp);
             this.camera.lookAt(SceneManager._vLookTarget);
 
             // Keep OrbitControls target aligned with the planet center to prevent any jump or shake on switch
@@ -1295,6 +1304,7 @@ export class SceneManager {
             this.surfaceViewBody = null;
             this.focusedStar = null;
             this.focusedConstellation = null;
+            this.camera.up.set(0, 1, 0);
 
             // Initialize previous position for tracking
             this.previousBodyPosition = SceneManager._vPos.clone();
@@ -1315,6 +1325,7 @@ export class SceneManager {
         this.controls.autoRotate = false;
         this.focusedConstellation = null;
         this.focusedStar = starMesh;
+        this.camera.up.set(0, 1, 0);
 
         const starPos = starMesh.position.clone();
         const cameraPos = starPos.clone().normalize().multiplyScalar(40000);
@@ -1360,6 +1371,7 @@ export class SceneManager {
         this.controls.autoRotate = false;
         this.focusedStar = null;
         this.focusedConstellation = name;
+        this.camera.up.set(0, 1, 0);
 
         // Calculate distance based on bounding sphere radius and camera fov
         const vFov = this.camera.fov * (Math.PI / 180);
@@ -1651,6 +1663,7 @@ export class SceneManager {
         this.previousBodyPosition = null;
         this.focusedStar = null;
         this.focusedConstellation = null;
+        this.camera.up.set(0, 1, 0);
         this.controls.enabled = true;
         this.controls.autoRotate = false;
         this.cameraTransition = null;
@@ -1679,30 +1692,36 @@ export class SceneManager {
             this.controls.enabled = false;
             this.controls.autoRotate = false;
 
-            if (typeof target.mesh.updateMatrixWorld === 'function') {
+            if (typeof target.mesh.updateWorldMatrix === 'function') {
+                target.mesh.updateWorldMatrix(true, false);
+            } else if (typeof target.mesh.updateMatrixWorld === 'function') {
                 target.mesh.updateMatrixWorld(true);
-                const scale = target.tiltGroup?.scale ? target.tiltGroup.scale.x : 1;
-                const actualRadius = (target.data?.radius || 1) * scale;
-                const worldMargin = Math.max(actualRadius * 0.1, 2);
-                const localDistance = (target.data?.radius || 1) + (worldMargin / scale);
-
-                SceneManager._vLocalPos.set(localDistance, 0, 0);
-                SceneManager._vCamPos.copy(SceneManager._vLocalPos).applyMatrix4(target.mesh.matrixWorld);
-                target.mesh.getWorldPosition(SceneManager._vPlanetPos);
-
-                this.camera.position.copy(SceneManager._vCamPos);
-                SceneManager._vLookTarget.copy(SceneManager._vCamPos)
-                    .sub(SceneManager._vPlanetPos)
-                    .normalize()
-                    .multiplyScalar(100)
-                    .add(SceneManager._vCamPos);
-
-                this.camera.lookAt(SceneManager._vLookTarget);
-                this.controls.target.copy(SceneManager._vPlanetPos);
             }
+
+            const scale = target.tiltGroup?.scale ? target.tiltGroup.scale.x : 1;
+            const actualRadius = (target.data?.radius || 1) * scale;
+            const worldMargin = Math.max(actualRadius * 0.1, 2);
+            const localDistance = (target.data?.radius || 1) + (worldMargin / scale);
+
+            SceneManager._vLocalPos.set(localDistance, 0, 0);
+            SceneManager._vCamPos.copy(SceneManager._vLocalPos).applyMatrix4(target.mesh.matrixWorld);
+            target.mesh.getWorldPosition(SceneManager._vPlanetPos);
+
+            this.camera.position.copy(SceneManager._vCamPos);
+            SceneManager._vLookTarget.copy(SceneManager._vCamPos)
+                .sub(SceneManager._vPlanetPos)
+                .normalize()
+                .multiplyScalar(100)
+                .add(SceneManager._vCamPos);
+
+            SceneManager._vLocalUp.set(0, 1, 0).transformDirection(target.mesh.matrixWorld);
+            this.camera.up.copy(SceneManager._vLocalUp);
+            this.camera.lookAt(SceneManager._vLookTarget);
+            this.controls.target.copy(SceneManager._vPlanetPos);
             return true;
         } else {
             this.surfaceViewBody = null;
+            this.camera.up.set(0, 1, 0);
             return false;
         }
     }
