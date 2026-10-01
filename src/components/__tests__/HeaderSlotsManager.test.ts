@@ -22,6 +22,7 @@ describe('HeaderSlotsManager', () => {
     it('returns default header slots when no custom slots are configured', () => {
         const activeIds = HeaderSlotsManager.getActiveSlotIds();
         expect(activeIds).toEqual(DEFAULT_HEADER_SLOTS);
+        expect(activeIds).toContain('cinematicTour');
         expect(activeIds).toContain('minimap');
         expect(activeIds).toContain('snapshot');
         expect(activeIds).toContain('audio');
@@ -184,5 +185,46 @@ describe('HeaderSlotsManager', () => {
         expect(HeaderSlotsManager.getSlot('surfaceView')?.shortcut).toBe('V');
         expect(HeaderSlotsManager.getSlot('freeCamera')?.shortcut).toBe('D');
         expect(HeaderSlotsManager.getSlot('cinematicTour')?.shortcut).toBe('T');
+    });
+
+    it('has cinematicTour locked by default so it cannot be removed from header slots', () => {
+        expect(HeaderSlotsManager.isSlotLocked('cinematicTour')).toBe(true);
+        expect(HeaderSlotsManager.isSlotRemovable('cinematicTour')).toBe(false);
+
+        // Attempting to remove cinematicTour returns false and keeps it active
+        const removed = HeaderSlotsManager.removeSlot('cinematicTour');
+        expect(removed).toBe(false);
+        expect(HeaderSlotsManager.isSlotActive('cinematicTour')).toBe(true);
+        expect(HeaderSlotsManager.getActiveSlotIds()).toContain('cinematicTour');
+
+        // Attempting to toggle off cinematicTour keeps it active
+        const toggled = HeaderSlotsManager.toggleSlot('cinematicTour');
+        expect(toggled).toBe(true);
+        expect(HeaderSlotsManager.isSlotActive('cinematicTour')).toBe(true);
+    });
+
+    it('always preserves cinematicTour even if stored preferences in localStorage omitted it', () => {
+        localStorage.setItem('solar-system-3d', JSON.stringify({
+            headerSlots: ['minimap', 'snapshot']
+        }));
+        const activeIds = HeaderSlotsManager.getActiveSlotIds();
+        expect(activeIds).toContain('cinematicTour');
+    });
+
+    it('renders cinematicTour with dataset.locked and icon in the header', () => {
+        const container = document.createElement('div');
+        const mockUi = {
+            minimap: { isVisible: true },
+            audioManager: { getAudioEnabled: () => true },
+            performanceMonitor: { getVisible: () => false },
+            shortcutsModal: { isOpen: false },
+            sceneManager: { tourMode: false }
+        };
+
+        HeaderSlotsManager.renderSlots(container, mockUi);
+        const tourBtn = container.querySelector('#hudSlot_cinematicTour') as HTMLButtonElement;
+        expect(tourBtn).not.toBeNull();
+        expect(tourBtn.dataset.locked).toBe('true');
+        expect(tourBtn.textContent).toContain('🎬');
     });
 });

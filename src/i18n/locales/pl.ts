@@ -31,7 +31,9 @@ export const pl: TranslationSchema = {
         cameraCategory: '🔭 Sterowanie kamerą',
         opticsCategory: '✨ Optyka i skala',
         layersCategory: '🪐 Warstwy ciał niebieskich',
-        toolsCategory: '🛰️ Przyrządy obserwatorium'
+        toolsCategory: '🛰️ Przyrządy obserwatorium',
+        permanentSlot: 'Stałe',
+        permanentSlotDesc: 'Trwale przypięte do nagłówka (nie można usunąć)'
     },
     categories: {
         star: '🌟 Gwiazdy',

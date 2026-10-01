@@ -14,6 +14,7 @@ export interface HeaderSlotDefinition {
     icon: string | ((ui: any) => string);
     shortcut?: string;
     domId?: string;
+    locked?: boolean;
     getState?: (ui: any) => boolean;
     action: (ui: any, btn?: HTMLElement) => void;
 }
@@ -77,6 +78,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         icon: '🎬',
         shortcut: 'T',
         domId: 'hudSlot_cinematicTour',
+        locked: true,
         getState: (ui) => !!ui.sceneManager?.tourMode,
         action: (ui) => {
             if (ui.tourController) {
@@ -454,14 +456,41 @@ export class HeaderSlotsManagerClass {
 
     public getActiveSlotIds(): string[] {
         const slots = PreferencesManager.get('headerSlots');
+        let active: string[] = [];
         if (Array.isArray(slots) && slots.length > 0) {
-            return slots;
+            active = [...slots];
+        } else {
+            active = [...DEFAULT_HEADER_SLOTS];
         }
-        return [...DEFAULT_HEADER_SLOTS];
+
+        // Guarantee all locked slots (e.g. cinematicTour) are active
+        const lockedSlots = AVAILABLE_HEADER_SLOTS.filter(s => s.locked).map(s => s.id);
+        for (const lockedId of lockedSlots) {
+            if (!active.includes(lockedId)) {
+                const defaultIndex = DEFAULT_HEADER_SLOTS.indexOf(lockedId);
+                if (defaultIndex >= 0 && defaultIndex <= active.length) {
+                    active.splice(defaultIndex, 0, lockedId);
+                } else {
+                    active.unshift(lockedId);
+                }
+            }
+        }
+        return active;
     }
 
     public isSlotActive(id: string): boolean {
         return this.getActiveSlotIds().includes(id);
+    }
+
+    public isSlotLocked(id: string): boolean {
+        const def = this.getSlot(id);
+        return !!def?.locked;
+    }
+
+    public isSlotRemovable(id: string): boolean {
+        const def = this.getSlot(id);
+        if (!def) return true;
+        return !def.locked;
     }
 
     public addSlot(id: string): boolean {
@@ -475,6 +504,9 @@ export class HeaderSlotsManagerClass {
     }
 
     public removeSlot(id: string): boolean {
+        if (!this.isSlotRemovable(id)) {
+            return false;
+        }
         const current = this.getActiveSlotIds();
         if (current.includes(id)) {
             const next = current.filter(s => s !== id);
@@ -486,6 +518,9 @@ export class HeaderSlotsManagerClass {
 
     public toggleSlot(id: string): boolean {
         if (this.isSlotActive(id)) {
+            if (!this.isSlotRemovable(id)) {
+                return true; // Still active, non-removable
+            }
             this.removeSlot(id);
             return false;
         } else {
@@ -520,6 +555,9 @@ export class HeaderSlotsManagerClass {
             btn.title = titleWithShortcut;
             btn.setAttribute('aria-label', titleWithShortcut);
             btn.dataset.slotId = def.id;
+            if (def.locked) {
+                btn.dataset.locked = 'true';
+            }
 
             const iconVal = typeof def.icon === 'function' ? def.icon(ui) : def.icon;
             btn.innerHTML = iconVal;

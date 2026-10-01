@@ -32,6 +32,7 @@ export interface UserPreferences {
 }
 
 export const DEFAULT_HEADER_SLOTS: readonly string[] = [
+    'cinematicTour',
     'minimap',
     'snapshot',
     'audio',
@@ -128,6 +129,12 @@ export class PreferencesManagerClass {
             } catch {
                 // Ignore errors reading legacy keys
             }
+        }
+
+        // Ensure non-removable default slots (cinematicTour) are always present
+        if (Array.isArray(loaded.headerSlots) && !loaded.headerSlots.includes('cinematicTour')) {
+            loaded.headerSlots.unshift('cinematicTour');
+            migratedLegacy = true;
         }
 
         this.preferences = {

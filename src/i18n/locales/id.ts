@@ -31,7 +31,9 @@ export const id: TranslationSchema = {
         cameraCategory: '🔭 Kontrol Kamera',
         opticsCategory: '✨ Optik & Skala',
         layersCategory: '🪐 Lapisan Langit',
-        toolsCategory: '🛰️ Instrumen Observatorium'
+        toolsCategory: '🛰️ Instrumen Observatorium',
+        permanentSlot: 'Permanen',
+        permanentSlotDesc: 'Disematkan secara permanen ke header (tidak dapat dihapus)'
     },
     categories: {
         star: '🌟 Bintang',

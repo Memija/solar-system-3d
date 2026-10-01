@@ -31,7 +31,9 @@ export const sr: TranslationSchema = {
         cameraCategory: '🔭 Контроле камере',
         opticsCategory: '✨ Оптика и скала',
         layersCategory: '🪐 Небески слојеви',
-        toolsCategory: '🛰️ Инструменти опсерваторије'
+        toolsCategory: '🛰️ Инструменти опсерваторије',
+        permanentSlot: 'Трајно',
+        permanentSlotDesc: 'Трајно закачено за заглавље (не може се уклонити)'
     },
     categories: {
         star: '🌟 Звезде',

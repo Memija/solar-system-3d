@@ -31,7 +31,9 @@ export const bs: TranslationSchema = {
         cameraCategory: '🔭 Kontrole kamere',
         opticsCategory: '✨ Optika i skala',
         layersCategory: '🪐 Nebeski slojevi',
-        toolsCategory: '🛰️ Instrumenti opservatorija'
+        toolsCategory: '🛰️ Instrumenti opservatorija',
+        permanentSlot: 'Trajno',
+        permanentSlotDesc: 'Trajno zakačeno za zaglavlje (ne može se ukloniti)'
     },
     categories: {
         star: '🌟 Zvijezde',

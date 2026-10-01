@@ -570,5 +570,73 @@ describe('UIManager', () => {
         const tourCard = cameraSection?.querySelector('.slot-config-card[data-slot-id="cinematicTour"]');
         expect(tourCard).not.toBeNull();
     });
+
+    it('should mark cinematicTour as locked and non-removable in the slots customizer', () => {
+        uiManager.openHeaderSlotsCustomizer();
+        const content = uiManager.headerSlotsModal.contentElement;
+        expect(content).not.toBeNull();
+
+        const tourCard = content?.querySelector('.slot-config-card[data-slot-id="cinematicTour"]');
+        expect(tourCard).not.toBeNull();
+        expect(tourCard?.classList.contains('is-locked')).toBe(true);
+        expect(tourCard?.querySelector('.slot-locked-badge')).not.toBeNull();
+
+        const checkbox = tourCard?.querySelector('.slot-toggle-input') as HTMLInputElement;
+        expect(checkbox).not.toBeNull();
+        expect(checkbox.checked).toBe(true);
+        expect(checkbox.disabled).toBe(true);
+
+        // Clicking the card does not disable or remove it
+        (tourCard as HTMLElement).click();
+        expect(checkbox.checked).toBe(true);
+        const slotsContainer = uiContainer.querySelector('.obs-header-slots') as HTMLElement;
+        expect(slotsContainer.querySelector('#hudSlot_cinematicTour')).not.toBeNull();
+    });
+
+    it('should dynamically update measurement HUD bar when objects move/rotate in animation loop', () => {
+        sceneManager.measureMode = true;
+        const meshA = { getWorldPosition: vi.fn((v: any) => v.set(0, 0, 0)) };
+        const meshB = { getWorldPosition: vi.fn((v: any) => v.set(130, 0, 0)) };
+        sceneManager.measureTargetA = { data: { name: 'Earth' }, mesh: meshA };
+        sceneManager.measureTargetB = { data: { name: 'Mars' }, mesh: meshB };
+
+        // Initial measurement
+        sceneManager.currentMeasureDistance = {
+            distanceScale: 130,
+            distanceAUVal: 1.0,
+            distanceMkmVal: 149.6,
+            distanceAU: '1.00',
+            distanceMkm: '149.6',
+            unitAU: 'AU',
+            unitMkm: 'Mkm'
+        };
+
+        uiManager.updateMeasureHud();
+
+        const hud = document.getElementById('measureHudBar');
+        expect(hud).not.toBeNull();
+        expect(hud?.style.display).toBe('flex');
+        const valEl = hud?.querySelector('.measure-val');
+        const mkmEl = hud?.querySelector('.measure-mkm');
+        expect(valEl?.textContent).toBe('1.00 AU');
+        expect(mkmEl?.textContent).toBe('(149.6 Mkm)');
+
+        // Simulate celestial objects moving/rotating over time
+        sceneManager.currentMeasureDistance = {
+            distanceScale: 195,
+            distanceAUVal: 1.5,
+            distanceMkmVal: 224.4,
+            distanceAU: '1.50',
+            distanceMkm: '224.4',
+            unitAU: 'AU',
+            unitMkm: 'Mkm'
+        };
+
+        // Call update() on UIManager as done in animate() loop
+        uiManager.update();
+
+        expect(valEl?.textContent).toBe('1.50 AU');
+        expect(mkmEl?.textContent).toBe('(224.4 Mkm)');
+    });
 });
 

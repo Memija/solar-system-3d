@@ -31,7 +31,9 @@ export const en: TranslationSchema = {
         cameraCategory: '🔭 Camera Controls',
         opticsCategory: '✨ Optics & Scale',
         layersCategory: '🪐 Celestial Layers',
-        toolsCategory: '🛰️ Observatory Instruments'
+        toolsCategory: '🛰️ Observatory Instruments',
+        permanentSlot: 'Permanent',
+        permanentSlotDesc: 'Permanently pinned to header (cannot be removed)'
     },
     categories: {
         star: '🌟 Stars',

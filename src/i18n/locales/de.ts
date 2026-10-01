@@ -31,7 +31,9 @@ export const de: TranslationSchema = {
         cameraCategory: '🔭 Kamerasteuerung',
         opticsCategory: '✨ Optik & Maßstab',
         layersCategory: '🪐 Himmelsebenen',
-        toolsCategory: '🛰️ Observatoriums-Instrumente'
+        toolsCategory: '🛰️ Observatoriums-Instrumente',
+        permanentSlot: 'Dauerhaft',
+        permanentSlotDesc: 'Dauerhaft in der Kopfzeile fixiert (kann nicht entfernt werden)'
     },
     categories: {
         star: '🌟 Sterne',

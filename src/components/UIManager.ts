@@ -69,6 +69,8 @@ export class UIManager {
     private measureCtrl: any = null;
     private onMeasureModeChangedBound: ((e: any) => void) | null = null;
     private onMeasureTargetsChangedBound: ((e: any) => void) | null = null;
+    private static readonly _measurePosA = new THREE.Vector3();
+    private static readonly _measurePosB = new THREE.Vector3();
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -436,6 +438,9 @@ export class UIManager {
         }
         if (this.controlCenter && this.controlCenter.isOpen) {
             this.controlCenter.syncTimePanel();
+        }
+        if (this.sceneManager.measureMode && this.sceneManager.measureTargetA && this.sceneManager.measureTargetB) {
+            this.updateMeasureHud();
         }
     }
 
@@ -1560,24 +1565,50 @@ export class UIManager {
             const nameA = getLocalizedName(targetA);
             const nameB = getLocalizedName(targetB);
 
-            const posA = new THREE.Vector3();
-            const posB = new THREE.Vector3();
-            const anyA = targetA as any;
-            const anyB = targetB as any;
-            if (anyA.orbitGroup) anyA.orbitGroup.getWorldPosition(posA);
-            else if (anyA.mesh) anyA.mesh.getWorldPosition(posA);
-            if (anyB.orbitGroup) anyB.orbitGroup.getWorldPosition(posB);
-            else if (anyB.mesh) anyB.mesh.getWorldPosition(posB);
-            const distScale = posA.distanceTo(posB);
+            let distanceAU = '';
+            let distanceMkm = '';
+            let unitAU = i18n.t('measurement.unitAU') || 'AU';
+            let unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
 
-            const distanceAUVal = distScale / 130;
-            const distanceMkmVal = distanceAUVal * 149.6;
-            const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-            const unitAU = i18n.t('measurement.unitAU') || 'AU';
-            const unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
+            if (this.sceneManager.currentMeasureDistance) {
+                distanceAU = this.sceneManager.currentMeasureDistance.distanceAU;
+                distanceMkm = this.sceneManager.currentMeasureDistance.distanceMkm;
+                unitAU = this.sceneManager.currentMeasureDistance.unitAU || unitAU;
+                unitMkm = this.sceneManager.currentMeasureDistance.unitMkm || unitMkm;
+            } else {
+                let distanceAUVal = 0;
+                if (typeof this.sceneManager.getAstronomicalPositionAU === 'function') {
+                    this.sceneManager.getAstronomicalPositionAU(targetA, UIManager._measurePosA);
+                    this.sceneManager.getAstronomicalPositionAU(targetB, UIManager._measurePosB);
+                    distanceAUVal = UIManager._measurePosA.distanceTo(UIManager._measurePosB);
+                } else {
+                    const anyA = targetA as any;
+                    const anyB = targetB as any;
+                    if (anyA.mesh) anyA.mesh.getWorldPosition(UIManager._measurePosA);
+                    else if (anyA.orbitGroup) anyA.orbitGroup.getWorldPosition(UIManager._measurePosA);
+                    if (anyB.mesh) anyB.mesh.getWorldPosition(UIManager._measurePosB);
+                    else if (anyB.orbitGroup) anyB.orbitGroup.getWorldPosition(UIManager._measurePosB);
+                    const distScale = UIManager._measurePosA.distanceTo(UIManager._measurePosB);
+                    distanceAUVal = distScale / 130;
+                }
 
-            content.innerHTML = `<span class="measure-hud-result"><span class="measure-body">${nameA}</span> ↔ <span class="measure-body">${nameB}</span>: <strong class="measure-val">${distanceAU} ${unitAU}</strong> (${distanceMkm} ${unitMkm})</span>`;
+                const distanceMkmVal = distanceAUVal * 149.6;
+                const auPrecision = distanceAUVal < 0.1 ? 4 : 3;
+                const mkmPrecision = 2;
+                distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });
+                distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: mkmPrecision, maximumFractionDigits: mkmPrecision });
+            }
+
+            const valEl = content.querySelector<HTMLElement>('.measure-val');
+            const mkmEl = content.querySelector<HTMLElement>('.measure-mkm');
+            const resultEl = content.querySelector<HTMLElement>('.measure-hud-result');
+
+            if (valEl && mkmEl && resultEl && resultEl.dataset.targetA === nameA && resultEl.dataset.targetB === nameB) {
+                valEl.textContent = `${distanceAU} ${unitAU}`;
+                mkmEl.textContent = `(${distanceMkm} ${unitMkm})`;
+            } else {
+                content.innerHTML = `<span class="measure-hud-result" data-target-a="${nameA}" data-target-b="${nameB}"><span class="measure-body">${nameA}</span> ↔ <span class="measure-body">${nameB}</span>: <strong class="measure-val">${distanceAU} ${unitAU}</strong> <span class="measure-mkm">(${distanceMkm} ${unitMkm})</span></span>`;
+            }
             if (clearBtn) clearBtn.style.display = 'inline-block';
         } else if (targetA) {
             const nameA = getLocalizedName(targetA);
@@ -2259,18 +2290,24 @@ export class UIManager {
                 const rawLabel = i18n.t(slot.labelKey) || slot.id;
                 const label = stripShortcutFromLabel(rawLabel);
                 const icon = typeof slot.icon === 'function' ? slot.icon(this) : slot.icon;
+                const isLocked = !HeaderSlotsManager.isSlotRemovable(slot.id);
+
+                const switchTitle = isLocked
+                    ? (i18n.t('ui.permanentSlotDesc') || 'Permanently pinned to header (cannot be removed)')
+                    : (isActive ? 'Remove from header' : 'Add to header');
 
                 html += `
-                    <div class="slot-config-card ${isActive ? 'is-active' : ''}" data-slot-id="${slot.id}">
+                    <div class="slot-config-card ${isActive ? 'is-active' : ''} ${isLocked ? 'is-locked' : ''}" data-slot-id="${slot.id}" ${isLocked ? 'data-locked="true"' : ''}>
                         <div class="slot-card-left">
                             <span class="slot-card-icon">${icon}</span>
                             <div class="slot-card-details">
                                 <span class="slot-card-name" title="${label}">${label}</span>
                                 ${slot.shortcut ? `<kbd class="ctrl-kbd-badge">${slot.shortcut}</kbd>` : ''}
+                                ${isLocked ? `<span class="slot-locked-badge" title="${switchTitle}">🔒</span>` : ''}
                             </div>
                         </div>
-                        <label class="sci-switch" title="${isActive ? 'Remove from header' : 'Add to header'}">
-                            <input type="checkbox" class="slot-toggle-input" data-slot-id="${slot.id}" ${isActive ? 'checked' : ''} />
+                        <label class="sci-switch ${isLocked ? 'is-disabled' : ''}" title="${switchTitle}">
+                            <input type="checkbox" class="slot-toggle-input" data-slot-id="${slot.id}" ${isActive ? 'checked' : ''} ${isLocked ? 'disabled aria-disabled="true"' : ''} />
                             <span class="sci-slider"></span>
                         </label>
                     </div>
@@ -2313,6 +2350,11 @@ export class UIManager {
                 const slotId = input.dataset.slotId;
                 if (!slotId) return;
 
+                if (!HeaderSlotsManager.isSlotRemovable(slotId)) {
+                    input.checked = true;
+                    return;
+                }
+
                 const willBeActive = input.checked;
                 if (willBeActive) {
                     HeaderSlotsManager.addSlot(slotId);
@@ -2353,8 +2395,10 @@ export class UIManager {
         cards.forEach(card => {
             card.onclick = (e) => {
                 if ((e.target as HTMLElement).closest('.sci-switch')) return;
+                const slotId = card.dataset.slotId;
+                if (slotId && !HeaderSlotsManager.isSlotRemovable(slotId)) return;
                 const input = card.querySelector<HTMLInputElement>('.slot-toggle-input');
-                if (input) {
+                if (input && !input.disabled) {
                     input.checked = !input.checked;
                     if (input.onchange) {
                         input.onchange(new Event('change'));

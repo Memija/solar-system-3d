@@ -46,6 +46,8 @@ export interface TranslationSchema {
         opticsCategory?: string;
         layersCategory?: string;
         toolsCategory?: string;
+        permanentSlot?: string;
+        permanentSlotDesc?: string;
     };
     categories: {
         star: string;

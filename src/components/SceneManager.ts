@@ -11,6 +11,7 @@ import { Spacecraft } from './Spacecraft';
 import { TextureGenerator } from './TextureGenerator';
 import { EventBus } from './EventBus';
 import { PreferencesManager } from './PreferencesManager';
+import { solveKepler } from './MathUtils';
 import { i18n } from '../i18n';
 
 export class SceneManager {
@@ -73,6 +74,15 @@ export class SceneManager {
     measureTargetB: CelestialBody | Comet | Spacecraft | null;
     measureLine: THREE.Line | null;
     measureLabel: THREE.Sprite | null;
+    currentMeasureDistance: {
+        distanceScale: number;
+        distanceAUVal: number;
+        distanceMkmVal: number;
+        distanceAU: string;
+        distanceMkm: string;
+        unitAU: string;
+        unitMkm: string;
+    } | null = null;
     onTimeScaleChange?: (newScale: number) => void;
     onMeasureTargetsSet?: () => void;
     private unregisterI18n?: () => void;
@@ -97,6 +107,8 @@ export class SceneManager {
     private static readonly _vMid = new THREE.Vector3();
     private static readonly _vOffset = new THREE.Vector3();
     private static readonly _vLocalUp = new THREE.Vector3();
+    private static readonly _vAuA = new THREE.Vector3();
+    private static readonly _vAuB = new THREE.Vector3();
 
     // Earth period is 1. speedMultiplier is 0.5.
     // 1 orbit = 2*PI radians. Speed = 0.5 rad/sec (sim time).
@@ -1513,6 +1525,116 @@ export class SceneManager {
         return closestRadius;
     }
 
+    public getAstronomicalPositionAU(target: any, outVec: THREE.Vector3): THREE.Vector3 {
+        if (!target) return outVec.set(0, 0, 0);
+
+        // If realisticDistances is active, the scene mesh world coordinates already correspond directly to 1 AU = 130 units
+        if (this.realisticDistances) {
+            if (target.mesh) {
+                target.mesh.getWorldPosition(outVec);
+            } else if (target.orbitGroup) {
+                target.orbitGroup.getWorldPosition(outVec);
+            } else {
+                outVec.set(0, 0, 0);
+            }
+            return outVec.divideScalar(130);
+        }
+
+        // In visual (compressed) mode, compute the true astronomical coordinates in AU
+        const rawName = target.data?.name || target.name || '';
+        if (rawName === 'Sun') {
+            return outVec.set(0, 0, 0);
+        }
+
+        // 1. Is it a Planet or Dwarf Planet?
+        const planet = this.planets.find(p => p.data.name === rawName);
+        if (planet) {
+            const a = planet.data.distanceAU ?? (planet.data.distance / 130);
+            const e = planet.data.eccentricity ?? 0;
+            const b = a * Math.sqrt(Math.max(0, 1 - e * e));
+            if (e > 0) {
+                const E = solveKepler(planet.angle, e);
+                return outVec.set(a * (Math.cos(E) - e), 0, b * Math.sin(E));
+            } else {
+                return outVec.set(Math.cos(planet.angle) * a, 0, Math.sin(planet.angle) * a);
+            }
+        }
+
+        // 2. Is it a Moon?
+        for (const p of this.planets) {
+            const moon = p.moons.find(m => m.data.name === rawName);
+            if (moon) {
+                this.getAstronomicalPositionAU(p, outVec);
+                const parentX = outVec.x;
+                const parentZ = outVec.z;
+                const a = moon.data.distanceAU ?? 0.00257;
+                const e = moon.data.eccentricity ?? 0;
+                const b = a * Math.sqrt(Math.max(0, 1 - e * e));
+                let moonRelX = 0;
+                let moonRelZ = 0;
+                if (e > 0) {
+                    const E = solveKepler(moon.angle, e);
+                    moonRelX = a * (Math.cos(E) - e);
+                    moonRelZ = b * Math.sin(E);
+                } else {
+                    moonRelX = Math.cos(moon.angle) * a;
+                    moonRelZ = Math.sin(moon.angle) * a;
+                }
+                return outVec.set(parentX + moonRelX, 0, parentZ + moonRelZ);
+            }
+        }
+
+        // 3. Is it a Comet?
+        const comet = this.comets.find(c => c.data.name === rawName);
+        if (comet) {
+            const a = comet.data.distanceAU ?? (comet.data.semiMajorAxis / 130);
+            const e = comet.e ?? comet.data.eccentricity ?? 0;
+            const b = a * Math.sqrt(Math.max(0, 1 - e * e));
+            const E = solveKepler(comet.angle, e);
+            const x = a * (Math.cos(E) - e);
+            const z = b * Math.sin(E);
+            if (comet.inclinationRad) {
+                const y = -z * Math.sin(comet.inclinationRad);
+                const zPrime = z * Math.cos(comet.inclinationRad);
+                return outVec.set(x, y, zPrime);
+            }
+            return outVec.set(x, 0, z);
+        }
+
+        // 4. Is it a Spacecraft?
+        const sc = this.spacecrafts.find(s => s.data.name === rawName);
+        if (sc) {
+            if (sc.data.escaping) {
+                if (sc.mesh) {
+                    sc.mesh.getWorldPosition(outVec);
+                    return outVec.divideScalar(130);
+                }
+            } else {
+                const targetBodyName = sc.data.targetBody || 'Earth';
+                const parentBody = this.planets.find(p => p.data.name === targetBodyName);
+                if (parentBody) {
+                    this.getAstronomicalPositionAU(parentBody, outVec);
+                    const parentX = outVec.x;
+                    const parentZ = outVec.z;
+                    const scAU = sc.data.distanceAU ?? 0.000045;
+                    const scX = Math.cos(sc.angle) * scAU;
+                    const scZ = Math.sin(sc.angle) * scAU;
+                    return outVec.set(parentX + scX, 0, parentZ + scZ);
+                }
+            }
+        }
+
+        // Fallback: world position divided by 130
+        if (target.mesh) {
+            target.mesh.getWorldPosition(outVec);
+        } else if (target.orbitGroup) {
+            target.orbitGroup.getWorldPosition(outVec);
+        } else {
+            outVec.set(0, 0, 0);
+        }
+        return outVec.divideScalar(130);
+    }
+
     updateMeasurement() {
         if (!this.measureMode || !this.measureLine || !this.measureLabel) {
             if (this.measureLine) this.measureLine.visible = false;
@@ -1524,16 +1646,16 @@ export class SceneManager {
             // When 'realistic distances' is off, a planet's 'mesh' might be moving on an orbit but we need its actual position in the world.
             this.scene.updateMatrixWorld(true);
 
-            if (this.measureTargetA && 'orbitGroup' in this.measureTargetA) {
-                (this.measureTargetA as any).orbitGroup.getWorldPosition(SceneManager._vPosA);
-            } else if (this.measureTargetA && 'mesh' in this.measureTargetA) {
+            if (this.measureTargetA && 'mesh' in this.measureTargetA && this.measureTargetA.mesh) {
                 (this.measureTargetA as any).mesh.getWorldPosition(SceneManager._vPosA);
+            } else if (this.measureTargetA && 'orbitGroup' in this.measureTargetA) {
+                (this.measureTargetA as any).orbitGroup.getWorldPosition(SceneManager._vPosA);
             }
 
-            if (this.measureTargetB && 'orbitGroup' in this.measureTargetB) {
-                (this.measureTargetB as any).orbitGroup.getWorldPosition(SceneManager._vPosB);
-            } else if (this.measureTargetB && 'mesh' in this.measureTargetB) {
+            if (this.measureTargetB && 'mesh' in this.measureTargetB && this.measureTargetB.mesh) {
                 (this.measureTargetB as any).mesh.getWorldPosition(SceneManager._vPosB);
+            } else if (this.measureTargetB && 'orbitGroup' in this.measureTargetB) {
+                (this.measureTargetB as any).orbitGroup.getWorldPosition(SceneManager._vPosB);
             }
 
             // Update line
@@ -1552,12 +1674,15 @@ export class SceneManager {
             // Calculate distance
             const distanceScale = SceneManager._vPosA.distanceTo(SceneManager._vPosB);
 
-            // Update text (distance)
-            // Note: Earth is at 130 in simulation. 1 AU = 130 units roughly.
-            const distanceAUVal = distanceScale / 130;
+            // Calculate true astronomical coordinates in AU for both bodies
+            this.getAstronomicalPositionAU(this.measureTargetA, SceneManager._vAuA);
+            this.getAstronomicalPositionAU(this.measureTargetB, SceneManager._vAuB);
+            const distanceAUVal = SceneManager._vAuA.distanceTo(SceneManager._vAuB);
             const distanceMkmVal = distanceAUVal * 149.6;
-            const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            const auPrecision = distanceAUVal < 0.1 ? 4 : 3;
+            const mkmPrecision = 2;
+            const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });
+            const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: mkmPrecision, maximumFractionDigits: mkmPrecision });
             const unitAU = i18n.t('measurement.unitAU') || 'AU';
             const unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
             const labelText = i18n.t('measurement.distLabel', {
@@ -1567,6 +1692,16 @@ export class SceneManager {
                 unitMkm
             }) || `Dist: ${distanceAU} ${unitAU} / ${distanceMkm} ${unitMkm}`;
             this.updateMeasureLabel(labelText);
+
+            this.currentMeasureDistance = {
+                distanceScale,
+                distanceAUVal,
+                distanceMkmVal,
+                distanceAU,
+                distanceMkm,
+                unitAU,
+                unitMkm
+            };
 
             // Scale label size based on camera distance so it's readable
             const camDist = this.camera.position.distanceTo(this.measureLabel.position);
@@ -1583,6 +1718,7 @@ export class SceneManager {
 
             this.measureLabel.visible = true;
         } else {
+            this.currentMeasureDistance = null;
             this.measureLine.visible = false;
             this.measureLabel.visible = false;
         }
@@ -1593,6 +1729,7 @@ export class SceneManager {
         if (!visible) {
             this.measureTargetA = null;
             this.measureTargetB = null;
+            this.currentMeasureDistance = null;
             if (this.measureLine) this.measureLine.visible = false;
             if (this.measureLabel) {
                 this.measureLabel.visible = false;
@@ -1609,6 +1746,7 @@ export class SceneManager {
     clearMeasureTargets() {
         this.measureTargetA = null;
         this.measureTargetB = null;
+        this.currentMeasureDistance = null;
         if (this.measureLine) this.measureLine.visible = false;
         if (this.measureLabel) {
             this.measureLabel.visible = false;
