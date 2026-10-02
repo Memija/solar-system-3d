@@ -464,6 +464,20 @@ select {
                 color: #ffffff;
             }
 
+            &.activate-btn {
+                background: rgba(56, 189, 248, 0.18);
+                border-color: rgba(56, 189, 248, 0.45);
+                color: #38bdf8;
+                font-weight: 700;
+
+                &:hover {
+                    background: rgba(56, 189, 248, 0.35);
+                    border-color: #38bdf8;
+                    color: #ffffff;
+                    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+                }
+            }
+
             &.close-btn {
                 padding: 4px 8px;
                 font-size: 12px;

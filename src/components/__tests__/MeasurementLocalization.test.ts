@@ -30,6 +30,7 @@ describe('Measurement Localization', () => {
             });
             const clear = i18n.t('measurement.clear');
             const close = i18n.t('measurement.close');
+            const activate = i18n.t('measurement.activate');
 
             expect(measureTool).toBeTruthy();
             expect(measureMode).toBeTruthy();
@@ -45,6 +46,7 @@ describe('Measurement Localization', () => {
             expect(measuredPrompt).toContain('Mars');
             expect(clear).toBeTruthy();
             expect(close).toBeTruthy();
+            expect(activate).toBeTruthy();
         }
     });
 

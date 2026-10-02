@@ -293,7 +293,8 @@ export const bs: TranslationSchema = {
         selectSecondPrompt: 'Odabrano: {name}. Kliknite na drugo tijelo za mjerenje udaljenosti',
         measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
         clear: 'Poništi',
-        close: 'Izađi iz mjerenja'
+        close: 'Izađi iz mjerenja',
+        activate: 'Aktiviraj'
     },
     bodies: {
         Sun: {

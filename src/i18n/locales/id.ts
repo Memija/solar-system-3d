@@ -293,7 +293,8 @@ export const id: TranslationSchema = {
         selectSecondPrompt: 'Dipilih: {name}. Klik benda langit kedua untuk mengukur jarak',
         measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
         clear: 'Hapus',
-        close: 'Keluar dari Pengukuran'
+        close: 'Keluar dari Pengukuran',
+        activate: 'Aktifkan'
     },
     bodies: {
         Sun: {

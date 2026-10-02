@@ -1593,9 +1593,10 @@ export class SceneManager {
             const E = solveKepler(comet.angle, e);
             const x = a * (Math.cos(E) - e);
             const z = b * Math.sin(E);
-            if (comet.inclinationRad) {
-                const y = -z * Math.sin(comet.inclinationRad);
-                const zPrime = z * Math.cos(comet.inclinationRad);
+            const incRad = comet.data.inclination !== undefined ? THREE.MathUtils.degToRad(comet.data.inclination) : 0;
+            if (incRad) {
+                const y = -z * Math.sin(incRad);
+                const zPrime = z * Math.cos(incRad);
                 return outVec.set(x, y, zPrime);
             }
             return outVec.set(x, 0, z);

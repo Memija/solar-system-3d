@@ -127,6 +127,7 @@ export class UIManager {
         this.initInteraction();
 
         this.createMeasureHudBar();
+        this.updateMeasureHud();
         this.onMeasureModeChangedBound = () => this.updateMeasureHud();
         this.onMeasureTargetsChangedBound = () => this.updateMeasureHud();
         EventBus.on('measure-mode-changed', this.onMeasureModeChangedBound);
@@ -1481,7 +1482,7 @@ export class UIManager {
         const hud = document.createElement('div');
         hud.className = 'measure-hud-bar';
         hud.id = 'measureHudBar';
-        hud.style.display = 'none';
+        hud.style.display = 'flex';
 
         const icon = document.createElement('span');
         icon.className = 'measure-hud-icon';
@@ -1495,13 +1496,38 @@ export class UIManager {
         const actions = document.createElement('div');
         actions.className = 'measure-hud-actions';
 
+        const activateBtn = document.createElement('button');
+        activateBtn.type = 'button';
+        activateBtn.className = 'measure-action-btn activate-btn';
+        activateBtn.textContent = i18n.t('measurement.activate') || 'Activate';
+        activateBtn.title = i18n.t('measurement.activate') || 'Activate';
+        activateBtn.setAttribute('aria-label', i18n.t('measurement.activate') || 'Activate');
+        activateBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof this.sceneManager.toggleMeasureMode === 'function') {
+                this.sceneManager.toggleMeasureMode(true);
+            } else {
+                this.sceneManager.measureMode = true;
+            }
+            if (this.measureCtrl) {
+                this.measureCtrl.setValue(true);
+            }
+            if (this.controlCenter) {
+                this.controlCenter.syncSwitches();
+            }
+            this.updateMeasureHud();
+        };
+        actions.appendChild(activateBtn);
+
         const clearBtn = document.createElement('button');
         clearBtn.type = 'button';
         clearBtn.className = 'measure-action-btn clear-btn';
         clearBtn.textContent = i18n.t('measurement.clear') || 'Clear';
         clearBtn.onclick = (e) => {
             e.stopPropagation();
-            this.sceneManager.clearMeasureTargets();
+            if (typeof this.sceneManager.clearMeasureTargets === 'function') {
+                this.sceneManager.clearMeasureTargets();
+            }
         };
         actions.appendChild(clearBtn);
 
@@ -1513,12 +1539,23 @@ export class UIManager {
         closeBtn.textContent = '✕';
         closeBtn.onclick = (e) => {
             e.stopPropagation();
-            this.sceneManager.toggleMeasureMode(false);
-            if (this.measureCtrl) {
-                this.measureCtrl.setValue(false);
-            }
-            if (this.controlCenter) {
-                this.controlCenter.syncSwitches();
+            if (this.sceneManager.measureMode) {
+                if (typeof this.sceneManager.toggleMeasureMode === 'function') {
+                    this.sceneManager.toggleMeasureMode(false);
+                } else {
+                    this.sceneManager.measureMode = false;
+                }
+                if (this.measureCtrl) {
+                    this.measureCtrl.setValue(false);
+                }
+                if (this.controlCenter) {
+                    this.controlCenter.syncSwitches();
+                }
+                this.updateMeasureHud();
+            } else {
+                if (this.measureHudBar) {
+                    this.measureHudBar.style.display = 'none';
+                }
             }
         };
         actions.appendChild(closeBtn);
@@ -1533,19 +1570,38 @@ export class UIManager {
     public updateMeasureHud() {
         if (!this.measureHudBar) return;
 
-        if (!this.sceneManager.measureMode) {
-            this.measureHudBar.style.display = 'none';
-            return;
-        }
-
         this.measureHudBar.style.display = 'flex';
 
         const content = this.measureHudBar.querySelector<HTMLElement>('.measure-hud-text');
+        const activateBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.activate-btn');
         const clearBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.clear-btn');
         const closeBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.close-btn');
 
+        if (activateBtn) {
+            const activateText = i18n.t('measurement.activate') || 'Activate';
+            activateBtn.textContent = activateText;
+            activateBtn.title = activateText;
+            activateBtn.setAttribute('aria-label', activateText);
+        }
         if (clearBtn) clearBtn.textContent = i18n.t('measurement.clear') || 'Clear';
+
+        if (!this.sceneManager.measureMode) {
+            if (activateBtn) activateBtn.style.display = 'inline-block';
+            if (clearBtn) clearBtn.style.display = 'none';
+            if (closeBtn) {
+                closeBtn.style.display = 'inline-block';
+                closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
+                closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
+            }
+            if (content) {
+                content.innerHTML = `<span class="measure-hud-hint">${i18n.t('controls.measureMode') || 'Measure Mode'}</span>`;
+            }
+            return;
+        }
+
+        if (activateBtn) activateBtn.style.display = 'none';
         if (closeBtn) {
+            closeBtn.style.display = 'inline-block';
             closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
             closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
         }

@@ -306,6 +306,7 @@ export interface TranslationSchema {
         measuredDistancePrompt: string;
         clear: string;
         close: string;
+        activate?: string;
     };
 
     bodies: Record<string, ItemTranslation>;

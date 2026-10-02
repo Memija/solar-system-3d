@@ -293,7 +293,8 @@ export const de: TranslationSchema = {
         selectSecondPrompt: 'Ausgewählt: {name}. Klicken Sie auf einen zweiten Himmelskörper',
         measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
         clear: 'Zurücksetzen',
-        close: 'Messung beenden'
+        close: 'Messung beenden',
+        activate: 'Aktivieren'
     },
     bodies: {
         Sun: {

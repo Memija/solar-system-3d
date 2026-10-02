@@ -94,7 +94,15 @@ describe('UIManager', () => {
             setSurfaceView: vi.fn(),
             detachCamera: vi.fn(),
             tourMode: false,
-            tourTargets: []
+            tourTargets: [],
+            measureMode: false,
+            toggleMeasureMode: vi.fn(function(this: any, val: boolean) {
+                this.measureMode = val;
+            }),
+            clearMeasureTargets: vi.fn(function(this: any) {
+                this.measureTargetA = null;
+                this.measureTargetB = null;
+            })
         };
 
         // Mock modal to avoid errors
@@ -637,6 +645,50 @@ describe('UIManager', () => {
 
         expect(valEl?.textContent).toBe('1.50 AU');
         expect(mkmEl?.textContent).toBe('(224.4 Mkm)');
+    });
+
+    it('should display Measure Mode HUD bar by default with activation button', () => {
+        const hud = document.getElementById('measureHudBar');
+        expect(hud).not.toBeNull();
+        expect(hud?.style.display).toBe('flex');
+
+        const activateBtn = hud?.querySelector('.measure-action-btn.activate-btn') as HTMLButtonElement;
+        const clearBtn = hud?.querySelector('.measure-action-btn.clear-btn') as HTMLButtonElement;
+        const closeBtn = hud?.querySelector('.measure-action-btn.close-btn') as HTMLButtonElement;
+        const textEl = hud?.querySelector('.measure-hud-text');
+
+        expect(activateBtn).not.toBeNull();
+        expect(activateBtn.style.display).toBe('inline-block');
+        expect(activateBtn.textContent).toBe('Activate');
+        expect(clearBtn.style.display).toBe('none');
+        expect(closeBtn.style.display).toBe('inline-block');
+        expect(textEl?.textContent).toContain('Measure Mode');
+    });
+
+    it('should activate measure mode when activation button is clicked and handle close button', () => {
+        const hud = document.getElementById('measureHudBar');
+        const activateBtn = hud?.querySelector('.measure-action-btn.activate-btn') as HTMLButtonElement;
+        const clearBtn = hud?.querySelector('.measure-action-btn.clear-btn') as HTMLButtonElement;
+        const closeBtn = hud?.querySelector('.measure-action-btn.close-btn') as HTMLButtonElement;
+        const textEl = hud?.querySelector('.measure-hud-text');
+
+        activateBtn.click();
+
+        expect(sceneManager.measureMode).toBe(true);
+        expect(activateBtn.style.display).toBe('none');
+        expect(closeBtn.style.display).toBe('inline-block');
+        expect(clearBtn.style.display).toBe('none');
+        expect(textEl?.textContent).toContain('Click a celestial body to begin measuring');
+
+        // Clicking close button exits active measure mode back to inactive state with activation button
+        closeBtn.click();
+        expect(sceneManager.measureMode).toBe(false);
+        expect(activateBtn.style.display).toBe('inline-block');
+        expect(textEl?.textContent).toContain('Measure Mode');
+
+        // Clicking close button when inactive dismisses HUD bar
+        closeBtn.click();
+        expect(hud?.style.display).toBe('none');
     });
 });
 

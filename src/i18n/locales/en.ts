@@ -293,7 +293,8 @@ export const en: TranslationSchema = {
         selectSecondPrompt: 'Selected: {name}. Click a second body to measure distance',
         measuredDistancePrompt: '{bodyA} ↔ {bodyB}: {au} {unitAU} ({mkm} {unitMkm})',
         clear: 'Clear',
-        close: 'Exit Measurement'
+        close: 'Exit Measurement',
+        activate: 'Activate'
     },
     bodies: {
         Sun: {
