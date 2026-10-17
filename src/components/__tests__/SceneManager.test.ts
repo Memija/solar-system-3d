@@ -274,5 +274,43 @@ describe('SceneManager', () => {
             expect(result2).toBe(false);
             expect(manager.surfaceViewBody).toBeNull();
         });
+
+        it('should synchronize AU and Mkm calculations and update measurement on target selection', () => {
+            const manager = new SceneManager(container);
+            manager.measureMode = true;
+            manager.planets[0].data = { name: 'Earth', distance: 130, distanceAU: 1, eccentricity: 0.0167 } as any;
+            manager.planets[1].data = { name: 'Mars', distance: 170, distanceAU: 1.524, eccentricity: 0.0934 } as any;
+
+            // Select Target A
+            manager.setMeasureTarget('Earth');
+            expect(manager.measureTargetA).toBe(manager.planets[0]);
+            expect(manager.measureTargetB).toBeNull();
+            expect(manager.currentMeasureDistance).toBeNull();
+
+            // Select Target B
+            manager.setMeasureTarget('Mars');
+            expect(manager.measureTargetA).toBe(manager.planets[0]);
+            expect(manager.measureTargetB).toBe(manager.planets[1]);
+            expect(manager.currentMeasureDistance).not.toBeNull();
+
+            // Mathematical sync: distanceAU * 149.6 should match distanceMkm
+            const auStr = manager.currentMeasureDistance!.distanceAU;
+            const mkmStr = manager.currentMeasureDistance!.distanceMkm;
+            const parsedAU = parseFloat(auStr);
+            const parsedMkm = parseFloat(mkmStr);
+            const expectedMkm = parseFloat((parsedAU * 149.6).toFixed(2));
+            expect(parsedMkm).toBeCloseTo(expectedMkm, 2);
+
+            // Selecting a third body should reset to new target A and clear measureLine/label/distance
+            if (manager.planets[2]) {
+                manager.planets[2].data = { name: 'Jupiter', distance: 240, distanceAU: 5.2, eccentricity: 0.0485 } as any;
+                manager.setMeasureTarget('Jupiter');
+                expect(manager.measureTargetA).toBe(manager.planets[2]);
+                expect(manager.measureTargetB).toBeNull();
+                expect(manager.currentMeasureDistance).toBeNull();
+                expect(manager.measureLine?.visible).toBe(false);
+                expect(manager.measureLabel?.visible).toBe(false);
+            }
+        });
     });
 });

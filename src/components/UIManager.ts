@@ -1626,6 +1626,10 @@ export class UIManager {
             let unitAU = i18n.t('measurement.unitAU') || 'AU';
             let unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
 
+            if (!this.sceneManager.currentMeasureDistance && typeof this.sceneManager.updateMeasurement === 'function') {
+                this.sceneManager.updateMeasurement();
+            }
+
             if (this.sceneManager.currentMeasureDistance) {
                 distanceAU = this.sceneManager.currentMeasureDistance.distanceAU;
                 distanceMkm = this.sceneManager.currentMeasureDistance.distanceMkm;
@@ -1648,9 +1652,10 @@ export class UIManager {
                     distanceAUVal = distScale / 130;
                 }
 
-                const distanceMkmVal = distanceAUVal * 149.6;
                 const auPrecision = distanceAUVal < 0.1 ? 4 : 3;
                 const mkmPrecision = 2;
+                const roundedAU = Number(distanceAUVal.toFixed(auPrecision));
+                const distanceMkmVal = roundedAU * 149.6;
                 distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });
                 distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: mkmPrecision, maximumFractionDigits: mkmPrecision });
             }

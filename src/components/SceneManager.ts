@@ -1643,7 +1643,7 @@ export class SceneManager {
             return;
         }
 
-        if (this.measureTargetA && this.measureTargetA.mesh && this.measureTargetB && this.measureTargetB.mesh) {
+        if (this.measureTargetA && this.measureTargetB) {
             // When 'realistic distances' is off, a planet's 'mesh' might be moving on an orbit but we need its actual position in the world.
             this.scene.updateMatrixWorld(true);
 
@@ -1651,12 +1651,16 @@ export class SceneManager {
                 (this.measureTargetA as any).mesh.getWorldPosition(SceneManager._vPosA);
             } else if (this.measureTargetA && 'orbitGroup' in this.measureTargetA) {
                 (this.measureTargetA as any).orbitGroup.getWorldPosition(SceneManager._vPosA);
+            } else {
+                SceneManager._vPosA.set(0, 0, 0);
             }
 
             if (this.measureTargetB && 'mesh' in this.measureTargetB && this.measureTargetB.mesh) {
                 (this.measureTargetB as any).mesh.getWorldPosition(SceneManager._vPosB);
             } else if (this.measureTargetB && 'orbitGroup' in this.measureTargetB) {
                 (this.measureTargetB as any).orbitGroup.getWorldPosition(SceneManager._vPosB);
+            } else {
+                SceneManager._vPosB.set(0, 0, 0);
             }
 
             // Update line
@@ -1679,9 +1683,10 @@ export class SceneManager {
             this.getAstronomicalPositionAU(this.measureTargetA, SceneManager._vAuA);
             this.getAstronomicalPositionAU(this.measureTargetB, SceneManager._vAuB);
             const distanceAUVal = SceneManager._vAuA.distanceTo(SceneManager._vAuB);
-            const distanceMkmVal = distanceAUVal * 149.6;
             const auPrecision = distanceAUVal < 0.1 ? 4 : 3;
             const mkmPrecision = 2;
+            const roundedAU = Number(distanceAUVal.toFixed(auPrecision));
+            const distanceMkmVal = roundedAU * 149.6;
             const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });
             const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: mkmPrecision, maximumFractionDigits: mkmPrecision });
             const unitAU = i18n.t('measurement.unitAU') || 'AU';
@@ -1776,8 +1781,19 @@ export class SceneManager {
         if (target) {
             if (!this.measureTargetA) {
                 this.measureTargetA = target;
+                this.currentMeasureDistance = null;
+                if (this.measureLine) this.measureLine.visible = false;
+                if (this.measureLabel) {
+                    this.measureLabel.visible = false;
+                    (this.measureLabel as any).userData.lastText = null;
+                }
             } else if (!this.measureTargetB && target !== this.measureTargetA) {
                 this.measureTargetB = target;
+                if (this.measureLabel) {
+                    (this.measureLabel as any).userData.lastText = null;
+                }
+                // Immediately calculate measurement and update 3D tools so currentMeasureDistance is ready synchronously
+                this.updateMeasurement();
                 if (this.onMeasureTargetsSet) {
                     this.onMeasureTargetsSet();
                 }
@@ -1785,9 +1801,12 @@ export class SceneManager {
                 // If both set, reset A to new target, B to null
                 this.measureTargetA = target;
                 this.measureTargetB = null;
-            }
-            if (this.measureLabel) {
-                (this.measureLabel as any).userData.lastText = null;
+                this.currentMeasureDistance = null;
+                if (this.measureLine) this.measureLine.visible = false;
+                if (this.measureLabel) {
+                    this.measureLabel.visible = false;
+                    (this.measureLabel as any).userData.lastText = null;
+                }
             }
             EventBus.emit('measure-targets-changed', {
                 targetA: this.measureTargetA,
