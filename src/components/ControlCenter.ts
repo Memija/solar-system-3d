@@ -3,6 +3,7 @@ import { UIManager } from './UIManager';
 import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 import { HeaderSlotsManager } from './HeaderSlotsManager';
+import { getSettingOptionInfo } from './SettingOptionsData';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
 
@@ -15,6 +16,7 @@ export class ControlCenter {
     backdropElement: HTMLElement;
     activeTab: ControlCenterTab = 'target';
     isOpen: boolean = false;
+    public activeInfoModal: HTMLElement | null = null;
 
     // References for reactive updates
     private tabButtons: Map<ControlCenterTab, HTMLElement> = new Map();
@@ -148,6 +150,166 @@ export class ControlCenter {
         return drawer;
     }
 
+    public createInfoButton(optionId: string, label: string): HTMLButtonElement {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ctrl-info-btn';
+        btn.dataset.optionId = optionId;
+        btn.setAttribute('aria-label', `Information about ${label}`);
+        btn.innerHTML = 'ℹ';
+        btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.openOptionInfoModal(optionId);
+        };
+        return btn;
+    }
+
+    public openOptionInfoModal(optionId: string) {
+        this.closeOptionInfoModal();
+
+        const info = getSettingOptionInfo(optionId);
+        if (!info) return;
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'ctrl-info-modal-backdrop';
+        backdrop.setAttribute('role', 'dialog');
+        backdrop.setAttribute('aria-modal', 'true');
+        backdrop.setAttribute('aria-labelledby', `ctrl-info-title-${optionId}`);
+
+        const card = document.createElement('div');
+        card.className = 'ctrl-info-modal-card';
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'ctrl-info-modal-header';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'ctrl-info-modal-title-wrap';
+
+        const iconBadge = document.createElement('div');
+        iconBadge.className = 'ctrl-info-modal-icon-badge';
+        iconBadge.textContent = info.icon;
+        titleWrap.appendChild(iconBadge);
+
+        const textGroup = document.createElement('div');
+        textGroup.className = 'ctrl-info-modal-text-group';
+
+        const cat = document.createElement('div');
+        cat.className = 'ctrl-info-modal-category';
+        cat.textContent = info.category;
+        textGroup.appendChild(cat);
+
+        const heading = document.createElement('h3');
+        heading.id = `ctrl-info-title-${optionId}`;
+        heading.className = 'ctrl-info-modal-title';
+        heading.textContent = info.title;
+        textGroup.appendChild(heading);
+
+        titleWrap.appendChild(textGroup);
+        header.appendChild(titleWrap);
+
+        const headerActions = document.createElement('div');
+        headerActions.className = 'ctrl-info-modal-header-actions';
+
+        if (info.kbd) {
+            const kbdBadge = document.createElement('kbd');
+            kbdBadge.className = 'ctrl-kbd-badge';
+            kbdBadge.textContent = info.kbd;
+            headerActions.appendChild(kbdBadge);
+        }
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'ctrl-info-modal-close';
+        closeBtn.innerHTML = '✕';
+        closeBtn.setAttribute('aria-label', i18n.t('ui.close') || 'Close');
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.closeOptionInfoModal();
+        };
+        headerActions.appendChild(closeBtn);
+
+        header.appendChild(headerActions);
+        card.appendChild(header);
+
+        // Body
+        const body = document.createElement('div');
+        body.className = 'ctrl-info-modal-body';
+
+        // Section: Overview
+        const overviewSec = document.createElement('div');
+        overviewSec.className = 'ctrl-info-section';
+        overviewSec.innerHTML = `
+            <div class="ctrl-info-section-title">
+                <span>📘</span>
+                <span>${i18n.t('ui.overview') || 'Overview'}</span>
+            </div>
+            <p class="ctrl-info-text">${info.overview}</p>
+        `;
+        body.appendChild(overviewSec);
+
+        // Section: Astronomical Science
+        const scienceSec = document.createElement('div');
+        scienceSec.className = 'ctrl-info-section';
+        scienceSec.innerHTML = `
+            <div class="ctrl-info-section-title">
+                <span>🔬</span>
+                <span>${i18n.t('ui.astronomicalScience') || 'Astronomical Mechanics & Science'}</span>
+            </div>
+            <p class="ctrl-info-text">${info.science}</p>
+        `;
+        body.appendChild(scienceSec);
+
+        // Section: Observation Tip
+        const tipSec = document.createElement('div');
+        tipSec.className = 'ctrl-info-section';
+        tipSec.innerHTML = `
+            <div class="ctrl-info-section-title">
+                <span>💡</span>
+                <span>${i18n.t('ui.observationTip') || 'Observatory Tip'}</span>
+            </div>
+            <p class="ctrl-info-text">${info.tip}</p>
+        `;
+        body.appendChild(tipSec);
+
+        card.appendChild(body);
+
+        // Footer
+        const footer = document.createElement('div');
+        footer.className = 'ctrl-info-modal-footer';
+
+        const actionBtn = document.createElement('button');
+        actionBtn.type = 'button';
+        actionBtn.className = 'ctrl-info-modal-action-btn';
+        actionBtn.textContent = i18n.t('ui.understood') || 'Understood';
+        actionBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.closeOptionInfoModal();
+        };
+        footer.appendChild(actionBtn);
+
+        card.appendChild(footer);
+        backdrop.appendChild(card);
+
+        // Backdrop click to close
+        backdrop.onclick = (e) => {
+            if (e.target === backdrop) {
+                this.closeOptionInfoModal();
+            }
+        };
+
+        this.uiContainer.appendChild(backdrop);
+        this.activeInfoModal = backdrop;
+    }
+
+    public closeOptionInfoModal() {
+        if (this.activeInfoModal) {
+            this.activeInfoModal.remove();
+            this.activeInfoModal = null;
+        }
+    }
+
     private getTabLabel(tab: ControlCenterTab): string {
         switch (tab) {
             case 'target': return i18n.t('controls.tabs.target') || 'Target';
@@ -174,7 +336,13 @@ export class ControlCenter {
 
         const groupTitle = document.createElement('h4');
         groupTitle.className = 'ctrl-group-title';
-        groupTitle.innerHTML = `<span data-i18n-key="controls.sections.celestialNav">${i18n.t('controls.sections.celestialNav') || 'Celestial Navigation'}</span><span class="group-tag">EPHEMERIS</span>`;
+        const leftWrap = document.createElement('span');
+        leftWrap.style.display = 'inline-flex';
+        leftWrap.style.alignItems = 'center';
+        leftWrap.style.gap = '8px';
+        leftWrap.innerHTML = `<span data-i18n-key="controls.sections.celestialNav">${i18n.t('controls.sections.celestialNav') || 'Celestial Navigation'}</span><span class="group-tag">EPHEMERIS</span>`;
+        groupTitle.appendChild(leftWrap);
+        groupTitle.appendChild(this.createInfoButton('celestialNav', 'Celestial Navigation'));
         selectGroup.appendChild(groupTitle);
 
         const selectRow = document.createElement('div');
@@ -272,6 +440,12 @@ export class ControlCenter {
         const masterGroup = document.createElement('div');
         masterGroup.className = 'ctrl-group';
 
+        const pauseTitle = document.createElement('h4');
+        pauseTitle.className = 'ctrl-group-title';
+        pauseTitle.innerHTML = `<span data-i18n-key="controls.sections.simulationState">${i18n.t('controls.sections.simulationState') || 'Simulation State'}</span>`;
+        pauseTitle.appendChild(this.createInfoButton('pauseResume', 'Pause / Resume Simulation'));
+        masterGroup.appendChild(pauseTitle);
+
         const pauseBtn = document.createElement('button');
         pauseBtn.type = 'button';
         pauseBtn.className = 'master-action-btn pause-action-btn';
@@ -292,6 +466,7 @@ export class ControlCenter {
         const presetTitle = document.createElement('h4');
         presetTitle.className = 'ctrl-group-title';
         presetTitle.innerHTML = `<span data-i18n-key="controls.speedPreset">${i18n.t('controls.speedPreset') || 'Speed Presets'}</span>`;
+        presetTitle.appendChild(this.createInfoButton('speedPresets', 'Speed Presets'));
         presetGroup.appendChild(presetTitle);
 
         const presetGrid = document.createElement('div');
@@ -339,6 +514,7 @@ export class ControlCenter {
         const sliderTitle = document.createElement('h4');
         sliderTitle.className = 'ctrl-group-title';
         sliderTitle.innerHTML = `<span data-i18n-key="controls.timeSpeed">${i18n.t('controls.timeSpeed') || 'Time Speed Fine Scrubber'}</span>`;
+        sliderTitle.appendChild(this.createInfoButton('timeSpeed', 'Time Speed Fine Scrubber'));
         sliderGroup.appendChild(sliderTitle);
 
         const sliderWrap = document.createElement('div');
@@ -403,6 +579,7 @@ export class ControlCenter {
         const dateTitle = document.createElement('h4');
         dateTitle.className = 'ctrl-group-title';
         dateTitle.innerHTML = `<span data-i18n-key="ui.simDate">${i18n.t('ui.simDate') || 'Observation Date'}</span>`;
+        dateTitle.appendChild(this.createInfoButton('jumpToDate', 'Observation Date'));
         dateGroup.appendChild(dateTitle);
 
         const jumpBtn = document.createElement('button');
@@ -441,11 +618,12 @@ export class ControlCenter {
         title.innerHTML = `<span data-i18n-key="controls.sections.entitiesTrails">${i18n.t('controls.sections.entitiesTrails') || 'Cosmic Entities & Trails'}</span>`;
         group.appendChild(title);
 
-        const layersConfig: { prop: string; key: string; icon: string; initial: boolean; onChange: (v: boolean) => void }[] = [
+        const layersConfig: { prop: string; key: string; icon: string; kbd?: string; initial: boolean; onChange: (v: boolean) => void }[] = [
             {
                 prop: 'showOrbits',
                 key: 'controls.showOrbits',
                 icon: '🪐',
+                kbd: 'O',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleOrbits(v)
             },
@@ -453,6 +631,7 @@ export class ControlCenter {
                 prop: 'showMoons',
                 key: 'controls.showMoons',
                 icon: '🌕',
+                kbd: 'N',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleMoons(v)
             },
@@ -460,6 +639,7 @@ export class ControlCenter {
                 prop: 'showAsteroids',
                 key: 'controls.showAsteroids',
                 icon: '🪨',
+                kbd: 'E',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleAsteroids(v)
             },
@@ -467,6 +647,7 @@ export class ControlCenter {
                 prop: 'showKuiperBelt',
                 key: 'controls.showKuiperBelt',
                 icon: '❄️',
+                kbd: 'U',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleKuiperBelt(v)
             },
@@ -474,6 +655,7 @@ export class ControlCenter {
                 prop: 'showDwarfPlanets',
                 key: 'controls.showDwarfPlanets',
                 icon: '⚪',
+                kbd: 'W',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleDwarfPlanets(v)
             },
@@ -481,6 +663,7 @@ export class ControlCenter {
                 prop: 'showComets',
                 key: 'controls.showComets',
                 icon: '☄️',
+                kbd: 'Q',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleComets(v)
             },
@@ -488,6 +671,7 @@ export class ControlCenter {
                 prop: 'showSpacecraft',
                 key: 'controls.showSpacecraft',
                 icon: '🛰️',
+                kbd: 'J',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleSpacecrafts(v)
             },
@@ -495,6 +679,7 @@ export class ControlCenter {
                 prop: 'showMeteors',
                 key: 'controls.showMeteors',
                 icon: '🌠',
+                kbd: 'Y',
                 initial: false,
                 onChange: (v) => this.sceneManager.toggleMeteors(v)
             },
@@ -502,6 +687,7 @@ export class ControlCenter {
                 prop: 'showTrails',
                 key: 'controls.showTrails',
                 icon: '〰️',
+                kbd: 'I',
                 initial: true,
                 onChange: (v) => this.sceneManager.toggleTrails(v)
             }
@@ -523,6 +709,15 @@ export class ControlCenter {
             labelText.dataset.i18nKey = cfg.key;
             labelText.textContent = i18n.t(cfg.key);
             labelWrap.appendChild(labelText);
+
+            if (cfg.kbd) {
+                const kbdBadge = document.createElement('kbd');
+                kbdBadge.className = 'ctrl-kbd-badge';
+                kbdBadge.textContent = cfg.kbd;
+                labelWrap.appendChild(kbdBadge);
+            }
+
+            labelWrap.appendChild(this.createInfoButton(cfg.prop, i18n.t(cfg.key) || cfg.prop));
 
             row.appendChild(labelWrap);
 
@@ -571,9 +766,9 @@ export class ControlCenter {
         segmented.className = 'camera-modes-segmented';
 
         const modes = [
-            { key: 'orbit', icon: '🎯', labelKey: 'controls.sections.orbitFocus', fallback: 'Orbit Focus', kbd: 'A', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
-            { key: 'surface', icon: '🪐', labelKey: 'controls.sections.surfaceView', fallback: 'Surface View', kbd: 'V', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
-            { key: 'detach', icon: '🚀', labelKey: 'controls.sections.freeCam', fallback: 'Free Camera', kbd: 'D', action: () => this.sceneManager.detachCamera() }
+            { key: 'orbit', optionId: 'orbitFocus', icon: '🎯', labelKey: 'controls.sections.orbitFocus', fallback: 'Orbit Focus', kbd: 'A', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
+            { key: 'surface', optionId: 'surfaceView', icon: '🪐', labelKey: 'controls.sections.surfaceView', fallback: 'Surface View', kbd: 'V', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
+            { key: 'detach', optionId: 'freeCamera', icon: '🚀', labelKey: 'controls.sections.freeCam', fallback: 'Free Camera', kbd: 'D', action: () => this.sceneManager.detachCamera() }
         ];
 
         modes.forEach(m => {
@@ -582,6 +777,7 @@ export class ControlCenter {
             btn.className = `cam-mode-btn ${m.key === 'orbit' ? 'active' : ''}`;
             btn.dataset.modeKey = m.key;
             btn.innerHTML = `${m.icon} <span data-i18n-key="${m.labelKey}">${i18n.t(m.labelKey) || m.fallback}</span> <kbd class="ctrl-kbd-badge">${m.kbd}</kbd>`;
+            btn.appendChild(this.createInfoButton(m.optionId, m.fallback));
             btn.onclick = () => {
                 m.action();
                 this.syncSwitches();
@@ -608,6 +804,7 @@ export class ControlCenter {
         const tourLabel = document.createElement('label');
         tourLabel.className = 'toggle-label-wrap';
         tourLabel.innerHTML = `<span class="toggle-icon">🎬</span><span data-i18n-key="controls.sections.autonomousTour">${i18n.t('controls.sections.autonomousTour') || 'Autonomous Grand Tour'}</span><kbd class="ctrl-kbd-badge">T</kbd>`;
+        tourLabel.appendChild(this.createInfoButton('cinematicTour', 'Autonomous Grand Tour'));
         tourRow.appendChild(tourLabel);
 
         const tourSwitch = document.createElement('label');
@@ -641,6 +838,12 @@ export class ControlCenter {
         this.switches.set('tourMode', tourInput);
 
         // Tour Speed Slider
+        const tourSpeedHeader = document.createElement('div');
+        tourSpeedHeader.className = 'speed-slider-label-row';
+        tourSpeedHeader.innerHTML = `<span class="slider-sublabel">⏱️ <span data-i18n-key="controls.tourSpeed">${i18n.t('controls.tourSpeed') || 'Tour Dwell Duration'}</span></span>`;
+        tourSpeedHeader.appendChild(this.createInfoButton('tourSpeed', 'Tour Dwell Duration'));
+        tourGroup.appendChild(tourSpeedHeader);
+
         const tourSpeedWrap = document.createElement('div');
         tourSpeedWrap.className = 'speed-slider-wrap';
 
@@ -668,43 +871,6 @@ export class ControlCenter {
         tourGroup.appendChild(tourSpeedWrap);
         panel.appendChild(tourGroup);
 
-        // Distance Measurement Tool
-        const measureGroup = document.createElement('div');
-        measureGroup.className = 'ctrl-group';
-
-        const measureTitle = document.createElement('h4');
-        measureTitle.className = 'ctrl-group-title';
-        measureTitle.innerHTML = `<span data-i18n-key="controls.measureTool">${i18n.t('controls.measureTool') || 'Distance Measuring Tool'}</span>`;
-        measureGroup.appendChild(measureTitle);
-
-        const measureRow = document.createElement('div');
-        measureRow.className = 'ctrl-row-toggle';
-
-        const measureLabel = document.createElement('label');
-        measureLabel.className = 'toggle-label-wrap';
-        measureLabel.innerHTML = `
-            <span class="toggle-icon">📐</span>
-            <span data-i18n-key="controls.measureMode">${i18n.t('controls.measureMode') || 'Measure Mode'}</span>
-            <span class="toggle-info-hint" data-i18n-key="controls.tooltips.measureDistance" title="${i18n.t('controls.tooltips.measureDistance')}">?</span>
-        `;
-        measureRow.appendChild(measureLabel);
-
-        const measureSwitch = document.createElement('label');
-        measureSwitch.className = 'sci-switch';
-
-        const measureInput = document.createElement('input');
-        measureInput.type = 'checkbox';
-        measureInput.checked = this.sceneManager.measureMode;
-        measureInput.onchange = () => {
-            this.sceneManager.toggleMeasureMode(measureInput.checked);
-        };
-        measureSwitch.appendChild(measureInput);
-        measureSwitch.appendChild(document.createElement('span')).className = 'sci-slider';
-        measureRow.appendChild(measureSwitch);
-        measureGroup.appendChild(measureRow);
-        this.switches.set('measureMode', measureInput);
-
-        panel.appendChild(measureGroup);
         return panel;
     }
 
@@ -814,6 +980,8 @@ export class ControlCenter {
                 labelWrap.appendChild(kbdBadge);
             }
 
+            labelWrap.appendChild(this.createInfoButton(cfg.prop, i18n.t(cfg.key) || cfg.prop));
+
             row.appendChild(labelWrap);
 
             const switchWrap = document.createElement('label');
@@ -860,7 +1028,13 @@ export class ControlCenter {
         // Radar Toggle
         const radarRow = document.createElement('div');
         radarRow.className = 'ctrl-row-toggle';
-        radarRow.innerHTML = `<span class="toggle-label-wrap"><span class="toggle-icon">🛰️</span><span data-i18n-key="controls.showMinimap">${i18n.t('controls.showMinimap') || 'Tactical Radar Minimap'}</span><kbd class="ctrl-kbd-badge">M</kbd></span>`;
+        
+        const radarLabel = document.createElement('label');
+        radarLabel.className = 'toggle-label-wrap';
+        radarLabel.innerHTML = `<span class="toggle-icon">🛰️</span><span data-i18n-key="controls.showMinimap">${i18n.t('controls.showMinimap') || 'Tactical Radar Minimap'}</span><kbd class="ctrl-kbd-badge">M</kbd>`;
+        radarLabel.appendChild(this.createInfoButton('minimap', 'Tactical Radar Minimap'));
+        radarRow.appendChild(radarLabel);
+
         const radarSwitch = document.createElement('label');
         radarSwitch.className = 'sci-switch';
         const radarInput = document.createElement('input');
@@ -881,7 +1055,13 @@ export class ControlCenter {
         // Performance Telemetry Toggle
         const perfRow = document.createElement('div');
         perfRow.className = 'ctrl-row-toggle';
-        perfRow.innerHTML = `<span class="toggle-label-wrap"><span class="toggle-icon">⚡</span><span data-i18n-key="ui.telemetry">${i18n.t('ui.telemetry') || 'Engine Performance Telemetry'}</span><kbd class="ctrl-kbd-badge">P</kbd></span>`;
+
+        const perfLabel = document.createElement('label');
+        perfLabel.className = 'toggle-label-wrap';
+        perfLabel.innerHTML = `<span class="toggle-icon">⚡</span><span data-i18n-key="ui.telemetry">${i18n.t('ui.telemetry') || 'Engine Performance Telemetry'}</span><kbd class="ctrl-kbd-badge">P</kbd>`;
+        perfLabel.appendChild(this.createInfoButton('telemetry', 'Engine Performance Telemetry'));
+        perfRow.appendChild(perfLabel);
+
         const perfSwitch = document.createElement('label');
         perfSwitch.className = 'sci-switch';
         const perfInput = document.createElement('input');
@@ -935,6 +1115,7 @@ export class ControlCenter {
     }
 
     public close() {
+        this.closeOptionInfoModal();
         this.toggle(false);
     }
 
@@ -1022,7 +1203,6 @@ export class ControlCenter {
         setChecked('showAxes', sm.showAxes);
         setChecked('realisticDistances', sm.realisticDistances);
         setChecked('tourMode', sm.tourMode);
-        setChecked('measureMode', sm.measureMode);
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
         setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
 
@@ -1106,8 +1286,14 @@ export class ControlCenter {
 
     private initEventListeners() {
         this.onKeyDownBound = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && this.isOpen) {
-                this.close();
+            if (e.key === 'Escape') {
+                if (this.activeInfoModal) {
+                    this.closeOptionInfoModal();
+                    return;
+                }
+                if (this.isOpen) {
+                    this.close();
+                }
             }
         };
         window.addEventListener('keydown', this.onKeyDownBound);
@@ -1118,6 +1304,7 @@ export class ControlCenter {
     }
 
     public dispose() {
+        this.closeOptionInfoModal();
         if (this.unregisterI18n) {
             this.unregisterI18n();
             this.unregisterI18n = null;

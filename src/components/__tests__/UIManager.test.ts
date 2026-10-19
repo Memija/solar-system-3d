@@ -102,7 +102,16 @@ describe('UIManager', () => {
             clearMeasureTargets: vi.fn(function(this: any) {
                 this.measureTargetA = null;
                 this.measureTargetB = null;
-            })
+            }),
+            toggleOrbits: vi.fn(),
+            toggleMoons: vi.fn(),
+            toggleAsteroids: vi.fn(),
+            toggleKuiperBelt: vi.fn(),
+            toggleDwarfPlanets: vi.fn(),
+            toggleComets: vi.fn(),
+            toggleSpacecrafts: vi.fn(),
+            toggleMeteors: vi.fn(),
+            toggleTrails: vi.fn()
         };
 
         // Mock modal to avoid errors
@@ -122,6 +131,9 @@ describe('UIManager', () => {
     });
 
     afterEach(() => {
+        if (uiManager) {
+            uiManager.dispose();
+        }
         i18n.setLanguage('en');
         document.body.innerHTML = '';
         vi.clearAllMocks();
@@ -382,6 +394,73 @@ describe('UIManager', () => {
         expect(modalArg.description).toContain('<kbd>V</kbd>');
         expect(modalArg.description).toContain('<kbd>D</kbd>');
         expect(modalArg.description).toContain('<kbd>T</kbd>');
+        expect(modalArg.description).toContain('<kbd>O</kbd>');
+        expect(modalArg.description).toContain('<kbd>N</kbd>');
+        expect(modalArg.description).toContain('<kbd>E</kbd>');
+        expect(modalArg.description).toContain('<kbd>U</kbd>');
+        expect(modalArg.description).toContain('<kbd>W</kbd>');
+        expect(modalArg.description).toContain('<kbd>Q</kbd>');
+        expect(modalArg.description).toContain('<kbd>J</kbd>');
+        expect(modalArg.description).toContain('<kbd>Y</kbd>');
+        expect(modalArg.description).toContain('<kbd>I</kbd>');
+    });
+
+    it('should toggle celestial layers via keyboard shortcuts (O, N, E, U, W, Q, J, Y, I)', () => {
+        sceneManager.toggleOrbits = vi.fn();
+        sceneManager.toggleMoons = vi.fn();
+        sceneManager.toggleAsteroids = vi.fn();
+        sceneManager.toggleKuiperBelt = vi.fn();
+        sceneManager.toggleDwarfPlanets = vi.fn();
+        sceneManager.toggleComets = vi.fn();
+        sceneManager.toggleSpacecrafts = vi.fn();
+        sceneManager.toggleMeteors = vi.fn();
+        sceneManager.toggleTrails = vi.fn();
+
+        sceneManager.showOrbits = true;
+        sceneManager.showMoons = true;
+        sceneManager.showAsteroids = true;
+        sceneManager.showKuiperBelt = true;
+        sceneManager.showDwarfPlanets = true;
+        sceneManager.showComets = true;
+        sceneManager.showSpacecrafts = true;
+        sceneManager.showMeteors = false;
+        sceneManager.showTrails = true;
+
+        // O toggles orbits
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', code: 'KeyO' }));
+        expect(sceneManager.toggleOrbits).toHaveBeenCalledWith(false);
+
+        // N toggles moons
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', code: 'KeyN' }));
+        expect(sceneManager.toggleMoons).toHaveBeenCalledWith(false);
+
+        // E toggles asteroids
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', code: 'KeyE' }));
+        expect(sceneManager.toggleAsteroids).toHaveBeenCalledWith(false);
+
+        // U toggles Kuiper Belt
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'u', code: 'KeyU' }));
+        expect(sceneManager.toggleKuiperBelt).toHaveBeenCalledWith(false);
+
+        // W toggles dwarf planets
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW' }));
+        expect(sceneManager.toggleDwarfPlanets).toHaveBeenCalledWith(false);
+
+        // Q toggles comets
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', code: 'KeyQ' }));
+        expect(sceneManager.toggleComets).toHaveBeenCalledWith(false);
+
+        // J toggles spacecraft
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', code: 'KeyJ' }));
+        expect(sceneManager.toggleSpacecrafts).toHaveBeenCalledWith(false);
+
+        // Y toggles meteors
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', code: 'KeyY' }));
+        expect(sceneManager.toggleMeteors).toHaveBeenCalledWith(true);
+
+        // I toggles trails
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', code: 'KeyI' }));
+        expect(sceneManager.toggleTrails).toHaveBeenCalledWith(false);
     });
 
     it('should handle camera keyboard shortcuts (A, V, D)', () => {

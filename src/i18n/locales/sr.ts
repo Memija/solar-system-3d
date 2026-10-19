@@ -33,7 +33,11 @@ export const sr: TranslationSchema = {
         layersCategory: '🪐 Небески слојеви',
         toolsCategory: '🛰️ Инструменти опсерваторије',
         permanentSlot: 'Трајно',
-        permanentSlotDesc: 'Трајно закачено за заглавље (не може се уклонити)'
+        permanentSlotDesc: 'Трајно закачено за заглавље (не може се уклонити)',
+        overview: 'Преглед',
+        astronomicalScience: 'Астрономска механика и наука',
+        observationTip: 'Савет за посматрање',
+        understood: 'Разумем'
     },
     categories: {
         star: '🌟 Звезде',

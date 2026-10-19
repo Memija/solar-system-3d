@@ -224,6 +224,15 @@ describe('ControlCenter Component', () => {
         expect(badgeTexts).toContain('V');
         expect(badgeTexts).toContain('D');
         expect(badgeTexts).toContain('T');
+        expect(badgeTexts).toContain('O');
+        expect(badgeTexts).toContain('N');
+        expect(badgeTexts).toContain('E');
+        expect(badgeTexts).toContain('U');
+        expect(badgeTexts).toContain('W');
+        expect(badgeTexts).toContain('Q');
+        expect(badgeTexts).toContain('J');
+        expect(badgeTexts).toContain('Y');
+        expect(badgeTexts).toContain('I');
     });
 
     it('should not contain unnecessary header quick access section in system controls', () => {
@@ -263,6 +272,125 @@ describe('ControlCenter Component', () => {
         expect(orbitBtn?.classList.contains('active')).toBe(false);
         expect(surfaceBtn?.classList.contains('active')).toBe(false);
         expect(detachBtn?.classList.contains('active')).toBe(true);
+    });
+
+    it('should not render Measure Mode toggle in settings drawer', () => {
+        controlCenter.switchTab('camera');
+        const cameraPanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="camera"]');
+        expect(cameraPanel).toBeTruthy();
+        expect(cameraPanel?.querySelector('[data-i18n-key="controls.measureMode"]')).toBeNull();
+        expect(cameraPanel?.querySelector('[data-i18n-key="controls.measureTool"]')).toBeNull();
+    });
+
+    it('should render info buttons on setting options across panels', () => {
+        const infoBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.ctrl-info-btn');
+        expect(infoBtns.length).toBeGreaterThanOrEqual(20);
+
+        // Verify specific option info buttons exist
+        const optionIds = Array.from(infoBtns).map(btn => btn.dataset.optionId);
+        expect(optionIds).toContain('pauseResume');
+        expect(optionIds).toContain('speedPresets');
+        expect(optionIds).toContain('timeSpeed');
+        expect(optionIds).toContain('jumpToDate');
+        expect(optionIds).toContain('showOrbits');
+        expect(optionIds).toContain('showMoons');
+        expect(optionIds).toContain('showAsteroids');
+        expect(optionIds).toContain('showKuiperBelt');
+        expect(optionIds).toContain('showDwarfPlanets');
+        expect(optionIds).toContain('showComets');
+        expect(optionIds).toContain('showSpacecraft');
+        expect(optionIds).toContain('showMeteors');
+        expect(optionIds).toContain('showTrails');
+        expect(optionIds).toContain('orbitFocus');
+        expect(optionIds).toContain('surfaceView');
+        expect(optionIds).toContain('freeCamera');
+        expect(optionIds).toContain('cinematicTour');
+        expect(optionIds).toContain('tourSpeed');
+        expect(optionIds).toContain('realisticDistances');
+        expect(optionIds).toContain('showHabitableZone');
+        expect(optionIds).toContain('showEclipticGrid');
+        expect(optionIds).toContain('enableBloom');
+        expect(optionIds).toContain('realisticLighting');
+        expect(optionIds).toContain('showAxes');
+        expect(optionIds).toContain('minimap');
+        expect(optionIds).toContain('telemetry');
+    });
+
+    it('should open and display detailed scientific info modal when info button is clicked', () => {
+        controlCenter.switchTab('layers');
+        const orbitsInfoBtn = controlCenter.drawerElement.querySelector('.ctrl-info-btn[data-option-id="showOrbits"]') as HTMLButtonElement;
+        expect(orbitsInfoBtn).toBeTruthy();
+
+        orbitsInfoBtn.click();
+
+        const modalBackdrop = container.querySelector('.ctrl-info-modal-backdrop') as HTMLElement;
+        expect(modalBackdrop).toBeTruthy();
+        expect(modalBackdrop.getAttribute('role')).toBe('dialog');
+
+        const card = modalBackdrop.querySelector('.ctrl-info-modal-card');
+        expect(card).toBeTruthy();
+
+        const title = card?.querySelector('.ctrl-info-modal-title');
+        expect(title?.textContent).toBe(i18n.t('controls.showOrbits'));
+
+        const category = card?.querySelector('.ctrl-info-modal-category');
+        expect(category?.textContent).toBe(i18n.t('controls.tabs.layers'));
+
+        const sections = card?.querySelectorAll('.ctrl-info-section');
+        expect(sections?.length).toBe(3); // Overview, Science, Observatory Tip
+
+        // Close via action button
+        const actionBtn = card?.querySelector('.ctrl-info-modal-action-btn') as HTMLButtonElement;
+        expect(actionBtn).toBeTruthy();
+        actionBtn.click();
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+    });
+
+    it('should dismiss info modal on close button click and backdrop click', () => {
+        controlCenter.openOptionInfoModal('realisticDistances');
+        let modalBackdrop = container.querySelector('.ctrl-info-modal-backdrop') as HTMLElement;
+        expect(modalBackdrop).toBeTruthy();
+
+        const closeBtn = modalBackdrop.querySelector('.ctrl-info-modal-close') as HTMLButtonElement;
+        closeBtn.click();
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+
+        // Test backdrop click
+        controlCenter.openOptionInfoModal('showHabitableZone');
+        modalBackdrop = container.querySelector('.ctrl-info-modal-backdrop') as HTMLElement;
+        expect(modalBackdrop).toBeTruthy();
+        modalBackdrop.click();
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+    });
+
+    it('should handle Escape key hierarchy: dismiss info modal first, then close drawer', () => {
+        controlCenter.open();
+        expect(controlCenter.isOpen).toBe(true);
+
+        controlCenter.openOptionInfoModal('pauseResume');
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeTruthy();
+
+        // First Escape dismisses info modal, keeping drawer open
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+        expect(controlCenter.isOpen).toBe(true);
+
+        // Second Escape closes the drawer
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(controlCenter.isOpen).toBe(false);
+    });
+
+    it('should clean up active info modal when drawer is closed or disposed', () => {
+        controlCenter.openOptionInfoModal('telemetry');
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeTruthy();
+
+        controlCenter.close();
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+
+        controlCenter.openOptionInfoModal('telemetry');
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeTruthy();
+        controlCenter.dispose();
+        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
     });
 });
 

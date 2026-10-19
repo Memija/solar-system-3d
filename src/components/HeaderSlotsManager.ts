@@ -226,6 +226,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showMoons',
         icon: '🌙',
+        shortcut: 'N',
         domId: 'hudSlot_showMoons',
         getState: (ui) => !!ui.sceneManager?.showMoons,
         action: (ui) => {
@@ -254,6 +255,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showAsteroids',
         icon: '🪨',
+        shortcut: 'E',
         domId: 'hudSlot_showAsteroids',
         getState: (ui) => !!ui.sceneManager?.showAsteroids,
         action: (ui) => {
@@ -267,6 +269,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showKuiperBelt',
         icon: '❄️',
+        shortcut: 'U',
         domId: 'hudSlot_showKuiperBelt',
         getState: (ui) => !!ui.sceneManager?.showKuiperBelt,
         action: (ui) => {
@@ -280,6 +283,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showDwarfPlanets',
         icon: '⚪',
+        shortcut: 'W',
         domId: 'hudSlot_showDwarfPlanets',
         getState: (ui) => !!ui.sceneManager?.showDwarfPlanets,
         action: (ui) => {
@@ -293,6 +297,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showComets',
         icon: '☄️',
+        shortcut: 'Q',
         domId: 'hudSlot_showComets',
         getState: (ui) => !!ui.sceneManager?.showComets,
         action: (ui) => {
@@ -306,6 +311,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showSpacecraft',
         icon: '🚀',
+        shortcut: 'J',
         domId: 'hudSlot_showSpacecraft',
         getState: (ui) => !!ui.sceneManager?.showSpacecrafts,
         action: (ui) => {
@@ -319,6 +325,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showMeteors',
         icon: '🌠',
+        shortcut: 'Y',
         domId: 'hudSlot_showMeteors',
         getState: (ui) => !!ui.sceneManager?.showMeteors,
         action: (ui) => {
@@ -332,6 +339,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         category: 'layers',
         labelKey: 'controls.showTrails',
         icon: '💫',
+        shortcut: 'I',
         domId: 'hudSlot_showTrails',
         getState: (ui) => !!ui.sceneManager?.showTrails,
         action: (ui) => {

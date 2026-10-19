@@ -33,7 +33,11 @@ export const id: TranslationSchema = {
         layersCategory: '🪐 Lapisan Langit',
         toolsCategory: '🛰️ Instrumen Observatorium',
         permanentSlot: 'Permanen',
-        permanentSlotDesc: 'Disematkan secara permanen ke header (tidak dapat dihapus)'
+        permanentSlotDesc: 'Disematkan secara permanen ke header (tidak dapat dihapus)',
+        overview: 'Ringkasan',
+        astronomicalScience: 'Mekanika Astronomi & Sains',
+        observationTip: 'Tips Observatorium',
+        understood: 'Dimengerti'
     },
     categories: {
         star: '🌟 Bintang',

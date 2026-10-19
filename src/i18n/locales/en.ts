@@ -33,7 +33,11 @@ export const en: TranslationSchema = {
         layersCategory: '🪐 Celestial Layers',
         toolsCategory: '🛰️ Observatory Instruments',
         permanentSlot: 'Permanent',
-        permanentSlotDesc: 'Permanently pinned to header (cannot be removed)'
+        permanentSlotDesc: 'Permanently pinned to header (cannot be removed)',
+        overview: 'Overview',
+        astronomicalScience: 'Astronomical Mechanics & Science',
+        observationTip: 'Observatory Tip',
+        understood: 'Understood'
     },
     categories: {
         star: '🌟 Stars',

@@ -33,7 +33,11 @@ export const pl: TranslationSchema = {
         layersCategory: '🪐 Warstwy ciał niebieskich',
         toolsCategory: '🛰️ Przyrządy obserwatorium',
         permanentSlot: 'Stałe',
-        permanentSlotDesc: 'Trwale przypięte do nagłówka (nie można usunąć)'
+        permanentSlotDesc: 'Trwale przypięte do nagłówka (nie można usunąć)',
+        overview: 'Przegląd',
+        astronomicalScience: 'Mechanika astronomiczna i nauka',
+        observationTip: 'Wskazówka obserwacyjna',
+        understood: 'Rozumiem'
     },
     categories: {
         star: '🌟 Gwiazdy',

@@ -552,6 +552,65 @@
         align-items: center;
         justify-content: space-between;
         margin: 0;
+
+        .ctrl-info-btn {
+            font-family: $font-mono;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+    }
+}
+
+// Global info button for all settings rows, headers, and controls
+.ctrl-info-btn,
+.toggle-info-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    margin-left: 5px;
+    border-radius: 50%;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: $neon-cyan;
+    font-size: 10.5px;
+    font-family: $font-mono;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+    vertical-align: middle;
+    flex-shrink: 0;
+
+    &:hover, &:focus-visible {
+        background: $neon-cyan;
+        color: #030712;
+        border-color: $neon-cyan;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        transform: scale(1.12);
+    }
+}
+
+.speed-slider-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    margin-bottom: -4px;
+
+    .slider-sublabel {
+        font-family: $font-mono;
+        font-size: 10.5px;
+        font-weight: 600;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 }
 
@@ -576,25 +635,6 @@
         .toggle-icon {
             font-size: 14px;
             color: $neon-cyan;
-        }
-
-        .toggle-info-hint {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.12);
-            color: #94a3b8;
-            font-size: 10px;
-            cursor: help;
-            transition: all 0.2s ease;
-
-            &:hover {
-                background: $neon-cyan;
-                color: #030712;
-            }
         }
 
         .ctrl-kbd-badge {
@@ -925,6 +965,18 @@
                 color: #030712;
             }
         }
+
+        .ctrl-info-btn {
+            margin-left: 2px;
+            width: 15px;
+            height: 15px;
+            font-size: 9.5px;
+            opacity: 0.8;
+
+            &:hover {
+                opacity: 1;
+            }
+        }
     }
 }
 
@@ -1102,3 +1154,220 @@
         }
     }
 }
+
+// =============================================================================
+// SETTINGS OPTION INFO MODAL
+// =============================================================================
+.ctrl-info-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 7, 18, 0.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 2500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: ctrlModalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ctrl-info-modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    max-height: 88vh;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(3, 7, 18, 0.99) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 18px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 35px rgba(56, 189, 248, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: ctrlModalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, $neon-cyan, rgba(129, 140, 248, 0.8), transparent);
+    }
+}
+
+.ctrl-info-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+
+    .ctrl-info-modal-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .ctrl-info-modal-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        font-size: 22px;
+        border-radius: 12px;
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+    }
+
+    .ctrl-info-modal-category {
+        font-family: $font-mono;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: $neon-cyan;
+        margin-bottom: 2px;
+    }
+
+    .ctrl-info-modal-title {
+        font-family: $font-sans;
+        font-size: 17px;
+        font-weight: 700;
+        color: #f8fafc;
+        margin: 0;
+        letter-spacing: 0.02em;
+    }
+
+    .ctrl-info-modal-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ctrl-info-modal-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #94a3b8;
+        font-size: 16px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+
+        &:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #ef4444;
+        }
+    }
+}
+
+.ctrl-info-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(56, 189, 248, 0.3) transparent;
+
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: rgba(56, 189, 248, 0.3);
+        border-radius: 3px;
+    }
+}
+
+.ctrl-info-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: border-color 0.2s ease;
+
+    &:hover {
+        border-color: rgba(56, 189, 248, 0.2);
+    }
+
+    .ctrl-info-section-title {
+        font-family: $font-mono;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: $neon-cyan;
+        margin: 0 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ctrl-info-text {
+        font-family: $font-sans;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #cbd5e1;
+        margin: 0;
+    }
+}
+
+.ctrl-info-modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    background: rgba(255, 255, 255, 0.02);
+
+    .ctrl-info-modal-action-btn {
+        padding: 8px 20px;
+        font-family: $font-sans;
+        font-size: 13px;
+        font-weight: 600;
+        color: #030712;
+        background: $neon-cyan;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 2px 8px rgba(56, 189, 248, 0.35);
+
+        &:hover {
+            background: #7dd3fc;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.6);
+            transform: translateY(-1px);
+        }
+    }
+}
+
+@keyframes ctrlModalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes ctrlModalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+

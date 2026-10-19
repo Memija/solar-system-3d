@@ -897,26 +897,11 @@ export class UIManager {
         const detachCtrl = cameraFolder.add(cameraControls, 'detach').name(i18n.t('controls.freeCamera'));
         this.registerGuiController(detachCtrl, 'controls.freeCamera');
 
-        const toolsFolder = gui.addFolder(i18n.t('controls.toolsFolder'));
-        this.registerGuiFolder(toolsFolder, 'controls.toolsFolder');
-
-        const measureCtrl = toolsFolder.add(params, 'measureMode').name(i18n.t('controls.measureDistance')).onChange(val => {
-            this.sceneManager.toggleMeasureMode(val);
-            if (!val && params.realisticDistances) {
-                distCtrl.setValue(false);
-            }
-        });
-        this.measureCtrl = measureCtrl;
-        this.registerGuiController(measureCtrl, 'controls.measureDistance');
-
         this.sceneManager.onMeasureTargetsSet = () => {
             if (!params.realisticDistances) {
                 distCtrl.setValue(true);
             }
         };
-
-        addInfoIcon(measureCtrl, "controls.tooltips.measureDistance");
-        toolsFolder.open();
 
         const tourParams = {
             tourMode: false,
@@ -1906,7 +1891,69 @@ export class UIManager {
                 event.preventDefault();
                 this.toggleMinimap();
             } else if (event.key === 'o' || event.key === 'O') {
-                this.sceneManager.toggleOrbits(!this.sceneManager.showOrbits);
+                if (typeof this.sceneManager?.toggleOrbits === 'function') {
+                    this.sceneManager.toggleOrbits(!this.sceneManager.showOrbits);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'n' || event.key === 'N') {
+                if (typeof this.sceneManager?.toggleMoons === 'function') {
+                    this.sceneManager.toggleMoons(!this.sceneManager.showMoons);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'e' || event.key === 'E') {
+                if (typeof this.sceneManager?.toggleAsteroids === 'function') {
+                    this.sceneManager.toggleAsteroids(!this.sceneManager.showAsteroids);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'u' || event.key === 'U') {
+                if (typeof this.sceneManager?.toggleKuiperBelt === 'function') {
+                    this.sceneManager.toggleKuiperBelt(!this.sceneManager.showKuiperBelt);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'w' || event.key === 'W') {
+                if (typeof this.sceneManager?.toggleDwarfPlanets === 'function') {
+                    this.sceneManager.toggleDwarfPlanets(!this.sceneManager.showDwarfPlanets);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'q' || event.key === 'Q') {
+                if (typeof this.sceneManager?.toggleComets === 'function') {
+                    this.sceneManager.toggleComets(!this.sceneManager.showComets);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'j' || event.key === 'J') {
+                if (typeof this.sceneManager?.toggleSpacecrafts === 'function') {
+                    this.sceneManager.toggleSpacecrafts(!this.sceneManager.showSpacecrafts);
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'y' || event.key === 'Y') {
+                if (typeof this.sceneManager?.toggleMeteors === 'function') {
+                    const next = !this.sceneManager.showMeteors;
+                    this.sceneManager.toggleMeteors(next);
+                    if (next) {
+                        this.sceneManager.focusOnBody('Earth');
+                        this.modal.show({
+                            titleKey: 'popups.meteorsTitle',
+                            descKey: 'popups.meteorsDesc',
+                            name: i18n.t('popups.meteorsTitle'),
+                            description: i18n.t('popups.meteorsDesc')
+                        });
+                    } else if (this.modal.isOpen && (this.modal.isShowingPopup('popups.meteorsTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.meteorsTitle')))) {
+                        this.modal.hide();
+                    }
+                }
+                if (this.controlCenter) this.controlCenter.syncSwitches();
+                if (this.audioManager) this.audioManager.playTick();
+            } else if (event.key === 'i' || event.key === 'I') {
+                if (typeof this.sceneManager?.toggleTrails === 'function') {
+                    this.sceneManager.toggleTrails(!this.sceneManager.showTrails);
+                }
                 if (this.controlCenter) this.controlCenter.syncSwitches();
                 if (this.audioManager) this.audioManager.playTick();
             } else if (event.key === 'r' || event.key === 'R') {
@@ -2285,11 +2332,25 @@ export class UIManager {
                 </div>
 
                 <div class="shortcuts-section">
+                    <h4 class="shortcuts-group-title">🪐 ${i18n.t('ui.layersCategory') || 'Celestial Layers'}</h4>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item"><kbd>O</kbd><span>${s('orbits') || i18n.t('controls.showOrbits')}</span></div>
+                        <div class="shortcut-item"><kbd>N</kbd><span>${i18n.t('controls.showMoons')}</span></div>
+                        <div class="shortcut-item"><kbd>C</kbd><span>${s('constellations') || i18n.t('controls.showConstellations')}</span></div>
+                        <div class="shortcut-item"><kbd>E</kbd><span>${i18n.t('controls.showAsteroids')}</span></div>
+                        <div class="shortcut-item"><kbd>U</kbd><span>${i18n.t('controls.showKuiperBelt')}</span></div>
+                        <div class="shortcut-item"><kbd>W</kbd><span>${i18n.t('controls.showDwarfPlanets')}</span></div>
+                        <div class="shortcut-item"><kbd>Q</kbd><span>${i18n.t('controls.showComets')}</span></div>
+                        <div class="shortcut-item"><kbd>J</kbd><span>${i18n.t('controls.showSpacecraft')}</span></div>
+                        <div class="shortcut-item"><kbd>Y</kbd><span>${i18n.t('controls.showMeteors')}</span></div>
+                        <div class="shortcut-item"><kbd>I</kbd><span>${i18n.t('controls.showTrails')}</span></div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-section">
                     <h4 class="shortcuts-group-title">🔭 ${s('toolsTitle')}</h4>
                     <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>O</kbd><span>${s('orbits')}</span></div>
                         <div class="shortcut-item"><kbd>M</kbd><span>${s('minimap')}</span></div>
-                        <div class="shortcut-item"><kbd>C</kbd><span>${s('constellations')}</span></div>
                         <div class="shortcut-item"><kbd>S</kbd><span>${s('audio')}</span></div>
                         <div class="shortcut-item"><kbd>P</kbd><span>${s('telemetry')}</span></div>
                         <div class="shortcut-item"><kbd>K</kbd><span>${s('snapshot')}</span></div>

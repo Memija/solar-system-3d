@@ -48,6 +48,10 @@ export interface TranslationSchema {
         toolsCategory?: string;
         permanentSlot?: string;
         permanentSlotDesc?: string;
+        overview?: string;
+        astronomicalScience?: string;
+        observationTip?: string;
+        understood?: string;
     };
     categories: {
         star: string;

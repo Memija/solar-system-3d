@@ -33,7 +33,11 @@ export const de: TranslationSchema = {
         layersCategory: '🪐 Himmelsebenen',
         toolsCategory: '🛰️ Observatoriums-Instrumente',
         permanentSlot: 'Dauerhaft',
-        permanentSlotDesc: 'Dauerhaft in der Kopfzeile fixiert (kann nicht entfernt werden)'
+        permanentSlotDesc: 'Dauerhaft in der Kopfzeile fixiert (kann nicht entfernt werden)',
+        overview: 'Überblick',
+        astronomicalScience: 'Astronomische Mechanik & Wissenschaft',
+        observationTip: 'Beobachtungstipp',
+        understood: 'Verstanden'
     },
     categories: {
         star: '🌟 Sterne',
