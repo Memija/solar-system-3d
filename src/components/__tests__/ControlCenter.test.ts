@@ -316,63 +316,62 @@ describe('ControlCenter Component', () => {
         expect(optionIds).toContain('telemetry');
     });
 
-    it('should open and display detailed scientific info modal when info button is clicked', () => {
+    it('should display concise tooltip on info button hover (mouseenter) and hide on mouseleave', () => {
         controlCenter.switchTab('layers');
         const orbitsInfoBtn = controlCenter.drawerElement.querySelector('.ctrl-info-btn[data-option-id="showOrbits"]') as HTMLButtonElement;
         expect(orbitsInfoBtn).toBeTruthy();
 
-        orbitsInfoBtn.click();
+        // Mouse enter triggers tooltip
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
 
-        const modalBackdrop = container.querySelector('.ctrl-info-modal-backdrop') as HTMLElement;
-        expect(modalBackdrop).toBeTruthy();
-        expect(modalBackdrop.getAttribute('role')).toBe('dialog');
+        const tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip).toBeTruthy();
+        expect(tooltip.getAttribute('role')).toBe('tooltip');
+        expect(tooltip.classList.contains('visible')).toBe(true);
 
-        const card = modalBackdrop.querySelector('.ctrl-info-modal-card');
-        expect(card).toBeTruthy();
-
-        const title = card?.querySelector('.ctrl-info-modal-title');
+        const title = tooltip.querySelector('.ctrl-info-tooltip-title');
         expect(title?.textContent).toBe(i18n.t('controls.showOrbits'));
 
-        const category = card?.querySelector('.ctrl-info-modal-category');
-        expect(category?.textContent).toBe(i18n.t('controls.tabs.layers'));
+        const desc = tooltip.querySelector('.ctrl-info-tooltip-desc');
+        expect(desc?.textContent).toBeTruthy();
+        // Concise summary should be present
+        expect(desc?.textContent?.length).toBeLessThan(200);
 
-        const sections = card?.querySelectorAll('.ctrl-info-section');
-        expect(sections?.length).toBe(3); // Overview, Science, Observatory Tip
+        // Shortcut badge should be included
+        const kbd = tooltip.querySelector('.ctrl-kbd-badge');
+        expect(kbd?.textContent).toBe('O');
 
-        // Close via action button
-        const actionBtn = card?.querySelector('.ctrl-info-modal-action-btn') as HTMLButtonElement;
-        expect(actionBtn).toBeTruthy();
-        actionBtn.click();
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+        // Mouse leave hides tooltip
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+        expect(tooltip.classList.contains('visible')).toBe(false);
     });
 
-    it('should dismiss info modal on close button click and backdrop click', () => {
-        controlCenter.openOptionInfoModal('realisticDistances');
-        let modalBackdrop = container.querySelector('.ctrl-info-modal-backdrop') as HTMLElement;
-        expect(modalBackdrop).toBeTruthy();
+    it('should display tooltip on focus and hide on blur', () => {
+        controlCenter.switchTab('layers');
+        const moonsInfoBtn = controlCenter.drawerElement.querySelector('.ctrl-info-btn[data-option-id="showMoons"]') as HTMLButtonElement;
+        expect(moonsInfoBtn).toBeTruthy();
 
-        const closeBtn = modalBackdrop.querySelector('.ctrl-info-modal-close') as HTMLButtonElement;
-        closeBtn.click();
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+        moonsInfoBtn.dispatchEvent(new FocusEvent('focus'));
+        const tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip).toBeTruthy();
+        expect(tooltip.classList.contains('visible')).toBe(true);
 
-        // Test backdrop click
-        controlCenter.openOptionInfoModal('showHabitableZone');
-        modalBackdrop = container.querySelector('.ctrl-info-modal-backdrop') as HTMLElement;
-        expect(modalBackdrop).toBeTruthy();
-        modalBackdrop.click();
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+        moonsInfoBtn.dispatchEvent(new FocusEvent('blur'));
+        expect(tooltip.classList.contains('visible')).toBe(false);
     });
 
-    it('should handle Escape key hierarchy: dismiss info modal first, then close drawer', () => {
+    it('should handle Escape key hierarchy: dismiss tooltip first, then close drawer', () => {
         controlCenter.open();
         expect(controlCenter.isOpen).toBe(true);
 
         controlCenter.openOptionInfoModal('pauseResume');
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeTruthy();
+        const tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip).toBeTruthy();
+        expect(tooltip.classList.contains('visible')).toBe(true);
 
-        // First Escape dismisses info modal, keeping drawer open
+        // First Escape dismisses tooltip, keeping drawer open
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+        expect(tooltip.classList.contains('visible')).toBe(false);
         expect(controlCenter.isOpen).toBe(true);
 
         // Second Escape closes the drawer
@@ -380,17 +379,68 @@ describe('ControlCenter Component', () => {
         expect(controlCenter.isOpen).toBe(false);
     });
 
-    it('should clean up active info modal when drawer is closed or disposed', () => {
+    it('should clean up active tooltip when drawer is closed or disposed', () => {
         controlCenter.openOptionInfoModal('telemetry');
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeTruthy();
+        const tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip).toBeTruthy();
+        expect(tooltip.classList.contains('visible')).toBe(true);
 
         controlCenter.close();
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+        expect(tooltip.classList.contains('visible')).toBe(false);
 
         controlCenter.openOptionInfoModal('telemetry');
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeTruthy();
+        expect(tooltip.classList.contains('visible')).toBe(true);
         controlCenter.dispose();
-        expect(container.querySelector('.ctrl-info-modal-backdrop')).toBeNull();
+        expect(container.querySelector('.ctrl-info-tooltip')).toBeNull();
+    });
+
+    it('should dynamically localize option tooltip title and summary across languages', () => {
+        controlCenter.switchTab('layers');
+        const orbitsInfoBtn = controlCenter.drawerElement.querySelector('.ctrl-info-btn[data-option-id="showOrbits"]') as HTMLButtonElement;
+        expect(orbitsInfoBtn).toBeTruthy();
+
+        // 1. In English
+        i18n.setLanguage('en');
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+        let tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip.querySelector('.ctrl-info-tooltip-title')?.textContent).toBe('Show Orbits');
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toBe(
+            'Toggles elliptical Keplerian orbital trajectory paths for all celestial bodies.'
+        );
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+
+        // 2. In Bosnian
+        i18n.setLanguage('bs');
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+        tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip.querySelector('.ctrl-info-tooltip-title')?.textContent).toBe('Prikaži orbite');
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toBe(
+            'Prikazuje eliptične Keplerove orbitalne putanje za sva nebeska tijela.'
+        );
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+
+        // 3. In Serbian
+        i18n.setLanguage('sr');
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+        tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip.querySelector('.ctrl-info-tooltip-title')?.textContent).toBe('Прикажи орбите');
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toBe(
+            'Приказује елиптичне Кеплерове орбиталне путање за сва небеска тела.'
+        );
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+
+        // 4. In German
+        i18n.setLanguage('de');
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+        tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip.querySelector('.ctrl-info-tooltip-title')?.textContent).toBe('Umlaufbahnen anzeigen');
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toBe(
+            'Zeigt elliptische Kepler-Bahnen aller Himmelskörper im Raum an.'
+        );
+        orbitsInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+
+        // Restore language to English
+        i18n.setLanguage('en');
     });
 });
 

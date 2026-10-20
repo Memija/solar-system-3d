@@ -16,6 +16,7 @@ export class ControlCenter {
     backdropElement: HTMLElement;
     activeTab: ControlCenterTab = 'target';
     isOpen: boolean = false;
+    public tooltipElement: HTMLElement | null = null;
     public activeInfoModal: HTMLElement | null = null;
 
     // References for reactive updates
@@ -146,6 +147,9 @@ export class ControlCenter {
         body.appendChild(this.createOpticsPanel());
         body.appendChild(this.createSystemPanel());
 
+        drawer.addEventListener('scroll', () => this.hideOptionTooltip(), { passive: true });
+        body.addEventListener('scroll', () => this.hideOptionTooltip(), { passive: true });
+
         drawer.appendChild(body);
         return drawer;
     }
@@ -157,155 +161,95 @@ export class ControlCenter {
         btn.dataset.optionId = optionId;
         btn.setAttribute('aria-label', `Information about ${label}`);
         btn.innerHTML = 'ℹ';
-        btn.onclick = (e) => {
+        
+        btn.addEventListener('mouseenter', () => {
+            this.showOptionTooltip(optionId, btn);
+        });
+        btn.addEventListener('mouseleave', () => {
+            this.hideOptionTooltip();
+        });
+        btn.addEventListener('focus', () => {
+            this.showOptionTooltip(optionId, btn);
+        });
+        btn.addEventListener('blur', () => {
+            this.hideOptionTooltip();
+        });
+        btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.openOptionInfoModal(optionId);
-        };
+            this.showOptionTooltip(optionId, btn);
+        });
         return btn;
     }
 
-    public openOptionInfoModal(optionId: string) {
-        this.closeOptionInfoModal();
-
+    public showOptionTooltip(optionId: string, targetEl: HTMLElement) {
         const info = getSettingOptionInfo(optionId);
         if (!info) return;
 
-        const backdrop = document.createElement('div');
-        backdrop.className = 'ctrl-info-modal-backdrop';
-        backdrop.setAttribute('role', 'dialog');
-        backdrop.setAttribute('aria-modal', 'true');
-        backdrop.setAttribute('aria-labelledby', `ctrl-info-title-${optionId}`);
-
-        const card = document.createElement('div');
-        card.className = 'ctrl-info-modal-card';
-
-        // Header
-        const header = document.createElement('div');
-        header.className = 'ctrl-info-modal-header';
-
-        const titleWrap = document.createElement('div');
-        titleWrap.className = 'ctrl-info-modal-title-wrap';
-
-        const iconBadge = document.createElement('div');
-        iconBadge.className = 'ctrl-info-modal-icon-badge';
-        iconBadge.textContent = info.icon;
-        titleWrap.appendChild(iconBadge);
-
-        const textGroup = document.createElement('div');
-        textGroup.className = 'ctrl-info-modal-text-group';
-
-        const cat = document.createElement('div');
-        cat.className = 'ctrl-info-modal-category';
-        cat.textContent = info.category;
-        textGroup.appendChild(cat);
-
-        const heading = document.createElement('h3');
-        heading.id = `ctrl-info-title-${optionId}`;
-        heading.className = 'ctrl-info-modal-title';
-        heading.textContent = info.title;
-        textGroup.appendChild(heading);
-
-        titleWrap.appendChild(textGroup);
-        header.appendChild(titleWrap);
-
-        const headerActions = document.createElement('div');
-        headerActions.className = 'ctrl-info-modal-header-actions';
-
-        if (info.kbd) {
-            const kbdBadge = document.createElement('kbd');
-            kbdBadge.className = 'ctrl-kbd-badge';
-            kbdBadge.textContent = info.kbd;
-            headerActions.appendChild(kbdBadge);
+        if (!this.tooltipElement) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'ctrl-info-tooltip';
+            tooltip.setAttribute('role', 'tooltip');
+            this.uiContainer.appendChild(tooltip);
+            this.tooltipElement = tooltip;
+            this.activeInfoModal = tooltip;
         }
 
-        const closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'ctrl-info-modal-close';
-        closeBtn.innerHTML = '✕';
-        closeBtn.setAttribute('aria-label', i18n.t('ui.close') || 'Close');
-        closeBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.closeOptionInfoModal();
-        };
-        headerActions.appendChild(closeBtn);
+        const tooltip = this.tooltipElement;
+        const kbdHtml = info.kbd ? `<kbd class="ctrl-kbd-badge">${info.kbd}</kbd>` : '';
+        const summaryText = info.summary || info.overview;
 
-        header.appendChild(headerActions);
-        card.appendChild(header);
-
-        // Body
-        const body = document.createElement('div');
-        body.className = 'ctrl-info-modal-body';
-
-        // Section: Overview
-        const overviewSec = document.createElement('div');
-        overviewSec.className = 'ctrl-info-section';
-        overviewSec.innerHTML = `
-            <div class="ctrl-info-section-title">
-                <span>📘</span>
-                <span>${i18n.t('ui.overview') || 'Overview'}</span>
+        tooltip.innerHTML = `
+            <div class="ctrl-info-tooltip-header">
+                <div class="ctrl-info-tooltip-title-wrap">
+                    <span class="ctrl-info-tooltip-icon">${info.icon}</span>
+                    <span class="ctrl-info-tooltip-title">${info.title}</span>
+                </div>
+                ${kbdHtml}
             </div>
-            <p class="ctrl-info-text">${info.overview}</p>
+            <p class="ctrl-info-tooltip-desc">${summaryText}</p>
         `;
-        body.appendChild(overviewSec);
 
-        // Section: Astronomical Science
-        const scienceSec = document.createElement('div');
-        scienceSec.className = 'ctrl-info-section';
-        scienceSec.innerHTML = `
-            <div class="ctrl-info-section-title">
-                <span>🔬</span>
-                <span>${i18n.t('ui.astronomicalScience') || 'Astronomical Mechanics & Science'}</span>
-            </div>
-            <p class="ctrl-info-text">${info.science}</p>
-        `;
-        body.appendChild(scienceSec);
+        if (targetEl && typeof targetEl.getBoundingClientRect === 'function') {
+            const rect = targetEl.getBoundingClientRect();
+            const tooltipWidth = 280;
+            let left = rect.left - tooltipWidth - 12;
 
-        // Section: Observation Tip
-        const tipSec = document.createElement('div');
-        tipSec.className = 'ctrl-info-section';
-        tipSec.innerHTML = `
-            <div class="ctrl-info-section-title">
-                <span>💡</span>
-                <span>${i18n.t('ui.observationTip') || 'Observatory Tip'}</span>
-            </div>
-            <p class="ctrl-info-text">${info.tip}</p>
-        `;
-        body.appendChild(tipSec);
-
-        card.appendChild(body);
-
-        // Footer
-        const footer = document.createElement('div');
-        footer.className = 'ctrl-info-modal-footer';
-
-        const actionBtn = document.createElement('button');
-        actionBtn.type = 'button';
-        actionBtn.className = 'ctrl-info-modal-action-btn';
-        actionBtn.textContent = i18n.t('ui.understood') || 'Understood';
-        actionBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.closeOptionInfoModal();
-        };
-        footer.appendChild(actionBtn);
-
-        card.appendChild(footer);
-        backdrop.appendChild(card);
-
-        // Backdrop click to close
-        backdrop.onclick = (e) => {
-            if (e.target === backdrop) {
-                this.closeOptionInfoModal();
+            if (left < 12) {
+                if (rect.right + tooltipWidth + 12 < window.innerWidth) {
+                    left = rect.right + 12;
+                } else {
+                    left = Math.max(12, Math.min(rect.left, window.innerWidth - tooltipWidth - 12));
+                }
             }
-        };
 
-        this.uiContainer.appendChild(backdrop);
-        this.activeInfoModal = backdrop;
+            let top = rect.top + (rect.height / 2) - 24;
+            const maxTop = window.innerHeight - 120;
+            top = Math.max(12, Math.min(top, maxTop));
+
+            tooltip.style.left = `${Math.round(left)}px`;
+            tooltip.style.top = `${Math.round(top)}px`;
+        }
+
+        tooltip.classList.add('visible');
+    }
+
+    public hideOptionTooltip() {
+        if (this.tooltipElement) {
+            this.tooltipElement.classList.remove('visible');
+        }
+    }
+
+    public openOptionInfoModal(optionId: string) {
+        const btn = this.drawerElement?.querySelector(`.ctrl-info-btn[data-option-id="${optionId}"]`) as HTMLElement;
+        this.showOptionTooltip(optionId, btn || this.drawerElement);
     }
 
     public closeOptionInfoModal() {
-        if (this.activeInfoModal) {
-            this.activeInfoModal.remove();
+        this.hideOptionTooltip();
+        if (this.tooltipElement && this.tooltipElement.parentElement) {
+            this.tooltipElement.parentElement.removeChild(this.tooltipElement);
+            this.tooltipElement = null;
             this.activeInfoModal = null;
         }
     }
@@ -1115,7 +1059,7 @@ export class ControlCenter {
     }
 
     public close() {
-        this.closeOptionInfoModal();
+        this.hideOptionTooltip();
         this.toggle(false);
     }
 
@@ -1279,6 +1223,20 @@ export class ControlCenter {
             }
         });
 
+        if (this.drawerElement) {
+            this.drawerElement.querySelectorAll<HTMLButtonElement>('.ctrl-info-btn').forEach(btn => {
+                const optionId = btn.dataset.optionId;
+                if (optionId) {
+                    const info = getSettingOptionInfo(optionId);
+                    if (info) {
+                        const infoWord = i18n.t('ui.help') || 'Information';
+                        btn.setAttribute('aria-label', `${infoWord}: ${info.title}`);
+                    }
+                }
+            });
+        }
+
+        this.hideOptionTooltip();
         this.updatePauseButton();
         this.syncTimePanel();
         this.syncSwitches();
@@ -1287,8 +1245,8 @@ export class ControlCenter {
     private initEventListeners() {
         this.onKeyDownBound = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                if (this.activeInfoModal) {
-                    this.closeOptionInfoModal();
+                if (this.tooltipElement?.classList.contains('visible')) {
+                    this.hideOptionTooltip();
                     return;
                 }
                 if (this.isOpen) {
@@ -1305,6 +1263,11 @@ export class ControlCenter {
 
     public dispose() {
         this.closeOptionInfoModal();
+        if (this.tooltipElement?.parentElement) {
+            this.tooltipElement.parentElement.removeChild(this.tooltipElement);
+            this.tooltipElement = null;
+            this.activeInfoModal = null;
+        }
         if (this.unregisterI18n) {
             this.unregisterI18n();
             this.unregisterI18n = null;
