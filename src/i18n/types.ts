@@ -77,6 +77,7 @@ export interface TranslationSchema {
             quickTargets: string;
             focusAlign: string;
             viewSurface: string;
+            simulationState: string;
             simulationSpeed: string;
             entitiesTrails: string;
             cameraPerspective: string;

@@ -63,6 +63,7 @@ export const sr: TranslationSchema = {
             quickTargets: 'Брзи фокус на објекте',
             focusAlign: 'Фокусирај и усмери камеру',
             viewSurface: 'Поглед са површине',
+            simulationState: 'Стање симулације',
             simulationSpeed: 'Брзина симулације',
             entitiesTrails: 'Космичка тела и путање',
             cameraPerspective: 'Перспектива камере',

@@ -63,6 +63,7 @@ export const id: TranslationSchema = {
             quickTargets: 'Target Fokus Cepat',
             focusAlign: 'Fokus & Sejajarkan Kamera',
             viewSurface: 'Lihat Dari Permukaan',
+            simulationState: 'Status Simulasi',
             simulationSpeed: 'Kecepatan Simulasi',
             entitiesTrails: 'Entitas Kosmik & Jejak',
             cameraPerspective: 'Perspektif Kamera',

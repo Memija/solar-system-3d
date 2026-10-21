@@ -387,7 +387,7 @@ export class ControlCenter {
         const pauseTitle = document.createElement('h4');
         pauseTitle.className = 'ctrl-group-title';
         pauseTitle.innerHTML = `<span data-i18n-key="controls.sections.simulationState">${i18n.t('controls.sections.simulationState') || 'Simulation State'}</span>`;
-        pauseTitle.appendChild(this.createInfoButton('pauseResume', 'Pause / Resume Simulation'));
+        pauseTitle.appendChild(this.createInfoButton('pauseResume', 'Simulation State'));
         masterGroup.appendChild(pauseTitle);
 
         const pauseBtn = document.createElement('button');

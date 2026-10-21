@@ -442,5 +442,38 @@ describe('ControlCenter Component', () => {
         // Restore language to English
         i18n.setLanguage('en');
     });
+
+    it('should include expanded full values for FPS and GPU in telemetry option summaries', () => {
+        controlCenter.switchTab('system');
+        const telemetryInfoBtn = controlCenter.drawerElement.querySelector('.ctrl-info-btn[data-option-id="telemetry"]') as HTMLButtonElement;
+        expect(telemetryInfoBtn).toBeTruthy();
+
+        // English
+        i18n.setLanguage('en');
+        telemetryInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+        let tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toContain('FPS (Frames Per Second)');
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toContain('GPU (Graphics Processing Unit)');
+        telemetryInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+
+        // Bosnian
+        i18n.setLanguage('bs');
+        telemetryInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+        tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toContain('FPS (broj sličica u sekundi)');
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toContain('GPU (grafički procesor)');
+        telemetryInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+
+        // German
+        i18n.setLanguage('de');
+        telemetryInfoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+        tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toContain('FPS (Bilder pro Sekunde)');
+        expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent).toContain('GPU-Last (Grafikprozessor)');
+        telemetryInfoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+
+        // Restore language
+        i18n.setLanguage('en');
+    });
 });
 

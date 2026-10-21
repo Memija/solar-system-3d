@@ -482,6 +482,8 @@ describe('I18n System', () => {
             expect(i18n.t('controls.sections.quickTargets')).toBeTruthy();
             expect(i18n.t('controls.sections.focusAlign')).toBeTruthy();
             expect(i18n.t('controls.sections.viewSurface')).toBeTruthy();
+            expect(i18n.t('controls.sections.simulationState')).toBeTruthy();
+            expect(i18n.t('controls.sections.simulationState')).not.toBe('controls.sections.simulationState');
             expect(i18n.t('controls.sections.entitiesTrails')).toBeTruthy();
             expect(i18n.t('controls.sections.cameraPerspective')).toBeTruthy();
             expect(i18n.t('controls.sections.opticsScale')).toBeTruthy();

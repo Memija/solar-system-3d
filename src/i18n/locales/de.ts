@@ -63,6 +63,7 @@ export const de: TranslationSchema = {
             quickTargets: 'Schnellfokus-Ziele',
             focusAlign: 'Kamera fokussieren & ausrichten',
             viewSurface: 'Blick von der Oberfläche',
+            simulationState: 'Simulationsstatus',
             simulationSpeed: 'Simulationsgeschwindigkeit',
             entitiesTrails: 'Kosmische Objekte & Bahnen',
             cameraPerspective: 'Kameraperspektive',

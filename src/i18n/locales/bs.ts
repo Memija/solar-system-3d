@@ -63,6 +63,7 @@ export const bs: TranslationSchema = {
             quickTargets: 'Brzi fokus na objekte',
             focusAlign: 'Fokusiraj i usmjeri kameru',
             viewSurface: 'Pogled sa površine',
+            simulationState: 'Stanje simulacije',
             simulationSpeed: 'Brzina simulacije',
             entitiesTrails: 'Kosmička tijela i putanje',
             cameraPerspective: 'Perspektiva kamere',
