@@ -95,7 +95,7 @@ export const de: TranslationSchema = {
         speedPresets: {
             realTime: 'Echtzeit (1:1)',
             oneHourPerSec: '1 Std. / Sek.',
-            oneDayPerSec: '1 Tag / Sek. (Realistisch)',
+            oneDayPerSec: '1 Tag / Sek.',
             oneWeekPerSec: '1 Woche / Sek.',
             oneMonthPerSec: '1 Monat / Sek.',
             paused: 'Pausiert',

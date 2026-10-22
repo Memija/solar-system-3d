@@ -95,7 +95,7 @@ export const sr: TranslationSchema = {
         speedPresets: {
             realTime: 'Реално време (1:1)',
             oneHourPerSec: '1 сат / сек',
-            oneDayPerSec: '1 дан / сек (Реалистично)',
+            oneDayPerSec: '1 дан / сек',
             oneWeekPerSec: '1 недеља / сек',
             oneMonthPerSec: '1 месец / сек',
             paused: 'Паузирано',

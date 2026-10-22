@@ -163,7 +163,7 @@ describe('I18n System', () => {
                 speedPresets: {
                     realTime: 'Temps réel (1:1)',
                     oneHourPerSec: '1 heure / sec',
-                    oneDayPerSec: '1 jour / sec (Réaliste)',
+                    oneDayPerSec: '1 jour / sec',
                     oneWeekPerSec: '1 semaine / sec',
                     oneMonthPerSec: '1 mois / sec',
                     paused: 'En pause',

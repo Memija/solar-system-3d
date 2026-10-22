@@ -282,13 +282,22 @@ describe('ControlCenter Component', () => {
         expect(cameraPanel?.querySelector('[data-i18n-key="controls.measureTool"]')).toBeNull();
     });
 
+    it('should not render Pause Simulation button or paused preset in settings drawer', () => {
+        controlCenter.switchTab('time');
+        const timePanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="time"]');
+        expect(timePanel).toBeTruthy();
+        expect(timePanel?.querySelector('.pause-action-btn')).toBeNull();
+        expect(timePanel?.querySelector('[data-i18n-key="controls.sections.simulationState"]')).toBeNull();
+        expect(timePanel?.querySelector('.preset-btn[data-preset-key="paused"]')).toBeNull();
+    });
+
     it('should render info buttons on setting options across panels', () => {
         const infoBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.ctrl-info-btn');
         expect(infoBtns.length).toBeGreaterThanOrEqual(20);
 
         // Verify specific option info buttons exist
         const optionIds = Array.from(infoBtns).map(btn => btn.dataset.optionId);
-        expect(optionIds).toContain('pauseResume');
+        expect(optionIds).not.toContain('pauseResume');
         expect(optionIds).toContain('speedPresets');
         expect(optionIds).toContain('timeSpeed');
         expect(optionIds).toContain('jumpToDate');
@@ -364,7 +373,7 @@ describe('ControlCenter Component', () => {
         controlCenter.open();
         expect(controlCenter.isOpen).toBe(true);
 
-        controlCenter.openOptionInfoModal('pauseResume');
+        controlCenter.openOptionInfoModal('speedPresets');
         const tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
         expect(tooltip).toBeTruthy();
         expect(tooltip.classList.contains('visible')).toBe(true);

@@ -26,7 +26,6 @@ export class ControlCenter {
     private presetButtons: Map<string, HTMLElement> = new Map();
     private speedSlider: HTMLInputElement | null = null;
     private speedDisplay: HTMLElement | null = null;
-    private pauseBtn: HTMLElement | null = null;
     private targetChipButtons: Map<string, HTMLElement> = new Map();
     private camModeButtons: Map<string, HTMLElement> = new Map();
     private tourSpeedDisplay: HTMLElement | null = null;
@@ -380,29 +379,6 @@ export class ControlCenter {
         panel.dataset.panel = 'time';
         this.tabPanels.set('time', panel);
 
-        // Master Pause / Resume Group
-        const masterGroup = document.createElement('div');
-        masterGroup.className = 'ctrl-group';
-
-        const pauseTitle = document.createElement('h4');
-        pauseTitle.className = 'ctrl-group-title';
-        pauseTitle.innerHTML = `<span data-i18n-key="controls.sections.simulationState">${i18n.t('controls.sections.simulationState') || 'Simulation State'}</span>`;
-        pauseTitle.appendChild(this.createInfoButton('pauseResume', 'Simulation State'));
-        masterGroup.appendChild(pauseTitle);
-
-        const pauseBtn = document.createElement('button');
-        pauseBtn.type = 'button';
-        pauseBtn.className = 'master-action-btn pause-action-btn';
-        pauseBtn.onclick = () => {
-            this.uiManager.togglePause();
-            this.syncTimePanel();
-        };
-        masterGroup.appendChild(pauseBtn);
-        this.pauseBtn = pauseBtn;
-        this.updatePauseButton();
-
-        panel.appendChild(masterGroup);
-
         // Speed Presets Group
         const presetGroup = document.createElement('div');
         presetGroup.className = 'ctrl-group';
@@ -421,8 +397,7 @@ export class ControlCenter {
             { key: 'oneHour', labelKey: 'controls.speedPresets.oneHourPerSec', fallback: '1 hr / s', speed: SceneManager.SPEED_PRESETS.oneHour },
             { key: 'oneDay', labelKey: 'controls.speedPresets.oneDayPerSec', fallback: '1 day / s', speed: SceneManager.SPEED_PRESETS.oneDay },
             { key: 'oneWeek', labelKey: 'controls.speedPresets.oneWeekPerSec', fallback: '1 wk / s', speed: SceneManager.SPEED_PRESETS.oneWeek },
-            { key: 'oneMonth', labelKey: 'controls.speedPresets.oneMonthPerSec', fallback: '1 mo / s', speed: SceneManager.SPEED_PRESETS.oneMonth },
-            { key: 'paused', labelKey: 'controls.speedPresets.paused', fallback: 'Paused', speed: 0 }
+            { key: 'oneMonth', labelKey: 'controls.speedPresets.oneMonthPerSec', fallback: '1 mo / s', speed: SceneManager.SPEED_PRESETS.oneMonth }
         ];
 
         presets.forEach(p => {
@@ -432,16 +407,8 @@ export class ControlCenter {
             btn.dataset.presetKey = p.key;
             btn.textContent = i18n.t(p.labelKey) || p.fallback;
             btn.onclick = () => {
-                if (p.key === 'paused') {
-                    if (this.sceneManager.timeScale !== 0) {
-                        this.uiManager.previousTimeSpeed = this.sceneManager.timeScale;
-                        this.sceneManager.timeScale = 0;
-                        if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(0);
-                    }
-                } else {
-                    this.sceneManager.timeScale = p.speed;
-                    if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(p.speed);
-                }
+                this.sceneManager.timeScale = p.speed;
+                if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(p.speed);
                 this.syncTimePanel();
             };
             presetGrid.appendChild(btn);
@@ -1081,19 +1048,7 @@ export class ControlCenter {
         });
     }
 
-    public updatePauseButton() {
-        if (!this.pauseBtn) return;
-        const isPaused = this.sceneManager?.timeScale === 0;
-        const pauseText = i18n.t('controls.sections.pauseSimulation') || i18n.t('controls.pause') || 'Pause Simulation';
-        const resumeText = i18n.t('controls.sections.resumeSimulation') || i18n.t('controls.resume') || 'Resume Simulation';
-        this.pauseBtn.innerHTML = isPaused
-            ? `<span>▶ ${resumeText}</span>`
-            : `<span>⏸ ${pauseText}</span>`;
-    }
-
     public syncTimePanel() {
-        this.updatePauseButton();
-
         const currentSpeed = this.sceneManager?.timeScale || 0;
         const isPaused = this.sceneManager?.timeScale === 0;
         if (this.speedSlider) {
@@ -1212,8 +1167,7 @@ export class ControlCenter {
             oneHour: 'controls.speedPresets.oneHourPerSec',
             oneDay: 'controls.speedPresets.oneDayPerSec',
             oneWeek: 'controls.speedPresets.oneWeekPerSec',
-            oneMonth: 'controls.speedPresets.oneMonthPerSec',
-            paused: 'controls.speedPresets.paused'
+            oneMonth: 'controls.speedPresets.oneMonthPerSec'
         };
         this.presetButtons.forEach((btn, key) => {
             const lk = presetLabelMap[key];
@@ -1237,7 +1191,6 @@ export class ControlCenter {
         }
 
         this.hideOptionTooltip();
-        this.updatePauseButton();
         this.syncTimePanel();
         this.syncSwitches();
     }

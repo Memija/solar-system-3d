@@ -95,7 +95,7 @@ export const id: TranslationSchema = {
         speedPresets: {
             realTime: 'Waktu Nyata (1:1)',
             oneHourPerSec: '1 jam / dtk',
-            oneDayPerSec: '1 hari / dtk (Realistis)',
+            oneDayPerSec: '1 hari / dtk',
             oneWeekPerSec: '1 minggu / dtk',
             oneMonthPerSec: '1 bulan / dtk',
             paused: 'Jeda',
