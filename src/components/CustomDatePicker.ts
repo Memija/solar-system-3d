@@ -1,5 +1,21 @@
 import { i18n } from '../i18n';
 
+export interface HistoricalSpaceEvent {
+    name: string;
+    date: Date;
+    target?: string;
+    impact?: string;
+}
+
+export const HISTORICAL_SPACE_EVENTS: HistoricalSpaceEvent[] = [
+    { name: 'Sputnik 1 Launch', date: new Date("1957-10-04T19:28:35Z"), target: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and the US-USSR space race, demonstrating the feasibility of artificial satellites.' },
+    { name: 'Apollo 11 Moon Landing', date: new Date("1969-07-20T12:00:00Z"), target: 'Apollo 11', impact: 'First humans on the Moon, proving that crewed extraterrestrial travel was possible and achieving a major milestone in human history.' },
+    { name: 'Voyager 1 Launch', date: new Date("1977-09-05T12:56:01Z"), target: 'Voyager 1', impact: 'Voyager 1 became the first human-made object to enter interstellar space, providing unprecedented images and data of the outer solar system.' },
+    { name: 'Hubble Space Telescope Launch', date: new Date("1990-04-24T12:33:52Z"), target: 'Hubble Space Telescope', impact: 'Revolutionized astronomy by providing clear, deep images of the universe, leading to discoveries about the age of the universe, dark energy, and exoplanets.' },
+    { name: 'ISS First Module Launch', date: new Date("1998-11-20T06:40:01Z"), target: 'ISS (International Space Station)', impact: 'Began the era of continuous human presence in space and international cooperation in scientific research in microgravity.' },
+    { name: 'James Webb Telescope Launch', date: new Date("2021-12-25T12:20:01Z"), target: 'James Webb Space Telescope', impact: 'Designed to observe the first galaxies formed in the universe and look inside dust clouds where stars and planetary systems are forming today.' }
+];
+
 export class CustomDatePicker {
     public domElement: HTMLElement;
     private displayElement: HTMLElement;
@@ -89,6 +105,23 @@ export class CustomDatePicker {
         const header = document.createElement('div');
         header.className = 'custom-datepicker-header';
 
+        const monthContainer = document.createElement('div');
+        monthContainer.className = 'custom-datepicker-month-container';
+
+        const decMonthBtn = document.createElement('button');
+        decMonthBtn.type = 'button';
+        decMonthBtn.innerHTML = '◀';
+        decMonthBtn.className = 'custom-datepicker-nav-btn';
+        decMonthBtn.setAttribute('aria-label', 'Previous Month');
+        decMonthBtn.title = 'Previous Month (-1m)';
+        decMonthBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.viewDate.setUTCDate(1);
+            this.viewDate.setUTCMonth(this.viewDate.getUTCMonth() - 1);
+            this.monthSelect.value = this.viewDate.getUTCMonth().toString();
+            this.renderCalendar();
+        };
+
         this.monthSelect = document.createElement('select');
         this.monthSelect.className = 'custom-datepicker-select';
         this.populateMonths();
@@ -99,22 +132,75 @@ export class CustomDatePicker {
             this.renderCalendar();
         });
 
+        const incMonthBtn = document.createElement('button');
+        incMonthBtn.type = 'button';
+        incMonthBtn.innerHTML = '▶';
+        incMonthBtn.className = 'custom-datepicker-nav-btn';
+        incMonthBtn.setAttribute('aria-label', 'Next Month');
+        incMonthBtn.title = 'Next Month (+1m)';
+        incMonthBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.viewDate.setUTCDate(1);
+            this.viewDate.setUTCMonth(this.viewDate.getUTCMonth() + 1);
+            this.monthSelect.value = this.viewDate.getUTCMonth().toString();
+            this.renderCalendar();
+        };
+
+        monthContainer.appendChild(decMonthBtn);
+        monthContainer.appendChild(this.monthSelect);
+        monthContainer.appendChild(incMonthBtn);
+
         this.yearInput = document.createElement('input');
         this.yearInput.type = 'text';
-        this.yearInput.readOnly = true;
         this.yearInput.className = 'custom-datepicker-input';
+        this.yearInput.setAttribute('aria-label', 'Observation Year');
+        this.yearInput.title = 'Type year and press Enter, or click to browse centuries';
+
+        const commitYearInput = () => {
+            const raw = this.yearInput.value.trim();
+            const isBC = /bc/i.test(raw);
+            const num = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(num)) {
+                const finalYear = isBC ? -num + 1 : num;
+                this.viewDate.setUTCDate(1);
+                this.viewDate.setUTCFullYear(finalYear);
+                this.renderCalendar();
+                this.closeYearModal();
+            } else {
+                this.yearInput.value = this.formatYear(this.viewDate.getUTCFullYear());
+            }
+        };
 
         this.yearInput.addEventListener('click', (e) => {
             e.stopPropagation();
             this.openYearModal();
         });
 
+        this.yearInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                commitYearInput();
+                this.yearInput.blur();
+            }
+        });
+
+        this.yearInput.addEventListener('change', () => {
+            commitYearInput();
+        });
+
+        this.yearInput.addEventListener('focus', () => {
+            this.yearInput.select();
+        });
+
         const yearContainer = document.createElement('div');
         yearContainer.className = 'custom-datepicker-year-container';
 
         const decYearBtn = document.createElement('button');
+        decYearBtn.type = 'button';
         decYearBtn.innerHTML = '◀';
         decYearBtn.className = 'custom-datepicker-nav-btn';
+        decYearBtn.title = 'Previous Year (-1y)';
         decYearBtn.onclick = (e) => {
             e.stopPropagation();
             this.viewDate.setUTCDate(1);
@@ -123,8 +209,10 @@ export class CustomDatePicker {
         };
 
         const incYearBtn = document.createElement('button');
+        incYearBtn.type = 'button';
         incYearBtn.innerHTML = '▶';
         incYearBtn.className = 'custom-datepicker-nav-btn';
+        incYearBtn.title = 'Next Year (+1y)';
         incYearBtn.onclick = (e) => {
             e.stopPropagation();
             this.viewDate.setUTCDate(1);
@@ -136,7 +224,7 @@ export class CustomDatePicker {
         yearContainer.appendChild(this.yearInput);
         yearContainer.appendChild(incYearBtn);
 
-        header.appendChild(this.monthSelect);
+        header.appendChild(monthContainer);
         header.appendChild(yearContainer);
         this.popupElement.appendChild(header);
 
@@ -151,7 +239,7 @@ export class CustomDatePicker {
         this.daysGridElement.className = 'custom-datepicker-days-grid';
         this.popupElement.appendChild(this.daysGridElement);
 
-        // Historical Events
+        // Historical Events & Quick Actions
         const eventsContainer = document.createElement('div');
         eventsContainer.className = 'custom-datepicker-events-container';
 
@@ -166,16 +254,7 @@ export class CustomDatePicker {
         eventsSelect.appendChild(defaultOpt);
         this.eventsDefaultOpt = defaultOpt;
 
-        const historicalEvents = [
-            { name: 'Sputnik 1 Launch', date: new Date("1957-10-04T19:28:35Z"), target: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and the US-USSR space race, demonstrating the feasibility of artificial satellites.' },
-            { name: 'Apollo 11 Moon Landing', date: new Date("1969-07-20T12:00:00Z"), target: 'Apollo 11', impact: 'First humans on the Moon, proving that crewed extraterrestrial travel was possible and achieving a major milestone in human history.' },
-            { name: 'Voyager 1 Launch', date: new Date("1977-09-05T12:56:01Z"), target: 'Voyager 1', impact: 'Voyager 1 became the first human-made object to enter interstellar space, providing unprecedented images and data of the outer solar system.' },
-            { name: 'Hubble Space Telescope Launch', date: new Date("1990-04-24T12:33:52Z"), target: 'Hubble Space Telescope', impact: 'Revolutionized astronomy by providing clear, deep images of the universe, leading to discoveries about the age of the universe, dark energy, and exoplanets.' },
-            { name: 'ISS First Module Launch', date: new Date("1998-11-20T06:40:01Z"), target: 'ISS (International Space Station)', impact: 'Began the era of continuous human presence in space and international cooperation in scientific research in microgravity.' },
-            { name: 'James Webb Telescope Launch', date: new Date("2021-12-25T12:20:01Z"), target: 'James Webb Space Telescope', impact: 'Designed to observe the first galaxies formed in the universe and look inside dust clouds where stars and planetary systems are forming today.' }
-        ];
-
-        historicalEvents.forEach((evt, i) => {
+        HISTORICAL_SPACE_EVENTS.forEach((evt, i) => {
             const opt = document.createElement('option');
             opt.value = i.toString();
             opt.textContent = evt.name;
@@ -184,8 +263,8 @@ export class CustomDatePicker {
 
         eventsSelect.addEventListener('change', () => {
             const idx = parseInt(eventsSelect.value);
-            if (!isNaN(idx) && historicalEvents[idx]) {
-                const evt = historicalEvents[idx];
+            if (!isNaN(idx) && HISTORICAL_SPACE_EVENTS[idx]) {
+                const evt = HISTORICAL_SPACE_EVENTS[idx];
                 const evtDate = evt.date;
                 this.setDate(evtDate);
                 this.onChange(evtDate);
@@ -200,7 +279,20 @@ export class CustomDatePicker {
             }
         });
 
+        const todayBtn = document.createElement('button');
+        todayBtn.type = 'button';
+        todayBtn.className = 'custom-datepicker-today-btn';
+        todayBtn.textContent = '📅 ' + (i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today');
+        todayBtn.onclick = (e) => {
+            e.stopPropagation();
+            const now = new Date();
+            this.setDate(now);
+            this.onChange(now);
+            this.closePopup();
+        };
+
         eventsContainer.appendChild(eventsSelect);
+        eventsContainer.appendChild(todayBtn);
         this.popupElement.appendChild(eventsContainer);
 
         // Create Year Modal
@@ -213,10 +305,18 @@ export class CustomDatePicker {
 
         // Close on click outside
         this.onClickOutsideBound = (e: MouseEvent) => {
-            if (this.isOpen && !this.domElement.contains(e.target as Node) && !this.yearModalElement.contains(e.target as Node)) {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+
+            // If user clicked any trigger element, ignore outside-click handler
+            if (target.closest('.sim-date-label') || target.closest('.open-cal-action-btn')) {
+                return;
+            }
+
+            if (this.isOpen && !this.domElement.contains(target) && !this.yearModalElement.contains(target)) {
                 this.closePopup();
             }
-            if (this.isYearModalOpen && !this.yearModalElement.contains(e.target as Node) && e.target !== this.yearInput) {
+            if (this.isYearModalOpen && !this.yearModalElement.contains(target) && target !== this.yearInput) {
                 this.closeYearModal();
             }
         };
@@ -239,6 +339,7 @@ export class CustomDatePicker {
     private openYearModal() {
         this.isYearModalOpen = true;
         this.yearModalElement.style.display = 'block';
+        this.yearModalElement.style.zIndex = '3000';
         this.yearModalState = 'CENTURY';
         this.yearModalBaseYear = this.viewDate.getUTCFullYear();
 
@@ -383,7 +484,7 @@ export class CustomDatePicker {
         this.updateDisplay();
     }
 
-    private togglePopup() {
+    public togglePopup() {
         if (this.isOpen) {
             this.closePopup();
         } else {
@@ -391,7 +492,7 @@ export class CustomDatePicker {
         }
     }
 
-    private openPopup() {
+    public openPopup() {
         this.isOpen = true;
         this.popupElement.style.display = 'block';
         this.viewDate.setTime(this.currentDate.getTime());
@@ -401,7 +502,7 @@ export class CustomDatePicker {
         }
     }
 
-    private closePopup() {
+    public closePopup() {
         this.isOpen = false;
         this.popupElement.style.display = 'none';
         this.closeYearModal();

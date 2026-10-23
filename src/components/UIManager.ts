@@ -260,10 +260,28 @@ export class UIManager {
         const mainRow = document.createElement('div');
         mainRow.className = 'date-panel-main-row';
 
-        const label = document.createElement('label');
+        const label = document.createElement('button');
+        label.type = 'button';
         label.className = 'sim-date-label';
+        label.title = i18n.t('datepicker.calendarTitle') || 'Open Mission Calendar';
         const simDateText = (i18n.t('ui.simDate') || '').replace(/^⏱\s*/, '').trim();
         label.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${simDateText}</span>`;
+        label.onclick = (e: MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.customDatePicker) {
+                this.customDatePicker.togglePopup();
+            }
+        };
+        label.onkeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.customDatePicker) {
+                    this.customDatePicker.togglePopup();
+                }
+            }
+        };
         this.dateLabel = label;
         mainRow.appendChild(label);
 
@@ -277,10 +295,16 @@ export class UIManager {
                     this.sceneManager.onTimeScaleChange(0);
                 }
             }
+            if (this.controlCenter) {
+                this.controlCenter.syncTimePanel();
+            }
         }, () => {
             this.sceneManager.timeScale = 0;
             if (this.sceneManager.onTimeScaleChange) {
                 this.sceneManager.onTimeScaleChange(0);
+            }
+            if (this.controlCenter) {
+                this.controlCenter.syncTimePanel();
             }
         });
 

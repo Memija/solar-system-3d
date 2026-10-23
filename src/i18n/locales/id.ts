@@ -266,7 +266,8 @@ export const id: TranslationSchema = {
         century: 'Abad',
         decade: 'Dekade',
         year: 'Tahun',
-        historicalEvents: 'Peristiwa Bersejarah...'
+        historicalEvents: 'Peristiwa Bersejarah...',
+        calendarTitle: 'Kalender Misi'
     },
     loading: {
         boot: 'Memulai Observatorium',

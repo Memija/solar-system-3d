@@ -308,7 +308,8 @@ describe('I18n System', () => {
                 century: 'Siècle',
                 decade: 'Décennie',
                 year: 'Année',
-                historicalEvents: 'Événements historiques...'
+                historicalEvents: 'Événements historiques...',
+                calendarTitle: 'Calendrier de la mission'
             },
             loading: {
                 boot: 'Démarrage',

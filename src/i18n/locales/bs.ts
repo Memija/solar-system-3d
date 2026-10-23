@@ -266,7 +266,8 @@ export const bs: TranslationSchema = {
         century: 'Stoljeće',
         decade: 'Decenija',
         year: 'Godina',
-        historicalEvents: 'Historijski događaji...'
+        historicalEvents: 'Historijski događaji...',
+        calendarTitle: 'Kalendar misije'
     },
     loading: {
         boot: 'Pokretanje opservatorije',

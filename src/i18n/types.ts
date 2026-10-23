@@ -278,6 +278,7 @@ export interface TranslationSchema {
         decade: string;
         year: string;
         historicalEvents: string;
+        calendarTitle: string;
     };
     loading: {
         boot: string;

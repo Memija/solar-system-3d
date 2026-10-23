@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ControlCenter } from '../ControlCenter';
+import { SceneManager } from '../SceneManager';
 import { i18n } from '../../i18n';
 import { EventBus } from '../EventBus';
 
@@ -17,6 +18,9 @@ describe('ControlCenter Component', () => {
 
         mockSceneManager = {
             timeScale: 0.0027,
+            simDate: new Date('2026-10-23T12:00:00Z'),
+            setSimDate: vi.fn((d: Date) => { mockSceneManager.simDate = d; }),
+            onTimeScaleChange: vi.fn(),
             showOrbits: true,
             showMoons: true,
             showAsteroids: true,
@@ -298,8 +302,8 @@ describe('ControlCenter Component', () => {
         // Verify specific option info buttons exist
         const optionIds = Array.from(infoBtns).map(btn => btn.dataset.optionId);
         expect(optionIds).not.toContain('pauseResume');
+        expect(optionIds).not.toContain('timeSpeed');
         expect(optionIds).toContain('speedPresets');
-        expect(optionIds).toContain('timeSpeed');
         expect(optionIds).toContain('jumpToDate');
         expect(optionIds).toContain('showOrbits');
         expect(optionIds).toContain('showMoons');
@@ -483,6 +487,122 @@ describe('ControlCenter Component', () => {
 
         // Restore language
         i18n.setLanguage('en');
+    });
+
+    it('should not render time speed slider in time panel and correctly activate speed presets', () => {
+        controlCenter.switchTab('time');
+        const slider = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="time"] .speed-slider-wrap input[type="range"]');
+        expect(slider).toBeNull();
+        expect(controlCenter.drawerElement.querySelector('[data-i18n-key="controls.timeSpeed"]')).toBeNull();
+
+        // 1 week / sec preset
+        const weekBtn = controlCenter.drawerElement.querySelector('.preset-btn[data-preset-key="oneWeek"]') as HTMLButtonElement;
+        expect(weekBtn).toBeTruthy();
+        weekBtn.click();
+        expect(mockSceneManager.timeScale).toBeCloseTo(SceneManager.SPEED_PRESETS.oneWeek, 5);
+        expect(weekBtn.classList.contains('active')).toBe(true);
+
+        // 1 month / sec preset
+        const monthBtn = controlCenter.drawerElement.querySelector('.preset-btn[data-preset-key="oneMonth"]') as HTMLButtonElement;
+        expect(monthBtn).toBeTruthy();
+        monthBtn.click();
+        expect(mockSceneManager.timeScale).toBeCloseTo(SceneManager.SPEED_PRESETS.oneMonth, 5);
+        expect(monthBtn.classList.contains('active')).toBe(true);
+        expect(weekBtn.classList.contains('active')).toBe(false);
+    });
+
+    it('should render date picker input, day steppers, milestone select, and date action buttons in time panel', () => {
+        controlCenter.switchTab('time');
+        const dateInput = controlCenter.drawerElement.querySelector('#controlCenterDateInput') as HTMLInputElement;
+        const prevBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Previous Day"]') as HTMLButtonElement;
+        const nextBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Next Day"]') as HTMLButtonElement;
+        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect') as HTMLSelectElement;
+        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
+        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
+
+        expect(dateInput).toBeTruthy();
+        expect(dateInput.type).toBe('date');
+        expect(dateInput.value).toBe('2026-10-23');
+        expect(prevBtn).toBeTruthy();
+        expect(nextBtn).toBeTruthy();
+        expect(milestoneSelect).toBeTruthy();
+        expect(milestoneSelect.options.length).toBeGreaterThan(5);
+        expect(jumpBtn).toBeTruthy();
+        expect(openCalBtn).toBeTruthy();
+    });
+
+    it('should update simulation date and sync customDatePicker when date input changes', () => {
+        controlCenter.switchTab('time');
+        const dateInput = controlCenter.drawerElement.querySelector('#controlCenterDateInput') as HTMLInputElement;
+        expect(dateInput).toBeTruthy();
+
+        dateInput.value = '2030-05-15';
+        dateInput.dispatchEvent(new Event('change'));
+
+        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
+        const calledDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
+        expect(calledDate.getUTCFullYear()).toBe(2030);
+        expect(calledDate.getUTCMonth()).toBe(4); // May is index 4
+        expect(calledDate.getUTCDate()).toBe(15);
+        expect(mockUIManager.customDatePicker.setDate).toHaveBeenCalledWith(calledDate);
+        expect(mockSceneManager.timeScale).toBe(0);
+    });
+
+    it('should step date backward and forward with stepper buttons', () => {
+        controlCenter.switchTab('time');
+        const prevBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Previous Day"]') as HTMLButtonElement;
+        const nextBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Next Day"]') as HTMLButtonElement;
+        const dateInput = controlCenter.drawerElement.querySelector('#controlCenterDateInput') as HTMLInputElement;
+
+        mockSceneManager.simDate = new Date('2026-10-23T12:00:00Z');
+        controlCenter.syncTimePanel();
+
+        // Step -1 day
+        prevBtn.click();
+        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
+        let lastDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
+        expect(lastDate.getUTCDate()).toBe(22);
+        expect(dateInput.value).toBe('2026-10-22');
+
+        // Step +1 day
+        nextBtn.click();
+        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
+        lastDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
+        expect(lastDate.getUTCDate()).toBe(23);
+        expect(dateInput.value).toBe('2026-10-23');
+    });
+
+    it('should jump to historical space milestone, pause simulation, and dispatch selection event', () => {
+        controlCenter.switchTab('time');
+        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect') as HTMLSelectElement;
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+        // Select Apollo 11 (index 1)
+        milestoneSelect.value = '1';
+        milestoneSelect.dispatchEvent(new Event('change'));
+
+        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
+        const calledDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
+        expect(calledDate.getUTCFullYear()).toBe(1969);
+        expect(calledDate.getUTCMonth()).toBe(6); // July
+        expect(calledDate.getUTCDate()).toBe(20);
+        expect(mockSceneManager.timeScale).toBe(0);
+        expect(dispatchSpy).toHaveBeenCalled();
+    });
+
+    it('should trigger jump to real-time and toggle mission calendar popup', () => {
+        controlCenter.switchTab('time');
+        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
+        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
+
+        mockUIManager.customDatePicker.togglePopup = vi.fn();
+
+        jumpBtn.click();
+        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
+        expect(mockUIManager.customDatePicker.setDate).toHaveBeenCalled();
+
+        openCalBtn.click();
+        expect(mockUIManager.customDatePicker.togglePopup).toHaveBeenCalled();
     });
 });
 

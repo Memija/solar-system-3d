@@ -4,6 +4,7 @@ import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 import { HeaderSlotsManager } from './HeaderSlotsManager';
 import { getSettingOptionInfo } from './SettingOptionsData';
+import { HISTORICAL_SPACE_EVENTS } from './CustomDatePicker';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
 
@@ -24,14 +25,15 @@ export class ControlCenter {
     private tabPanels: Map<ControlCenterTab, HTMLElement> = new Map();
     private switches: Map<string, HTMLInputElement> = new Map();
     private presetButtons: Map<string, HTMLElement> = new Map();
-    private speedSlider: HTMLInputElement | null = null;
-    private speedDisplay: HTMLElement | null = null;
     private targetChipButtons: Map<string, HTMLElement> = new Map();
     private camModeButtons: Map<string, HTMLElement> = new Map();
     private tourSpeedDisplay: HTMLElement | null = null;
     private mainTitleEl: HTMLElement | null = null;
     private subTitleEl: HTMLElement | null = null;
     private closeBtnEl: HTMLElement | null = null;
+    private dateInput: HTMLInputElement | null = null;
+    private isDateInputFocused: boolean = false;
+    private milestoneSelect: HTMLSelectElement | null = null;
 
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -418,71 +420,6 @@ export class ControlCenter {
         presetGroup.appendChild(presetGrid);
         panel.appendChild(presetGroup);
 
-        // Fine Speed Slider Group
-        const sliderGroup = document.createElement('div');
-        sliderGroup.className = 'ctrl-group';
-
-        const sliderTitle = document.createElement('h4');
-        sliderTitle.className = 'ctrl-group-title';
-        sliderTitle.innerHTML = `<span data-i18n-key="controls.timeSpeed">${i18n.t('controls.timeSpeed') || 'Time Speed Fine Scrubber'}</span>`;
-        sliderTitle.appendChild(this.createInfoButton('timeSpeed', 'Time Speed Fine Scrubber'));
-        sliderGroup.appendChild(sliderTitle);
-
-        const sliderWrap = document.createElement('div');
-        sliderWrap.className = 'speed-slider-wrap';
-
-        const decBtn = document.createElement('button');
-        decBtn.type = 'button';
-        decBtn.className = 'stepper-btn';
-        decBtn.innerHTML = '◀';
-        decBtn.title = 'Decrease speed by 0.005';
-        decBtn.onclick = () => {
-            const next = Math.max(0, Math.round((this.sceneManager.timeScale - 0.005) * 10000) / 10000);
-            this.sceneManager.timeScale = next;
-            if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(next);
-            this.syncTimePanel();
-        };
-        sliderWrap.appendChild(decBtn);
-
-        const range = document.createElement('input');
-        range.type = 'range';
-        range.min = '0';
-        range.max = '0.08';
-        range.step = '0.0005';
-        range.value = (this.sceneManager?.timeScale || 0.0027).toString();
-        range.oninput = () => {
-            const val = parseFloat(range.value);
-            this.sceneManager.timeScale = val;
-            if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(val);
-            this.syncTimePanel();
-        };
-        sliderWrap.appendChild(range);
-        this.speedSlider = range;
-
-        const incBtn = document.createElement('button');
-        incBtn.type = 'button';
-        incBtn.className = 'stepper-btn';
-        incBtn.innerHTML = '▶';
-        incBtn.title = 'Increase speed by 0.005';
-        incBtn.onclick = () => {
-            const next = Math.round((this.sceneManager.timeScale + 0.005) * 10000) / 10000;
-            this.sceneManager.timeScale = next;
-            if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(next);
-            this.syncTimePanel();
-        };
-        sliderWrap.appendChild(incBtn);
-
-        const display = document.createElement('span');
-        display.className = 'speed-val-display';
-        display.textContent = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
-            ? this.sceneManager.getFormattedTimeSpeed()
-            : '1.0 day/s';
-        sliderWrap.appendChild(display);
-        this.speedDisplay = display;
-
-        sliderGroup.appendChild(sliderWrap);
-        panel.appendChild(sliderGroup);
-
         // Date Controls & Ephemeris
         const dateGroup = document.createElement('div');
         dateGroup.className = 'ctrl-group';
@@ -493,21 +430,183 @@ export class ControlCenter {
         dateTitle.appendChild(this.createInfoButton('jumpToDate', 'Observation Date'));
         dateGroup.appendChild(dateTitle);
 
+        // Date Picker with Stepper Buttons
+        const pickerWrap = document.createElement('div');
+        pickerWrap.className = 'ctrl-date-picker-wrap';
+
+        const prevDayBtn = document.createElement('button');
+        prevDayBtn.type = 'button';
+        prevDayBtn.className = 'date-stepper-btn';
+        prevDayBtn.setAttribute('aria-label', 'Previous Day');
+        prevDayBtn.title = 'Previous Day (-1d)';
+        prevDayBtn.innerHTML = '◀';
+        prevDayBtn.onclick = () => {
+            const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
+            curr.setUTCDate(curr.getUTCDate() - 1);
+            this.applySelectedDate(curr, true);
+        };
+
+        const dateInput = document.createElement('input');
+        dateInput.type = 'date';
+        dateInput.id = 'controlCenterDateInput';
+        dateInput.className = 'ctrl-date-input';
+        dateInput.setAttribute('aria-label', 'Select Simulation Date');
+        if (this.sceneManager?.simDate) {
+            const d = this.sceneManager.simDate;
+            const yyyy = d.getUTCFullYear();
+            if (yyyy >= 1000 && yyyy <= 9999) {
+                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                dateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+        }
+        const onDateCommit = () => {
+            if (dateInput.value) {
+                const parts = dateInput.value.split('-').map(Number);
+                if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+                    const targetDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+                    this.applySelectedDate(targetDate, true);
+                }
+            }
+        };
+
+        dateInput.onfocus = () => {
+            this.isDateInputFocused = true;
+        };
+        dateInput.onblur = () => {
+            this.isDateInputFocused = false;
+            onDateCommit();
+        };
+        dateInput.onchange = onDateCommit;
+        dateInput.onkeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                onDateCommit();
+                dateInput.blur();
+            }
+        };
+        this.dateInput = dateInput;
+
+        const nextDayBtn = document.createElement('button');
+        nextDayBtn.type = 'button';
+        nextDayBtn.className = 'date-stepper-btn';
+        nextDayBtn.setAttribute('aria-label', 'Next Day');
+        nextDayBtn.title = 'Next Day (+1d)';
+        nextDayBtn.innerHTML = '▶';
+        nextDayBtn.onclick = () => {
+            const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
+            curr.setUTCDate(curr.getUTCDate() + 1);
+            this.applySelectedDate(curr, true);
+        };
+
+        const applyBtn = document.createElement('button');
+        applyBtn.type = 'button';
+        applyBtn.className = 'ctrl-date-apply-btn';
+        applyBtn.textContent = 'Set';
+        applyBtn.title = 'Set simulation to selected date';
+        applyBtn.onclick = () => {
+            onDateCommit();
+        };
+
+        pickerWrap.appendChild(prevDayBtn);
+        pickerWrap.appendChild(dateInput);
+        pickerWrap.appendChild(nextDayBtn);
+        pickerWrap.appendChild(applyBtn);
+        dateGroup.appendChild(pickerWrap);
+
+        // Quick Jump Steppers
+        const quickSteppers = document.createElement('div');
+        quickSteppers.className = 'date-quick-steppers';
+
+        const createStepBtn = (label: string, title: string, modifier: (d: Date) => void) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'quick-step-btn';
+            btn.textContent = label;
+            btn.title = title;
+            btn.onclick = () => {
+                const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
+                modifier(curr);
+                this.applySelectedDate(curr, true);
+            };
+            return btn;
+        };
+
+        quickSteppers.appendChild(createStepBtn('-1y', 'Step backward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() - 1)));
+        quickSteppers.appendChild(createStepBtn('-1m', 'Step backward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() - 1)));
+        quickSteppers.appendChild(createStepBtn('+1m', 'Step forward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() + 1)));
+        quickSteppers.appendChild(createStepBtn('+1y', 'Step forward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() + 1)));
+
+        dateGroup.appendChild(quickSteppers);
+
+        // Historical Milestones Dropdown
+        const milestoneWrap = document.createElement('div');
+        milestoneWrap.className = 'ctrl-milestone-wrap';
+
+        const milestoneSelect = document.createElement('select');
+        milestoneSelect.className = 'ctrl-milestone-select';
+        milestoneSelect.id = 'controlCenterMilestoneSelect';
+        milestoneSelect.setAttribute('aria-label', 'Historical Space Milestones');
+
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = i18n.t('datepicker.historicalEvents') || '🚀 Historical Milestones...';
+        defaultOpt.disabled = true;
+        defaultOpt.selected = true;
+        milestoneSelect.appendChild(defaultOpt);
+
+        HISTORICAL_SPACE_EVENTS.forEach((evt, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx.toString();
+            const year = evt.date.getUTCFullYear();
+            opt.textContent = `${evt.name} (${year})`;
+            milestoneSelect.appendChild(opt);
+        });
+
+        milestoneSelect.onchange = () => {
+            const idx = parseInt(milestoneSelect.value, 10);
+            if (!isNaN(idx) && HISTORICAL_SPACE_EVENTS[idx]) {
+                const evt = HISTORICAL_SPACE_EVENTS[idx];
+                this.applySelectedDate(evt.date, true);
+                if (evt.target) {
+                    window.dispatchEvent(new CustomEvent('select-celestial-body', {
+                        detail: { name: evt.target, eventName: evt.name, eventImpact: evt.impact }
+                    }));
+                }
+                milestoneSelect.value = '';
+            }
+        };
+        this.milestoneSelect = milestoneSelect;
+        milestoneWrap.appendChild(milestoneSelect);
+        dateGroup.appendChild(milestoneWrap);
+
+        // Actions Row: Jump to Today & Open Mission Calendar
+        const actionsRow = document.createElement('div');
+        actionsRow.className = 'ctrl-date-actions-row';
+
         const jumpBtn = document.createElement('button');
         jumpBtn.type = 'button';
         jumpBtn.className = 'master-action-btn jump-date-action-btn';
         jumpBtn.innerHTML = `<span>📅 <span data-i18n-key="ui.liveRealTime">${i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today'}</span></span>`;
         jumpBtn.onclick = () => {
             const now = new Date();
-            if (this.sceneManager.setSimDate) {
-                this.sceneManager.setSimDate(now);
-                if (this.uiManager.customDatePicker) {
-                    this.uiManager.customDatePicker.setDate(now);
-                }
+            this.applySelectedDate(now, false);
+        };
+        actionsRow.appendChild(jumpBtn);
+
+        const openCalBtn = document.createElement('button');
+        openCalBtn.type = 'button';
+        openCalBtn.className = 'master-action-btn open-cal-action-btn';
+        openCalBtn.innerHTML = `<span>🗓 <span data-i18n-key="datepicker.calendarTitle">${i18n.t('datepicker.calendarTitle') || 'Mission Calendar'}</span></span>`;
+        openCalBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            if (this.uiManager?.customDatePicker) {
+                this.uiManager.customDatePicker.togglePopup();
             }
         };
-        dateGroup.appendChild(jumpBtn);
+        actionsRow.appendChild(openCalBtn);
 
+        dateGroup.appendChild(actionsRow);
         panel.appendChild(dateGroup);
         return panel;
     }
@@ -1048,20 +1147,25 @@ export class ControlCenter {
         });
     }
 
+    public applySelectedDate(date: Date, pauseSim: boolean = true) {
+        if (this.sceneManager?.setSimDate) {
+            this.sceneManager.setSimDate(date);
+        }
+        if (this.uiManager?.customDatePicker) {
+            this.uiManager.customDatePicker.setDate(date);
+        }
+        if (pauseSim && this.sceneManager) {
+            this.sceneManager.timeScale = 0;
+            if (this.sceneManager.onTimeScaleChange) {
+                this.sceneManager.onTimeScaleChange(0);
+            }
+        }
+        this.syncTimePanel();
+    }
+
     public syncTimePanel() {
         const currentSpeed = this.sceneManager?.timeScale || 0;
         const isPaused = this.sceneManager?.timeScale === 0;
-        if (this.speedSlider) {
-            this.speedSlider.value = currentSpeed.toString();
-        }
-
-        if (this.speedDisplay) {
-            const formatted = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
-                ? this.sceneManager.getFormattedTimeSpeed()
-                : '1.0 day/s';
-            const pausedText = i18n.t('controls.speedPresets.paused') || 'Paused';
-            this.speedDisplay.textContent = isPaused ? pausedText : formatted;
-        }
 
         // Update active preset button
         const presets = SceneManager.SPEED_PRESETS;
@@ -1076,6 +1180,20 @@ export class ControlCenter {
         this.presetButtons.forEach((btn, key) => {
             btn.classList.toggle('active', key === matchedKey);
         });
+
+        // Sync date input with current simulation date if not actively focused by user
+        if (this.dateInput && !this.isDateInputFocused && document.activeElement !== this.dateInput && this.sceneManager?.simDate) {
+            const d = this.sceneManager.simDate;
+            const yyyy = d.getUTCFullYear();
+            if (yyyy >= 1000 && yyyy <= 9999) {
+                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const iso = `${yyyy}-${mm}-${dd}`;
+                if (this.dateInput.value !== iso) {
+                    this.dateInput.value = iso;
+                }
+            }
+        }
     }
 
     public syncSwitches() {
@@ -1176,6 +1294,10 @@ export class ControlCenter {
                 if (text) btn.textContent = text;
             }
         });
+
+        if (this.milestoneSelect && this.milestoneSelect.options.length > 0) {
+            this.milestoneSelect.options[0].textContent = i18n.t('datepicker.historicalEvents') || '🚀 Historical Milestones...';
+        }
 
         if (this.drawerElement) {
             this.drawerElement.querySelectorAll<HTMLButtonElement>('.ctrl-info-btn').forEach(btn => {

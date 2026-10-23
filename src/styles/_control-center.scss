@@ -157,6 +157,10 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        background: none;
+        border: none;
+        padding: 0;
+        outline: none;
         font-family: $font-display;
         font-size: 11px;
         font-weight: 700;
@@ -164,7 +168,15 @@
         letter-spacing: 0.6px;
         text-transform: uppercase;
         margin: 0 2px 0 0;
-        cursor: default;
+        cursor: pointer !important;
+        user-select: none;
+        transition: all 0.2s ease;
+
+        &:hover {
+            color: #ffffff;
+            text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+            transform: translateY(-0.5px);
+        }
 
         .date-clock-icon {
             font-size: 13px;
@@ -174,6 +186,11 @@
 
         .date-label-text {
             color: #94a3b8;
+            transition: color 0.2s ease;
+        }
+
+        &:hover .date-label-text {
+            color: #f8fafc;
         }
     }
 
@@ -863,6 +880,195 @@
         color: #f8fafc;
         min-width: 60px;
         text-align: right;
+    }
+}
+
+// Control Center Observation Date Controls
+.ctrl-date-picker-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 8px;
+
+    .date-stepper-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        border-radius: 8px;
+        color: $neon-cyan;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+
+        &:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: $neon-cyan;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+            transform: scale(1.05);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+
+    .ctrl-date-input {
+        flex: 1;
+        height: 36px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 8px;
+        padding: 0 10px;
+        font-family: $font-mono;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #f8fafc;
+        outline: none;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+        color-scheme: dark;
+
+        &:hover {
+            border-color: rgba(56, 189, 248, 0.6);
+        }
+
+        &:focus {
+            border-color: $neon-cyan;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+        }
+
+        &::-webkit-calendar-picker-indicator {
+            filter: invert(0.8) sepia(1) saturate(5) hue-rotate(160deg);
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 4px;
+            transition: transform 0.15s ease;
+
+            &:hover {
+                transform: scale(1.15);
+            }
+        }
+    }
+
+    .ctrl-date-apply-btn {
+        height: 36px;
+        padding: 0 12px;
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(99, 102, 241, 0.22) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        border-radius: 8px;
+        color: #f8fafc;
+        font-family: $font-mono;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+
+        &:hover {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.45) 0%, rgba(99, 102, 241, 0.4) 100%);
+            border-color: $neon-cyan;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+            color: #ffffff;
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+}
+
+// Quick Jump Steppers
+.date-quick-steppers {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+
+    .quick-step-btn {
+        height: 28px;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        border-radius: 6px;
+        color: #94a3b8;
+        font-family: $font-mono;
+        font-size: 10.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+            color: #ffffff;
+            border-color: $neon-cyan;
+            background: rgba(56, 189, 248, 0.18);
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+}
+
+// Milestone Select
+.ctrl-milestone-wrap {
+    width: 100%;
+    margin-bottom: 8px;
+
+    .ctrl-milestone-select {
+        width: 100%;
+        height: 36px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        border-radius: 8px;
+        padding: 0 10px;
+        font-family: $font-display;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: #cbd5e1;
+        outline: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+
+        &:hover {
+            border-color: rgba(56, 189, 248, 0.5);
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        &:focus {
+            border-color: $neon-cyan;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+        }
+
+        option {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 6px;
+        }
+    }
+}
+
+// Date Actions Row
+.ctrl-date-actions-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+
+    .master-action-btn {
+        flex: 1;
+        padding: 8px 10px;
+        font-size: 11px;
     }
 }
 

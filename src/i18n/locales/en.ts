@@ -266,7 +266,8 @@ export const en: TranslationSchema = {
         century: 'Century',
         decade: 'Decade',
         year: 'Year',
-        historicalEvents: 'Historical Events...'
+        historicalEvents: 'Historical Events...',
+        calendarTitle: 'Mission Calendar'
     },
     loading: {
         boot: 'Observatory Boot',

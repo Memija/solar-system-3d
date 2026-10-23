@@ -266,7 +266,8 @@ export const pl: TranslationSchema = {
         century: 'Wiek',
         decade: 'Dekada',
         year: 'Rok',
-        historicalEvents: 'Wydarzenia historyczne...'
+        historicalEvents: 'Wydarzenia historyczne...',
+        calendarTitle: 'Kalendarz misji'
     },
     loading: {
         boot: 'Rozruch obserwatorium',
