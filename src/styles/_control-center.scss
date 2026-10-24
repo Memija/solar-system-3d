@@ -211,7 +211,9 @@
         border: 1px solid rgba(56, 189, 248, 0.28) !important;
         border-radius: 8px !important;
         color: #f8fafc !important;
-        min-width: 92px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        min-width: 110px !important;
         box-sizing: border-box !important;
         transition: all 0.2s ease !important;
 
@@ -1361,8 +1363,9 @@
             text-overflow: ellipsis;
         }
         .date-panel-hud .custom-datepicker-display {
-            min-width: 70px !important;
-            font-size: 10px !important;
+            min-width: 80px !important;
+            font-size: 10.5px !important;
+            white-space: nowrap !important;
         }
     }
 }
