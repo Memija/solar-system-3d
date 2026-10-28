@@ -295,26 +295,38 @@ export class CelestialBody {
         if (ctx) {
             ctx.fillStyle = 'rgba(0, 0, 0, 0)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.font = 'bold 40px Arial';
-            ctx.fillStyle = '#ffffff';
+
+            const accentHex = '#' + (this.data.color || 0x38bdf8).toString(16).padStart(6, '0');
+
+            // Subtle dark glass pill behind text
+            ctx.fillStyle = 'rgba(8, 14, 30, 0.78)';
+            ctx.fillRect(16, 26, 224, 54);
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+            ctx.lineWidth = 2;
+            if (typeof ctx.strokeRect === 'function') {
+                ctx.strokeRect(16, 26, 224, 54);
+            }
+
+            ctx.font = 'bold 34px "Space Grotesk", "Outfit", Arial, sans-serif';
+            ctx.fillStyle = '#f8fafc';
             ctx.textAlign = 'center';
             ctx.fillText(this.data.name, 128, 64);
 
-            // Draw a Google Maps style pin
-            ctx.fillStyle = '#ea4335';
+            // Sci-fi observatory target reticle & pointer
+            ctx.fillStyle = accentHex;
             ctx.beginPath();
-            ctx.arc(128, 128, 32, 0, Math.PI * 2);
+            ctx.arc(128, 132, 26, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.beginPath();
-            ctx.moveTo(96, 128);
-            ctx.lineTo(128, 192); // bottom point
-            ctx.lineTo(160, 128);
+            ctx.moveTo(104, 138);
+            ctx.lineTo(128, 190); // bottom pointer
+            ctx.lineTo(152, 138);
             ctx.fill();
 
-            ctx.fillStyle = '#000000';
+            ctx.fillStyle = '#040917';
             ctx.beginPath();
-            ctx.arc(128, 128, 16, 0, Math.PI * 2);
+            ctx.arc(128, 132, 12, 0, Math.PI * 2);
             ctx.fill();
         }
 

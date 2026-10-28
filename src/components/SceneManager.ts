@@ -375,7 +375,7 @@ export class SceneManager {
 
     createMeasureTools() {
         const material = new THREE.LineDashedMaterial({
-            color: 0x00ff00,
+            color: 0x34d399,
             linewidth: 2,
             scale: 1,
             dashSize: 10,
@@ -429,19 +429,19 @@ export class SceneManager {
         context.clearRect(0, 0, canvas.width, canvas.height);
 
         // Background
-        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        context.fillStyle = 'rgba(8, 15, 32, 0.88)';
         context.beginPath();
         if (typeof (context as any).roundRect === 'function') {
-            (context as any).roundRect(0, 0, canvas.width, canvas.height, 20);
+            (context as any).roundRect(4, 4, canvas.width - 8, canvas.height - 8, 24);
         } else {
-            context.rect(0, 0, canvas.width, canvas.height);
+            context.rect(4, 4, canvas.width - 8, canvas.height - 8);
         }
         context.fill();
-        context.strokeStyle = '#00ff00';
+        context.strokeStyle = '#34d399';
         context.lineWidth = 4;
         context.stroke();
 
-        context.fillStyle = '#00ff00';
+        context.fillStyle = '#6ee7b7';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -529,7 +529,7 @@ export class SceneManager {
             uniforms: {
                 innerRadius: { value: innerRadius },
                 outerRadius: { value: outerRadius },
-                color: { value: new THREE.Color(0x00ff00) },
+                color: { value: new THREE.Color(0x10b981) },
                 time: { value: 0 }
             },
             vertexShader: `
@@ -575,8 +575,8 @@ export class SceneManager {
         const radials = 16;
         const circles = 10;
         const divisions = 64;
-        const color1 = new THREE.Color(0x444444);
-        const color2 = new THREE.Color(0x222222);
+        const color1 = new THREE.Color(0x1e4976);
+        const color2 = new THREE.Color(0x0f2744);
 
         this.eclipticGridMesh = new THREE.PolarGridHelper(radius, radials, circles, divisions, color1, color2);
         this.eclipticGridMesh.visible = this.showEclipticGrid;

@@ -132,22 +132,41 @@ export class Minimap {
 
         // Holographic Radar Background Sector Sweep
         const sweepGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
-        sweepGrad.addColorStop(0, 'rgba(56, 189, 248, 0.03)');
-        sweepGrad.addColorStop(1, 'rgba(56, 189, 248, 0.08)');
+        sweepGrad.addColorStop(0, 'rgba(56, 189, 248, 0.02)');
+        sweepGrad.addColorStop(0.7, 'rgba(56, 189, 248, 0.05)');
+        sweepGrad.addColorStop(1, 'rgba(129, 140, 248, 0.12)');
         ctx.fillStyle = sweepGrad;
         ctx.beginPath();
         ctx.arc(cx, cy, cx - 2 * dpr, 0, Math.PI * 2);
         ctx.fill();
 
+        // Outer azimuth degree tick marks
+        ctx.save();
+        const outerR = cx - 3 * dpr;
+        for (let deg = 0; deg < 360; deg += 15) {
+            if (deg % 90 === 0) continue; // Leave room for N/S/E/W cardinal labels
+            const rad = (deg * Math.PI) / 180;
+            const isMajor = deg % 45 === 0;
+            const tickLen = (isMajor ? 5 : 2.5) * dpr;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(rad) * (outerR - tickLen), cy + Math.sin(rad) * (outerR - tickLen));
+            ctx.lineTo(cx + Math.cos(rad) * outerR, cy + Math.sin(rad) * outerR);
+            ctx.strokeStyle = isMajor ? 'rgba(125, 211, 252, 0.42)' : 'rgba(56, 189, 248, 0.2)';
+            ctx.lineWidth = (isMajor ? 1.2 : 0.8) * dpr;
+            ctx.stroke();
+        }
+        ctx.restore();
+
         // Trailing radar beam cone
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, cx - 4 * dpr, this.sweepAngle - 0.45, this.sweepAngle);
+        ctx.arc(cx, cy, cx - 4 * dpr, this.sweepAngle - 0.5, this.sweepAngle);
         ctx.closePath();
         const beamGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
         beamGrad.addColorStop(0, 'rgba(56, 189, 248, 0.0)');
-        beamGrad.addColorStop(1, 'rgba(56, 189, 248, 0.22)');
+        beamGrad.addColorStop(0.65, 'rgba(56, 189, 248, 0.12)');
+        beamGrad.addColorStop(1, 'rgba(125, 211, 252, 0.26)');
         ctx.fillStyle = beamGrad;
         ctx.fill();
 
@@ -155,7 +174,7 @@ export class Minimap {
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(cx + Math.cos(this.sweepAngle) * (cx - 4 * dpr), cy + Math.sin(this.sweepAngle) * (cy - 4 * dpr));
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)';
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.85)';
         ctx.lineWidth = 1.5 * dpr;
         ctx.stroke();
         ctx.restore();
@@ -166,34 +185,34 @@ export class Minimap {
             const r = (cx * i) / 4.2;
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = i === 4 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.15)';
+            ctx.strokeStyle = i === 4 ? 'rgba(56, 189, 248, 0.38)' : 'rgba(56, 189, 248, 0.16)';
             ctx.lineWidth = 1 * dpr;
             ctx.stroke();
 
             // Label
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
-            ctx.font = `${9 * dpr}px 'Orbitron', monospace`;
+            ctx.fillStyle = 'rgba(125, 211, 252, 0.48)';
+            ctx.font = `${8.5 * dpr}px 'Orbitron', monospace`;
             ctx.textAlign = 'center';
             ctx.fillText(ringLabels[i - 1], cx, cy - r + 10 * dpr);
         }
 
         // Reticle Crosshairs with breaks
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
         ctx.lineWidth = 1 * dpr;
         ctx.beginPath();
-        ctx.moveTo(cx, 8 * dpr); ctx.lineTo(cx, height - 8 * dpr);
-        ctx.moveTo(8 * dpr, cy); ctx.lineTo(width - 8 * dpr, cy);
+        ctx.moveTo(cx, 16 * dpr); ctx.lineTo(cx, height - 16 * dpr);
+        ctx.moveTo(16 * dpr, cy); ctx.lineTo(width - 16 * dpr, cy);
         ctx.stroke();
 
         // Cardinal Ticks
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
-        ctx.font = `bold ${8 * dpr}px 'Space Grotesk', sans-serif`;
+        ctx.fillStyle = 'rgba(125, 211, 252, 0.85)';
+        ctx.font = `bold ${8.5 * dpr}px 'Space Grotesk', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('N', cx, 10 * dpr);
-        ctx.fillText('S', cx, height - 10 * dpr);
-        ctx.fillText('W', 10 * dpr, cy);
-        ctx.fillText('E', width - 10 * dpr, cy);
+        ctx.fillText('N', cx, 9.5 * dpr);
+        ctx.fillText('S', cx, height - 9.5 * dpr);
+        ctx.fillText('W', 9.5 * dpr, cy);
+        ctx.fillText('E', width - 9.5 * dpr, cy);
 
         // Helper function to map 3D distance to radar radius
         const mapToRadar = (x3d: number, z3d: number) => {
@@ -210,20 +229,31 @@ export class Minimap {
             const pos = planet.orbitGroup.position;
             const { rx, ry } = mapToRadar(pos.x, pos.z);
             const isSun = planet.data.name === 'Sun';
+            const isFocused = this.sceneManager.focusedBody === planet;
+            const hexColor = '#' + planet.data.color.toString(16).padStart(6, '0');
 
-            // Glow Halo
+            // Glow Halo matched to planet's color
             ctx.beginPath();
-            ctx.arc(rx, ry, (isSun ? 7 : 4) * dpr, 0, Math.PI * 2);
-            ctx.fillStyle = isSun ? 'rgba(255, 180, 0, 0.35)' : 'rgba(56, 189, 248, 0.25)';
+            ctx.arc(rx, ry, (isSun ? 7.5 : isFocused ? 6 : 4.2) * dpr, 0, Math.PI * 2);
+            ctx.fillStyle = isSun ? 'rgba(251, 191, 36, 0.38)' : hexColor + '44';
             ctx.fill();
+
+            // Target lock ring if focused
+            if (isFocused && !isSun) {
+                ctx.beginPath();
+                ctx.arc(rx, ry, 6.5 * dpr, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(125, 211, 252, 0.9)';
+                ctx.lineWidth = 1 * dpr;
+                ctx.stroke();
+            }
 
             // Core Blip Dot
             ctx.beginPath();
-            ctx.arc(rx, ry, (isSun ? 4.5 : 2.5) * dpr, 0, Math.PI * 2);
-            ctx.fillStyle = '#' + planet.data.color.toString(16).padStart(6, '0');
+            ctx.arc(rx, ry, (isSun ? 4.5 : 2.6) * dpr, 0, Math.PI * 2);
+            ctx.fillStyle = hexColor;
             ctx.fill();
 
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
             ctx.lineWidth = 0.8 * dpr;
             ctx.stroke();
         });

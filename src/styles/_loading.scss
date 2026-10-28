@@ -14,7 +14,10 @@ $z-loading: 99999;
     height: 100vh;
     height: 100dvh;
     z-index: $z-loading;
-    background: radial-gradient(circle at 50% 45%, rgba(14, 28, 54, 0.96) 0%, rgba(5, 10, 24, 0.98) 60%, #030712 100%);
+    background:
+        radial-gradient(ellipse at 30% 25%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 75%, rgba(129, 140, 248, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 50% 45%, rgba(12, 24, 52, 0.96) 0%, rgba(4, 9, 22, 0.98) 62%, $color-bg 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -205,18 +208,19 @@ $z-loading: 99999;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 9999px;
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(56, 189, 248, 0.28);
+    background: linear-gradient(135deg, rgba(15, 25, 48, 0.85) 0%, rgba(8, 14, 30, 0.92) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.34);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
     font-family: $font-mono;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.14em;
-    color: $neon-cyan;
-    margin-bottom: 12px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    color: $neon-cyan-bright;
+    margin-bottom: 14px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 
     .status-live-dot {
         width: 7px;
@@ -233,10 +237,14 @@ $z-loading: 99999;
     font-size: clamp(20px, 5vw, 26px);
     font-weight: 800;
     letter-spacing: 0.22em;
+    background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 55%, #7dd3fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
     color: #f8fafc;
     text-align: center;
     margin: 0 0 6px 0;
-    text-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
+    filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.35)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.85));
 }
 
 .loading-subtitle {
@@ -282,18 +290,18 @@ $z-loading: 99999;
     width: 100%;
     height: 8px;
     border-radius: 9999px;
-    background: rgba(9, 14, 28, 0.85);
-    border: 1px solid rgba(56, 189, 248, 0.25);
+    background: rgba(6, 11, 25, 0.9);
+    border: 1px solid rgba(56, 189, 248, 0.28);
     overflow: hidden;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.08);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 16px rgba(56, 189, 248, 0.1);
 }
 
 .loading-progress-bar {
     height: 100%;
     width: 0%;
     border-radius: 9999px;
-    background: linear-gradient(90deg, #2563eb 0%, #38bdf8 50%, #818cf8 100%);
-    box-shadow: 0 0 14px rgba(56, 189, 248, 0.7);
+    background: linear-gradient(90deg, #0284c7 0%, #38bdf8 45%, #818cf8 85%, #c084fc 100%);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.75);
     transition: none; // Synced with JS RAF loop to eliminate visual lag and mismatch with percentage
     position: relative;
     overflow: hidden; // Prevents shimmer highlight from spilling outside the filled bar

@@ -8,13 +8,21 @@
     color: $color-text;
     background-color: $color-bg;
     --neon-cyan: #{$neon-cyan};
+    --neon-cyan-bright: #{$neon-cyan-bright};
     --neon-indigo: #{$neon-indigo};
+    --neon-violet: #{$neon-violet};
     --neon-amber: #{$neon-amber};
     --neon-emerald: #{$neon-emerald};
+    --neon-rose: #{$neon-rose};
 }
 
 *, *::before, *::after {
     box-sizing: border-box;
+}
+
+::selection {
+    background: rgba(56, 189, 248, 0.28);
+    color: #ffffff;
 }
 
 body {
@@ -24,7 +32,10 @@ body {
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    background: radial-gradient(circle at 50% 50%, #080d1a 0%, #030712 100%);
+    background:
+        radial-gradient(ellipse at 20% 15%, rgba(30, 58, 138, 0.14) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 85%, rgba(88, 28, 135, 0.1) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, #070d1d 0%, $color-bg 100%);
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;

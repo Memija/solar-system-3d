@@ -12,8 +12,8 @@
     max-width: calc(100vw - 48px);
     max-height: 88vh;
     background: $glass-bg;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(28px) saturate(165%);
+    -webkit-backdrop-filter: blur(28px) saturate(165%);
     border: 1px solid $glass-border;
     border-top: 3px solid $neon-cyan;
     border-radius: 18px;
@@ -180,19 +180,21 @@
     }
 
     .stat-chip {
-        background: rgba(15, 23, 42, 0.65);
-        border: 1px solid rgba(56, 189, 248, 0.18);
+        background: linear-gradient(145deg, rgba(16, 28, 56, 0.72) 0%, rgba(9, 16, 34, 0.85) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.2);
         border-radius: 10px;
-        padding: 8px 12px;
+        padding: 9px 12px;
         display: flex;
         flex-direction: column;
         gap: 2px;
-        transition: all 0.2s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.25);
+        transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 
         &:hover {
-            background: rgba(30, 41, 59, 0.75);
-            border-color: $neon-cyan;
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+            background: linear-gradient(145deg, rgba(24, 40, 76, 0.82) 0%, rgba(13, 23, 46, 0.92) 100%);
+            border-color: $neon-cyan-bright;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+            transform: translateY(-1px);
         }
 
         .stat-label-wrap {
