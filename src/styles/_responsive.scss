@@ -22,6 +22,10 @@
             z-index: $z-dropdown !important;
         }
 
+        &.has-datepicker-open {
+            z-index: 2300 !important;
+        }
+
         .lang-dropdown-menu {
             z-index: $z-dropdown !important;
         }

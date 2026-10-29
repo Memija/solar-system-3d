@@ -146,7 +146,7 @@ export class CustomDatePicker {
         const locName = getLocalizedEventName(evt);
         return locName
             .replace(/ Launch| Moon Landing| First Module/gi, '')
-            .replace(/Space Telescope/i, 'Telescope')
+            .replace(/\s*Space Telescope|\s*Telescope/gi, '')
             .trim();
     }
 
@@ -876,6 +876,7 @@ export class CustomDatePicker {
         this.domElement.classList.add('is-open');
         this.displayElement.setAttribute('aria-expanded', 'true');
         this.domElement.closest('.date-panel-hud')?.classList.add('is-datepicker-open');
+        this.domElement.closest('.observatory-header-bar, .selection-menu-container')?.classList.add('has-datepicker-open');
         this.popupElement.style.display = 'block';
         this.viewDate.setTime(this.currentDate.getTime());
         this.renderCalendar();
@@ -889,6 +890,7 @@ export class CustomDatePicker {
         this.domElement.classList.remove('is-open');
         this.displayElement.setAttribute('aria-expanded', 'false');
         this.domElement.closest('.date-panel-hud')?.classList.remove('is-datepicker-open');
+        this.domElement.closest('.observatory-header-bar, .selection-menu-container')?.classList.remove('has-datepicker-open');
         this.popupElement.style.display = 'none';
         this.closeYearModal();
     }

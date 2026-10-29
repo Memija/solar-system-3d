@@ -45,6 +45,10 @@
     &.has-lang-open {
         z-index: $z-dropdown !important;
     }
+
+    &.has-datepicker-open {
+        z-index: 2300 !important;
+    }
 }
 
 // Brand Badge
@@ -1531,43 +1535,50 @@
 
         .date-panel-hud {
             .date-panel-main-row {
-                padding: 2px 3px 2px 7px;
+                padding: 0;
                 gap: 4px;
-                border-radius: 9px;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+            }
+
+            .sim-date-label {
+                display: none !important;
             }
 
             .custom-datepicker-display {
                 min-width: 0 !important;
-                padding: 0 6px !important;
+                padding: 0 7px !important;
                 font-size: 10.5px !important;
-                height: 26px !important;
+                height: 28px !important;
                 white-space: nowrap !important;
 
                 &::before {
-                    width: 10px;
-                    height: 10px;
+                    width: 10.5px;
+                    height: 10.5px;
                     margin-right: 4px;
                 }
 
                 &::after {
                     width: 9px;
                     height: 9px;
-                    margin-left: 4px;
+                    margin-left: 3px;
                 }
             }
 
             .custom-datepicker-popup {
                 position: fixed !important;
-                top: calc(60px + env(safe-area-inset-top, 0px)) !important;
+                top: calc(100% + 8px) !important;
                 bottom: auto !important;
-                left: 10px !important;
-                right: 10px !important;
+                left: 0 !important;
+                right: 0 !important;
                 width: auto !important;
                 max-width: none !important;
                 transform: none !important;
                 animation: datepickerEntrance 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                max-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px)) !important;
+                max-height: calc(100dvh - 70px - env(safe-area-inset-bottom, 0px)) !important;
                 overflow-y: auto !important;
+                background: linear-gradient(165deg, rgba(12, 21, 44, 0.985) 0%, rgba(6, 11, 24, 0.995) 60%, rgba(3, 7, 17, 0.998) 100%) !important;
 
                 &::after {
                     display: none !important;
@@ -1578,6 +1589,11 @@
         .obs-header-slots {
             max-width: 64px;
             gap: 4px;
+            overflow: hidden;
+
+            .obs-header-slot-btn:nth-child(n + 3) {
+                display: none !important;
+            }
         }
 
         .hud-icon-btn {
@@ -1619,6 +1635,22 @@
 @media (max-width: 580px) {
     .observatory-header-bar .date-panel-hud .sim-speed-badge {
         display: none !important;
+    }
+}
+
+@media (max-width: 430px) {
+    .observatory-header-bar {
+        .obs-header-slots {
+            max-width: 32px;
+
+            .obs-header-slot-btn:nth-child(n + 2) {
+                display: none !important;
+            }
+        }
+
+        .date-panel-hud .custom-datepicker-display::after {
+            display: none !important;
+        }
     }
 }
 
