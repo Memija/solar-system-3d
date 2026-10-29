@@ -1,5 +1,6 @@
 import { PreferencesManager, DEFAULT_HEADER_SLOTS } from './PreferencesManager';
 import { i18n } from '../i18n';
+import { svgIcon, stripLeadingEmoji } from './SvgIcons';
 
 export type HeaderSlotCategory = 'camera' | 'optics' | 'layers' | 'tools';
 
@@ -27,7 +28,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'attachCamera',
         category: 'camera',
         labelKey: 'controls.attachCamera',
-        icon: '🎯',
+        icon: svgIcon('attach-camera'),
         shortcut: 'A',
         domId: 'hudSlot_attachCamera',
         getState: (ui) => !!ui.sceneManager?.focusedBody && !ui.sceneManager?.surfaceViewBody,
@@ -47,7 +48,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'surfaceView',
         category: 'camera',
         labelKey: 'controls.viewFromSurface',
-        icon: '🪐',
+        icon: svgIcon('surface-view'),
         shortcut: 'V',
         domId: 'hudSlot_surfaceView',
         getState: (ui) => !!ui.sceneManager?.surfaceViewBody,
@@ -61,7 +62,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'freeCamera',
         category: 'camera',
         labelKey: 'controls.freeCamera',
-        icon: '🚀',
+        icon: svgIcon('free-camera'),
         shortcut: 'D',
         domId: 'hudSlot_freeCamera',
         getState: (ui) => !ui.sceneManager?.focusedBody && !ui.sceneManager?.surfaceViewBody && !ui.sceneManager?.focusedStar && !ui.sceneManager?.focusedConstellation,
@@ -75,14 +76,14 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'cinematicTour',
         category: 'camera',
         labelKey: 'controls.cinematicTour',
-        icon: '🎬',
+        icon: svgIcon('cinematic-tour'),
         shortcut: 'T',
         domId: 'hudSlot_cinematicTour',
         locked: true,
         getState: (ui) => !!ui.sceneManager?.tourMode,
         action: (ui) => {
-            if (ui.tourController) {
-                ui.tourController.setValue(!ui.sceneManager.tourMode);
+            if (typeof ui.setTourMode === 'function') {
+                ui.setTourMode(!ui.sceneManager.tourMode);
             } else if (ui.sceneManager) {
                 const next = !ui.sceneManager.tourMode;
                 ui.sceneManager.tourMode = next;
@@ -106,7 +107,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'enableBloom',
         category: 'optics',
         labelKey: 'controls.enableBloom',
-        icon: '✨',
+        icon: svgIcon('bloom'),
         shortcut: 'B',
         domId: 'hudSlot_enableBloom',
         getState: (ui) => (ui.sceneManager?.bloomPass ? ui.sceneManager.bloomPass.enabled : PreferencesManager.get('enableBloom')),
@@ -124,7 +125,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'realisticLighting',
         category: 'optics',
         labelKey: 'controls.realisticLighting',
-        icon: '💡',
+        icon: svgIcon('lighting'),
         shortcut: 'L',
         domId: 'hudSlot_realisticLighting',
         getState: (ui) => !!ui.sceneManager?.realisticLighting,
@@ -138,7 +139,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showEclipticGrid',
         category: 'optics',
         labelKey: 'controls.eclipticGrid',
-        icon: '🌐',
+        icon: svgIcon('grid'),
         shortcut: 'G',
         domId: 'hudSlot_showEclipticGrid',
         getState: (ui) => !!ui.sceneManager?.showEclipticGrid,
@@ -152,7 +153,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showHabitableZone',
         category: 'optics',
         labelKey: 'controls.habitableZone',
-        icon: '🌱',
+        icon: svgIcon('habitable'),
         shortcut: 'Z',
         domId: 'hudSlot_showHabitableZone',
         getState: (ui) => !!ui.sceneManager?.showHabitableZone,
@@ -166,7 +167,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showAxes',
         category: 'optics',
         labelKey: 'controls.showAxes',
-        icon: '🧭',
+        icon: svgIcon('axes'),
         shortcut: 'X',
         domId: 'hudSlot_showAxes',
         getState: (ui) => !!ui.sceneManager?.showAxes,
@@ -180,13 +181,13 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'realisticDistances',
         category: 'optics',
         labelKey: 'controls.realisticScale',
-        icon: '📏',
+        icon: svgIcon('scale'),
         shortcut: 'R',
         domId: 'hudSlot_realisticDistances',
         getState: (ui) => !!ui.sceneManager?.realisticDistances,
         action: (ui) => {
-            if (ui.realisticDistController) {
-                ui.realisticDistController.setValue(!ui.sceneManager.realisticDistances);
+            if (typeof ui.setRealisticDistances === 'function') {
+                ui.setRealisticDistances(!ui.sceneManager.realisticDistances);
             } else if (typeof ui.sceneManager?.toggleRealisticDistances === 'function') {
                 const next = !ui.sceneManager.realisticDistances;
                 ui.sceneManager.toggleRealisticDistances(next);
@@ -197,7 +198,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
                         name: i18n.t('popups.trueScaleTitle'),
                         description: i18n.t('popups.trueScaleDesc')
                     });
-                } else if (ui.modal?.isOpen && (ui.modal.isShowingPopup('popups.trueScaleTitle') || (ui.modal.titleElement && ui.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
+                } else if (ui.modal?.isOpen && (ui.modal.isShowingPopup?.('popups.trueScaleTitle') || (ui.modal.titleElement && ui.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
                     ui.modal.hide();
                 }
             }
@@ -211,7 +212,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showOrbits',
         category: 'layers',
         labelKey: 'controls.showOrbits',
-        icon: '🪐',
+        icon: svgIcon('orbits'),
         shortcut: 'O',
         domId: 'hudSlot_showOrbits',
         getState: (ui) => !!ui.sceneManager?.showOrbits,
@@ -225,7 +226,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showMoons',
         category: 'layers',
         labelKey: 'controls.showMoons',
-        icon: '🌙',
+        icon: svgIcon('moons'),
         shortcut: 'N',
         domId: 'hudSlot_showMoons',
         getState: (ui) => !!ui.sceneManager?.showMoons,
@@ -239,13 +240,15 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'constellations',
         category: 'layers',
         labelKey: 'controls.showConstellations',
-        icon: '🌌',
+        icon: svgIcon('constellations'),
         shortcut: 'C',
         domId: 'hudSlot_constellations',
-        getState: (ui) => ui.sceneManager?.constellationManager?.isVisible ?? true,
+        getState: (ui) => ui.sceneManager?.showConstellations ?? ui.sceneManager?.constellationManager?.isVisible ?? true,
         action: (ui) => {
-            if (ui.sceneManager?.constellationManager) {
-                const cur = ui.sceneManager.constellationManager.isVisible;
+            const cur = ui.sceneManager?.showConstellations ?? ui.sceneManager?.constellationManager?.isVisible ?? true;
+            if (typeof ui.sceneManager?.toggleConstellations === 'function') {
+                ui.sceneManager.toggleConstellations(!cur);
+            } else if (ui.sceneManager?.constellationManager) {
                 ui.sceneManager.constellationManager.toggleVisibility(!cur);
             }
         }
@@ -254,7 +257,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showAsteroids',
         category: 'layers',
         labelKey: 'controls.showAsteroids',
-        icon: '🪨',
+        icon: svgIcon('asteroids'),
         shortcut: 'E',
         domId: 'hudSlot_showAsteroids',
         getState: (ui) => !!ui.sceneManager?.showAsteroids,
@@ -268,7 +271,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showKuiperBelt',
         category: 'layers',
         labelKey: 'controls.showKuiperBelt',
-        icon: '❄️',
+        icon: svgIcon('kuiper'),
         shortcut: 'U',
         domId: 'hudSlot_showKuiperBelt',
         getState: (ui) => !!ui.sceneManager?.showKuiperBelt,
@@ -282,7 +285,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showDwarfPlanets',
         category: 'layers',
         labelKey: 'controls.showDwarfPlanets',
-        icon: '⚪',
+        icon: svgIcon('dwarf'),
         shortcut: 'W',
         domId: 'hudSlot_showDwarfPlanets',
         getState: (ui) => !!ui.sceneManager?.showDwarfPlanets,
@@ -296,7 +299,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showComets',
         category: 'layers',
         labelKey: 'controls.showComets',
-        icon: '☄️',
+        icon: svgIcon('comets'),
         shortcut: 'Q',
         domId: 'hudSlot_showComets',
         getState: (ui) => !!ui.sceneManager?.showComets,
@@ -310,7 +313,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showSpacecraft',
         category: 'layers',
         labelKey: 'controls.showSpacecraft',
-        icon: '🚀',
+        icon: svgIcon('spacecraft'),
         shortcut: 'J',
         domId: 'hudSlot_showSpacecraft',
         getState: (ui) => !!ui.sceneManager?.showSpacecrafts,
@@ -324,7 +327,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showMeteors',
         category: 'layers',
         labelKey: 'controls.showMeteors',
-        icon: '🌠',
+        icon: svgIcon('meteors'),
         shortcut: 'Y',
         domId: 'hudSlot_showMeteors',
         getState: (ui) => !!ui.sceneManager?.showMeteors,
@@ -338,7 +341,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'showTrails',
         category: 'layers',
         labelKey: 'controls.showTrails',
-        icon: '💫',
+        icon: svgIcon('trails'),
         shortcut: 'I',
         domId: 'hudSlot_showTrails',
         getState: (ui) => !!ui.sceneManager?.showTrails,
@@ -356,7 +359,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'minimap',
         category: 'tools',
         labelKey: 'ui.radarToggle',
-        icon: '🛰️',
+        icon: svgIcon('minimap'),
         shortcut: 'M',
         domId: 'hudRadarBtn',
         getState: (ui) => ui.minimap?.isVisible ?? false,
@@ -368,7 +371,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'snapshot',
         category: 'tools',
         labelKey: 'ui.astrophotography',
-        icon: '📸',
+        icon: svgIcon('snapshot'),
         shortcut: 'K',
         domId: 'hudSnapshotBtn',
         action: (ui) => {
@@ -380,7 +383,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'audio',
         category: 'tools',
         labelKey: 'ui.audioAmbience',
-        icon: (ui) => (ui.audioManager?.getAudioEnabled?.() ? '🔊' : '🔇'),
+        icon: (ui) => svgIcon(ui.audioManager?.getAudioEnabled?.() ? 'audio-on' : 'audio-off'),
         shortcut: 'S',
         domId: 'hudSoundBtn',
         getState: (ui) => ui.audioManager?.getAudioEnabled?.() ?? false,
@@ -392,7 +395,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'telemetry',
         category: 'tools',
         labelKey: 'ui.telemetry',
-        icon: '⚡',
+        icon: svgIcon('telemetry'),
         shortcut: 'P',
         domId: 'hudPerfBtn',
         getState: (ui) => ui.performanceMonitor?.getVisible?.() ?? false,
@@ -404,7 +407,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'shortcuts',
         category: 'tools',
         labelKey: 'ui.keyboardShortcuts',
-        icon: '⌨️',
+        icon: svgIcon('shortcuts'),
         shortcut: '?',
         domId: 'hudHelpBtn',
         getState: (ui) => ui.shortcutsModal?.isOpen ?? false,
@@ -412,12 +415,11 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
             ui.toggleShortcutsModal?.();
         }
     },
-
     {
         id: 'measureMode',
         category: 'tools',
         labelKey: 'controls.measureTool',
-        icon: '📐',
+        icon: svgIcon('measure'),
         domId: 'hudSlot_measureMode',
         getState: (ui) => !!ui.sceneManager?.measureMode,
         action: (ui) => {
@@ -430,7 +432,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         id: 'fullscreen',
         category: 'tools',
         labelKey: 'shortcuts.fullscreen',
-        icon: '⛶',
+        icon: svgIcon('fullscreen'),
         shortcut: 'F',
         domId: 'hudSlot_fullscreen',
         getState: () => (typeof document !== 'undefined' ? !!document.fullscreenElement : false),
@@ -550,6 +552,7 @@ export class HeaderSlotsManagerClass {
             if (!def) return;
 
             const btn = document.createElement('button');
+            btn.type = 'button';
             btn.className = 'hud-icon-btn obs-header-slot-btn';
             if (def.domId) {
                 btn.id = def.domId;
@@ -558,7 +561,7 @@ export class HeaderSlotsManagerClass {
             }
 
             const rawLabel = i18n.t(def.labelKey) || def.id;
-            const cleanLabel = stripShortcutFromLabel(rawLabel);
+            const cleanLabel = stripLeadingEmoji(stripShortcutFromLabel(rawLabel));
             const titleWithShortcut = def.shortcut ? `${cleanLabel} (${def.shortcut})` : cleanLabel;
             btn.title = titleWithShortcut;
             btn.setAttribute('aria-label', titleWithShortcut);
@@ -570,8 +573,12 @@ export class HeaderSlotsManagerClass {
             const iconVal = typeof def.icon === 'function' ? def.icon(ui) : def.icon;
             btn.innerHTML = iconVal;
 
-            if (def.getState && def.getState(ui)) {
-                btn.classList.add('active');
+            if (def.getState) {
+                const isActive = def.getState(ui);
+                if (isActive) {
+                    btn.classList.add('active');
+                }
+                btn.setAttribute('aria-pressed', String(isActive));
             }
 
             btn.onclick = (e) => {
@@ -603,11 +610,12 @@ export class HeaderSlotsManagerClass {
             if (def.getState) {
                 const isActive = def.getState(ui);
                 btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', String(isActive));
             }
 
             // Update localized tooltip
             const rawLabel = i18n.t(def.labelKey) || def.id;
-            const cleanLabel = stripShortcutFromLabel(rawLabel);
+            const cleanLabel = stripLeadingEmoji(stripShortcutFromLabel(rawLabel));
             const titleWithShortcut = def.shortcut ? `${cleanLabel} (${def.shortcut})` : cleanLabel;
             btn.title = titleWithShortcut;
             btn.setAttribute('aria-label', titleWithShortcut);

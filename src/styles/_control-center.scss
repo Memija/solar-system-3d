@@ -15,14 +15,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    background: linear-gradient(180deg, rgba(14, 24, 48, 0.84) 0%, rgba(6, 12, 26, 0.88) 100%);
+    background: linear-gradient(180deg, rgba(14, 24, 48, 0.86) 0%, rgba(6, 12, 26, 0.9) 100%);
     backdrop-filter: blur(24px) saturate(160%);
     -webkit-backdrop-filter: blur(24px) saturate(160%);
     border: 1px solid rgba(56, 189, 248, 0.28);
     border-radius: 16px;
     padding: 0 16px;
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.72), 0 0 22px rgba(56, 189, 248, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    z-index: $z-dropdown;
+    z-index: $z-header;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: auto;
 
@@ -43,7 +43,7 @@
     }
 
     &.has-lang-open {
-        z-index: 1700 !important;
+        z-index: $z-dropdown !important;
     }
 }
 
@@ -52,7 +52,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-family: $font-mono;
+    font-family: $font-display;
     font-size: 13px;
     font-weight: 800;
     letter-spacing: 0.12em;
@@ -92,6 +92,7 @@
     gap: 8px;
     overflow: visible;
     flex-shrink: 1;
+    min-width: 0;
 }
 
 .obs-header-divider {
@@ -105,11 +106,11 @@
 .obs-target-pill {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     background: linear-gradient(135deg, rgba(16, 28, 56, 0.82) 0%, rgba(10, 18, 38, 0.9) 100%);
     border: 1px solid rgba(56, 189, 248, 0.3);
     border-radius: 9999px;
-    padding: 4px 14px;
+    padding: 4px 13px;
     font-family: $font-display;
     font-size: 12.5px;
     font-weight: 600;
@@ -118,6 +119,7 @@
     cursor: pointer;
     transition: all 0.25s ease;
     white-space: nowrap;
+    flex-shrink: 0;
 
     &:hover {
         background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(129, 140, 248, 0.18) 100%);
@@ -127,12 +129,15 @@
     }
 
     .target-icon {
+        display: inline-flex;
+        align-items: center;
         font-size: 14px;
+        color: $neon-cyan;
     }
 
     .target-name {
         color: $neon-cyan-bright;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
     }
 }
 
@@ -154,6 +159,7 @@
     gap: 6px !important;
     z-index: 1000;
     max-width: none !important;
+    min-width: 0;
 
     &:hover {
         border-color: transparent !important;
@@ -163,12 +169,13 @@
         display: flex;
         align-items: center;
         gap: 6px;
+        min-width: 0;
     }
 
     .sim-date-label {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 5px;
         background: none;
         border: none;
         padding: 0;
@@ -191,13 +198,15 @@
         }
 
         .date-clock-icon {
+            display: inline-flex;
+            align-items: center;
             font-size: 13px;
             color: $neon-cyan;
             filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.4));
         }
 
         .date-label-text {
-            color: #94a3b8;
+            color: $color-text-muted;
             transition: color 0.2s ease;
         }
 
@@ -255,7 +264,7 @@
         }
 
         .time-tz {
-            color: #64748b;
+            color: $color-text-muted;
             font-size: 10px;
         }
     }
@@ -333,7 +342,7 @@
     border: 1px solid rgba(56, 189, 248, 0.45) !important;
     border-radius: 8px !important;
     color: #f8fafc;
-    font-family: $font-mono;
+    font-family: $font-display;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -356,6 +365,8 @@
     }
 
     .ctrl-icon {
+        display: inline-flex;
+        align-items: center;
         font-size: 14px;
     }
 }
@@ -367,7 +378,7 @@
     position: fixed;
     top: calc(78px + env(safe-area-inset-top, 0px));
     right: 20px;
-    width: 470px;
+    width: 480px;
     max-width: calc(100vw - 40px);
     max-height: calc(100vh - 100px - env(safe-area-inset-bottom, 0px));
     background: linear-gradient(165deg, rgba(11, 20, 42, 0.94) 0%, rgba(5, 10, 23, 0.97) 100%);
@@ -376,7 +387,7 @@
     border: 1px solid rgba(56, 189, 248, 0.35);
     border-radius: 20px;
     box-shadow: 0 28px 68px rgba(0, 0, 0, 0.88), 0 0 38px rgba(56, 189, 248, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    z-index: 1550;
+    z-index: $z-drawer;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -419,10 +430,10 @@
         gap: 3px;
 
         .drawer-main-title {
-            font-family: $font-mono;
-            font-size: 14px;
+            font-family: $font-display;
+            font-size: 14.5px;
             font-weight: 800;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.1em;
             color: #f8fafc;
             display: flex;
             align-items: center;
@@ -438,8 +449,8 @@
         .drawer-sub-title {
             font-family: $font-display;
             font-size: 11px;
-            letter-spacing: 0.08em;
-            color: rgba(148, 163, 184, 0.85);
+            letter-spacing: 0.06em;
+            color: $color-text-muted;
         }
     }
 
@@ -449,7 +460,7 @@
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #94a3b8;
+        color: $color-text-muted;
         font-size: 14px;
         cursor: pointer;
         display: flex;
@@ -466,43 +477,50 @@
     }
 }
 
-// Navigation Tabs Strip
+// Navigation Tabs Strip — Stacked icon + label so all 6 tabs fit cleanly across all locales
 .drawer-tabs-strip {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    padding: 10px 12px;
-    gap: 6px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    padding: 8px 10px;
+    gap: 5px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(10, 17, 34, 0.7);
 
     .drawer-tab {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 5px;
-        padding: 9px 6px;
+        gap: 4px;
+        padding: 7px 3px;
         border-radius: 9px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.05);
-        color: #94a3b8;
+        color: $color-text-muted;
         font-family: $font-display;
-        font-size: 11px;
+        font-size: 10.5px;
         font-weight: 600;
         letter-spacing: 0.01em;
         cursor: pointer;
         transition: all 0.2s ease;
-        white-space: nowrap;
         min-width: 0;
+        text-align: center;
 
         .tab-icon {
-            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
             flex-shrink: 0;
+            color: $neon-cyan;
         }
 
         .tab-label {
+            max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            line-height: 1.15;
         }
 
         &:hover {
@@ -518,6 +536,7 @@
             box-shadow: 0 0 16px rgba(56, 189, 248, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 
             .tab-icon {
+                color: #ffffff;
                 filter: drop-shadow(0 0 6px $neon-cyan);
             }
         }
@@ -575,7 +594,7 @@
     }
 
     .ctrl-group-title {
-        font-family: $font-mono;
+        font-family: $font-display;
         font-size: 11px;
         font-weight: 700;
         letter-spacing: 0.1em;
@@ -640,7 +659,7 @@
         font-family: $font-mono;
         font-size: 10.5px;
         font-weight: 600;
-        color: #94a3b8;
+        color: $color-text-muted;
         display: flex;
         align-items: center;
         gap: 6px;
@@ -666,8 +685,11 @@
         cursor: pointer;
 
         .toggle-icon {
-            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            font-size: 15px;
             color: $neon-cyan;
+            flex-shrink: 0;
         }
 
         .ctrl-kbd-badge {
@@ -1013,7 +1035,7 @@
         background: rgba(15, 23, 42, 0.7);
         border: 1px solid rgba(56, 189, 248, 0.22);
         border-radius: 6px;
-        color: #94a3b8;
+        color: $color-text-muted;
         font-family: $font-mono;
         font-size: 10.5px;
         font-weight: 600;
@@ -1112,6 +1134,9 @@
     gap: 6px;
 
     .target-chip-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
         background: rgba(15, 23, 42, 0.65);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 999px;
@@ -1122,6 +1147,13 @@
         color: #cbd5e1;
         cursor: pointer;
         transition: all 0.2s ease;
+
+        .chip-icon {
+            display: inline-flex;
+            align-items: center;
+            color: $neon-cyan;
+            font-size: 12px;
+        }
 
         &:hover {
             background: rgba(56, 189, 248, 0.15);
@@ -1139,7 +1171,7 @@
     }
 }
 
-// Camera Modes Segmented Control
+// Camera Modes Segmented Control (valid sibling button structure)
 .camera-modes-segmented {
     display: flex;
     background: rgba(15, 23, 42, 0.8);
@@ -1148,23 +1180,51 @@
     padding: 3px;
     gap: 4px;
 
+    .cam-mode-item {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        border-radius: 8px;
+        padding-right: 4px;
+        transition: all 0.2s ease;
+        min-width: 0;
+
+        &.active {
+            background: rgba(56, 189, 248, 0.22);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+        }
+
+        .ctrl-info-btn {
+            margin-left: 2px;
+            width: 15px;
+            height: 15px;
+            font-size: 9.5px;
+            opacity: 0.85;
+
+            &:hover {
+                opacity: 1;
+            }
+        }
+    }
+
     .cam-mode-btn {
         flex: 1;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 5px;
+        gap: 4px;
         background: transparent;
         border: none;
         border-radius: 8px;
-        padding: 7px 6px;
+        padding: 7px 4px;
         font-family: $font-display;
-        font-size: 11.5px;
+        font-size: 11px;
         font-weight: 600;
-        color: #94a3b8;
+        color: $color-text-muted;
         cursor: pointer;
         transition: all 0.2s ease;
         text-align: center;
+        min-width: 0;
 
         .ctrl-kbd-badge {
             margin-left: 2px;
@@ -1183,26 +1243,12 @@
         }
 
         &.active {
-            background: rgba(56, 189, 248, 0.22);
             color: #ffffff;
             font-weight: 700;
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
 
             .ctrl-kbd-badge {
                 background: $neon-cyan;
                 color: #030712;
-            }
-        }
-
-        .ctrl-info-btn {
-            margin-left: 2px;
-            width: 15px;
-            height: 15px;
-            font-size: 9.5px;
-            opacity: 0.8;
-
-            &:hover {
-                opacity: 1;
             }
         }
     }
@@ -1220,12 +1266,18 @@
     background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%);
     border: 1px solid rgba(56, 189, 248, 0.4);
     color: #f8fafc;
-    font-family: $font-mono;
+    font-family: $font-display;
     font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     cursor: pointer;
     transition: all 0.25s ease;
+
+    > span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
 
     &:hover {
         background: linear-gradient(135deg, rgba(56, 189, 248, 0.4) 0%, rgba(99, 102, 241, 0.35) 100%);
@@ -1239,14 +1291,14 @@
     }
 }
 
-// Backdrop Overlay for Mobile/Focus
+// Backdrop Overlay — Crisp transparent click-catcher on desktop, dimmed blur on mobile
 .drawer-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    z-index: 1540;
+    z-index: 1490;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s;
@@ -1256,6 +1308,12 @@
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
+    }
+
+    @media (min-width: 769px) {
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
     }
 }
 
@@ -1287,10 +1345,11 @@
         right: 8px;
         height: 48px;
         padding: 0 10px;
-        gap: 8px;
+        gap: 6px;
 
         .obs-brand {
             font-size: 11px;
+            gap: 0;
             span:not(.brand-sparkle) { display: none; }
         }
 
@@ -1299,11 +1358,14 @@
         }
 
         .obs-header-center {
-            gap: 6px;
+            flex: 1 1 auto;
+            min-width: 0;
+            gap: 5px;
 
             .obs-target-pill {
                 padding: 3px 8px;
                 font-size: 11px;
+                gap: 5px;
             }
         }
 
@@ -1312,26 +1374,39 @@
             .sim-time-badge { display: none; }
             .custom-datepicker-display {
                 font-size: 11px !important;
-                min-width: 80px !important;
-                padding: 2px 6px !important;
-                height: 26px !important;
+                min-width: 0 !important;
+                padding: 2px 7px !important;
+                height: 28px !important;
             }
             .sim-speed-badge {
                 font-size: 10px !important;
                 padding: 2px 6px !important;
-                height: 26px !important;
+                height: 28px !important;
             }
         }
 
+        .obs-header-actions {
+            gap: 5px;
+        }
+
+        .hud-icon-btn {
+            width: 30px !important;
+            height: 30px !important;
+        }
+
         .obs-controls-btn {
-            padding: 6px 10px;
+            min-width: 32px !important;
+            width: 32px !important;
+            height: 32px !important;
+            padding: 0 !important;
             font-size: 11px;
-            .ctrl-label { display: none; }
+
+            .ctrl-label { display: none !important; }
         }
 
         .obs-header-slots {
             gap: 4px;
-            max-width: 36vw;
+            max-width: 102px;
             overflow-x: auto;
             scrollbar-width: none;
             &::-webkit-scrollbar { display: none; }
@@ -1352,6 +1427,7 @@
             gap: 6px;
 
             .drawer-tab {
+                flex-direction: row;
                 padding: 11px 4px;
                 min-height: 44px;
                 justify-content: center;
@@ -1371,16 +1447,94 @@
 
 @media (max-width: 520px) {
     .observatory-header-bar {
-        .obs-target-pill .target-name {
-            max-width: 55px;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        padding: 0 8px;
+        gap: 5px;
+
+        .obs-target-pill {
+            padding: 2px 7px;
+            font-size: 10.5px;
+            gap: 5px;
+
+            .target-name {
+                max-width: 48px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
         }
-        .date-panel-hud .custom-datepicker-display {
-            min-width: 80px !important;
-            font-size: 10.5px !important;
-            white-space: nowrap !important;
+
+        .date-panel-hud {
+            .custom-datepicker-display {
+                min-width: 0 !important;
+                padding: 2px 6px !important;
+                font-size: 10px !important;
+                height: 26px !important;
+                white-space: nowrap !important;
+
+                &::before {
+                    width: 10px;
+                    height: 10px;
+                    margin-right: 4px;
+                }
+            }
+
+            .custom-datepicker-popup {
+                position: fixed !important;
+                top: calc(62px + env(safe-area-inset-top, 0px)) !important;
+                bottom: auto !important;
+                left: 10px !important;
+                right: 10px !important;
+                width: auto !important;
+                max-width: none !important;
+                transform: none !important;
+                max-height: calc(100dvh - 76px - env(safe-area-inset-bottom, 0px)) !important;
+                overflow-y: auto !important;
+            }
         }
+
+        .obs-header-slots {
+            max-width: 64px;
+            gap: 4px;
+        }
+
+        .hud-icon-btn {
+            width: 28px !important;
+            height: 28px !important;
+        }
+
+        #hudSlotAddBtn {
+            width: 28px !important;
+            height: 28px !important;
+        }
+
+        .obs-controls-btn,
+        #hudControlsBtn {
+            min-width: 28px !important;
+            width: 28px !important;
+            height: 28px !important;
+            padding: 0 !important;
+        }
+
+        .lang-switcher-container .lang-btn {
+            min-width: 30px !important;
+            height: 28px !important;
+            padding: 0 5px !important;
+
+            .lang-code {
+                display: none !important;
+            }
+        }
+    }
+}
+
+@media (max-width: 640px) {
+    .observatory-header-bar .date-panel-hud .sim-time-badge {
+        display: none !important;
+    }
+}
+
+@media (max-width: 580px) {
+    .observatory-header-bar .date-panel-hud .sim-speed-badge {
+        display: none !important;
     }
 }
 
@@ -1389,7 +1543,7 @@
 // =============================================================================
 .ctrl-info-tooltip {
     position: fixed;
-    z-index: 2600;
+    z-index: $z-tooltip;
     width: 280px;
     max-width: calc(100vw - 24px);
     padding: 10px 14px;
@@ -1439,6 +1593,9 @@
     }
 
     .ctrl-info-tooltip-icon {
+        display: inline-flex;
+        align-items: center;
+        color: $neon-cyan;
         font-size: 15px;
         line-height: 1;
         flex-shrink: 0;
@@ -1469,4 +1626,3 @@
         margin: 0;
     }
 }
-

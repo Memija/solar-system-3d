@@ -22,12 +22,18 @@ export class PerformanceMonitor {
     private currentFps: number = 60;
     private currentFrameTime: number = 16.6;
 
-    // DOM sub-elements
+    // Cached DOM sub-elements (zero querySelector calls in render loop)
     private fpsBadge: HTMLElement;
     private msBadge: HTMLElement;
     private callsBadge: HTMLElement;
     private trisBadge: HTMLElement;
+    private texBadge: HTMLElement;
     private memBadge: HTMLElement;
+    private memContainer: HTMLElement;
+    private callsLabel: HTMLElement;
+    private trisLabel: HTMLElement;
+    private texLabel: HTMLElement;
+    private memLabel: HTMLElement;
 
     constructor(renderer: THREE.WebGLRenderer, container: HTMLElement = document.body, initialVisible?: boolean) {
         this.renderer = renderer;
@@ -40,20 +46,16 @@ export class PerformanceMonitor {
         this.domElement.setAttribute('role', 'status');
         this.domElement.setAttribute('aria-label', i18n.t('ui.telemetry'));
 
-        this.unregisterI18n = i18n.onLanguageChange(() => {
-            this.domElement.setAttribute('aria-label', i18n.t('ui.telemetry'));
-        });
-
         this.domElement.innerHTML = `
             <div class="perf-row main">
                 <span class="perf-metric fps-metric"><span class="perf-val" id="perfFps">60</span> <span class="perf-unit">FPS</span></span>
                 <span class="perf-metric ms-metric"><span class="perf-val" id="perfMs">16.6</span> <span class="perf-unit">ms</span></span>
             </div>
             <div class="perf-row sub">
-                <span class="perf-metric" title="WebGL Draw Calls">Calls: <strong id="perfCalls">0</strong></span>
-                <span class="perf-metric" title="Rendered Triangles">Tris: <strong id="perfTris">0</strong></span>
-                <span class="perf-metric" title="Active GPU Textures">Tex: <strong id="perfTex">0</strong></span>
-                <span class="perf-metric" id="perfMemContainer" title="JS Heap Memory">Mem: <strong id="perfMem">0</strong></span>
+                <span class="perf-metric" title="WebGL Draw Calls"><span class="perf-lbl" data-perf-lbl="calls"></span>: <strong id="perfCalls">0</strong></span>
+                <span class="perf-metric" title="Rendered Triangles"><span class="perf-lbl" data-perf-lbl="tris"></span>: <strong id="perfTris">0</strong></span>
+                <span class="perf-metric" title="Active GPU Textures"><span class="perf-lbl" data-perf-lbl="tex"></span>: <strong id="perfTex">0</strong></span>
+                <span class="perf-metric" id="perfMemContainer" title="JS Heap Memory"><span class="perf-lbl" data-perf-lbl="mem"></span>: <strong id="perfMem">0</strong></span>
             </div>
         `;
 
@@ -61,13 +63,33 @@ export class PerformanceMonitor {
         this.msBadge = this.domElement.querySelector('#perfMs') as HTMLElement;
         this.callsBadge = this.domElement.querySelector('#perfCalls') as HTMLElement;
         this.trisBadge = this.domElement.querySelector('#perfTris') as HTMLElement;
+        this.texBadge = this.domElement.querySelector('#perfTex') as HTMLElement;
         this.memBadge = this.domElement.querySelector('#perfMem') as HTMLElement;
+        this.memContainer = this.domElement.querySelector('#perfMemContainer') as HTMLElement;
+        this.callsLabel = this.domElement.querySelector('[data-perf-lbl="calls"]') as HTMLElement;
+        this.trisLabel = this.domElement.querySelector('[data-perf-lbl="tris"]') as HTMLElement;
+        this.texLabel = this.domElement.querySelector('[data-perf-lbl="tex"]') as HTMLElement;
+        this.memLabel = this.domElement.querySelector('[data-perf-lbl="mem"]') as HTMLElement;
+
+        this.syncLabels();
+
+        this.unregisterI18n = i18n.onLanguageChange(() => {
+            this.syncLabels();
+        });
 
         this.container.appendChild(this.domElement);
 
         if (this.isVisible) {
             this.renderMetrics();
         }
+    }
+
+    private syncLabels(): void {
+        this.domElement.setAttribute('aria-label', i18n.t('ui.telemetry'));
+        if (this.callsLabel) this.callsLabel.textContent = i18n.t('ui.perfCalls') || 'Calls';
+        if (this.trisLabel) this.trisLabel.textContent = i18n.t('ui.perfTris') || 'Tris';
+        if (this.texLabel) this.texLabel.textContent = i18n.t('ui.perfTex') || 'Tex';
+        if (this.memLabel) this.memLabel.textContent = i18n.t('ui.perfMem') || 'Mem';
     }
 
     /**
@@ -101,14 +123,13 @@ export class PerformanceMonitor {
     private renderMetrics(): void {
         if (!this.renderer || !this.renderer.info) return;
 
-        // Color coding for FPS
         this.fpsBadge.textContent = String(this.currentFps);
         if (this.currentFps >= 50) {
-            this.fpsBadge.style.color = '#38bdf8'; // Cyan
+            this.fpsBadge.style.color = '#38bdf8';
         } else if (this.currentFps >= 30) {
-            this.fpsBadge.style.color = '#facc15'; // Amber
+            this.fpsBadge.style.color = '#facc15';
         } else {
-            this.fpsBadge.style.color = '#f87171'; // Red
+            this.fpsBadge.style.color = '#f87171';
         }
 
         this.msBadge.textContent = this.currentFrameTime.toFixed(1);
@@ -121,18 +142,17 @@ export class PerformanceMonitor {
             const tris = renderInfo.triangles;
             this.trisBadge.textContent = tris > 1000 ? `${(tris / 1000).toFixed(1)}k` : String(tris);
         }
-        if (this.domElement.querySelector('#perfTex')) {
-            const texSpan = this.domElement.querySelector('#perfTex');
-            if (texSpan) texSpan.textContent = String(memoryInfo.textures);
+        if (this.texBadge) {
+            this.texBadge.textContent = String(memoryInfo.textures);
         }
 
         const perf = (performance as any);
         if (perf && perf.memory && this.memBadge) {
+            if (this.memContainer) this.memContainer.style.display = '';
             const usedMb = Math.round(perf.memory.usedJSHeapSize / (1024 * 1024));
             this.memBadge.textContent = `${usedMb}MB`;
-        } else {
-            const memRow = this.domElement.querySelector('#perfMemContainer') as HTMLElement;
-            if (memRow) memRow.style.display = 'none';
+        } else if (this.memContainer) {
+            this.memContainer.style.display = 'none';
         }
     }
 

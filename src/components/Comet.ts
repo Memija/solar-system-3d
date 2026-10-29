@@ -19,22 +19,21 @@ export class Comet {
     b: number; // Semi-minor axis
     realisticDistances: boolean = false;
     private static readonly _tempDir = new THREE.Vector3();
+    private static readonly _tempLateral = new THREE.Vector3();
 
     constructor(data: CometData, parent: THREE.Object3D) {
         this.data = data;
         this.parent = parent;
         this.orbitLine = null;
-        this.angle = THREE.MathUtils.seededRandom() * Math.PI * 2; // Start at random position
+        this.angle = THREE.MathUtils.seededRandom() * Math.PI * 2;
         this.baseGroup = new THREE.Group();
         this.orbitGroup = new THREE.Group();
         this.tailParticles = null;
 
-        // Calculate orbit parameters
         this.a = this.data.semiMajorAxis;
         this.e = this.data.eccentricity;
         this.b = this.a * Math.sqrt(1 - this.e * this.e);
 
-        // Required to initialize mesh to satisfy TypeScript (will be reassigned in init)
         this.mesh = new THREE.Mesh();
 
         this.init();
@@ -44,7 +43,6 @@ export class Comet {
         this.parent.add(this.baseGroup);
 
         // Apply orbital inclination and argument of periapsis to the base group
-        // First rotate argument of periapsis (around Y), then inclination (around X)
         this.baseGroup.rotation.y = THREE.MathUtils.degToRad(this.data.argumentOfPeriapsis);
         this.baseGroup.rotation.x = THREE.MathUtils.degToRad(this.data.inclination);
 
@@ -54,7 +52,6 @@ export class Comet {
         const visualRadius = Math.max(this.data.radius * 3.0, 0.6);
         const geometry = new THREE.SphereGeometry(visualRadius, 32, 32);
 
-        // A fuzzy, glowing coma material instead of a solid planet
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 color: { value: new THREE.Color(this.data.color) },
@@ -76,7 +73,6 @@ export class Comet {
                 void main() {
                     vec3 normal = normalize(vNormal);
                     vec3 viewDir = normalize(vViewPosition);
-                    // Intensity is higher in the middle, fading out to edges
                     float intensity = pow(max(dot(normal, viewDir), 0.0), 1.5);
                     gl_FragColor = vec4(color, intensity);
                 }
@@ -87,17 +83,15 @@ export class Comet {
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.renderOrder = 1; // Ensures it renders after other transparent objects, preventing center-based depth sorting issues, but keeps depthTest to allow occlusion by planets
+        this.mesh.renderOrder = 1;
         this.mesh.frustumCulled = false;
         this.orbitGroup.add(this.mesh);
 
-        // Create Comet Tail
+        // Create Dual Ion + Dust Comet Tail
         this.createTail();
 
         // Create Orbit
         this.createOrbit();
-
-
     }
 
     createTail() {
@@ -106,73 +100,87 @@ export class Comet {
             (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
             window.innerWidth <= 768
         );
-        const particleCount = isMobile ? 4000 : 12000;
+        const particleCount = isMobile ? 4000 : 10000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const lifetimes = new Float32Array(particleCount);
+        const tailKinds = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            // Initialize near center
-            positions[i * 3] = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
-            positions[i * 3 + 1] = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
-            positions[i * 3 + 2] = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
-            lifetimes[i] = THREE.MathUtils.seededRandom(); // 0.0 to 1.0
+            // Guarantee non-zero initial spread vector
+            const rx = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
+            const ry = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
+            const rz = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
+            positions[i * 3] = Math.abs(rx) < 1e-4 && Math.abs(ry) < 1e-4 && Math.abs(rz) < 1e-4 ? 1e-3 : rx;
+            positions[i * 3 + 1] = ry;
+            positions[i * 3 + 2] = rz;
+            lifetimes[i] = THREE.MathUtils.seededRandom();
+            // 42% Type-I narrow blue-cyan ion tail, 58% Type-II curved warm-white dust tail
+            tailKinds[i] = i % 12 < 5 ? 0.0 : 1.0;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
+        geometry.setAttribute('tailKind', new THREE.BufferAttribute(tailKinds, 1));
 
-        // Tail uses additive blending and points away from the sun
         const material = new THREE.ShaderMaterial({
             uniforms: {
-                color: { value: new THREE.Color(0xaaddff) }, // Ice/dust blue-white
-                sunDirection: { value: new THREE.Vector3(1, 0, 0) }, // Updated each frame
+                color: { value: new THREE.Color(0x7dd3fc) },      // Ion tail plasma blue-cyan
+                dustColor: { value: new THREE.Color(0xfef3c7) },  // Dust tail warm solar-reflected cream
+                sunDirection: { value: new THREE.Vector3(1, 0, 0) },
+                orbitLateral: { value: new THREE.Vector3(0, 0, 1) },
                 time: { value: 0 },
                 tailVisibility: { value: 1 }
             },
             vertexShader: `
                 uniform vec3 sunDirection;
+                uniform vec3 orbitLateral;
                 uniform float time;
                 attribute float lifetime;
+                attribute float tailKind;
                 varying float vAlpha;
+                varying float vKind;
 
                 void main() {
-                    // Update lifetime based on time to animate particles moving down the tail
-                    float currentLife = fract(lifetime + time);
-                    vAlpha = 1.0 - currentLife; // Fade out as it moves away
+                    vKind = tailKind;
+                    // Ion stream travels faster in solar wind than heavier dust grains
+                    float speedScale = mix(1.25, 0.72, tailKind);
+                    float currentLife = fract(lifetime + time * speedScale);
+                    vAlpha = 1.0 - currentLife;
 
-                    // The tail points AWAY from the sun.
-                    // currentLife goes from 0 to 1.
-                    // We move the particle along sunDirection (away from sun)
-                    // multiplied by some scale based on distance from sun (simulated in update)
-
-                    // Base spread
                     vec3 offset = position;
-                    // Move away from sun
-                    vec3 tailMove = sunDirection * (currentLife * 80.0); // 80 is tail length scale
+                    float offsetLen = length(offset);
+                    vec3 radialDir = offsetLen > 0.0001 ? (offset / offsetLen) : vec3(0.0, 1.0, 0.0);
 
-                    // Widen tail as it moves away
-                    offset += normalize(offset) * (currentLife * 15.0);
+                    // Ion tail is straight & narrow (anti-sunward); dust tail curves gently behind orbital velocity
+                    float tailLen = mix(92.0, 74.0, tailKind);
+                    float coneSpread = mix(6.5, 17.5, tailKind);
+                    vec3 curveDrift = orbitLateral * (tailKind * currentLife * currentLife * 22.0);
+                    vec3 tailMove = sunDirection * (currentLife * tailLen) + curveDrift;
+
+                    offset += radialDir * (currentLife * coneSpread);
 
                     vec4 mvPosition = modelViewMatrix * vec4(tailMove + offset, 1.0);
-                    // Make particles larger and clamp minimum size so they don't vanish from side profile
-                    float size = 300.0 * vAlpha;
-                    gl_PointSize = max(1.5, size / -mvPosition.z);
+                    float size = mix(240.0, 320.0, tailKind) * vAlpha;
+                    gl_PointSize = max(1.5, size / max(0.1, -mvPosition.z));
                     gl_Position = projectionMatrix * mvPosition;
                 }
             `,
             fragmentShader: `
                 uniform vec3 color;
+                uniform vec3 dustColor;
                 uniform float tailVisibility;
                 varying float vAlpha;
+                varying float vKind;
 
                 void main() {
-                    // Soft circle
                     vec2 coord = gl_PointCoord - vec2(0.5);
-                    if(length(coord) > 0.5) discard;
+                    float r = length(coord);
+                    if (r > 0.5) discard;
 
-                    float intensity = 1.0 - (length(coord) * 2.0);
-                    gl_FragColor = vec4(color, vAlpha * intensity * 0.5 * tailVisibility);
+                    float intensity = pow(1.0 - (r * 2.0), 1.35);
+                    vec3 particleColor = mix(color, dustColor, vKind);
+                    gl_FragColor = vec4(particleColor, vAlpha * intensity * 0.48 * tailVisibility);
                 }
             `,
             transparent: true,
@@ -182,7 +190,7 @@ export class Comet {
 
         this.tailParticles = new THREE.Points(geometry, material);
         this.tailParticles.renderOrder = 1;
-        this.tailParticles.frustumCulled = false; // Prevent tail from disappearing at certain angles
+        this.tailParticles.frustumCulled = false;
         this.orbitGroup.add(this.tailParticles);
     }
 
@@ -191,9 +199,13 @@ export class Comet {
 
         const displayRadius = this.data.displayRadius ?? this.data.radius;
         const realisticRadius = displayRadius * 0.005536 * sizeRatio;
-        const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
-        this.mesh.scale.setScalar(scale);
-        if (this.tailParticles) this.tailParticles.scale.setScalar(scale);
+        // Comas & gas/dust tails expand tens of thousands of km even around a small nucleus,
+        // so preserve a physically reasonable coma/tail visibility floor in realistic scale.
+        const comaScale = realistic ? Math.max(realisticRadius / this.data.radius, 0.12 * sizeRatio) : 1.0;
+        const tailScale = realistic ? Math.max(comaScale, 0.35 * sizeRatio) : 1.0;
+        this.mesh.scale.setScalar(comaScale);
+        if (this.tailParticles) this.tailParticles.scale.setScalar(tailScale);
+
         if (this.orbitLine) {
             this.baseGroup.remove(this.orbitLine);
             this.orbitLine.geometry.dispose();
@@ -215,12 +227,9 @@ export class Comet {
         const vertices = [];
 
         for (let i = 0; i <= segments; i++) {
-            const E = (i / segments) * Math.PI * 2; // Eccentric anomaly
-
-            // Parametric equation for ellipse with focus at origin
+            const E = (i / segments) * Math.PI * 2;
             const x = this.a * (Math.cos(E) - this.e);
             const z = this.b * Math.sin(E);
-
             vertices.push(x, 0, z);
         }
 
@@ -231,17 +240,8 @@ export class Comet {
         this.baseGroup.add(this.orbitLine);
     }
 
-
-
     update(deltaTime: number, simTimePassed?: number, rawDelta?: number) {
-        // Simple Keplerian update
-        // We use Mean Anomaly (M) and Eccentric Anomaly (E)
-
-        // Mean motion n = 2pi / T
         const n = (Math.PI * 2) / this.data.period;
-
-        // Update Mean Anomaly
-        // speedMultiplier adjusts overall simulation speed similarly to planets
         const speedMultiplier = 0.5;
 
         if (simTimePassed !== undefined) {
@@ -252,37 +252,42 @@ export class Comet {
             this.angle = this.angle % (Math.PI * 2);
         }
 
-        // Solve Kepler's equation M = E - e*sin(E) for E using Newton-Raphson
-        let M = this.angle;
-        let E = solveKepler(M, this.e);
+        const M = this.angle;
+        const E = solveKepler(M, this.e);
 
-        // Calculate position in orbital plane
         const x = this.a * (Math.cos(E) - this.e);
         const z = this.b * Math.sin(E);
 
         this.orbitGroup.position.set(x, 0, z);
 
-        // Update Tail
         if (this.tailParticles) {
             const material = this.tailParticles.material as THREE.ShaderMaterial;
-            // Solar wind continuously sweeps comet tail dust & ions away from the Sun in real time
-            const flowDelta = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 1.5 : deltaTime;
+            const flowDelta = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 1.15 : deltaTime;
             material.uniforms.time.value += flowDelta;
 
-            // Tail direction points away from the Sun in baseGroup/orbitGroup space
-            Comet._tempDir.set(x, 0, z).normalize();
+            // Anti-sunward vector in baseGroup orbital plane
+            const dist = Math.sqrt((x * x) + (z * z));
+            if (dist > 1e-5) {
+                Comet._tempDir.set(x / dist, 0, z / dist);
+            } else {
+                Comet._tempDir.set(1, 0, 0);
+            }
             material.uniforms.sunDirection.value.copy(Comet._tempDir);
 
-            // Tail intensity based on distance to sun (closer = brighter/longer)
-            // Distance squared = x*x + z*z
-            const dist = Math.sqrt((x * x) + (z * z));
-            // Example: max tail at perihelion (dist = a*(1-e)), min at aphelion (dist = a*(1+e))
-            const perihelion = this.a * (1 - this.e);
+            // Trailing orbital lateral vector (opposite instantaneous velocity tangent) for dust-tail curvature
+            Comet._tempLateral.set(this.a * Math.sin(E), 0, -this.b * Math.cos(E));
+            if (Comet._tempLateral.lengthSq() > 1e-6) {
+                Comet._tempLateral.normalize();
+            } else {
+                Comet._tempLateral.set(0, 0, 1);
+            }
+            if (material.uniforms.orbitLateral) {
+                material.uniforms.orbitLateral.value.copy(Comet._tempLateral);
+            }
 
-            // Rough fade logic:
+            const perihelion = this.a * (1 - this.e);
             const tailVisibility = Math.max(0.15, 1 - ((dist - perihelion) / (this.a * 2.5)));
             material.uniforms.tailVisibility.value = tailVisibility;
-            // Also need to pass this to shader if we want length to change, but opacity fade is good enough for now
         }
     }
 

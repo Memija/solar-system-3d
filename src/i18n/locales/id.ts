@@ -37,7 +37,20 @@ export const id: TranslationSchema = {
         overview: 'Ringkasan',
         astronomicalScience: 'Mekanika Astronomi & Sains',
         observationTip: 'Tips Observatorium',
-        understood: 'Dimengerti'
+        understood: 'Dimengerti',
+        ephemerisTag: 'EFEMERIS',
+        set: 'Atur',
+        secPerBody: '{sec}d / objek',
+        perfCalls: 'Panggilan',
+        perfTris: 'Segitiga',
+        perfTex: 'Teks.',
+        perfMem: 'Mem.',
+        compassN: 'U',
+        compassS: 'S',
+        compassE: 'T',
+        compassW: 'B',
+        webglUnavailableTitle: 'Perangkat Keras WebGL 3D Tidak Tersedia',
+        webglUnavailableDesc: 'Observatorium ini memerlukan akselerasi perangkat keras WebGL. Aktifkan akselerasi perangkat keras di pengaturan peramban Anda.'
     },
     categories: {
         star: '🌟 Bintang',
@@ -100,6 +113,12 @@ export const id: TranslationSchema = {
             oneMonthPerSec: '1 bulan / dtk',
             paused: 'Jeda',
             custom: 'Kustom'
+        },
+        speedUnits: {
+            hrPerSec: 'jam/d',
+            dayPerSec: 'hari/d',
+            wkPerSec: 'mgg/d',
+            moPerSec: 'bln/d'
         },
         pause: 'Jeda',
         resume: 'Lanjutkan',
@@ -267,7 +286,18 @@ export const id: TranslationSchema = {
         decade: 'Dekade',
         year: 'Tahun',
         historicalEvents: 'Peristiwa Bersejarah...',
-        calendarTitle: 'Kalender Misi'
+        calendarTitle: 'Kalender Misi',
+        chronometerTitle: 'KRONOMETER ASTRONAVIGASI',
+        todayShort: 'HARI INI',
+        spaceMilestones: 'TONGGAK PENERBANGAN ANTARIKSA',
+        milestones: {
+            sputnik1: { name: 'Peluncuran Sputnik 1', impact: 'Peluncuran Sputnik 1 menandai dimulainya era antariksa dan membuktikan kelayakan satelit buatan.' },
+            apollo11: { name: 'Pendaratan Bulan Apollo 11', impact: 'Manusia pertama di Bulan — tonggak bersejarah penjelajahan antariksa berawak.' },
+            voyager1: { name: 'Peluncuran Voyager 1', impact: 'Voyager 1 menjadi objek buatan manusia pertama yang memasuki ruang antarbintang.' },
+            hubble: { name: 'Peluncuran Teleskop Hubble', impact: 'Merevolusi astronomi dengan citra mendalam galaksi, eksoplanet, dan perluasan alam semesta.' },
+            iss: { name: 'Peluncuran Modul Pertama ISS', impact: 'Memulai era kehadiran manusia berkelanjutan di orbit dan riset mikrogravitasi internasional.' },
+            jwst: { name: 'Peluncuran Teleskop James Webb', impact: 'Dirancang untuk mengamati galaksi paling awal dan wilayah pembentukan bintang dalam inframerah.' }
+        }
     },
     loading: {
         boot: 'Memulai Observatorium',

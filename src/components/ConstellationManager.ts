@@ -30,7 +30,8 @@ export class ConstellationManager {
 
         MajorConstellations.forEach(constellation => {
             const constellationGroup = new THREE.Group();
-            constellationGroup.userData = constellation; // Store data for interaction
+            constellationGroup.userData = constellation;
+            constellationGroup.visible = this.isVisible;
 
             const points: THREE.Vector3[] = [];
 
@@ -48,31 +49,40 @@ export class ConstellationManager {
 
                 const starMesh = new THREE.Mesh(this.sharedStarGeometry!, this.sharedStarMaterial!);
                 starMesh.position.copy(pos);
-                starMesh.userData = { ...constellation, type: 'ConstellationStar' }; // Link back to constellation
+                starMesh.matrixAutoUpdate = false;
+                starMesh.updateMatrix();
+                starMesh.userData = { ...constellation, type: 'ConstellationStar' };
 
                 constellationGroup.add(starMesh);
                 this.interactableObjects.push(starMesh);
             });
 
-            // Create Lines
-            const material = new THREE.LineBasicMaterial({
-                color: constellation.color,
-                linewidth: 1.5,
-                transparent: true,
-                opacity: 0.6
-            });
-
+            // Batch all constellation lines into a single LineSegments draw call
+            const lineVertices: number[] = [];
             constellation.connections.forEach(pair => {
-                if (points[pair[0]] && points[pair[1]]) {
-                    const geometry = new THREE.BufferGeometry().setFromPoints([
-                        points[pair[0]],
-                        points[pair[1]]
-                    ]);
-                    const line = new THREE.Line(geometry, material);
-                    line.userData = { ...constellation, type: 'ConstellationLine' }; // Link back to constellation
-                    constellationGroup.add(line);
+                const pA = points[pair[0]];
+                const pB = points[pair[1]];
+                if (pA && pB) {
+                    lineVertices.push(pA.x, pA.y, pA.z, pB.x, pB.y, pB.z);
                 }
             });
+
+            if (lineVertices.length > 0) {
+                const material = new THREE.LineBasicMaterial({
+                    color: constellation.color,
+                    linewidth: 1.5,
+                    transparent: true,
+                    opacity: 0.6,
+                    depthWrite: false
+                });
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+                const lineSegments = new THREE.LineSegments(geometry, material);
+                lineSegments.matrixAutoUpdate = false;
+                lineSegments.updateMatrix();
+                lineSegments.userData = { ...constellation, type: 'ConstellationLine' };
+                constellationGroup.add(lineSegments);
+            }
 
             this.scene.add(constellationGroup);
             this.constellationMeshes.push(constellationGroup);
@@ -87,7 +97,6 @@ export class ConstellationManager {
         const group = this.constellationMeshes.find(g => g.userData.name === name);
         if (!group) return null;
 
-        // Calculate center of bounding box of all stars in the constellation
         const box = new THREE.Box3().setFromObject(group);
         const center = new THREE.Vector3();
         box.getCenter(center);

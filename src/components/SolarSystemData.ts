@@ -41,7 +41,7 @@ export interface CelestialBodyData {
     eccentricity?: number;
     period: number;
     color: number;
-    texture: string;
+    texture?: string;
     description: string;
     imageUrl: string;
     images?: string[];
@@ -101,7 +101,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         inclination: 0.0,
         color: 0xffffff,
         description: "Apollo 11 was the American spaceflight that first landed humans on the Moon. Commander Neil Armstrong and Lunar Module Pilot Buzz Aldrin landed the Apollo Lunar Module Eagle on July 20, 1969. Armstrong became the first person to step onto the lunar surface six hours and 39 minutes later. The event marked a turning point in history and the end of the Space Race.",
-        imageUrl: "images/800px-Aldrin_Apollo_11_original.jpg",
+        imageUrl: "images/800px-Aldrin_Apollo_11_original.webp",
         links: [
             { title: "NASA: Apollo 11", url: "https://www.nasa.gov/mission_pages/apollo/missions/apollo11.html" },
             { title: "Wikipedia: Apollo 11", url: "https://en.wikipedia.org/wiki/Apollo_11" }
@@ -119,7 +119,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         inclination: 65.1,
         color: 0xcccccc,
         description: "Sputnik 1 was the first artificial Earth satellite. The Soviet Union launched it into an elliptical low Earth orbit on 4 October 1957. It orbited for three weeks before its batteries died and then orbited silently for two months before it fell back into the atmosphere on the 4th January 1958. Its launch was a major event in the Cold War, and triggered the Space Race.",
-        imageUrl: "images/800px-Sputnik_1_replica.jpg",
+        imageUrl: "images/800px-Sputnik_1_replica.webp",
         links: [
             { title: "NASA: Sputnik 1", url: "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1957-001B" },
             { title: "Wikipedia: Sputnik 1", url: "https://en.wikipedia.org/wiki/Sputnik_1" }
@@ -136,7 +136,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         inclination: 51.6,
         color: 0xffffff,
         description: "The International Space Station (ISS) is a modular space station in low Earth orbit. The first component, Zarya, was launched on November 20, 1998. It is a multinational collaborative project involving five participating space agencies. It serves as a microgravity and space environment research laboratory in which scientific research is conducted in astrobiology, astronomy, meteorology, physics, and other fields.",
-        imageUrl: "images/800px-International_Space_Station_after_undocking_of_STS-132.jpg",
+        imageUrl: "images/800px-International_Space_Station_after_undocking_of_STS-132.webp",
         links: [
             { title: "NASA: ISS", url: "https://www.nasa.gov/international-space-station/" },
             { title: "Wikipedia: ISS", url: "https://en.wikipedia.org/wiki/International_Space_Station" }
@@ -153,7 +153,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         inclination: 28.5,
         color: 0xcccccc,
         description: "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit on April 24, 1990 aboard the Space Shuttle Discovery. It remains in operation and is one of the largest and most versatile, well known both as a vital research tool and as a public relations boon for astronomy. The Hubble telescope is named after astronomer Edwin Hubble and is one of NASA's Great Observatories.",
-        imageUrl: "images/800px-HST-SM4.jpeg",
+        imageUrl: "images/800px-HST-SM4.webp",
         links: [
             { title: "NASA: Hubble", url: "https://science.nasa.gov/mission/hubble/" },
             { title: "Wikipedia: Hubble", url: "https://en.wikipedia.org/wiki/Hubble_Space_Telescope" }
@@ -171,7 +171,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         escaping: true,
         speed: 1.5,
         description: "Voyager 1 is a space probe launched by NASA on September 5, 1977. Part of the Voyager program to study the outer Solar System, it launched 16 days after its twin, Voyager 2. It is the most distant human-made object from Earth. Its primary mission was to fly by Jupiter and Saturn, and it was the first spacecraft to cross the heliopause and enter interstellar space.",
-        imageUrl: "images/800px-Voyager_spacecraft_model.png",
+        imageUrl: "images/800px-Voyager_spacecraft_model.webp",
         links: [
             { title: "NASA: Voyager", url: "https://voyager.jpl.nasa.gov/" },
             { title: "Wikipedia: Voyager 1", url: "https://en.wikipedia.org/wiki/Voyager_1" }
@@ -188,7 +188,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         inclination: 0,
         color: 0xffd700,
         description: "The James Webb Space Telescope (JWST) is a space telescope designed primarily to conduct infrared astronomy. Launched on December 25, 2021, it is the largest space telescope in history, offering unprecedented resolution and sensitivity. JWST enables a broad range of investigations across the fields of astronomy and cosmology, such as observation of the first stars and the formation of the first galaxies.",
-        imageUrl: "images/800px-James_Webb_Space_Telescope.jpg",
+        imageUrl: "images/800px-James_Webb_Space_Telescope.webp",
         links: [
             { title: "NASA: JWST", url: "https://science.nasa.gov/mission/webb/" },
             { title: "Wikipedia: JWST", url: "https://en.wikipedia.org/wiki/James_Webb_Space_Telescope" }
@@ -204,7 +204,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         period: 0.1,
         color: 0xdddddd,
         description: "The Cassini-Huygens space-research mission involved a collaboration between NASA, the European Space Agency (ESA), and the Italian Space Agency (ASI) to send a space probe to study the planet Saturn and its system. The spacecraft arrived at Saturn in 2004 and spent 13 years studying the planet, its rings, and its moons, including releasing the Huygens lander onto Titan.",
-        imageUrl: "images/800px-Cassini_Saturn_Orbit_Insertion.jpg",
+        imageUrl: "images/800px-Cassini_Saturn_Orbit_Insertion.webp",
         links: [
             { title: "NASA: Cassini", url: "https://science.nasa.gov/mission/cassini/" },
             { title: "Wikipedia: Cassini", url: "https://en.wikipedia.org/wiki/Cassini%E2%80%93Huygens" }
@@ -222,7 +222,7 @@ export const SpacecraftDataList: SpacecraftData[] = [
         escaping: true,
         speed: 1.4,
         description: "Voyager 2 is a space probe launched by NASA on August 20, 1977, to study the outer planets. It remains the only spacecraft to have visited either of the ice giants, Uranus and Neptune. It successfully completed close flybys of Jupiter, Saturn, Uranus, and Neptune, capturing detailed images and scientific data before joining its twin in interstellar space.",
-        imageUrl: "images/800px-Voyager_spacecraft_model.png",
+        imageUrl: "images/800px-Voyager_spacecraft_model.webp",
         links: [
             { title: "NASA: Voyager 2", url: "https://voyager.jpl.nasa.gov/" },
             { title: "Wikipedia: Voyager 2", url: "https://en.wikipedia.org/wiki/Voyager_2" }
@@ -275,7 +275,7 @@ export const CometDataList: CometData[] = [
         argumentOfPeriapsis: 111.3,
         color: 0xffffff,
         description: "Halley's Comet or Comet Halley, officially designated 1P/Halley, is a short-period comet visible from Earth every 75-76 years. Halley is the only known short-period comet that is regularly visible to the naked eye from Earth.",
-        imageUrl: "images/800px-Lspn_comet_halley.jpg",
+        imageUrl: "images/800px-Lspn_comet_halley.webp",
         links: [
             { title: "NASA: Halley's Comet", url: "https://science.nasa.gov/solar-system/comets/1p-halley/" },
             { title: "Wikipedia: Halley's Comet", url: "https://en.wikipedia.org/wiki/Halley%27s_Comet" }
@@ -291,7 +291,7 @@ export const CometDataList: CometData[] = [
         argumentOfPeriapsis: 130.6,
         color: 0xccffff,
         description: "Comet Hale-Bopp (formally designated C/1995 O1) was perhaps the most widely observed comet of the 20th century and one of the brightest seen for many decades. It was visible to the naked eye for a record 18 months.",
-        imageUrl: "images/800px-Comet_Hale-Bopp_1995O1.jpg",
+        imageUrl: "images/800px-Comet_Hale-Bopp_1995O1.webp",
         links: [
             { title: "Wikipedia: Comet Hale-Bopp", url: "https://en.wikipedia.org/wiki/Comet_Hale-Bopp" }
         ]
@@ -307,14 +307,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0,
         period: 0,
         color: 0xfbbf24,
-        texture: 'textures/sun.png',
         axialTilt: 7.25,
         description: "The Sun is the star at the center of the Solar System. It is a nearly perfect sphere of hot plasma, heated to incandescence by nuclear fusion reactions in its core, radiating the energy mainly as visible light, ultraviolet light, and infrared radiation. It is by far the most important source of energy for life on Earth.",
-        imageUrl: "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.jpg",
+        imageUrl: "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.webp",
         images: [
-            "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.jpg",
-            "images/GSFC_20171208_Archive_e001435_orig.jpg",
-            "images/X5.4_solar_flare_seen_by_SDO_in_131_Å_extreme_ultraviolet_light.jpg"
+            "images/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.webp",
+            "images/GSFC_20171208_Archive_e001435_orig.webp",
+            "images/X5.4_solar_flare_SDO_131A.webp"
         ],
         links: [
             { title: "NASA: Sun Overview", url: "https://science.nasa.gov/sun" },
@@ -330,14 +329,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.205,
         period: 0.24,
         color: 0x94a3b8,
-        texture: 'textures/mercury.png',
         axialTilt: 0.034,
         description: "Mercury is the smallest planet in the Solar System and the closest to the Sun. Its orbit around the Sun takes 87.97 Earth days, the shortest of all the Sun's planets. It is named after the Roman god Mercurius (Mercury), god of commerce, messenger of the gods, and mediator between gods and mortals.",
-        imageUrl: "images/800px-Mercury_in_color_-_Prockter07-edit1.jpg",
+        imageUrl: "images/800px-Mercury_in_color_-_Prockter07-edit1.webp",
         images: [
-            "images/800px-Mercury_in_color_-_Prockter07-edit1.jpg",
-            "images/Mercury_in_true_color.jpg",
-            "images/JPL_11364_orig.jpg"
+            "images/800px-Mercury_in_color_-_Prockter07-edit1.webp",
+            "images/Mercury_in_true_color.webp",
+            "images/JPL_11364_orig.webp"
         ],
         links: [
             { title: "NASA: Mercury Overview", url: "https://science.nasa.gov/mercury" },
@@ -353,14 +351,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0067,
         period: 0.62,
         color: 0xf59e0b,
-        texture: 'textures/venus.png',
         axialTilt: 177.36,
         description: "Venus is the second planet from the Sun. It is named after the Roman goddess of love and beauty. As the brightest natural object in Earth's night sky after the Moon, Venus can cast shadows and can be visible to the naked eye in broad daylight.",
-        imageUrl: "images/800px-Venus-real_color.jpg",
+        imageUrl: "images/800px-Venus-real_color.webp",
         images: [
-            "images/800px-Venus-real_color.jpg",
-            "images/Venus_2_Approach_Image.jpg",
-            "images/JPL_00271_orig.jpg"
+            "images/800px-Venus-real_color.webp",
+            "images/Venus_2_Approach_Image.webp",
+            "images/JPL_00271_orig.webp"
         ],
         links: [
             { title: "NASA: Venus Overview", url: "https://science.nasa.gov/venus" },
@@ -376,14 +373,14 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0167,
         period: 1,
         color: 0x38bdf8,
-        texture: 'textures/earth.png',
+        texture: 'textures/earth_equirectangular.webp',
         axialTilt: 23.44,
         description: "Earth is the third planet from the Sun and the only astronomical object known to harbor life. About 29% of Earth's surface is land consisting of continents and islands. The remaining 71% is covered with water, mostly by oceans, seas, gulfs, and other salt-water bodies, but also by lakes, rivers, and other freshwater.",
-        imageUrl: "images/800px-The_Earth_seen_from_Apollo_17.jpg",
+        imageUrl: "images/800px-The_Earth_seen_from_Apollo_17.webp",
         images: [
-            "images/800px-The_Earth_seen_from_Apollo_17.jpg",
-            "images/Africa_and_Europe_from_a_Million_Miles_Away.png",
-            "images/JPL_18033_orig.jpg"
+            "images/800px-The_Earth_seen_from_Apollo_17.webp",
+            "images/Africa_and_Europe_from_a_Million_Miles_Away.webp",
+            "images/JPL_18033_orig.webp"
         ],
         links: [
             { title: "NASA: Earth Overview", url: "https://science.nasa.gov/earth" },
@@ -398,14 +395,14 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0549,
                 period: 0.074,
                 color: 0xcbd5e1,
-                texture: 'textures/moon.png',
+                texture: 'textures/moon.webp',
                 axialTilt: 6.68,
                 description: "The Moon is Earth's only natural satellite. It is the fifth largest satellite in the Solar System and the largest and most massive relative to its parent planet.",
-                imageUrl: "images/800px-FullMoon2010.jpg",
+                imageUrl: "images/800px-FullMoon2010.webp",
                 images: [
-                    "images/800px-FullMoon2010.jpg",
-                    "images/Full_Moon_Luc_Viatour.jpg",
-                    "images/JPL_00405_orig.jpg"
+                    "images/800px-FullMoon2010.webp",
+                    "images/Full_Moon_Luc_Viatour.webp",
+                    "images/JPL_00405_orig.webp"
                 ],
                 links: [
                     { title: "NASA: Moon Overview", url: "https://science.nasa.gov/moon" },
@@ -423,14 +420,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0934,
         period: 1.88,
         color: 0xf45d48,
-        texture: 'textures/mars.png',
         axialTilt: 25.19,
         description: "Mars is the fourth planet from the Sun and the second-smallest planet in the Solar System, being larger than only Mercury. In English, Mars carries the name of the Roman god of war and is often referred to as the 'Red Planet'.",
-        imageUrl: "images/800px-OSIRIS_Mars_true_color.jpg",
+        imageUrl: "images/800px-OSIRIS_Mars_true_color.webp",
         images: [
-            "images/800px-OSIRIS_Mars_true_color.jpg",
-            "images/Mars_23_aug_2003_hubbe.jpg",
-            "images/JPL_02653_orig.jpg"
+            "images/800px-OSIRIS_Mars_true_color.webp",
+            "images/Mars_23_aug_2003_hubbe.webp",
+            "images/JPL_02653_orig.webp"
         ],
         links: [
             { title: "NASA: Mars Overview", url: "https://science.nasa.gov/mars" },
@@ -446,7 +442,7 @@ export const SolarSystemData: CelestialBodyData[] = [
                 period: 0.03,
                 color: 0x888888,
                 description: "Phobos is the innermost and larger of the two natural satellites of Mars, the other being Deimos.",
-                imageUrl: "images/800px-Phobos_colour_2008.jpg",
+                imageUrl: "images/800px-Phobos_colour_2008.webp",
                 links: [
                     { title: "Wikipedia: Phobos", url: "https://en.wikipedia.org/wiki/Phobos_(moon)" }
                 ]
@@ -460,7 +456,7 @@ export const SolarSystemData: CelestialBodyData[] = [
                 period: 0.12,
                 color: 0x999999,
                 description: "Deimos is the smaller and outermost of the two natural satellites of Mars.",
-                imageUrl: "images/800px-Deimos-MRO.jpg",
+                imageUrl: "images/800px-Deimos-MRO.webp",
                 links: [
                     { title: "Wikipedia: Deimos", url: "https://en.wikipedia.org/wiki/Deimos_(moon)" }
                 ]
@@ -476,14 +472,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0489,
         period: 11.86,
         color: 0xe59866,
-        texture: 'textures/jupiter.png',
         axialTilt: 3.13,
         description: "Jupiter is the fifth planet from the Sun and the largest in the Solar System. It is a gas giant with a mass one-thousandth that of the Sun, but two-and-a-half times that of all the other planets in the Solar System combined.",
-        imageUrl: "images/800px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg",
+        imageUrl: "images/800px-Jupiter_and_its_shrunken_Great_Red_Spot.webp",
         images: [
-            "images/800px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg",
-            "images/Jupiter.jpg",
-            "images/JPL_22946_orig.jpg"
+            "images/800px-Jupiter_and_its_shrunken_Great_Red_Spot.webp",
+            "images/Jupiter.webp",
+            "images/JPL_22946_orig.webp"
         ],
         links: [
             { title: "NASA: Jupiter Overview", url: "https://science.nasa.gov/jupiter" },
@@ -494,28 +489,28 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Io", radius: 0.28, displayRadius: 0.286, distance: 15,
                 distanceAU: 0.00281, eccentricity: 0.0041, period: 0.005, color: 0xfacc15,
                 description: "Io is the innermost and third-largest of the four Galilean moons of the planet Jupiter. It is the fourth-largest moon in the Solar System, has the highest density of any moon, the strongest surface gravity of any moon, and the lowest amount of water of any known astronomical object in the Solar System.",
-                imageUrl: "images/800px-Io.jpg",
+                imageUrl: "images/800px-Io.webp",
                 links: [{ title: "Wikipedia: Io", url: "https://en.wikipedia.org/wiki/Io_(moon)" }]
             },
             {
                 name: "Europa", radius: 0.25, displayRadius: 0.245, distance: 17,
                 distanceAU: 0.00448, eccentricity: 0.009, period: 0.01, color: 0xffffff,
                 description: "Europa is the smallest of the four Galilean moons orbiting Jupiter, and the sixth-closest to the planet of all its 95 known moons. It is also the sixth-largest moon in the Solar System.",
-                imageUrl: "images/800px-Europa.jpg",
+                imageUrl: "images/800px-Europa.webp",
                 links: [{ title: "Wikipedia: Europa", url: "https://en.wikipedia.org/wiki/Europa_(moon)" }]
             },
             {
                 name: "Ganymede", radius: 0.41, displayRadius: 0.413, distance: 19,
                 distanceAU: 0.00715, eccentricity: 0.0013, period: 0.02, color: 0x888888,
                 description: "Ganymede is the largest and most massive of the Solar System's moons. The ninth-largest object in the Solar System, it is the largest without a substantial atmosphere. It has a diameter of 5,268 km (3,273 mi), making it 26% larger than the planet Mercury by volume, although it is only 45% as massive.",
-                imageUrl: "images/800px-Ganymede.jpg",
+                imageUrl: "images/800px-Ganymede.webp",
                 links: [{ title: "Wikipedia: Ganymede", url: "https://en.wikipedia.org/wiki/Ganymede_(moon)" }]
             },
             {
                 name: "Callisto", radius: 0.38, displayRadius: 0.378, distance: 21,
                 distanceAU: 0.01258, eccentricity: 0.0074, period: 0.045, color: 0x555555,
                 description: "Callisto is the second-largest moon of Jupiter, after Ganymede. It is the third-largest moon in the Solar System after Ganymede and Saturn's largest moon Titan, and the largest object in the Solar System that may not be properly differentiated.",
-                imageUrl: "images/800px-Callisto.jpg",
+                imageUrl: "images/800px-Callisto.webp",
                 links: [{ title: "Wikipedia: Callisto", url: "https://en.wikipedia.org/wiki/Callisto_(moon)" }]
             }
         ]
@@ -529,14 +524,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0565,
         period: 29.45,
         color: 0xfcd34d,
-        texture: 'textures/saturn.png',
         axialTilt: 26.73,
         description: "Saturn is the sixth planet from the Sun and the second-largest in the Solar System, after Jupiter. It is a gas giant with an average radius of about nine and a half times that of Earth. It has only one-eighth the average density of Earth; however, with its larger volume, Saturn is over 95 times more massive.",
-        imageUrl: "images/800px-Saturn_during_Equinox.jpg",
+        imageUrl: "images/800px-Saturn_during_Equinox.webp",
         images: [
-            "images/800px-Saturn_during_Equinox.jpg",
-            "images/Saturn_(planet)_large.jpg",
-            "images/JPL_11141_orig.jpg"
+            "images/800px-Saturn_during_Equinox.webp",
+            "images/Saturn_(planet)_large.webp",
+            "images/JPL_11141_orig.webp"
         ],
         links: [
             { title: "NASA: Saturn Overview", url: "https://science.nasa.gov/saturn" },
@@ -547,28 +541,28 @@ export const SolarSystemData: CelestialBodyData[] = [
                 name: "Mimas", radius: 0.12, displayRadius: 0.03, distance: 27,
                 distanceAU: 0.00124, eccentricity: 0.0202, period: 0.0026, color: 0xcccccc,
                 description: "Mimas is a moon of Saturn which was discovered in 1789 by William Herschel. It is named after Mimas, a son of Gaia in Greek mythology. With a diameter of 396 kilometres, it is the smallest astronomical body that is known to be rounded in shape because of self-gravitation.",
-                imageUrl: "images/800px-Mimas.jpg",
+                imageUrl: "images/800px-Mimas.webp",
                 links: [{ title: "Wikipedia: Mimas", url: "https://en.wikipedia.org/wiki/Mimas_(moon)" }]
             },
             {
                 name: "Enceladus", radius: 0.15, displayRadius: 0.04, distance: 31,
                 distanceAU: 0.00159, eccentricity: 0.0047, period: 0.0037, color: 0xffffff,
                 description: "Enceladus is the sixth-largest moon of Saturn. It is about 500 kilometers in diameter, about a tenth of that of Saturn's largest moon, Titan. It is mostly covered by fresh, clean ice, making it one of the most reflective bodies of the Solar System.",
-                imageUrl: "images/800px-Enceladus.jpg",
+                imageUrl: "images/800px-Enceladus.webp",
                 links: [{ title: "Wikipedia: Enceladus", url: "https://en.wikipedia.org/wiki/Enceladus" }]
             },
             {
                 name: "Titan", radius: 0.4, displayRadius: 0.404, distance: 37,
                 distanceAU: 0.00816, eccentricity: 0.0288, period: 0.044, color: 0xffaa00,
                 description: "Titan is the largest moon of Saturn and the second-largest natural satellite in the Solar System. It is the only moon known to have a dense atmosphere, and the only known body in space, other than Earth, where clear evidence of stable bodies of surface liquid has been found.",
-                imageUrl: "images/800px-Titan.jpg",
+                imageUrl: "images/800px-Titan.webp",
                 links: [{ title: "Wikipedia: Titan", url: "https://en.wikipedia.org/wiki/Titan_(moon)" }]
             },
             {
                 name: "Iapetus", radius: 0.25, displayRadius: 0.115, distance: 45,
                 distanceAU: 0.0238, eccentricity: 0.0286, period: 0.217, color: 0xaaaaaa,
                 description: "Iapetus is the third-largest natural satellite of Saturn, eleventh-largest in the Solar System, and the largest body in the Solar System known not to be in hydrostatic equilibrium. Iapetus is best known for its dramatic 'two-tone' coloration.",
-                imageUrl: "images/800px-Iapetus.jpg",
+                imageUrl: "images/800px-Iapetus.webp",
                 links: [{ title: "Wikipedia: Iapetus", url: "https://en.wikipedia.org/wiki/Iapetus_(moon)" }]
             }
         ],
@@ -586,14 +580,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0457,
         period: 84,
         color: 0x22d3ee,
-        texture: 'textures/uranus.png',
         axialTilt: 97.77,
         description: "Uranus is the seventh planet from the Sun. Its name is a reference to the Greek god of the sky, Uranus, who, according to Greek mythology, was the great-grandfather of Ares (Mars), grandfather of Zeus (Jupiter) and father of Cronus (Saturn). It has the third-largest planetary radius and fourth-largest planetary mass in the Solar System.",
-        imageUrl: "images/800px-Uranus2.jpg",
+        imageUrl: "images/800px-Uranus2.webp",
         images: [
-            "images/800px-Uranus2.jpg",
-            "images/Uranus_as_seen_by_NASA's_Voyager_2_(remastered)_-_JPEG_converted.jpg",
-            "images/JPL_18182_orig.jpg"
+            "images/800px-Uranus2.webp",
+            "images/Uranus_as_seen_by_NASA's_Voyager_2_(remastered)_-_JPEG_converted.webp",
+            "images/JPL_18182_orig.webp"
         ],
         links: [
             { title: "NASA: Uranus Overview", url: "https://science.nasa.gov/uranus" },
@@ -613,14 +606,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0113,
         period: 164.8,
         color: 0x3b82f6,
-        texture: 'textures/neptune.png',
         axialTilt: 28.32,
         description: "Neptune is the eighth and farthest-known Solar planet from the Sun. In the Solar System, it is the fourth-largest planet by diameter, the third-most-massive planet, and the densest giant planet. It is 17 times the mass of Earth, slightly more massive than its near-twin Uranus.",
-        imageUrl: "images/800px-Neptune_-_Voyager_2_(29347980845)_flatten_crop.jpg",
+        imageUrl: "images/800px-Neptune_-_Voyager_2_(29347980845)_flatten_crop.webp",
         images: [
-            "images/800px-Neptune_-_Voyager_2_(29347980845)_flatten_crop.jpg",
-            "images/Neptune_Full.jpg",
-            "images/JPL_01492_orig.jpg"
+            "images/800px-Neptune_-_Voyager_2_(29347980845)_flatten_crop.webp",
+            "images/Neptune_Full.webp",
+            "images/JPL_01492_orig.webp"
         ],
         links: [
             { title: "NASA: Neptune Overview", url: "https://science.nasa.gov/neptune" },
@@ -637,7 +629,7 @@ export const SolarSystemData: CelestialBodyData[] = [
                 retrograde: true,
                 color: 0xcccccc,
                 description: "Triton is the largest natural satellite of the planet Neptune, and the first Neptunian moon to be discovered.",
-                imageUrl: "images/800px-Triton_moon_mosaic_Voyager_2_(large).jpg",
+                imageUrl: "images/800px-Triton_moon_mosaic_Voyager_2_(large).webp",
                 links: [
                     { title: "Wikipedia: Triton", url: "https://en.wikipedia.org/wiki/Triton_(moon)" }
                 ]
@@ -655,14 +647,13 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.2488,
         period: 248,
         color: 0xddaa88,
-        texture: 'textures/pluto.png',
         axialTilt: 122.53,
         description: "Pluto is a dwarf planet in the Kuiper belt, a ring of bodies beyond the orbit of Neptune. It was the first and the largest Kuiper belt object to be discovered. Pluto was discovered by Clyde Tombaugh in 1930 and declared to be the ninth planet from the Sun.",
-        imageUrl: "images/800px-Pluto_in_True_Color_-_High-Res.jpg",
+        imageUrl: "images/800px-Pluto_in_True_Color_-_High-Res.webp",
         images: [
-            "images/800px-Pluto_in_True_Color_-_High-Res.jpg",
-            "images/Pluto-01_Stern_03_Pluto_Color_TXT.jpg",
-            "images/JPL_19952_orig.jpg"
+            "images/800px-Pluto_in_True_Color_-_High-Res.webp",
+            "images/Pluto-01_Stern_03_Pluto_Color_TXT.webp",
+            "images/JPL_19952_orig.webp"
         ],
         links: [
             { title: "NASA: Pluto Overview", url: "https://science.nasa.gov/dwarf-planets/pluto" },
@@ -679,7 +670,7 @@ export const SolarSystemData: CelestialBodyData[] = [
                 retrograde: true,
                 color: 0xaaaaaa,
                 description: "Charon is the largest of the five known natural satellites of the dwarf planet Pluto.",
-                imageUrl: "images/800px-Charon_in_True_Color_-_High-Res.jpg",
+                imageUrl: "images/800px-Charon_in_True_Color_-_High-Res.webp",
                 links: [
                     { title: "Wikipedia: Charon", url: "https://en.wikipedia.org/wiki/Charon_(moon)" }
                 ]
@@ -695,13 +686,12 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.0758,
         period: 4.6,
         color: 0x888888,
-        texture: 'textures/ceres.png',
         description: "Ceres is a dwarf planet in the asteroid belt between the orbits of Mars and Jupiter. It was the first asteroid discovered, on 1 January 1801, by Giuseppe Piazzi at Palermo Astronomical Observatory in Sicily. Originally considered a planet, it was reclassified as an asteroid in the 1850s.",
-        imageUrl: "images/800px-Ceres_-_RC3_-_Haulani_Crater_(22381131691)_(cropped).jpg",
+        imageUrl: "images/800px-Ceres_-_RC3_-_Haulani_Crater_(22381131691)_(cropped).webp",
         images: [
-            "images/800px-Ceres_-_RC3_-_Haulani_Crater_(22381131691)_(cropped).jpg",
-            "images/Ceres_-_RC3_-_Haulani_Crater_(22381131691).jpg",
-            "images/JPL_19631_orig.jpg"
+            "images/800px-Ceres_-_RC3_-_Haulani_Crater_(22381131691)_(cropped).webp",
+            "images/Ceres_-_RC3_-_Haulani_Crater_(22381131691).webp",
+            "images/JPL_19631_orig.webp"
         ],
         links: [
             { title: "NASA: Ceres Overview", url: "https://science.nasa.gov/dwarf-planets/ceres" },
@@ -717,11 +707,10 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.4406,
         period: 558,
         color: 0xcccccc,
-        texture: 'textures/ceres.png', // Fallback texture since there is no eris.png
         description: "Eris is the most massive and second-largest known dwarf planet in the Solar System. It is a trans-Neptunian object (TNO) in the scattered disk and has a high-eccentricity orbit.",
-        imageUrl: "images/800px-Eris_and_dysnomia2.jpg",
+        imageUrl: "images/800px-Eris_and_dysnomia2.webp",
         images: [
-            "images/800px-Eris_and_dysnomia2.jpg"
+            "images/800px-Eris_and_dysnomia2.webp"
         ],
         links: [
             { title: "NASA: Eris Overview", url: "https://science.nasa.gov/dwarf-planets/eris" },
@@ -737,11 +726,10 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.1912,
         period: 284,
         color: 0xaaaaaa,
-        texture: 'textures/haumea.png',
         description: "Haumea is a dwarf planet located beyond Neptune's orbit. It was discovered in 2004 by a team headed by Mike Brown of Caltech at the Palomar Observatory in the United States and independently in 2005 by a team headed by José Luis Ortiz Moreno at the Sierra Nevada Observatory in Spain.",
-        imageUrl: "images/800px-Haumea_Hubble.png",
+        imageUrl: "images/800px-Haumea_Hubble.webp",
         images: [
-            "images/800px-Haumea_Hubble.png",
+            "images/800px-Haumea_Hubble.webp",
             "images/Haumea_Rotation.gif"
         ],
         links: [
@@ -758,12 +746,11 @@ export const SolarSystemData: CelestialBodyData[] = [
         eccentricity: 0.1558,
         period: 309,
         color: 0xaa8866,
-        texture: 'textures/makemake.png',
         description: "Makemake is a dwarf planet and perhaps the second-largest Kuiper belt object in the classical population, with a diameter approximately two-thirds that of Pluto. Makemake has one known satellite, S/2015 (136472) 1. Its extremely low average temperature, about 30 K (−243.2 °C), means its surface is covered with methane, ethane, and possibly nitrogen ices.",
-        imageUrl: "images/800px-Makemake_moon_Hubble_image_with_legend.jpg",
+        imageUrl: "images/800px-Makemake_moon_Hubble_image_with_legend.webp",
         images: [
-            "images/800px-Makemake_moon_Hubble_image_with_legend.jpg",
-            "images/Makemake_and_its_moon.jpg"
+            "images/800px-Makemake_moon_Hubble_image_with_legend.webp",
+            "images/Makemake_and_its_moon.webp"
         ],
         links: [
             { title: "NASA: Makemake Overview", url: "https://science.nasa.gov/dwarf-planets/makemake" },

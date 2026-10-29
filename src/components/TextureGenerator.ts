@@ -140,8 +140,45 @@ export class TextureGenerator {
         return texture;
     }
 
+    private static readonly BUMP_WORLDS = new Set([
+        'Mercury', 'Mars', 'Phobos', 'Deimos', 'Ceres', 'Pluto',
+        'Ganymede', 'Callisto', 'Mimas', 'Iapetus', 'Enceladus',
+        'Triton', 'Haumea', 'Makemake', 'Io', 'Europa'
+    ]);
+
+    private static hashSeed(label: string): number {
+        let h = 2166136261;
+        for (let i = 0; i < label.length; i++) {
+            h ^= label.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        return (Math.abs(h) % 2147483645) + 1;
+    }
+
     /**
-     * Get or create a 2:1 equirectangular roughness map (e.g. for Earth ocean specular reflection)
+     * Asynchronously prewarm procedural textures across animation frames so boot UI never freezes.
+     */
+    static async prewarmTexturesAsync(
+        names: string[],
+        onProgress?: (done: number, total: number, name: string) => void
+    ): Promise<void> {
+        const total = names.length;
+        for (let i = 0; i < total; i++) {
+            const name = names[i];
+            this.getPlanetTexture(name);
+            if (this.BUMP_WORLDS.has(name)) {
+                this.getPlanetBumpMap(name);
+            }
+            onProgress?.(i + 1, total, name);
+            // Yield to browser paint loop between heavy 2048x1024 procedural syntheses
+            await new Promise<void>(resolve => setTimeout(resolve, 0));
+        }
+    }
+
+    /**
+     * Get or create a 2:1 equirectangular roughness map (e.g. for Earth ocean specular reflection).
+     * Updated in-place via `updateEarthRoughnessFromImage` once CelestialBody loads `earth_equirectangular.webp`,
+     * avoiding any duplicate network fetch.
      */
     static getPlanetRoughnessMap(name: string): THREE.CanvasTexture {
         const key = `${name}_Roughness`;
@@ -162,56 +199,136 @@ export class TextureGenerator {
         texture.needsUpdate = true;
         this.cache.set(key, texture);
 
-        if (!ctx) return texture;
-
-        // Default fill matte
-        ctx.fillStyle = '#cccccc';
-        ctx.fillRect(0, 0, width, height);
-
-        if (name === 'Earth' && typeof Image !== 'undefined') {
-            try {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.src = `${import.meta.env.BASE_URL}textures/earth_equirectangular.png`;
-                img.onload = () => {
-                    if (!ctx.getImageData) return;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    const imgData = ctx.getImageData(0, 0, width, height);
-                    if (!imgData || !imgData.data) return;
-                    const data = imgData.data;
-                    for (let i = 0; i < width * height; i++) {
-                        const p = i * 4;
-                        const r = data[p];
-                        const g = data[p + 1];
-                        const b = data[p + 2];
-
-                        // Detect ocean (deep blue where blue dominates and red is low)
-                        const isOcean = b > 55 && r < 50 && g < 80;
-                        const isIce = r > 190 && g > 190 && b > 190;
-
-                        let roughness: number;
-                        if (isOcean) {
-                            roughness = 30; // 0.12 roughness - specular sun glint for oceans
-                        } else if (isIce) {
-                            roughness = 120; // 0.47 roughness for polar ice
-                        } else {
-                            roughness = 225; // 0.88 roughness for dry landmass
-                        }
-
-                        data[p] = roughness;
-                        data[p + 1] = roughness;
-                        data[p + 2] = roughness;
-                        data[p + 3] = 255;
-                    }
-                    ctx.putImageData(imgData, 0, 0);
-                    texture.needsUpdate = true;
-                };
-            } catch {
-                // Ignore in testing environments
-            }
+        if (ctx) {
+            ctx.fillStyle = '#cccccc';
+            ctx.fillRect(0, 0, width, height);
         }
 
         return texture;
+    }
+
+    /**
+     * Derive Earth ocean/ice/land roughness map directly from an already-loaded image element,
+     * eliminating duplicate image downloads.
+     */
+    static updateEarthRoughnessFromImage(img: CanvasImageSource): void {
+        const texture = this.getPlanetRoughnessMap('Earth');
+        const canvas = texture.image as HTMLCanvasElement | undefined;
+        if (!canvas || typeof canvas.getContext !== 'function') return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx || typeof ctx.getImageData !== 'function') return;
+
+        const width = canvas.width;
+        const height = canvas.height;
+        try {
+            ctx.drawImage(img, 0, 0, width, height);
+            const imgData = ctx.getImageData(0, 0, width, height);
+            if (!imgData || !imgData.data) return;
+            const data = imgData.data;
+            for (let i = 0; i < width * height; i++) {
+                const p = i * 4;
+                const r = data[p];
+                const g = data[p + 1];
+                const b = data[p + 2];
+
+                const isOcean = b > 55 && r < 50 && g < 80;
+                const isIce = r > 190 && g > 190 && b > 190;
+
+                let roughness: number;
+                if (isOcean) {
+                    roughness = 30; // 0.12 roughness - specular sun glint for oceans
+                } else if (isIce) {
+                    roughness = 120; // 0.47 roughness for polar ice
+                } else {
+                    roughness = 225; // 0.88 roughness for dry landmass
+                }
+
+                data[p] = roughness;
+                data[p + 1] = roughness;
+                data[p + 2] = roughness;
+                data[p + 3] = 255;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            texture.needsUpdate = true;
+        } catch {
+            // Ignore in headless/mock canvas environments
+        }
+    }
+
+    /**
+     * Derive a grayscale relief bump map for rocky and icy cratered worlds so craters, ridges,
+     * and canyons cast realistic 3D relief along the solar terminator.
+     */
+    static getPlanetBumpMap(name: string): THREE.CanvasTexture | null {
+        if (!this.BUMP_WORLDS.has(name)) return null;
+        const key = `${name}_Bump`;
+        if (this.cache.has(key)) {
+            return this.cache.get(key)!;
+        }
+
+        const baseTexture = this.getPlanetTexture(name);
+        const srcCanvas = baseTexture.image as HTMLCanvasElement | undefined;
+        if (!srcCanvas || typeof srcCanvas.getContext !== 'function') return null;
+
+        const width = Math.min(1024, srcCanvas.width || 1024);
+        const height = Math.min(512, srcCanvas.height || 512);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        try {
+            ctx.drawImage(srcCanvas, 0, 0, width, height);
+            if (typeof ctx.getImageData === 'function') {
+                const imgData = ctx.getImageData(0, 0, width, height);
+                if (imgData && imgData.data) {
+                    const d = imgData.data;
+                    for (let i = 0; i < width * height; i++) {
+                        const p = i * 4;
+                        // Perceptual luminance boosted around midtones for crisp crater/ridge normal relief
+                        const lum = 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2];
+                        const contrasted = Math.max(0, Math.min(255, Math.round((lum - 128) * 1.35 + 128)));
+                        d[p] = contrasted;
+                        d[p + 1] = contrasted;
+                        d[p + 2] = contrasted;
+                        d[p + 3] = 255;
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                }
+            }
+        } catch {
+            // Safe fallback in test environment
+        }
+
+        const bumpTex = new THREE.CanvasTexture(canvas);
+        bumpTex.wrapS = THREE.RepeatWrapping;
+        bumpTex.wrapT = THREE.ClampToEdgeWrapping;
+        bumpTex.anisotropy = TextureGenerator.maxAnisotropy;
+        bumpTex.minFilter = THREE.LinearMipmapLinearFilter;
+        bumpTex.generateMipmaps = true;
+        bumpTex.needsUpdate = true;
+        this.cache.set(key, bumpTex);
+        return bumpTex;
+    }
+
+    /**
+     * Draw an impact crater wrapped seamlessly across the equirectangular u = 0 / 1 boundary.
+     */
+    private static drawWrappedCrater(
+        _ctx: CanvasRenderingContext2D,
+        w: number,
+        cx: number,
+        cy: number,
+        r: number,
+        drawFn: (x: number, y: number, radius: number) => void
+    ): void {
+        drawFn(cx, cy, r);
+        if (cx - r < 0) {
+            drawFn(cx + w, cy, r);
+        } else if (cx + r > w) {
+            drawFn(cx - w, cy, r);
+        }
     }
 
     // --- PROCEDURAL DRAWING HELPERS ---
@@ -228,13 +345,13 @@ export class TextureGenerator {
         return null;
     }
 
-    private static createNoise(w: number, h: number, octaves = 4, persistence = 0.5): Float32Array {
+    private static createNoise(w: number, h: number, octaves = 4, persistence = 0.5, seed = 1234567): Float32Array {
         const size = w * h;
         const result = new Float32Array(size);
 
-        // Simple deterministic noise
+        // Deterministic per-seed Lehmer PRNG so every planet/layer gets unique geology & cloud structure
         const baseNoise = new Float32Array(size);
-        let s = 1234567;
+        let s = (Math.abs(Math.floor(seed)) % 2147483645) + 1;
         const pseudoRand = () => {
             s = (s * 16807) % 2147483647;
             return (s - 1) / 2147483646;
@@ -289,7 +406,7 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
-        const noise = this.createNoise(w, h, 6, 0.55);
+        const noise = this.createNoise(w, h, 6, 0.55, 10113);
 
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
@@ -307,7 +424,7 @@ export class TextureGenerator {
         }
         ctx.putImageData(imgData, 0, 0);
 
-        // Add impact craters
+        // Add impact craters wrapped seamlessly across u = 0 / 1
         ctx.fillStyle = 'rgba(40, 40, 40, 0.4)';
         ctx.strokeStyle = 'rgba(210, 210, 210, 0.35)';
         ctx.lineWidth = 2;
@@ -320,19 +437,20 @@ export class TextureGenerator {
             const cy = (0.1 + rand() * 0.8) * h;
             const r = 3 + rand() * 22;
 
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Central peak for large craters
-            if (r > 12) {
-                ctx.fillStyle = 'rgba(230, 230, 230, 0.4)';
+            this.drawWrappedCrater(ctx, w, cx, cy, r, (x, y, rad) => {
                 ctx.beginPath();
-                ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
+                ctx.arc(x, y, rad, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillStyle = 'rgba(40, 40, 40, 0.4)';
-            }
+                ctx.stroke();
+
+                if (rad > 12) {
+                    ctx.fillStyle = 'rgba(230, 230, 230, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(x, y, rad * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(40, 40, 40, 0.4)';
+                }
+            });
         }
     }
 
@@ -340,8 +458,8 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
-        const noise1 = this.createNoise(w, h, 5, 0.5);
-        const noise2 = this.createNoise(w, h, 3, 0.6);
+        const noise1 = this.createNoise(w, h, 5, 0.5, 20229);
+        const noise2 = this.createNoise(w, h, 3, 0.6, 20987);
 
         for (let y = 0; y < h; y++) {
             const lat = (y / h) * Math.PI;
@@ -433,9 +551,9 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
-        const noise1 = this.createNoise(w, h, 6, 0.55);
-        const noise2 = this.createNoise(w, h, 4, 0.65);
-        const noise3 = this.createNoise(w, h, 2, 0.75);
+        const noise1 = this.createNoise(w, h, 6, 0.55, 31337);
+        const noise2 = this.createNoise(w, h, 4, 0.65, 32993);
+        const noise3 = this.createNoise(w, h, 2, 0.75, 34711);
 
         for (let y = 0; y < h; y++) {
             const lat = y / h; // 0 = North pole, 0.5 = Equator, 1 = South pole
@@ -498,8 +616,8 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
-        const noise = this.createNoise(w, h, 6, 0.52);
-        const fineNoise = this.createNoise(w, h, 3, 0.6);
+        const noise = this.createNoise(w, h, 6, 0.52, 41519);
+        const fineNoise = this.createNoise(w, h, 3, 0.6, 42899);
 
         for (let y = 0; y < h; y++) {
             const lat = y / h; // 0 = North pole, 1 = South pole
@@ -588,10 +706,12 @@ export class TextureGenerator {
             const cx = rand() * w;
             const cy = (0.45 + rand() * 0.45) * h;
             const cr = 2 + rand() * 12;
-            ctx.beginPath();
-            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            this.drawWrappedCrater(ctx, w, cx, cy, cr, (x, y, rad) => {
+                ctx.beginPath();
+                ctx.arc(x, y, rad, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
         }
     }
 
@@ -791,10 +911,12 @@ export class TextureGenerator {
             const cy = (0.05 + rand() * 0.9) * h;
             const r = 2 + rand() * 18;
 
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            this.drawWrappedCrater(ctx, w, cx, cy, r, (x, y, rad) => {
+                ctx.beginPath();
+                ctx.arc(x, y, rad, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
         }
     }
 
@@ -1008,8 +1130,8 @@ export class TextureGenerator {
         if (!imgData) return;
         const data = imgData.data;
 
-        const noiseFine = this.createNoise(w, h, 6, 0.55);
-        const noiseBroad = this.createNoise(w, h, 4, 0.5);
+        const noiseFine = this.createNoise(w, h, 6, 0.55, 81817);
+        const noiseBroad = this.createNoise(w, h, 4, 0.5, 82997);
 
         for (let y = 0; y < h; y++) {
             const lat = (0.5 - y / h) * Math.PI; // -PI/2 (south) to PI/2 (north)
@@ -1173,10 +1295,12 @@ export class TextureGenerator {
             const cx = rand() * w;
             const cy = (0.05 + rand() * 0.9) * h;
             const r = 2 + rand() * 14;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            this.drawWrappedCrater(ctx, w, cx, cy, r, (x, y, rad) => {
+                ctx.beginPath();
+                ctx.arc(x, y, rad, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
         }
 
         // Herschel Crater: colossal impact crater spanning ~139 km (almost 1/3 of Mimas' diameter!)
@@ -1215,11 +1339,11 @@ export class TextureGenerator {
         ctx.fill();
     }
 
-    private static drawGenericPlanet(ctx: CanvasRenderingContext2D, w: number, h: number, _name: string) {
+    private static drawGenericPlanet(ctx: CanvasRenderingContext2D, w: number, h: number, name: string) {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
-        const noise = this.createNoise(w, h, 4, 0.5);
+        const noise = this.createNoise(w, h, 4, 0.5, this.hashSeed(name));
 
         for (let i = 0; i < w * h; i++) {
             const n = noise[i];
@@ -1235,6 +1359,8 @@ export class TextureGenerator {
 
     /**
      * Radial ring texture generator (Cassini division, A/B/C rings, Encke gap)
+     * Uses 1024x4 resolution with full trilinear mipmaps + anisotropic filtering so grazing-angle
+     * ring planes never shimmer or alias.
      */
     static getRingTexture(name: string): THREE.CanvasTexture {
         const key = `${name}_Rings`;
@@ -1242,8 +1368,8 @@ export class TextureGenerator {
             return this.cache.get(key)!;
         }
 
-        const width = 512;
-        const height = 1;
+        const width = 1024;
+        const height = 4;
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
@@ -1253,14 +1379,16 @@ export class TextureGenerator {
         texture.wrapS = THREE.ClampToEdgeWrapping;
         texture.wrapT = THREE.ClampToEdgeWrapping;
         texture.colorSpace = THREE.SRGBColorSpace;
-        texture.minFilter = THREE.LinearFilter;
+        texture.anisotropy = TextureGenerator.maxAnisotropy;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
         texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = true;
         texture.needsUpdate = true;
         this.cache.set(key, texture);
 
         if (!ctx) return texture;
 
-        const imgData = this.safeCreateImageData(ctx, width, 1);
+        const imgData = this.safeCreateImageData(ctx, width, height);
         if (!imgData) return texture;
         const data = imgData.data;
 
@@ -1269,49 +1397,61 @@ export class TextureGenerator {
             let r = 215, g = 195, b = 155, alpha = 0;
 
             if (name === 'Saturn') {
-                // C Ring (inner, faint): 0.0 to 0.25
+                // C Ring (inner, translucent dusty charcoal-amber): 0.0 to 0.25
                 if (t < 0.25) {
-                    alpha = Math.floor(t * 4 * 110);
-                    r = 160; g = 145; b = 125;
+                    const cWave = Math.sin(t * 260) * 14;
+                    alpha = Math.max(0, Math.min(255, Math.floor(t * 4 * 115 + cWave)));
+                    r = 164; g = 148; b = 126;
                 }
-                // B Ring (main, bright, dense): 0.25 to 0.65
-                else if (t < 0.65) {
-                    alpha = 235;
-                    const ringlet = Math.sin(t * 150) * 20;
-                    r = Math.min(255, Math.floor(225 + ringlet));
-                    g = Math.min(255, Math.floor(205 + ringlet));
-                    b = Math.min(255, Math.floor(165 + ringlet));
+                // B Ring (main, bright, high optical depth with fine Cassini ringlets): 0.25 to 0.63
+                else if (t < 0.63) {
+                    const ringlet = Math.sin(t * 210) * 18 + Math.sin(t * 590) * 9;
+                    alpha = Math.min(250, Math.floor(232 + Math.sin(t * 95) * 14));
+                    r = Math.min(255, Math.floor(228 + ringlet));
+                    g = Math.min(255, Math.floor(208 + ringlet));
+                    b = Math.min(255, Math.floor(168 + ringlet));
                 }
-                // Cassini Division (dark gap): 0.65 to 0.72
-                else if (t < 0.72) {
-                    alpha = 15;
-                    r = 60; g = 50; b = 40;
+                // Cassini Division (Huygens gap): 0.63 to 0.71
+                else if (t < 0.71) {
+                    alpha = 12;
+                    r = 58; g = 48; b = 40;
                 }
-                // A Ring (outer ring): 0.72 to 0.98
+                // A Ring (outer bright icy ring with Encke & Keeler gaps): 0.71 to 0.98
                 else if (t < 0.98) {
-                    // Encke division at 0.90
                     if (t > 0.895 && t < 0.915) {
-                        alpha = 10;
+                        // Encke Gap
+                        alpha = 8;
+                    } else if (t > 0.962 && t < 0.968) {
+                        // Keeler Gap
+                        alpha = 14;
                     } else {
-                        alpha = 185;
-                        r = 210; g = 190; b = 155;
+                        const aWave = Math.sin(t * 280) * 12;
+                        alpha = Math.floor(188 + aWave * 0.5);
+                        r = Math.min(255, Math.floor(212 + aWave));
+                        g = Math.min(255, Math.floor(192 + aWave));
+                        b = Math.min(255, Math.floor(158 + aWave));
                     }
                 }
-                // Faint outer edge
+                // Faint F-ring / outer feathering
                 else {
-                    alpha = Math.floor((1.0 - t) * 50 * 50);
+                    alpha = Math.max(0, Math.floor((1.0 - t) * 50 * 48));
                 }
             } else {
-                // Uranus / Chariklo / other rings
-                alpha = t > 0.3 && t < 0.8 ? 160 : 0;
-                r = 180; g = 200; b = 220;
+                // Uranus / Neptune / ice-giant narrow ringlets
+                const band1 = (t > 0.24 && t < 0.34) ? 120 : 0;
+                const band2 = (t > 0.45 && t < 0.58) ? 145 : 0;
+                const epsilon = (t > 0.74 && t < 0.88) ? 185 : 0;
+                alpha = Math.max(band1, band2, epsilon);
+                r = 182; g = 206; b = 228;
             }
 
-            const p = x * 4;
-            data[p] = r;
-            data[p + 1] = g;
-            data[p + 2] = b;
-            data[p + 3] = alpha;
+            for (let y = 0; y < height; y++) {
+                const p = (y * width + x) * 4;
+                data[p] = r;
+                data[p + 1] = g;
+                data[p + 2] = b;
+                data[p + 3] = alpha;
+            }
         }
 
         ctx.putImageData(imgData, 0, 0);

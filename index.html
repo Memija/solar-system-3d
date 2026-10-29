@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Solar System 3D</title>
     <meta name="description" content="Interactive 3D real-time simulation and astronomical observatory of our Solar System featuring planets, moons, constellations, and space missions." />
     <meta name="theme-color" content="#02050d" />
@@ -19,7 +19,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;600;800;900&family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap&subset=latin,latin-ext,cyrillic" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style id="critical-loading-css">
       .loading-screen {
         position: fixed;
@@ -35,8 +35,8 @@
         align-items: center;
         justify-content: center;
         overflow: hidden;
-        color: rgba(248, 250, 252, 0.92);
-        font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: rgba(248, 250, 252, 0.96);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         user-select: none;
         -webkit-user-select: none;
         transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1), filter 0.75s ease;
@@ -55,7 +55,7 @@
         content: '';
         position: absolute;
         inset: 0;
-        background-image: 
+        background-image:
           radial-gradient(1.5px 1.5px at 15% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
           radial-gradient(1px 1px at 40% 70%, rgba(56, 189, 248, 0.6) 0%, transparent 100%),
           radial-gradient(2px 2px at 75% 25%, rgba(245, 158, 11, 0.7) 0%, transparent 100%),
@@ -187,7 +187,7 @@
         border-radius: 9999px;
         background: rgba(15, 23, 42, 0.75);
         border: 1px solid rgba(56, 189, 248, 0.28);
-        font-family: 'Orbitron', 'Space Grotesk', monospace, sans-serif;
+        font-family: 'JetBrains Mono', 'Exo 2', monospace;
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.14em;
@@ -204,7 +204,7 @@
         animation: livePulse 1.8s ease-in-out infinite;
       }
       .loading-title {
-        font-family: 'Orbitron', 'Space Grotesk', monospace, sans-serif;
+        font-family: 'Exo 2', 'Space Grotesk', 'Inter', sans-serif;
         font-size: clamp(20px, 5vw, 26px);
         font-weight: 800;
         letter-spacing: 0.22em;
@@ -214,11 +214,11 @@
         text-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
       }
       .loading-subtitle {
-        font-family: 'Space Grotesk', -apple-system, sans-serif;
+        font-family: 'Exo 2', 'Space Grotesk', 'Inter', sans-serif;
         font-size: clamp(11px, 2.8vw, 12px);
         font-weight: 500;
-        letter-spacing: 0.18em;
-        color: rgba(148, 163, 184, 0.85);
+        letter-spacing: 0.16em;
+        color: rgba(163, 179, 201, 0.92);
         text-align: center;
         margin: 0 0 24px 0;
       }
@@ -229,10 +229,10 @@
         gap: 10px;
       }
       .loading-status-text {
-        font-family: 'Orbitron', 'Space Grotesk', monospace, sans-serif;
+        font-family: 'JetBrains Mono', 'Exo 2', monospace;
         font-size: 11px;
         font-weight: 500;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.1em;
         color: #38bdf8;
         text-align: center;
         min-height: 18px;
@@ -263,7 +263,6 @@
         position: relative;
         overflow: hidden;
       }
-
       .loading-progress-bar::after {
         content: '';
         position: absolute;
@@ -278,10 +277,10 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-family: 'Orbitron', 'Space Grotesk', monospace, sans-serif;
+        font-family: 'JetBrains Mono', 'Exo 2', monospace;
         font-size: 11px;
         letter-spacing: 0.1em;
-        color: rgba(148, 163, 184, 0.85);
+        color: rgba(163, 179, 201, 0.92);
         padding: 0 2px;
       }
       .loading-percentage {
@@ -290,7 +289,7 @@
       }
       .loading-subsystems {
         font-size: 10px;
-        opacity: 0.8;
+        opacity: 0.88;
       }
       @keyframes ringSpin {
         from { transform: rotateZ(0deg); }
@@ -320,6 +319,19 @@
       @keyframes progressShimmer {
         0% { left: -50%; }
         100% { left: 150%; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .loading-orbit-ring,
+        .loading-sun,
+        .loading-sun-corona,
+        .status-live-dot,
+        .loading-screen::before,
+        .loading-progress-bar::after {
+          animation: none !important;
+        }
+        .loading-screen {
+          transition: opacity 0.3s ease !important;
+        }
       }
       @media (max-width: 480px) {
         .loading-orrery { width: 210px; height: 210px; margin-bottom: 20px; }
@@ -371,20 +383,24 @@
     <script>
       (function() {
         var lang = 'en';
+        var hasExplicit = false;
         try {
           var appPrefs = localStorage.getItem('solar-system-3d');
           if (appPrefs) {
             var parsed = JSON.parse(appPrefs);
-            if (parsed && parsed.language) {
+            if (parsed && typeof parsed.language === 'string' && parsed.language) {
               lang = parsed.language;
+              hasExplicit = true;
             }
-          } else {
+          }
+          if (!hasExplicit) {
             var legacyStored = localStorage.getItem('solar_system_language');
             if (legacyStored) {
               lang = legacyStored;
+              hasExplicit = true;
             }
           }
-          if (lang === 'en' && navigator.language) {
+          if (!hasExplicit && navigator.language) {
             var bl = navigator.language.toLowerCase();
             if (bl.startsWith('id')) lang = 'id';
             else if (bl.startsWith('bs') || bl.startsWith('hr') || bl.startsWith('sh') || bl.startsWith('cnr')) lang = 'bs';
@@ -393,6 +409,8 @@
             else if (bl.startsWith('sr')) lang = 'sr';
           }
         } catch (e) {}
+
+        document.documentElement.lang = lang;
 
         var dict = {
           en: {

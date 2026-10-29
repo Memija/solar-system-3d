@@ -3,32 +3,6 @@ import { Minimap } from '../Minimap';
 import { UIManager } from '../UIManager';
 import { Modal } from '../Modal';
 
-// Mock dat.gui
-vi.mock('dat.gui', () => ({
-    GUI: class {
-        addFolder = vi.fn(() => ({
-            add: vi.fn().mockReturnValue({
-                name: vi.fn().mockReturnThis(),
-                onChange: vi.fn().mockReturnThis(),
-                step: vi.fn().mockReturnThis(),
-                min: vi.fn().mockReturnThis(),
-                setValue: vi.fn().mockReturnThis()
-            }),
-            open: vi.fn()
-        }));
-        domElement = document.createElement('div');
-        add = vi.fn(() => ({
-            name: vi.fn().mockReturnThis(),
-            onChange: vi.fn().mockReturnThis(),
-            step: vi.fn().mockReturnThis(),
-            min: vi.fn().mockReturnThis(),
-            setValue: vi.fn().mockReturnThis()
-        }));
-        open = vi.fn();
-        close = vi.fn();
-    }
-}));
-
 describe('Mobile Responsiveness & Touch Support', () => {
     describe('Minimap responsive sizing', () => {
         let container: HTMLElement;
@@ -110,6 +84,7 @@ describe('Mobile Responsiveness & Touch Support', () => {
         });
 
         afterEach(() => {
+            uiManager?.dispose();
             document.body.innerHTML = '';
             vi.clearAllMocks();
         });

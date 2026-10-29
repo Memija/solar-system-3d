@@ -4,8 +4,8 @@
 // MOBILE & TABLET RESPONSIVE SYSTEM
 // ==========================================
 @media (max-width: 768px) {
-    // Top HUD Bar
-    .selection-menu-container {
+    // Standalone Top HUD Bar (when not using observatory-header-bar)
+    .selection-menu-container:not(.observatory-header-bar) {
         position: fixed !important;
         top: calc(10px + env(safe-area-inset-top, 0px)) !important;
         left: 10px !important;
@@ -16,14 +16,14 @@
         gap: 6px !important;
         padding: 6px 10px !important;
         border-radius: 12px !important;
-        z-index: 1600 !important;
+        z-index: $z-header !important;
 
         &.has-lang-open {
-            z-index: 1700 !important;
+            z-index: $z-dropdown !important;
         }
 
         .lang-dropdown-menu {
-            z-index: 1650 !important;
+            z-index: $z-dropdown !important;
         }
 
         select {
@@ -40,66 +40,13 @@
         }
 
         .hud-icon-btn {
-            width: 32px !important;
-            height: 32px !important;
+            width: 30px !important;
+            height: 30px !important;
             font-size: 13px !important;
         }
     }
 
-    // dat.gui Mobile Drawer
-    .dg.ac {
-        display: block !important;
-    }
-
-    .dg.main {
-        position: fixed !important;
-        top: calc(62px + env(safe-area-inset-top, 0px)) !important;
-        left: 10px !important;
-        right: 10px !important;
-        width: auto !important;
-        max-width: calc(100vw - 20px) !important;
-        max-height: 60vh !important;
-        overflow-y: auto !important;
-        z-index: 1005 !important;
-        border-radius: 14px !important;
-        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease !important;
-
-        &.mobile-hidden {
-            display: none !important;
-        }
-
-        // Touch-friendly hit zones
-        li:not(.folder) {
-            padding: 6px 8px !important;
-            min-height: 38px !important;
-            display: flex !important;
-            align-items: center !important;
-        }
-
-        .property-name {
-            font-size: 12px !important;
-            line-height: 24px !important;
-        }
-
-        .c {
-            input[type=checkbox] {
-                width: 22px !important;
-                height: 22px !important;
-            }
-
-            .slider {
-                height: 10px !important;
-                margin-top: 6px !important;
-            }
-
-            .button {
-                padding: 8px 12px !important;
-                font-size: 12px !important;
-            }
-        }
-    }
-
-    // Dossier Modal as Native Bottom Sheet
+    // Dossier Modal as Native Bottom Sheet (always above Control Center drawer)
     .dossier-modal {
         position: fixed !important;
         bottom: 0 !important;
@@ -115,7 +62,7 @@
         border-left: none !important;
         border-right: none !important;
         border-top: 3px solid $neon-cyan !important;
-        z-index: 1500 !important;
+        z-index: $z-modal !important;
         padding: 12px 18px calc(18px + env(safe-area-inset-bottom, 0px)) 18px !important;
         box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.15) !important;
         animation: bottomSheetSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -139,7 +86,7 @@
             right: auto !important;
             width: 28px !important;
             height: 28px !important;
-            font-size: 16px !important;
+            font-size: 15px !important;
         }
 
         .modal-audio-guide-btn {
@@ -195,12 +142,54 @@
         }
     }
 
-    // Compact Radar Minimap
+    // Performance Monitor docked cleanly at top-left below header to prevent bottom HUD collisions
+    .perf-monitor-hud {
+        top: calc(64px + env(safe-area-inset-top, 0px)) !important;
+        bottom: auto !important;
+        left: 10px !important;
+        padding: 6px 10px !important;
+        font-size: 10px !important;
+        gap: 3px !important;
+
+        .perf-row.main {
+            font-size: 12px !important;
+            gap: 8px !important;
+
+            .fps-metric .perf-val {
+                font-size: 14px !important;
+            }
+        }
+
+        .perf-row.sub {
+            font-size: 9.5px !important;
+            gap: 8px !important;
+        }
+    }
+
+    // Compact Radar Minimap at bottom-right (130px matches Minimap.getEffectiveSize)
     canvas.minimap-radar {
         bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
         right: 12px !important;
         width: 130px !important;
         height: 130px !important;
+    }
+
+    // Active Measure Mode HUD positioned cleanly above minimap on mobile
+    .measure-hud-bar {
+        bottom: calc(152px + env(safe-area-inset-bottom, 0px)) !important;
+        left: 10px !important;
+        right: 10px !important;
+        transform: none !important;
+        max-width: none !important;
+        white-space: normal !important;
+        border-radius: 14px !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+        justify-content: space-between;
+
+        .measure-hud-text {
+            flex-wrap: wrap;
+        }
     }
 
     // Standalone Date Panel on Mobile (fallback)
@@ -234,7 +223,7 @@
 // LANDSCAPE MODE ADJUSTMENTS (SHORT SCREENS)
 // ==========================================
 @media (max-height: 500px) and (orientation: landscape) {
-    .selection-menu-container {
+    .selection-menu-container:not(.observatory-header-bar) {
         top: 6px !important;
         left: 8px !important;
         right: 8px !important;
@@ -253,6 +242,7 @@
         border-radius: 16px 0 0 16px !important;
         border-left: 2px solid $neon-cyan !important;
         border-top: none !important;
+        z-index: $z-modal !important;
         animation: drawerSlideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 
         .sheet-drag-handle {

@@ -14,6 +14,7 @@ export class Spacecraft {
     realisticDistances: boolean = false;
     isActive: boolean = true;
     materials: THREE.Material[] = [];
+    private baseModelScale: number = 1.0;
     private launchTimestamp: number | null = null;
     private endTimestamp: number | null = null;
     private beaconMesh: THREE.Mesh | null = null;
@@ -54,6 +55,7 @@ export class Spacecraft {
         this.baseGroup.add(this.orbitGroup);
 
         this.createModel();
+        this.baseModelScale = this.mesh.scale.x || 1.0;
         this.orbitGroup.add(this.mesh);
 
         if (!this.data.escaping) {
@@ -62,38 +64,36 @@ export class Spacecraft {
             // For escaping spacecraft, set initial position
             this.orbitGroup.position.set(this.data.distance, 0, 0);
         }
-
     }
 
     createModel() {
-        // Base metallic materials
         const baseColor = this.data.color;
-        // Make sure base metallic material is spicy
         const material = new THREE.MeshStandardMaterial({
             color: baseColor,
-            roughness: 0.4,
+            roughness: 0.35,
             metalness: 0.9
         });
 
         const goldFoil = new THREE.MeshStandardMaterial({
             color: 0xffd700,
-            roughness: 0.3,
+            roughness: 0.25,
             metalness: 1.0
         });
 
         const silverFoil = new THREE.MeshStandardMaterial({
-            color: 0xdddddd,
-            roughness: 0.3,
+            color: 0xe2e8f0,
+            roughness: 0.28,
             metalness: 1.0
         });
 
         const panelMat = new THREE.MeshStandardMaterial({
-            color: 0x224488,
+            color: 0x1e40af,
             metalness: 0.9,
             roughness: 0.2
         });
 
-        // Simple representations based on name
+        this.materials.push(material, goldFoil, silverFoil, panelMat);
+
         const name = this.data.name;
         if (name.includes("ISS")) {
             this.createISSModel(silverFoil, panelMat);
@@ -110,7 +110,6 @@ export class Spacecraft {
         } else if (name.includes("Apollo")) {
             this.createApolloModel(silverFoil, material);
         } else {
-            // Generic box
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
             const mesh = new THREE.Mesh(geo, material);
             this.mesh.add(mesh);
@@ -123,11 +122,11 @@ export class Spacecraft {
             transparent: true,
             opacity: 0.8
         });
+        this.materials.push(this.beaconMaterial);
         this.beaconMesh = new THREE.Mesh(beaconGeo, this.beaconMaterial);
         this.beaconMesh.position.set(0, 0.25, 0);
         this.mesh.add(this.beaconMesh);
 
-        // Apply shadows to all meshes in the spacecraft group
         this.mesh.traverse((child) => {
             if (child instanceof THREE.Mesh) {
                 child.castShadow = true;
@@ -137,21 +136,19 @@ export class Spacecraft {
     }
 
     private createSputnikModel(silverFoil: THREE.MeshStandardMaterial) {
-        // Main sphere
         const sphereGeo = new THREE.SphereGeometry(0.1, 16, 16);
         const sphere = new THREE.Mesh(sphereGeo, silverFoil);
         this.mesh.add(sphere);
 
-        // 4 Antennas
         const antennaGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.4);
-        antennaGeo.translate(0, 0.2, 0); // Origin at base
+        antennaGeo.translate(0, 0.2, 0);
 
         for (let i = 0; i < 4; i++) {
             const antenna = new THREE.Mesh(antennaGeo, silverFoil);
             const pivot = new THREE.Group();
 
-            const radius = 0.095; // slightly inside to avoid gaps
-            const attachAngle = Math.PI / 4; // latitude of attachment (from Z axis)
+            const radius = 0.095;
+            const attachAngle = Math.PI / 4;
 
             const zAttach = -Math.cos(attachAngle) * radius;
             const xyAttach = Math.sin(attachAngle) * radius;
@@ -165,8 +162,8 @@ export class Spacecraft {
 
             pivot.lookAt(new THREE.Vector3(0, 0, 0));
 
-            antenna.rotation.x = -Math.PI / 2; // point along -Z (outward normal)
-            antenna.rotation.x -= Math.PI / 8; // Sweep back slightly more
+            antenna.rotation.x = -Math.PI / 2;
+            antenna.rotation.x -= Math.PI / 8;
 
             pivot.add(antenna);
             this.mesh.add(pivot);
@@ -176,45 +173,37 @@ export class Spacecraft {
     }
 
     private createApolloModel(silverFoil: THREE.MeshStandardMaterial, greyMat: THREE.MeshStandardMaterial) {
-        // Command Module (Cone)
         const cmGeo = new THREE.ConeGeometry(0.15, 0.2, 16);
         const cm = new THREE.Mesh(cmGeo, silverFoil);
         cm.position.set(0, 0.2, 0);
         this.mesh.add(cm);
 
-        // Service Module (Cylinder)
         const smGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 16);
         const sm = new THREE.Mesh(smGeo, silverFoil);
         sm.position.set(0, -0.05, 0);
         this.mesh.add(sm);
 
-        // Engine Bell (Cone)
         const engineGeo = new THREE.ConeGeometry(0.08, 0.15, 16);
         const engine = new THREE.Mesh(engineGeo, greyMat);
         engine.position.set(0, -0.25, 0);
-        // Engine bell points down
         engine.rotation.x = Math.PI;
         this.mesh.add(engine);
 
-        // High gain antenna (dish at bottom)
         const dishGeo = new THREE.SphereGeometry(0.05, 16, 16, 0, Math.PI);
         const dish = new THREE.Mesh(dishGeo, greyMat);
         dish.position.set(0.15, -0.15, 0);
         dish.rotation.z = -Math.PI / 2;
         this.mesh.add(dish);
 
-        // Rotate so it lies 'flat' in orbit
         this.mesh.rotation.z = -Math.PI / 2;
-
         this.mesh.scale.set(1.5, 1.5, 1.5);
     }
 
     private createJWSTModel(material: THREE.MeshStandardMaterial, mirrorMat: THREE.MeshStandardMaterial) {
-        // Sunshield (diamond shape)
         const shieldGeo = new THREE.PlaneGeometry(0.6, 0.3);
         const shieldMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide });
+        this.materials.push(shieldMat);
 
-        // 3 layers of sunshield
         for (let i = 0; i < 3; i++) {
             const shield = new THREE.Mesh(shieldGeo, shieldMat);
             shield.rotation.x = Math.PI / 2;
@@ -222,23 +211,21 @@ export class Spacecraft {
             this.mesh.add(shield);
         }
 
-        // Primary mirror (hexagon)
         const mirrorGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 6);
         const mirror = new THREE.Mesh(mirrorGeo, mirrorMat);
         mirror.rotation.x = Math.PI / 2;
         mirror.position.set(0, 0.1, 0.1);
         this.mesh.add(mirror);
 
-        // Secondary mirror support
         const supportGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.2);
         const support = new THREE.Mesh(supportGeo, material);
         support.position.set(0, 0.1, 0.2);
         support.rotation.x = Math.PI / 2;
         this.mesh.add(support);
 
-        // Spacecraft bus
         const busGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
         const goldBus = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.9, roughness: 0.3 });
+        this.materials.push(goldBus);
         const bus = new THREE.Mesh(busGeo, goldBus);
         bus.position.set(0, -0.1, 0);
         this.mesh.add(bus);
@@ -247,13 +234,11 @@ export class Spacecraft {
     }
 
     private createISSModel(material: THREE.MeshStandardMaterial, panelMat: THREE.MeshStandardMaterial) {
-        // Central cylinder
         const bodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 16);
         const body = new THREE.Mesh(bodyGeo, material);
         body.rotation.z = Math.PI / 2;
         this.mesh.add(body);
 
-        // Solar panels
         const panelGeo = new THREE.BoxGeometry(0.2, 0.01, 0.6);
 
         const panel1 = new THREE.Mesh(panelGeo, panelMat);
@@ -264,7 +249,6 @@ export class Spacecraft {
         panel2.position.set(-0.1, 0, 0);
         this.mesh.add(panel2);
 
-        // Scale it down slightly
         this.mesh.scale.set(0.5, 0.5, 0.5);
     }
 
@@ -275,6 +259,7 @@ export class Spacecraft {
 
         const apertureGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.1, 16);
         const apertureMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.3, roughness: 0.8 });
+        this.materials.push(apertureMat);
         const aperture = new THREE.Mesh(apertureGeo, apertureMat);
         aperture.position.y = 0.2;
         this.mesh.add(aperture);
@@ -287,28 +272,25 @@ export class Spacecraft {
     }
 
     private createCassiniModel(material: THREE.MeshStandardMaterial, foilMat: THREE.MeshStandardMaterial) {
-        // High-Gain Antenna (Dish)
         const dishGeo = new THREE.ConeGeometry(0.15, 0.05, 16);
-        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.8 }); // White dish
+        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.8 });
+        this.materials.push(dishMat);
         const dish = new THREE.Mesh(dishGeo, dishMat);
         dish.position.y = 0.2;
         this.mesh.add(dish);
 
-        // Main body cylinder
         const bodyGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.4, 16);
-        // Cassini is famously wrapped in gold multi-layer insulation
         const body = new THREE.Mesh(bodyGeo, foilMat);
         this.mesh.add(body);
 
-        // Lower equipment section
         const baseGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.1, 16);
         const base = new THREE.Mesh(baseGeo, material);
         base.position.y = -0.2;
         this.mesh.add(base);
 
-        // Magnetometer boom
         const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.6);
         const boomMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.5 });
+        this.materials.push(boomMat);
         const boom = new THREE.Mesh(boomGeo, boomMat);
         boom.position.set(0.2, -0.1, 0);
         boom.rotation.z = Math.PI / 2;
@@ -318,22 +300,20 @@ export class Spacecraft {
     }
 
     private createVoyagerModel(material: THREE.MeshStandardMaterial, goldMat: THREE.MeshStandardMaterial) {
-        // High-gain antenna (dish) - Parabolic shape using a sphere cap
         const dishGeo = new THREE.SphereGeometry(0.25, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
         const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, metalness: 0.3, roughness: 0.7 });
+        this.materials.push(dishMat);
         const dish = new THREE.Mesh(dishGeo, dishMat);
-        dish.rotation.x = -Math.PI / 2; // point "forward"
+        dish.rotation.x = -Math.PI / 2;
         dish.position.z = -0.05;
         this.mesh.add(dish);
 
-        // Antenna sub-reflector (small cone in the middle)
         const subReflectorGeo = new THREE.ConeGeometry(0.03, 0.05, 16);
         const subReflector = new THREE.Mesh(subReflectorGeo, dishMat);
         subReflector.position.z = -0.15;
         subReflector.rotation.x = -Math.PI / 2;
         this.mesh.add(subReflector);
 
-        // Feed struts
         const strutGeo = new THREE.CylinderGeometry(0.002, 0.002, 0.15);
         for (let i = 0; i < 3; i++) {
             const strut = new THREE.Mesh(strutGeo, material);
@@ -344,22 +324,20 @@ export class Spacecraft {
             this.mesh.add(strut);
         }
 
-        // Bus (Decagon)
         const busGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.15, 10);
         const busMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5, roughness: 0.6 });
+        this.materials.push(busMat);
         const bus = new THREE.Mesh(busGeo, busMat);
         bus.rotation.x = Math.PI / 2;
         bus.position.z = 0.08;
         this.mesh.add(bus);
 
-        // Gold Record
         const recordGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.005, 16);
         const record = new THREE.Mesh(recordGeo, goldMat);
         record.position.set(0.1, 0, 0.08);
         record.rotation.z = Math.PI / 2;
         this.mesh.add(record);
 
-        // RTG Boom
         const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.3);
         const rtgBoom = new THREE.Mesh(boomGeo, material);
         rtgBoom.position.set(-0.15, -0.15, 0.15);
@@ -367,50 +345,44 @@ export class Spacecraft {
         rtgBoom.rotation.x = -Math.PI / 6;
         this.mesh.add(rtgBoom);
 
-        // RTGs (3 cylinders)
         const rtgGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.06, 16);
         const rtgMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.4 });
+        this.materials.push(rtgMat);
         for (let i = 0; i < 3; i++) {
             const rtg = new THREE.Mesh(rtgGeo, rtgMat);
-            // Offset each RTG along the boom
             rtg.position.set(-0.15 - (i * 0.05), -0.15 - (i * 0.05), 0.15 + (i * 0.03));
             rtg.rotation.z = -Math.PI / 4;
             rtg.rotation.x = -Math.PI / 6;
             this.mesh.add(rtg);
         }
 
-        // Science Boom
         const sciBoomGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.4);
         const sciBoom = new THREE.Mesh(sciBoomGeo, material);
         sciBoom.position.set(0.2, 0.2, 0.15);
         sciBoom.rotation.z = -Math.PI / 4;
         this.mesh.add(sciBoom);
 
-        // Instruments on Science Boom
         const instrumentGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
         const instrument = new THREE.Mesh(instrumentGeo, material);
         instrument.position.set(0.35, 0.35, 0.15);
         this.mesh.add(instrument);
 
-        // Magnetometer Boom (Very long)
         const magBoomGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.8);
         const magBoom = new THREE.Mesh(magBoomGeo, material);
         magBoom.position.set(-0.3, 0.3, 0.1);
         magBoom.rotation.z = Math.PI / 4;
         this.mesh.add(magBoom);
 
-        this.mesh.scale.set(2, 2, 2); // Make Voyager a bit bigger so it's visible far away
+        this.mesh.scale.set(2, 2, 2);
     }
 
     rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
 
-        // For spacecraft, they don't have displayRadius or radius, but we should make them tiny if realistic
-        // They start at scale 2, 2, 2. If realistic, they should be very tiny, but let's make them just visible enough or scaled relative to earth
-        // 1 displayRadius (Earth) = 6371 km. Spacecraft are tiny. Let's scale them down a bit if realistic
-        // Let's use an arbitrary tiny scale for realistic
-        const scale = realistic ? 0.001 * sizeRatio : 1.0;
-        this.mesh.scale.set(scale * 2, scale * 2, scale * 2);
+        // Preserve each spacecraft's bespoke relative model scale (ISS 0.5, Cassini/JWST 1.5, Voyager 2.0)
+        const scaleFactor = realistic ? 0.0015 * sizeRatio : 1.0;
+        this.mesh.scale.setScalar(scaleFactor * this.baseModelScale);
+
         if (this.orbitLine) {
             this.baseGroup.remove(this.orbitLine);
             this.orbitLine.geometry.dispose();
@@ -445,8 +417,6 @@ export class Spacecraft {
         this.orbitLine = new THREE.LineLoop(geometry, material);
         this.baseGroup.add(this.orbitLine);
     }
-
-
 
     update(deltaTime: number, simTimePassed?: number, simDate?: Date, rawDelta?: number) {
         if (this.beaconMesh && this.beaconMaterial) {
@@ -483,10 +453,8 @@ export class Spacecraft {
                                 mat.userData.originalColor = mat.color.getHex();
                             }
                             if (!this.isActive) {
-                                // Darken color for inactive state
                                 mat.color.setHex(0xff8800);
                             } else {
-                                // Restore original color
                                 mat.color.setHex(mat.userData.originalColor);
                             }
                         }
@@ -496,30 +464,48 @@ export class Spacecraft {
         }
 
         if (this.data.escaping) {
-            // Voyager travels outward
-            const speedMultiplier = 5; // make it visible
+            const speedMultiplier = 5;
             const speed = (this.data.speed || 1) * speedMultiplier;
 
-            // For escaping bodies, we use simTimePassed if available to deterministically position them based on J2000 epoch
-            if (simTimePassed !== undefined && simDate && this.data.launchDate) {
-                const launchDate = new Date(this.data.launchDate);
-                const yearsSinceLaunch = (simDate.getTime() - launchDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-                const earthYearInSimSeconds = 2 * Math.PI / 0.5;
-                const effectiveSimTimePassed = yearsSinceLaunch * earthYearInSimSeconds;
+            if (simTimePassed !== undefined && simDate && this.launchTimestamp !== null) {
+                const yearsSinceLaunch = Math.max(0, (simDate.getTime() - this.launchTimestamp) / (365.25 * 24 * 60 * 60 * 1000));
+                const isVoyager1 = this.data.name.includes('Voyager 1');
+                const isVoyager2 = this.data.name.includes('Voyager 2');
 
-                // Determine base starting position
-                this.orbitGroup.position.x = speed * effectiveSimTimePassed;
-                this.orbitGroup.position.z = (speed * 0.5) * effectiveSimTimePassed;
-                this.mesh.rotation.y = 0.1 * effectiveSimTimePassed;
+                if (isVoyager1 || isVoyager2) {
+                    // Heliocentric interstellar escape trajectory departing 1 AU (130 units):
+                    // Voyager 1 climbs +35 deg north toward Ophiuchus (~3.57 AU/yr);
+                    // Voyager 2 dives -48 deg south toward Pavo (~3.15 AU/yr).
+                    const auPerYear = isVoyager1 ? 3.57 : 3.15;
+                    const radialDist = this.realisticDistances
+                        ? (1.0 + yearsSinceLaunch * auPerYear) * 130
+                        : 130 + yearsSinceLaunch * (isVoyager1 ? 16.5 : 14.2);
+                    const azimuth = isVoyager1 ? 0.68 : -1.15;
+                    const elevation = THREE.MathUtils.degToRad(isVoyager1 ? 35 : -48);
+                    const cosEl = Math.cos(elevation);
+
+                    this.orbitGroup.position.set(
+                        radialDist * cosEl * Math.cos(azimuth),
+                        radialDist * Math.sin(elevation),
+                        radialDist * cosEl * Math.sin(azimuth)
+                    );
+                    // Orient high-gain antenna dish (-Z) back toward inner Solar System / Earth
+                    this.mesh.lookAt(0, 0, 0);
+                } else {
+                    const earthYearInSimSeconds = 2 * Math.PI / 0.5;
+                    const effectiveSimTimePassed = yearsSinceLaunch * earthYearInSimSeconds;
+                    this.orbitGroup.position.x = this.data.distance + speed * effectiveSimTimePassed;
+                    this.orbitGroup.position.z = (speed * 0.5) * effectiveSimTimePassed;
+                    this.mesh.rotation.y = 0.1 * effectiveSimTimePassed;
+                }
             } else if (simTimePassed !== undefined) {
-                // Determine base starting position
-                this.orbitGroup.position.x = speed * simTimePassed;
+                this.orbitGroup.position.x = this.data.distance + speed * simTimePassed;
                 this.orbitGroup.position.z = (speed * 0.5) * simTimePassed;
                 this.mesh.rotation.y = 0.1 * simTimePassed;
             } else {
                 this.orbitGroup.position.x += speed * deltaTime;
-                this.orbitGroup.position.z += (speed * 0.5) * deltaTime; // Diagonal path
-                this.mesh.rotation.y += 0.1 * deltaTime; // slow spin
+                this.orbitGroup.position.z += (speed * 0.5) * deltaTime;
+                this.mesh.rotation.y += 0.1 * deltaTime;
             }
         } else {
             const speedMultiplier = 0.5;
@@ -548,8 +534,8 @@ export class Spacecraft {
             let z = 0;
 
             if (e > 0) {
-                let M = this.angle;
-                let E = solveKepler(M, e);
+                const M = this.angle;
+                const E = solveKepler(M, e);
                 x = a * (Math.cos(E) - e);
                 z = b * Math.sin(E);
             } else {
@@ -558,8 +544,6 @@ export class Spacecraft {
             }
 
             this.orbitGroup.position.set(x, 0, z);
-
-            // Always point somewhat tangentially
             this.mesh.rotation.y = -this.angle;
         }
     }

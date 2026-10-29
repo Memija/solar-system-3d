@@ -1,21 +1,24 @@
 import * as THREE from 'three';
-import * as dat from 'dat.gui';
 import { SceneManager } from './SceneManager';
 import { Modal } from './Modal';
 import { Minimap } from './Minimap';
 import { CustomDatePicker } from './CustomDatePicker';
-import { CelestialBody } from './CelestialBody';
 import { EventBus } from './EventBus';
 import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData';
 import { i18n, AVAILABLE_LOCALES, getLocaleFlagUrl } from '../i18n/index';
 import { AudioManager } from './AudioManager';
 import { PerformanceMonitor } from './PerformanceMonitor';
 import { ControlCenter } from './ControlCenter';
-import { PreferencesManager } from './PreferencesManager';
-import { HeaderSlotsManager, HeaderSlotCategory, stripShortcutFromLabel } from './HeaderSlotsManager';
+import { HeaderSlotsManager } from './HeaderSlotsManager';
+import { ScenePicker } from './ScenePicker';
+import { ShortcutController } from './ShortcutController';
+import { toggleShortcutsModal, openHeaderSlotsCustomizer } from './SecondaryModals';
+import { svgIcon, stripLeadingEmoji } from './SvgIcons';
 
 export class UIManager {
     sceneManager: SceneManager;
+    scenePicker: ScenePicker;
+    shortcutController: ShortcutController;
     raycaster: THREE.Raycaster;
     mouse: THREE.Vector2;
     selectedBody: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData | null;
@@ -31,13 +34,10 @@ export class UIManager {
     menuContainer: HTMLElement | null = null;
     controlCenter: ControlCenter | null = null;
     targetPill: HTMLElement | null = null;
-    gui: dat.GUI | null;
     mouseDownPos: THREE.Vector2;
     mouseUpPos: THREE.Vector2;
     datePanel: HTMLElement;
     customDatePicker: CustomDatePicker | null = null;
-    tourController: dat.GUIController | null = null;
-    realisticDistController: dat.GUIController | null = null;
     minimap: Minimap;
     previousTimeSpeed: number | null = null;
     cameraTarget: string = 'Earth';
@@ -45,44 +45,41 @@ export class UIManager {
     dateLabel: HTMLElement | null = null;
     speedBadge: HTMLElement | null = null;
     timeBadge: HTMLElement | null = null;
+    private timeNumsEl: HTMLElement | null = null;
     liveIndicator: HTMLElement | null = null;
     telemetryTicker: HTMLElement | null = null;
+    private tickerBodyEl: HTMLElement | null = null;
+    private tickerSpeedEl: HTMLElement | null = null;
+    private tickerDistEl: HTMLElement | null = null;
     private realtimeDistanceKm: number = 0;
     private lastRealtimeDateMs: number = 0;
     private lastFormattedTime: string = '';
-    private updatePauseCtrl: (() => void) | null = null;
-    private guiControllers: { controller: any; nameKey: string }[] = [];
-    private guiFolders: { folder: any; nameKey: string }[] = [];
 
     private onTourFocusBound: ((e: Event) => void) | null = null;
     private onJumpToDateBound: ((e: Event) => void) | null = null;
     private onSelectCelestialBodyBound: ((e: Event) => void) | null = null;
     private onPointerDownBound: ((e: PointerEvent) => void) | null = null;
     private onPointerUpBound: ((e: PointerEvent) => void) | null = null;
-    private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
     private onDocClickLangBound: (() => void) | null = null;
-    private guiTooltipElement: HTMLElement | null = null;
-    private onDocClickGuiTooltipBound: ((e: MouseEvent) => void) | null = null;
     private unsubscribeI18n: (() => void) | null = null;
+    private unsubscribeMeasureMode: (() => void) | null = null;
+    private unsubscribeMeasureTargets: (() => void) | null = null;
     closeLangDropdown: (() => void) | null = null;
     private measureHudBar: HTMLElement | null = null;
-    private measureCtrl: any = null;
-    private onMeasureModeChangedBound: ((e: any) => void) | null = null;
-    private onMeasureTargetsChangedBound: ((e: any) => void) | null = null;
     private static readonly _measurePosA = new THREE.Vector3();
     private static readonly _measurePosB = new THREE.Vector3();
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2();
+        this.scenePicker = new ScenePicker(this);
+        this.raycaster = this.scenePicker.raycaster;
+        this.mouse = this.scenePicker.mouse;
         this.selectedBody = null;
-        this.gui = null;
         this.mouseDownPos = new THREE.Vector2();
         this.mouseUpPos = new THREE.Vector2();
 
         const container = document.getElementById('ui-container');
-        if (!container) throw new Error("UI Container not found");
+        if (!container) throw new Error('UI Container not found');
         this.uiContainer = container;
 
         this.infoPanel = this.createInfoPanel();
@@ -119,25 +116,25 @@ export class UIManager {
         this.performanceMonitor = new PerformanceMonitor(this.sceneManager.renderer, this.uiContainer);
 
         this.datePanel = this.createDatePanel();
-
         this.minimap = new Minimap(sceneManager, this.uiContainer);
 
         this.createSelectionMenu();
-        this.initControls();
+        this.sceneManager.onTimeScaleChange = () => {
+            this.controlCenter?.syncTimePanel();
+        };
+
         this.initInteraction();
+        this.shortcutController = new ShortcutController(this);
 
         this.createMeasureHudBar();
         this.updateMeasureHud();
-        this.onMeasureModeChangedBound = () => this.updateMeasureHud();
-        this.onMeasureTargetsChangedBound = () => this.updateMeasureHud();
-        EventBus.on('measure-mode-changed', this.onMeasureModeChangedBound);
-        EventBus.on('measure-targets-changed', this.onMeasureTargetsChangedBound);
+        this.unsubscribeMeasureMode = EventBus.on('measure-mode-changed', () => this.updateMeasureHud());
+        this.unsubscribeMeasureTargets = EventBus.on('measure-targets-changed', () => this.updateMeasureHud());
 
         this.onTourFocusBound = (e: Event) => {
             const customEvent = e as CustomEvent;
             const targetName = customEvent.detail;
 
-            // Find data for this body
             let foundData: any = null;
             const findTarget = (body: any) => {
                 if (body.data.name === targetName) {
@@ -155,6 +152,7 @@ export class UIManager {
                 if (sc) foundData = sc.data;
             }
             if (foundData) {
+                this.syncDropdownSelection(targetName);
                 this.audioManager.playWarp();
                 this.showModal(foundData);
             }
@@ -171,11 +169,11 @@ export class UIManager {
                     this.customDatePicker.setDate(newDate);
                 }
 
-                // Stop simulation when jumping to active date
                 this.sceneManager.timeScale = 0;
                 if (this.sceneManager.onTimeScaleChange) {
                     this.sceneManager.onTimeScaleChange(0);
                 }
+                this.controlCenter?.syncTimePanel();
             }
         };
         window.addEventListener('jump-to-date', this.onJumpToDateBound);
@@ -189,33 +187,7 @@ export class UIManager {
 
             this.cameraTarget = targetName;
             this.focusOrSurfaceTarget(targetName);
-
-            const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
-            const bodySelect = document.getElementById('bodySelect') as HTMLSelectElement;
-
-            this.ignoreNextBodyChange = true;
-                // If bodySelect isn't updated by the dispatch, revert the flag
-                setTimeout(() => { this.ignoreNextBodyChange = false; }, 100);
-
-            if (typeSelect && bodySelect) {
-                let determinedType = 'Planet';
-                if (this.sceneManager.planets.find(p => p.data.name === targetName) || targetName === 'Sun') {
-                    determinedType = 'Planet';
-                    if (targetName === 'Sun') determinedType = 'Star';
-                } else if (this.sceneManager.planets.some(p => p.moons.find(m => m.data.name === targetName))) {
-                    determinedType = 'Moon';
-                } else if (this.sceneManager.comets.find(c => c.data.name === targetName)) {
-                    determinedType = 'Comet';
-                } else if (this.sceneManager.spacecrafts.find(s => s.data.name === targetName)) {
-                    determinedType = 'Spacecraft';
-                }
-
-                if (typeSelect.value !== determinedType) {
-                    typeSelect.value = determinedType;
-                    typeSelect.dispatchEvent(new Event('change'));
-                }
-                bodySelect.value = targetName;
-            }
+            this.syncDropdownSelection(targetName);
 
             let foundData: any = null;
             const findTarget = (body: any) => {
@@ -244,6 +216,54 @@ export class UIManager {
         window.addEventListener('select-celestial-body', this.onSelectCelestialBodyBound);
     }
 
+    public setTourMode(enabled: boolean, detachOnExit: boolean = true): void {
+        if (!this.sceneManager) return;
+        this.sceneManager.tourMode = enabled;
+        if (enabled) {
+            this.sceneManager.tourTimer = 0;
+            const targetName = this.sceneManager.tourTargets
+                ? this.sceneManager.tourTargets[this.sceneManager.tourIndex || 0]
+                : 'Mercury';
+            if (typeof this.sceneManager.focusOnBody === 'function') {
+                this.sceneManager.focusOnBody(targetName);
+            }
+            EventBus.emit('tour-focus', targetName);
+        } else if (detachOnExit && typeof this.sceneManager.detachCamera === 'function') {
+            this.sceneManager.detachCamera();
+        }
+        this.controlCenter?.syncSwitches();
+        if (this.headerSlotsContainer) {
+            HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+        }
+    }
+
+    public setRealisticDistances(enabled: boolean): void {
+        if (!this.sceneManager) return;
+        if (typeof this.sceneManager.toggleRealisticDistances === 'function') {
+            this.sceneManager.toggleRealisticDistances(enabled);
+        } else {
+            this.sceneManager.realisticDistances = enabled;
+        }
+        if (enabled) {
+            this.modal?.show({
+                titleKey: 'popups.trueScaleTitle',
+                descKey: 'popups.trueScaleDesc',
+                name: i18n.t('popups.trueScaleTitle'),
+                description: i18n.t('popups.trueScaleDesc')
+            });
+        } else if (
+            this.modal?.isOpen &&
+            (this.modal.isShowingPopup('popups.trueScaleTitle') ||
+                this.modal.titleElement?.textContent === i18n.t('popups.trueScaleTitle'))
+        ) {
+            this.modal.hide();
+        }
+        this.controlCenter?.syncSwitches();
+        if (this.headerSlotsContainer) {
+            HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+        }
+    }
+
     createInfoPanel(): HTMLElement {
         const panel = document.createElement('div');
         panel.className = 'hud-info-panel';
@@ -254,7 +274,7 @@ export class UIManager {
     createDatePanel(): HTMLElement {
         const panel = document.createElement('div');
         panel.className = 'date-panel-hud obs-mission-clock';
-        panel.style.zIndex = "1000";
+        panel.style.zIndex = '1000';
         panel.style.pointerEvents = 'auto';
 
         const mainRow = document.createElement('div');
@@ -264,57 +284,50 @@ export class UIManager {
         label.type = 'button';
         label.className = 'sim-date-label';
         label.title = i18n.t('datepicker.calendarTitle') || 'Open Mission Calendar';
-        const simDateText = (i18n.t('ui.simDate') || '').replace(/^⏱\s*/, '').trim();
-        label.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${simDateText}</span>`;
+        const simDateText = stripLeadingEmoji(i18n.t('ui.simDate') || '');
+        label.innerHTML = `<span class="date-clock-icon">${svgIcon('clock')}</span> <span class="date-label-text">${simDateText}</span>`;
         label.onclick = (e: MouseEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            if (this.customDatePicker) {
-                this.customDatePicker.togglePopup();
-            }
-        };
-        label.onkeydown = (e: KeyboardEvent) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                e.stopPropagation();
-                if (this.customDatePicker) {
-                    this.customDatePicker.togglePopup();
-                }
-            }
+            this.customDatePicker?.togglePopup();
         };
         this.dateLabel = label;
         mainRow.appendChild(label);
 
         const initialDate = this.sceneManager.simDate || new Date();
-        this.customDatePicker = new CustomDatePicker(initialDate, (newDate: Date) => {
-            if (this.sceneManager.setSimDate) {
-                this.sceneManager.setSimDate(newDate);
-                // Stop simulation in place
-                this.sceneManager.timeScale = 0;
-                if (this.sceneManager.onTimeScaleChange) {
-                    this.sceneManager.onTimeScaleChange(0);
+        this.customDatePicker = new CustomDatePicker(
+            initialDate,
+            (newDate: Date) => {
+                if (this.sceneManager.setSimDate) {
+                    this.sceneManager.setSimDate(newDate);
+                    this.sceneManager.timeScale = 0;
+                    this.sceneManager.onTimeScaleChange?.(0);
                 }
+                this.controlCenter?.syncTimePanel();
+            },
+            () => {
+                this.sceneManager.timeScale = 0;
+                this.sceneManager.onTimeScaleChange?.(0);
+                this.controlCenter?.syncTimePanel();
             }
-            if (this.controlCenter) {
-                this.controlCenter.syncTimePanel();
-            }
-        }, () => {
-            this.sceneManager.timeScale = 0;
-            if (this.sceneManager.onTimeScaleChange) {
-                this.sceneManager.onTimeScaleChange(0);
-            }
-            if (this.controlCenter) {
-                this.controlCenter.syncTimePanel();
-            }
-        });
+        );
 
         mainRow.appendChild(this.customDatePicker.domElement);
 
         const timeBadge = document.createElement('div');
         timeBadge.className = 'sim-time-badge';
         timeBadge.title = i18n.t('ui.utcTime');
+        const timeNumsEl = document.createElement('span');
+        timeNumsEl.className = 'time-nums';
+        const timeTzEl = document.createElement('span');
+        timeTzEl.className = 'time-tz';
+        timeTzEl.textContent = 'UTC';
+        timeBadge.appendChild(timeNumsEl);
+        timeBadge.appendChild(document.createTextNode(' '));
+        timeBadge.appendChild(timeTzEl);
         mainRow.appendChild(timeBadge);
         this.timeBadge = timeBadge;
+        this.timeNumsEl = timeNumsEl;
 
         const speedBadge = document.createElement('button');
         speedBadge.type = 'button';
@@ -346,50 +359,74 @@ export class UIManager {
         const telemetryTicker = document.createElement('div');
         telemetryTicker.className = 'sim-telemetry-ticker';
         telemetryTicker.style.display = 'none';
+        const tickerBodyEl = document.createElement('span');
+        tickerBodyEl.className = 'ticker-body';
+        const tickerSpeedEl = document.createElement('span');
+        tickerSpeedEl.className = 'ticker-speed';
+        const tickerDividerEl = document.createElement('span');
+        tickerDividerEl.className = 'ticker-divider';
+        tickerDividerEl.textContent = '•';
+        const tickerDistEl = document.createElement('span');
+        tickerDistEl.className = 'ticker-dist';
+        telemetryTicker.appendChild(tickerBodyEl);
+        telemetryTicker.appendChild(document.createTextNode(' '));
+        telemetryTicker.appendChild(tickerSpeedEl);
+        telemetryTicker.appendChild(document.createTextNode(' '));
+        telemetryTicker.appendChild(tickerDividerEl);
+        telemetryTicker.appendChild(document.createTextNode(' '));
+        telemetryTicker.appendChild(tickerDistEl);
         panel.appendChild(telemetryTicker);
         this.telemetryTicker = telemetryTicker;
+        this.tickerBodyEl = tickerBodyEl;
+        this.tickerSpeedEl = tickerSpeedEl;
+        this.tickerDistEl = tickerDistEl;
 
         this.uiContainer.appendChild(panel);
         return panel;
     }
 
-    private getOrbitalVelocity(bodyName: string): { speedKmS: number, label: string } {
+    private getOrbitalVelocity(bodyName: string): { speedKmS: number; label: string } {
         if (bodyName === 'Sun') {
-            return { speedKmS: 220, label: '☀️ Sun (Milky Way)' };
+            return { speedKmS: 220, label: `${i18n.getBodyName('Sun') || 'Sun'} (Milky Way)` };
         }
-        const velocities: Record<string, { speedKmS: number, label: string }> = {
-            'Mercury': { speedKmS: 47.4, label: '☿ Mercury' },
-            'Venus': { speedKmS: 35.0, label: '♀ Venus' },
-            'Earth': { speedKmS: 29.8, label: '🌍 Earth' },
-            'Mars': { speedKmS: 24.1, label: '♂ Mars' },
-            'Jupiter': { speedKmS: 13.1, label: '♃ Jupiter' },
-            'Saturn': { speedKmS: 9.7, label: '♄ Saturn' },
-            'Uranus': { speedKmS: 6.8, label: '⛢ Uranus' },
-            'Neptune': { speedKmS: 5.4, label: '♆ Neptune' },
-            'Pluto': { speedKmS: 4.7, label: '♇ Pluto' },
-            'Moon': { speedKmS: 1.0, label: '🌙 Moon' },
-            'ISS': { speedKmS: 7.7, label: '🛰️ ISS' },
-            'Hubble': { speedKmS: 7.6, label: '🛰️ Hubble' },
-            'Voyager': { speedKmS: 17.0, label: '🛰️ Voyager 1' },
-            'James Webb': { speedKmS: 1.1, label: '🛰️ JWST' },
-            'Cassini': { speedKmS: 18.0, label: '🛰️ Cassini' },
-            'Halley': { speedKmS: 54.6, label: '☄️ Halley' },
+        const velocities: Record<string, { speedKmS: number; key: string }> = {
+            Mercury: { speedKmS: 47.4, key: 'Mercury' },
+            Venus: { speedKmS: 35.0, key: 'Venus' },
+            Earth: { speedKmS: 29.8, key: 'Earth' },
+            Mars: { speedKmS: 24.1, key: 'Mars' },
+            Jupiter: { speedKmS: 13.1, key: 'Jupiter' },
+            Saturn: { speedKmS: 9.7, key: 'Saturn' },
+            Uranus: { speedKmS: 6.8, key: 'Uranus' },
+            Neptune: { speedKmS: 5.4, key: 'Neptune' },
+            Pluto: { speedKmS: 4.7, key: 'Pluto' },
+            Moon: { speedKmS: 1.0, key: 'Moon' },
+            ISS: { speedKmS: 7.7, key: 'ISS' },
+            Hubble: { speedKmS: 7.6, key: 'Hubble' },
+            Voyager: { speedKmS: 17.0, key: 'Voyager 1' },
+            'James Webb': { speedKmS: 1.1, key: 'JWST' },
+            Cassini: { speedKmS: 18.0, key: 'Cassini' },
+            Halley: { speedKmS: 54.6, key: 'Halley' }
         };
         for (const [key, val] of Object.entries(velocities)) {
             if (bodyName.includes(key) || key.includes(bodyName)) {
-                return val;
+                const localized =
+                    i18n.getBodyName(val.key) ||
+                    i18n.getSpacecraftName(val.key) ||
+                    i18n.getCometName(val.key) ||
+                    val.key;
+                return { speedKmS: val.speedKmS, label: localized };
             }
         }
-        return { speedKmS: 29.8, label: `🌍 ${bodyName || 'Earth'}` };
+        return { speedKmS: 29.8, label: i18n.getBodyName(bodyName) || bodyName || 'Earth' };
     }
 
-    update(timestamp: number = performance.now()) {
+    update(timestamp: number = performance.now()): void {
         if (this.sceneManager.simDate) {
             if (this.customDatePicker && !this.customDatePicker.isOpen) {
                 this.customDatePicker.setDate(this.sceneManager.simDate);
             }
 
-            if (this.timeBadge) {
+            if (this.timeNumsEl) {
                 const d = this.sceneManager.simDate;
                 const hh = String(d.getUTCHours()).padStart(2, '0');
                 const mm = String(d.getUTCMinutes()).padStart(2, '0');
@@ -397,7 +434,7 @@ export class UIManager {
                 const timeStr = `${hh}:${mm}:${ss}`;
                 if (timeStr !== this.lastFormattedTime) {
                     this.lastFormattedTime = timeStr;
-                    this.timeBadge.innerHTML = `<span class="time-nums">${timeStr}</span> <span class="time-tz">UTC</span>`;
+                    this.timeNumsEl.textContent = timeStr;
                 }
             }
         }
@@ -441,12 +478,9 @@ export class UIManager {
                     ? `${i18n.formatNumber(Math.round(this.realtimeDistanceKm))} km`
                     : `${i18n.formatNumber(this.realtimeDistanceKm, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
 
-                this.telemetryTicker.innerHTML = `
-                    <span class="ticker-body">${vel.label}</span>
-                    <span class="ticker-speed">${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s</span>
-                    <span class="ticker-divider">•</span>
-                    <span class="ticker-dist">Orbit: +${distFormatted}</span>
-                `;
+                if (this.tickerBodyEl) this.tickerBodyEl.textContent = vel.label;
+                if (this.tickerSpeedEl) this.tickerSpeedEl.textContent = `${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s`;
+                if (this.tickerDistEl) this.tickerDistEl.textContent = `Orbit: +${distFormatted}`;
             } else {
                 this.telemetryTicker.style.display = 'none';
                 if (this.sceneManager.simDate) {
@@ -455,13 +489,10 @@ export class UIManager {
             }
         }
 
-        if (this.minimap) {
-            this.minimap.update();
-        }
-        if (this.performanceMonitor) {
-            this.performanceMonitor.update(timestamp);
-        }
-        if (this.controlCenter && this.controlCenter.isOpen) {
+        this.minimap?.update();
+        this.performanceMonitor?.update(timestamp);
+
+        if (this.controlCenter?.isOpen) {
             this.controlCenter.syncTimePanel();
         }
         if (this.sceneManager.measureMode && this.sceneManager.measureTargetA && this.sceneManager.measureTargetB) {
@@ -469,563 +500,20 @@ export class UIManager {
         }
     }
 
-    initControls() {
-        const gui = new dat.GUI({ autoPlace: false, width: 320 });
-        this.gui = gui;
-        this.uiContainer.appendChild(gui.domElement);
-        gui.domElement.style.position = 'absolute';
-        gui.domElement.style.top = '20px';
-        gui.domElement.style.left = '20px';
-        gui.domElement.style.display = 'none';
-
-        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-            gui.domElement.classList.add('mobile-hidden');
-            gui.close();
-        }
-
-        const initialSpeed = Math.round(this.sceneManager.timeScale * 10000) / 10000;
-        const params = {
-            togglePause: () => {
-                this.togglePause();
-            },
-            speedPreset: 'oneDay',
-            timeSpeed: initialSpeed,
-            showOrbits: true,
-            showMoons: true,
-            measureMode: false,
-            showAsteroids: true,
-            showKuiperBelt: true,
-            showDwarfPlanets: true,
-            showComets: true,
-            showSpacecrafts: true,
-            showMeteors: false,
-            showTrails: true,
-            showMinimap: true,
-            enableBloom: true,
-            showHabitableZone: false,
-            showEclipticGrid: false,
-            realisticLighting: this.sceneManager.realisticLighting,
-            showAxes: false,
-            realisticDistances: this.sceneManager.realisticDistances,
-            realSizeRatio: 1.0
-        };
-
-        // Setup custom tooltip for GUI
-        const existingTooltip = document.getElementById('gui-custom-tooltip');
-        if (existingTooltip && existingTooltip.parentElement) {
-            existingTooltip.parentElement.removeChild(existingTooltip);
-        }
-        const tooltip = document.createElement('div');
-        tooltip.id = 'gui-custom-tooltip';
-        tooltip.className = 'gui-tooltip';
-        tooltip.style.display = 'none';
-        document.body.appendChild(tooltip);
-        this.guiTooltipElement = tooltip;
-
-        // Hide tooltip globally if clicking elsewhere
-        this.onDocClickGuiTooltipBound = (e: MouseEvent) => {
-            if (!(e.target as HTMLElement).closest('.gui-info-icon')) {
-                tooltip.style.display = 'none';
-            }
-        };
-        document.addEventListener('click', this.onDocClickGuiTooltipBound);
-
-        // Helper to add arrows to numeric input controllers
-        const addNumericArrows = (controller: dat.GUIController | undefined, obj: any, prop: string, step: number, min?: number, max?: number) => {
-            setTimeout(() => {
-                if (controller && controller.domElement) {
-                    const inputElement = controller.domElement.querySelector('input');
-                    if (inputElement) {
-                        inputElement.type = 'number';
-                        inputElement.step = 'any';
-                        inputElement.min = '0';
-                        inputElement.style.textAlign = 'center';
-                        inputElement.style.width = '64px';
-
-                        const parent = inputElement.parentNode as HTMLElement;
-                        if (parent) {
-                            parent.style.display = 'flex';
-                            parent.style.alignItems = 'center';
-                            parent.style.justifyContent = 'center';
-
-                            const decBtn = document.createElement('button');
-                            decBtn.type = 'button';
-                            decBtn.innerHTML = '◀';
-                            decBtn.style.background = 'none';
-                            decBtn.style.border = 'none';
-                            decBtn.style.color = '#38bdf8';
-                            decBtn.style.cursor = 'pointer';
-                            decBtn.style.padding = '0 6px';
-                            decBtn.style.fontSize = '11px';
-                            decBtn.style.userSelect = 'none';
-                            decBtn.onclick = () => {
-                                let newVal = obj[prop] - step;
-                                if (min !== undefined) newVal = Math.max(min, newVal);
-                                newVal = Math.round(newVal * 10000) / 10000;
-                                controller.setValue(newVal);
-                            };
-                            parent.insertBefore(decBtn, inputElement);
-
-                            const incBtn = document.createElement('button');
-                            incBtn.type = 'button';
-                            incBtn.innerHTML = '▶';
-                            incBtn.style.background = 'none';
-                            incBtn.style.border = 'none';
-                            incBtn.style.color = '#38bdf8';
-                            incBtn.style.cursor = 'pointer';
-                            incBtn.style.padding = '0 6px';
-                            incBtn.style.fontSize = '11px';
-                            incBtn.style.userSelect = 'none';
-                            incBtn.onclick = () => {
-                                let newVal = obj[prop] + step;
-                                if (max !== undefined) newVal = Math.min(max, newVal);
-                                newVal = Math.round(newVal * 10000) / 10000;
-                                controller.setValue(newVal);
-                            };
-                            parent.appendChild(incBtn);
-                        }
-                    }
-                }
-            }, 100);
-        };
-
-        // Helper to add info icons to dat.gui items
-        const addInfoIcon = (controller: dat.GUIController | undefined, tooltipKeyOrText: string) => {
-            // Check if controller exists, helpful when testing where dat.gui might be mocked
-            if (!controller) return;
-
-            // dat.gui manipulates DOM somewhat asynchronously, we use setTimeout to ensure element is there
-            setTimeout(() => {
-                if (controller && controller.domElement && controller.domElement.closest) {
-                    const li = controller.domElement.closest('li');
-                    if (li) {
-                        const nameNode = li.querySelector('.property-name');
-                        if (nameNode) {
-                            const icon = document.createElement('span');
-                            icon.innerHTML = 'i';
-                            icon.className = 'gui-info-icon';
-                            icon.style.display = 'inline-block';
-                            icon.style.width = '14px';
-                            icon.style.height = '14px';
-                            icon.style.lineHeight = '14px';
-                            icon.style.textAlign = 'center';
-                            icon.style.borderRadius = '50%';
-                            icon.style.backgroundColor = '#444';
-                            icon.style.color = '#fff';
-                            icon.style.fontSize = '10px';
-                            icon.style.marginLeft = '5px';
-                            icon.style.cursor = 'help';
-                            icon.style.position = 'relative';
-
-                            // Show custom tooltip on hover (dynamically resolved)
-                            icon.addEventListener('mouseenter', () => {
-                                tooltip.innerHTML = tooltipKeyOrText.startsWith('controls.') ? i18n.t(tooltipKeyOrText) : tooltipKeyOrText;
-                                tooltip.style.display = 'block';
-                                const rect = icon.getBoundingClientRect();
-                                let top = rect.top - tooltip.offsetHeight - 10;
-                                let left = rect.left - (tooltip.offsetWidth / 2) + (rect.width / 2);
-
-                                if (top < 0) {
-                                    top = rect.bottom + 10;
-                                }
-                                if (left + tooltip.offsetWidth > window.innerWidth) {
-                                    left = window.innerWidth - tooltip.offsetWidth - 10;
-                                }
-                                if (left < 0) {
-                                    left = 10;
-                                }
-
-                                tooltip.style.top = `${top}px`;
-                                tooltip.style.left = `${left}px`;
-                            });
-
-                            icon.addEventListener('mouseleave', () => {
-                                tooltip.style.display = 'none';
-                            });
-
-                            nameNode.appendChild(icon);
-                        }
-                    }
-                }
-            }, 100);
-        };
-
-        // Simulation Controls
-        const simFolder = gui.addFolder(i18n.t('controls.simulationFolder'));
-        this.registerGuiFolder(simFolder, 'controls.simulationFolder');
-
-        const pauseCtrl = simFolder.add(params, 'togglePause').name(
-            this.sceneManager.timeScale === 0 ? `▶ ${i18n.t('controls.resume')}` : `⏸ ${i18n.t('controls.pause')}`
-        );
-        this.updatePauseCtrl = () => {
-            if (pauseCtrl && typeof pauseCtrl.name === 'function') {
-                const isPaused = this.sceneManager.timeScale === 0;
-                const label = isPaused ? `▶ ${i18n.t('controls.resume')}` : `⏸ ${i18n.t('controls.pause')}`;
-                pauseCtrl.name(label);
-            }
-        };
-
-        const distCtrl = simFolder.add(params, 'realisticDistances').name(i18n.t('controls.realisticScale')).onChange(val => {
-            this.sceneManager.toggleRealisticDistances(val);
-            if (val) {
-                this.modal.show({
-                    titleKey: 'popups.trueScaleTitle',
-                    descKey: 'popups.trueScaleDesc',
-                    name: i18n.t('popups.trueScaleTitle'),
-                    description: i18n.t('popups.trueScaleDesc')
-                });
-            } else {
-                if (this.modal.isOpen && (this.modal.isShowingPopup('popups.trueScaleTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
-                    this.modal.hide();
-                }
-            }
-        });
-        this.realisticDistController = distCtrl;
-        this.registerGuiController(distCtrl, 'controls.realisticScale');
-        addInfoIcon(distCtrl, "controls.tooltips.realisticScale");
-
-        const minimapCtrl = simFolder.add(params, 'showMinimap').name(i18n.t('controls.showMinimap')).onChange(val => {
-            this.minimap.setVisible(val);
-        });
-        this.registerGuiController(minimapCtrl, 'controls.showMinimap');
-
-        const presetOptions: Record<string, string> = {
-            [i18n.t('controls.speedPresets.oneDayPerSec')]: 'oneDay',
-            [i18n.t('controls.speedPresets.realTime')]: 'realTime',
-            [i18n.t('controls.speedPresets.oneHourPerSec')]: 'oneHour',
-            [i18n.t('controls.speedPresets.oneWeekPerSec')]: 'oneWeek',
-            [i18n.t('controls.speedPresets.oneMonthPerSec')]: 'oneMonth',
-            [i18n.t('controls.speedPresets.paused')]: 'paused',
-            [i18n.t('controls.speedPresets.custom')]: 'custom'
-        };
-
-        let isSyncingSpeed = false;
-
-        const presetCtrl = simFolder.add(params, 'speedPreset', presetOptions).name(i18n.t('controls.speedPreset')).onChange(val => {
-            if (isSyncingSpeed) return;
-            if (val === 'custom') return;
-            isSyncingSpeed = true;
-            try {
-                if (val === 'paused') {
-                    if (this.sceneManager.timeScale !== 0) {
-                        this.previousTimeSpeed = this.sceneManager.timeScale;
-                        this.sceneManager.timeScale = 0;
-                        if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(0);
-                    }
-                    return;
-                }
-                const targetSpeed = SceneManager.SPEED_PRESETS[val as keyof typeof SceneManager.SPEED_PRESETS];
-                if (targetSpeed !== undefined) {
-                    this.sceneManager.timeScale = targetSpeed;
-                    timeSpeedController.setValue(targetSpeed);
-                }
-            } finally {
-                isSyncingSpeed = false;
-            }
-        });
-        this.registerGuiController(presetCtrl, 'controls.speedPreset');
-        addInfoIcon(presetCtrl, "controls.tooltips.speedPreset");
-
-        const syncPresetFromSpeed = (speed: number) => {
-            if (speed === 0) {
-                params.speedPreset = 'paused';
-                if (presetCtrl && typeof presetCtrl.setValue === 'function') {
-                    presetCtrl.setValue('paused');
-                }
-                return;
-            }
-            const presets = SceneManager.SPEED_PRESETS;
-            let matched: string = 'custom';
-            if (speed > 0 && speed <= presets.realTime * 1.5) matched = 'realTime';
-            else if (Math.abs(speed - presets.oneHour) < 0.0002) matched = 'oneHour';
-            else if (Math.abs(speed - presets.oneDay) < 0.002) matched = 'oneDay';
-            else if (Math.abs(speed - presets.oneWeek) < 0.01) matched = 'oneWeek';
-            else if (Math.abs(speed - presets.oneMonth) < 0.05) matched = 'oneMonth';
-            params.speedPreset = matched;
-            if (presetCtrl && typeof presetCtrl.setValue === 'function') {
-                presetCtrl.setValue(matched);
-            }
-        };
-
-        const timeSpeedController = simFolder.add(params, 'timeSpeed').min(0).name(i18n.t('controls.timeSpeed')).onChange(val => {
-            if (isSyncingSpeed) return;
-            isSyncingSpeed = true;
-            try {
-                this.sceneManager.timeScale = val;
-                if (this.previousTimeSpeed !== null && val > 0) {
-                    // User changed speed manually while something was selected
-                    this.previousTimeSpeed = val;
-                }
-                syncPresetFromSpeed(val);
-                if (this.updatePauseCtrl) {
-                    this.updatePauseCtrl();
-                }
-            } finally {
-                isSyncingSpeed = false;
-            }
-        });
-        this.registerGuiController(timeSpeedController, 'controls.timeSpeed');
-        addInfoIcon(timeSpeedController, "controls.tooltips.timeSpeed");
-
-        if (timeSpeedController && typeof timeSpeedController.updateDisplay === 'function') {
-            const originalUpdateDisplay = timeSpeedController.updateDisplay.bind(timeSpeedController);
-            timeSpeedController.updateDisplay = () => {
-                const val = typeof timeSpeedController.getValue === 'function' ? timeSpeedController.getValue() : params.timeSpeed;
-                if (val > 0 && val < 0.001 && timeSpeedController.domElement) {
-                    const input = timeSpeedController.domElement.querySelector('input');
-                    if (input && document.activeElement !== input) {
-                        input.value = val < 0.00001 ? val.toExponential(2) : val.toFixed(4);
-                    }
-                    return timeSpeedController;
-                }
-                return originalUpdateDisplay();
-            };
-        }
-
-        // Make time speed input better looking and add arrows with fine step (0.005)
-        addNumericArrows(timeSpeedController, params, 'timeSpeed', 0.005, 0);
-
-        // Listen for internal speed changes
-        this.sceneManager.onTimeScaleChange = (newSpeed: number) => {
-            timeSpeedController.setValue(newSpeed);
-            syncPresetFromSpeed(newSpeed);
-            if (this.updatePauseCtrl) {
-                this.updatePauseCtrl();
-            }
-            if (this.controlCenter) {
-                this.controlCenter.syncTimePanel();
-            }
-        };
-        const orbitsCtrl = simFolder.add(params, 'showOrbits').name(i18n.t('controls.showOrbits')).onChange(val => {
-            this.sceneManager.toggleOrbits(val);
-        });
-        this.registerGuiController(orbitsCtrl, 'controls.showOrbits');
-
-        const moonsCtrl = simFolder.add(params, 'showMoons').name(i18n.t('controls.showMoons')).onChange(val => {
-            this.sceneManager.toggleMoons(val);
-        });
-        this.registerGuiController(moonsCtrl, 'controls.showMoons');
-
-        const asteroidsCtrl = simFolder.add(params, 'showAsteroids').name(i18n.t('controls.showAsteroids')).onChange(val => {
-            this.sceneManager.toggleAsteroids(val);
-        });
-        this.registerGuiController(asteroidsCtrl, 'controls.showAsteroids');
-
-        const kuiperCtrl = simFolder.add(params, 'showKuiperBelt').name(i18n.t('controls.showKuiperBelt')).onChange(val => {
-            this.sceneManager.toggleKuiperBelt(val);
-        });
-        this.registerGuiController(kuiperCtrl, 'controls.showKuiperBelt');
-
-        const dwarfCtrl = simFolder.add(params, 'showDwarfPlanets').name(i18n.t('controls.showDwarfPlanets')).onChange(val => {
-            this.sceneManager.toggleDwarfPlanets(val);
-        });
-        this.registerGuiController(dwarfCtrl, 'controls.showDwarfPlanets');
-
-        const cometsCtrl = simFolder.add(params, 'showComets').name(i18n.t('controls.showComets')).onChange(val => {
-            this.sceneManager.toggleComets(val);
-        });
-        this.registerGuiController(cometsCtrl, 'controls.showComets');
-
-        const spacecraftsCtrl = simFolder.add(params, 'showSpacecrafts').name(i18n.t('controls.showSpacecraft')).onChange(val => {
-            this.sceneManager.toggleSpacecrafts(val);
-        });
-        this.registerGuiController(spacecraftsCtrl, 'controls.showSpacecraft');
-
-        const meteorsCtrl = simFolder.add(params, 'showMeteors').name(i18n.t('controls.showMeteors')).onChange(val => {
-            this.sceneManager.toggleMeteors(val);
-            if (val) {
-                this.sceneManager.focusOnBody('Earth');
-                this.modal.show({
-                    titleKey: 'popups.meteorsTitle',
-                    descKey: 'popups.meteorsDesc',
-                    name: i18n.t('popups.meteorsTitle'),
-                    description: i18n.t('popups.meteorsDesc')
-                });
-            } else {
-                if (this.modal.isOpen && (this.modal.isShowingPopup('popups.meteorsTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.meteorsTitle')))) {
-                    this.modal.hide();
-                }
-            }
-        });
-        this.registerGuiController(meteorsCtrl, 'controls.showMeteors');
-
-        const trailsCtrl = simFolder.add(params, 'showTrails').name(i18n.t('controls.showTrails')).onChange(val => {
-            this.sceneManager.toggleTrails(val);
-        });
-        this.registerGuiController(trailsCtrl, 'controls.showTrails');
-        addInfoIcon(trailsCtrl, "controls.tooltips.showTrails");
-        simFolder.open();
-
-        // Environment Enhancements
-        const envFolder = gui.addFolder(i18n.t('controls.environmentFolder'));
-        this.registerGuiFolder(envFolder, 'controls.environmentFolder');
-
-        const habZoneCtrl = envFolder.add(params, 'showHabitableZone').name(i18n.t('controls.habitableZone')).onChange(val => {
-            this.sceneManager.toggleHabitableZone(val);
-        });
-        this.registerGuiController(habZoneCtrl, 'controls.habitableZone');
-        addInfoIcon(habZoneCtrl, "controls.tooltips.habitableZone");
-
-        const eclipticCtrl = envFolder.add(params, 'showEclipticGrid').name(i18n.t('controls.eclipticGrid')).onChange(val => {
-            this.sceneManager.toggleEclipticGrid(val);
-        });
-        this.registerGuiController(eclipticCtrl, 'controls.eclipticGrid');
-        addInfoIcon(eclipticCtrl, "controls.tooltips.eclipticGrid");
-
-        const bloomCtrl = envFolder.add(params, 'enableBloom').name(i18n.t('controls.enableBloom')).onChange(val => {
-            this.sceneManager.toggleBloom(val);
-        });
-        this.registerGuiController(bloomCtrl, 'controls.enableBloom');
-        addInfoIcon(bloomCtrl, "controls.tooltips.enableBloom");
-
-        const lightingCtrl = envFolder.add(params, 'realisticLighting').name(i18n.t('controls.realisticLighting')).onChange(val => {
-            this.sceneManager.toggleRealisticLighting(val);
-        });
-        this.registerGuiController(lightingCtrl, 'controls.realisticLighting');
-        addInfoIcon(lightingCtrl, "controls.tooltips.realisticLighting");
-
-        const axesCtrl = envFolder.add(params, 'showAxes').name(i18n.t('controls.showAxes')).onChange(val => {
-            this.sceneManager.toggleAxes(val);
-        });
-        this.registerGuiController(axesCtrl, 'controls.showAxes');
-        addInfoIcon(axesCtrl, "controls.tooltips.showAxes");
-
-        envFolder.open();
-
-        // Camera Controls
-        const cameraFolder = gui.addFolder(i18n.t('controls.cameraFolder'));
-        this.registerGuiFolder(cameraFolder, 'controls.cameraFolder');
-
-        const cameraControls = {
-            focus: () => {
-                const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
-                if (typeSelect?.value === 'Star') {
-                    const star = this.sceneManager.starMeshes.find(m => m.userData.name === this.cameraTarget);
-                    if (star) this.sceneManager.focusOnStar(star);
-                } else if (typeSelect?.value === 'Constellation') {
-                    this.sceneManager.focusOnConstellation(this.cameraTarget);
-                } else {
-                    this.sceneManager.focusOnBody(this.cameraTarget);
-                }
-            },
-            surfaceView: () => this.sceneManager.setSurfaceView(this.cameraTarget),
-            detach: () => this.sceneManager.detachCamera()
-        };
-
-        const attachCtrl = cameraFolder.add(cameraControls, 'focus').name(i18n.t('controls.attachCamera'));
-        this.registerGuiController(attachCtrl, 'controls.attachCamera');
-
-        const surfaceCtrl = cameraFolder.add(cameraControls, 'surfaceView').name(i18n.t('controls.viewFromSurface'));
-        this.registerGuiController(surfaceCtrl, 'controls.viewFromSurface');
-
-        const detachCtrl = cameraFolder.add(cameraControls, 'detach').name(i18n.t('controls.freeCamera'));
-        this.registerGuiController(detachCtrl, 'controls.freeCamera');
-
-        this.sceneManager.onMeasureTargetsSet = () => {
-            if (!params.realisticDistances) {
-                distCtrl.setValue(true);
-            }
-        };
-
-        const tourParams = {
-            tourMode: false,
-            tourSpeed: 5 // Default speed maps to a moderate interval
-        };
-
-        this.tourController = cameraFolder.add(tourParams, 'tourMode').name(i18n.t('controls.cinematicTour')).onChange(val => {
-            this.sceneManager.tourMode = val;
-            if (val) {
-                this.sceneManager.tourTimer = 0;
-                // Start with the first body
-                const targetName = this.sceneManager.tourTargets[this.sceneManager.tourIndex];
-                this.sceneManager.focusOnBody(targetName);
-                EventBus.emit('tour-focus', targetName);
-            } else {
-                this.sceneManager.detachCamera();
-            }
-        });
-        this.registerGuiController(this.tourController, 'controls.cinematicTour');
-
-        // 1 to 10 range. Speed 1 -> 20s interval. Speed 10 -> 2s interval.
-        // Formula: interval = 22 - (speed * 2)
-        const tourSpeedController = cameraFolder.add(tourParams, 'tourSpeed', 1, 10).name(i18n.t('controls.tourSpeed')).onChange(val => {
-            this.sceneManager.tourInterval = 22 - (val * 2);
-        });
-        this.registerGuiController(tourSpeedController, 'controls.tourSpeed');
-
-        addNumericArrows(tourSpeedController, tourParams, 'tourSpeed', 1, 1, 10);
-
-        cameraFolder.open();
-    }
-
-    public registerGuiController(controller: any, nameKey: string) {
-        this.guiControllers.push({ controller, nameKey });
-    }
-
-    public registerGuiFolder(folder: any, nameKey: string) {
-        this.guiFolders.push({ folder, nameKey });
-    }
-
-    public updateGuiTranslations() {
-        this.guiFolders.forEach(({ folder, nameKey }) => {
-            if (folder && folder.domElement) {
-                const titleNode = folder.domElement.querySelector('.title');
-                if (titleNode) {
-                    titleNode.textContent = i18n.t(nameKey);
-                }
-            }
-        });
-
-        this.guiControllers.forEach(({ controller, nameKey }) => {
-            if (controller && controller.domElement && controller.domElement.closest) {
-                const li = controller.domElement.closest('li');
-                if (li) {
-                    const nameNode = li.querySelector('.property-name');
-                    if (nameNode) {
-                        const icon = nameNode.querySelector('.gui-info-icon');
-                        nameNode.childNodes[0].nodeValue = i18n.t(nameKey);
-                        if (icon && !nameNode.contains(icon)) {
-                            nameNode.appendChild(icon);
-                        }
-                    }
-                }
-            }
-        });
-
-        if (this.updatePauseCtrl) {
-            this.updatePauseCtrl();
-        }
-
-        if (this.speedBadge) {
-            const isPaused = this.sceneManager?.timeScale === 0;
-            const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
-                ? this.sceneManager.getFormattedTimeSpeed()
-                : '1.0 day/s';
-            const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
-            this.speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
-        }
-    }
-
-    public togglePause() {
+    public togglePause(): void {
         if (!this.sceneManager) return;
         if (this.sceneManager.timeScale === 0) {
             const restored = (this.previousTimeSpeed && this.previousTimeSpeed > 0)
                 ? this.previousTimeSpeed
                 : (SceneManager.REALISTIC_TIME_SCALE || 0.00273785);
             this.sceneManager.timeScale = restored;
-            if (this.sceneManager.onTimeScaleChange) {
-                this.sceneManager.onTimeScaleChange(restored);
-            }
+            this.sceneManager.onTimeScaleChange?.(restored);
         } else {
             this.previousTimeSpeed = this.sceneManager.timeScale;
             this.sceneManager.timeScale = 0;
-            if (this.sceneManager.onTimeScaleChange) {
-                this.sceneManager.onTimeScaleChange(0);
-            }
+            this.sceneManager.onTimeScaleChange?.(0);
         }
-        if (this.controlCenter) {
-            this.controlCenter.syncTimePanel();
-        }
+        this.controlCenter?.syncTimePanel();
     }
 
     public toggleMinimap(): boolean {
@@ -1033,24 +521,27 @@ export class UIManager {
         const next = !this.minimap.isVisible;
         this.minimap.setVisible(next);
         const radarBtn = document.getElementById('hudRadarBtn');
-        if (radarBtn) radarBtn.classList.toggle('active', next);
-        if (this.controlCenter) this.controlCenter.syncSwitches();
-        if (this.audioManager) this.audioManager.playTick();
+        if (radarBtn) {
+            radarBtn.classList.toggle('active', next);
+            radarBtn.setAttribute('aria-pressed', String(next));
+        }
+        this.controlCenter?.syncSwitches();
+        this.audioManager?.playTick?.();
         if (this.headerSlotsContainer) {
             HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
         }
         return next;
     }
 
-    createSelectionMenu() {
+    createSelectionMenu(): void {
         const menuContainer = document.createElement('div');
         this.menuContainer = menuContainer;
         menuContainer.className = 'selection-menu-container observatory-header-bar';
         menuContainer.style.zIndex = '1600';
 
-        // Type Selector
         const typeSelect = document.createElement('select');
-        typeSelect.id = 'typeSelect';        const getTypes = () => [
+        typeSelect.id = 'typeSelect';
+        const getTypes = () => [
             { value: 'Star', label: i18n.t('categories.star') },
             { value: 'Planet', label: i18n.t('categories.planet') },
             { value: 'Moon', label: i18n.t('categories.moon') },
@@ -1065,13 +556,12 @@ export class UIManager {
             getTypes().forEach(t => {
                 const option = document.createElement('option');
                 option.value = t.value;
-                option.textContent = t.label;
+                option.textContent = stripLeadingEmoji(t.label);
                 typeSelect.appendChild(option);
             });
             typeSelect.value = currentVal;
         };
 
-        // Populate Body Selector based on Type
         const bodySelect = document.createElement('select');
         bodySelect.id = 'bodySelect';
 
@@ -1081,7 +571,6 @@ export class UIManager {
             const selectedType = typeSelect.value;
 
             if (selectedType === 'Star') {
-                // Add Sun (if it's in planets but we want it here)
                 const sun = this.sceneManager.planets.find(p => p.data.name === 'Sun');
                 if (sun) {
                     const option = document.createElement('option');
@@ -1089,8 +578,6 @@ export class UIManager {
                     option.textContent = i18n.getBodyName('Sun');
                     bodySelect.appendChild(option);
                 }
-
-                // Add other stars
                 this.sceneManager.starMeshes.forEach(mesh => {
                     if (mesh.userData?.name) {
                         const option = document.createElement('option');
@@ -1153,12 +640,13 @@ export class UIManager {
             }
         };
 
-        // Initial population
         populateTypeOptions();
-        typeSelect.value = 'Planet'; // Default
+        typeSelect.value = 'Planet';
         updateBodyOptions();
+        if (Array.from(bodySelect.options).some(opt => opt.value === this.cameraTarget)) {
+            bodySelect.value = this.cameraTarget;
+        }
 
-        // Event Listeners
         typeSelect.addEventListener('change', () => {
             updateBodyOptions();
             if (bodySelect.options.length > 0) {
@@ -1173,17 +661,29 @@ export class UIManager {
             this.cameraTarget = selectedName;
             const selectedType = typeSelect.value;
 
-            if (this.sceneManager.tourMode && this.tourController) {
-                this.tourController.setValue(false);
+            if (this.sceneManager.tourMode) {
+                this.setTourMode(false, false);
             }
 
             if (this.sceneManager.measureMode) {
                 this.sceneManager.setMeasureTarget(selectedName);
-                return; // Don't show modal or focus when measuring
+                return;
             }
 
-            // Automatically hide any previous UI panels
             this.hideInfo();
+
+            if (this.targetPill) {
+                const icon = this.getTargetIcon(selectedName, selectedType);
+                const localizedName =
+                    i18n.getBodyName(selectedName) ||
+                    i18n.getStarName(selectedName) ||
+                    i18n.getConstellationName(selectedName) ||
+                    i18n.getCometName(selectedName) ||
+                    i18n.getSpacecraftName(selectedName) ||
+                    selectedName;
+                this.targetPill.innerHTML = `<span class="target-icon">${icon}</span><span class="target-name">${localizedName}</span>`;
+            }
+            this.controlCenter?.updateActiveTargetChips(selectedName);
 
             if (selectedType === 'Star') {
                 if (selectedName === 'Sun') {
@@ -1194,32 +694,30 @@ export class UIManager {
                     this.focusOrSurfaceTarget('Sun');
                 } else {
                     const star = this.sceneManager.starMeshes.find(m => m.userData.name === selectedName);
-                    if (star && star.userData) {
+                    if (star?.userData) {
                         this.showModal(star.userData);
                     }
                     if (star) {
                         this.sceneManager.focusOnStar(star);
                     }
-                    if (this.controlCenter) this.controlCenter.syncSwitches();
+                    this.controlCenter?.syncSwitches();
                     if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
                 }
             } else if (selectedType === 'Constellation') {
                 const center = this.sceneManager.constellationManager?.getConstellationCenter(selectedName);
                 if (center) {
-                    // Try to find the constellation data
                     const group = this.sceneManager.constellationManager?.constellationMeshes.find(g => g.userData.name === selectedName);
-                    if (group && group.userData) {
+                    if (group?.userData) {
                         this.showModal(group.userData);
                     }
                 }
                 this.sceneManager.focusOnConstellation(selectedName);
-                if (this.controlCenter) this.controlCenter.syncSwitches();
+                this.controlCenter?.syncSwitches();
                 if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
             } else {
-                // Find planet, comet, spacecraft or moon
                 let foundData: any = null;
                 const findTarget = (body: any) => {
-                    if (body.data && body.data.name === selectedName) {
+                    if (body.data?.name === selectedName) {
                         foundData = body.data;
                     }
                     if (body.moons) {
@@ -1245,8 +743,8 @@ export class UIManager {
 
         // Initialize the Unified Control Center
         this.controlCenter = new ControlCenter(this, this.sceneManager, this.uiContainer);
+        this.controlCenter.updateActiveTargetChips(this.cameraTarget);
 
-        // Place typeSelect and bodySelect inside ControlCenter target row
         const targetSelectRow = this.controlCenter.drawerElement.querySelector('#unifiedTargetSelectRow');
         if (targetSelectRow) {
             targetSelectRow.appendChild(typeSelect);
@@ -1277,7 +775,12 @@ export class UIManager {
         targetPill.className = 'obs-target-pill';
         targetPill.id = 'obsTargetPill';
         const initialTargetName = this.cameraTarget || 'Earth';
-        const initialLocalizedName = i18n.getBodyName(initialTargetName) || i18n.getStarName(initialTargetName) || i18n.getCometName(initialTargetName) || i18n.getSpacecraftName(initialTargetName) || initialTargetName;
+        const initialLocalizedName =
+            i18n.getBodyName(initialTargetName) ||
+            i18n.getStarName(initialTargetName) ||
+            i18n.getCometName(initialTargetName) ||
+            i18n.getSpacecraftName(initialTargetName) ||
+            initialTargetName;
         const initialIcon = this.getTargetIcon(initialTargetName);
         targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object — Click to Open Navigator';
         targetPill.innerHTML = `<span class="target-icon">${initialIcon}</span><span class="target-name">${initialLocalizedName}</span>`;
@@ -1301,38 +804,37 @@ export class UIManager {
         const actionsContainer = document.createElement('div');
         actionsContainer.className = 'top-actions-container obs-header-actions';
 
-        // Dynamic Quick Action Slots (Header Slots)
         const slotsContainer = document.createElement('div');
         slotsContainer.className = 'obs-header-slots';
         this.headerSlotsContainer = slotsContainer;
         HeaderSlotsManager.renderSlots(slotsContainer, this);
         actionsContainer.appendChild(slotsContainer);
 
-        // Customize Header Slots Button (+)
         const slotAddBtn = document.createElement('button');
+        slotAddBtn.type = 'button';
         slotAddBtn.className = 'hud-icon-btn obs-slot-add-btn';
         slotAddBtn.id = 'hudSlotAddBtn';
         slotAddBtn.title = i18n.t('ui.customizeSlots') || 'Customize Quick Access Slots';
         slotAddBtn.setAttribute('aria-label', slotAddBtn.title);
-        slotAddBtn.innerHTML = '<span class="slot-add-glyph">＋</span>';
+        slotAddBtn.innerHTML = `<span class="slot-add-glyph">${svgIcon('plus')}</span>`;
         slotAddBtn.onclick = (e) => {
             e.stopPropagation();
             this.openHeaderSlotsCustomizer();
         };
         actionsContainer.appendChild(slotAddBtn);
 
-        // Observatory Controls Drawer Toggle Button
         const controlsBtn = document.createElement('button');
+        controlsBtn.type = 'button';
         controlsBtn.className = 'hud-icon-btn obs-controls-btn';
         controlsBtn.id = 'hudControlsBtn';
         controlsBtn.title = i18n.t('ui.controlsToggle');
         controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
-        controlsBtn.innerHTML = `<span class="ctrl-icon">🎛️</span> <span class="ctrl-label">${(i18n.t('ui.controls') || 'CONTROLS').toUpperCase()}</span>`;
+        controlsBtn.setAttribute('aria-expanded', 'false');
+        controlsBtn.setAttribute('aria-controls', 'unifiedControlCenter');
+        controlsBtn.innerHTML = `<span class="ctrl-icon">${svgIcon('controls-sliders')}</span> <span class="ctrl-label">${(i18n.t('ui.controls') || 'CONTROLS').toUpperCase()}</span>`;
         controlsBtn.onclick = (e) => {
             e.stopPropagation();
-            if (this.controlCenter) {
-                this.controlCenter.toggle();
-            }
+            this.controlCenter?.toggle();
         };
 
         // Language Switcher Widget
@@ -1340,19 +842,24 @@ export class UIManager {
         langContainer.className = 'lang-switcher-container';
 
         const langBtn = document.createElement('button');
+        langBtn.type = 'button';
         langBtn.className = 'hud-icon-btn lang-btn';
         langBtn.id = 'hudLanguageBtn';
         langBtn.title = i18n.t('ui.languageToggle');
         langBtn.setAttribute('aria-label', i18n.t('ui.languageToggle'));
+        langBtn.setAttribute('aria-haspopup', 'listbox');
+        langBtn.setAttribute('aria-expanded', 'false');
         langBtn.innerHTML = `<span class="lang-flag-current"><img class="lang-btn-flag" src="${getLocaleFlagUrl(i18n.currentLanguage)}" alt="${i18n.getLocaleInfo().label}" /></span> <span class="lang-code">${i18n.currentLanguage.toUpperCase()}</span>`;
 
         const langDropdown = document.createElement('div');
         langDropdown.className = 'lang-dropdown-menu';
+        langDropdown.setAttribute('role', 'listbox');
         langDropdown.style.display = 'none';
 
         const closeLangDropdown = () => {
             langDropdown.style.display = 'none';
             langBtn.classList.remove('active');
+            langBtn.setAttribute('aria-expanded', 'false');
             langContainer.classList.remove('open');
             menuContainer.classList.remove('has-lang-open');
         };
@@ -1360,6 +867,7 @@ export class UIManager {
         const openLangDropdown = () => {
             langDropdown.style.display = 'block';
             langBtn.classList.add('active');
+            langBtn.setAttribute('aria-expanded', 'true');
             langContainer.classList.add('open');
             menuContainer.classList.add('has-lang-open');
         };
@@ -1371,6 +879,10 @@ export class UIManager {
             AVAILABLE_LOCALES.forEach(loc => {
                 const item = document.createElement('div');
                 item.className = `lang-dropdown-item ${loc.code === i18n.currentLanguage ? 'active' : ''}`;
+                item.dataset.lang = loc.code;
+                item.setAttribute('role', 'option');
+                item.setAttribute('tabindex', '0');
+                item.setAttribute('aria-selected', String(loc.code === i18n.currentLanguage));
                 item.innerHTML = `
                     <span class="lang-flag">
                         <img class="lang-flag-img" src="${getLocaleFlagUrl(loc)}" alt="${loc.label}" loading="lazy" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';" />
@@ -1378,10 +890,17 @@ export class UIManager {
                     </span>
                     <span class="lang-label">${loc.nativeName}</span>
                 `;
-                item.addEventListener('click', (e) => {
+                const selectLang = (e: Event) => {
                     e.stopPropagation();
                     i18n.setLanguage(loc.code);
                     closeLangDropdown();
+                };
+                item.addEventListener('click', selectLang);
+                item.addEventListener('keydown', (e: KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectLang(e);
+                    }
                 });
                 langDropdown.appendChild(item);
             });
@@ -1410,7 +929,6 @@ export class UIManager {
         actionsContainer.appendChild(langContainer);
         menuContainer.appendChild(actionsContainer);
 
-        // Language change reactive listener
         this.unsubscribeI18n = i18n.onLanguageChange(() => {
             const flagImg = langBtn.querySelector<HTMLImageElement>('.lang-btn-flag');
             if (flagImg) {
@@ -1436,21 +954,29 @@ export class UIManager {
             if (this.targetPill) {
                 this.targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object — Click to Open Navigator';
                 const curTarget = this.cameraTarget || 'Earth';
-                const localizedTarget = i18n.getBodyName(curTarget) || i18n.getStarName(curTarget) || i18n.getCometName(curTarget) || i18n.getSpacecraftName(curTarget) || curTarget;
+                const localizedTarget =
+                    i18n.getBodyName(curTarget) ||
+                    i18n.getStarName(curTarget) ||
+                    i18n.getConstellationName(curTarget) ||
+                    i18n.getCometName(curTarget) ||
+                    i18n.getSpacecraftName(curTarget) ||
+                    curTarget;
                 const curIcon = this.getTargetIcon(curTarget);
                 this.targetPill.innerHTML = `<span class="target-icon">${curIcon}</span><span class="target-name">${localizedTarget}</span>`;
             }
 
-            if (this.headerSlotsModal && this.headerSlotsModal.isOpen) {
+            if (this.headerSlotsModal?.isOpen) {
                 this.openHeaderSlotsCustomizer();
             }
 
             if (this.speedBadge) {
                 this.speedBadge.title = i18n.t('ui.speedPause');
-                if (this.sceneManager?.timeScale === 0) {
-                    const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
-                    this.speedBadge.textContent = `⏸ ${pausedLabel}`;
-                }
+                const isPaused = this.sceneManager?.timeScale === 0;
+                const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
+                    ? this.sceneManager.getFormattedTimeSpeed()
+                    : '1.0 day/s';
+                const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
+                this.speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
             }
             if (this.timeBadge) {
                 this.timeBadge.title = i18n.t('ui.utcTime');
@@ -1464,17 +990,14 @@ export class UIManager {
             updateBodyOptions();
 
             if (this.dateLabel) {
-                const simDateText = (i18n.t('ui.simDate') || '').replace(/^⏱\s*/, '').trim();
-                this.dateLabel.innerHTML = `<span class="date-clock-icon">⏱</span> <span class="date-label-text">${simDateText}</span>`;
+                this.dateLabel.title = i18n.t('datepicker.calendarTitle') || 'Open Mission Calendar';
+                const simDateText = stripLeadingEmoji(i18n.t('ui.simDate') || '');
+                this.dateLabel.innerHTML = `<span class="date-clock-icon">${svgIcon('clock')}</span> <span class="date-label-text">${simDateText}</span>`;
             }
 
-            this.updateGuiTranslations();
+            this.controlCenter?.updateTranslations();
 
-            if (this.controlCenter) {
-                this.controlCenter.updateTranslations();
-            }
-
-            if (this.shortcutsModal && this.shortcutsModal.isOpen) {
+            if (this.shortcutsModal?.isOpen) {
                 this.toggleShortcutsModal();
                 this.toggleShortcutsModal();
             }
@@ -1491,11 +1014,11 @@ export class UIManager {
         const hud = document.createElement('div');
         hud.className = 'measure-hud-bar';
         hud.id = 'measureHudBar';
-        hud.style.display = 'flex';
+        hud.style.display = 'none';
 
         const icon = document.createElement('span');
         icon.className = 'measure-hud-icon';
-        icon.textContent = '📐';
+        icon.innerHTML = svgIcon('measure');
         hud.appendChild(icon);
 
         const content = document.createElement('div');
@@ -1504,29 +1027,6 @@ export class UIManager {
 
         const actions = document.createElement('div');
         actions.className = 'measure-hud-actions';
-
-        const activateBtn = document.createElement('button');
-        activateBtn.type = 'button';
-        activateBtn.className = 'measure-action-btn activate-btn';
-        activateBtn.textContent = i18n.t('measurement.activate') || 'Activate';
-        activateBtn.title = i18n.t('measurement.activate') || 'Activate';
-        activateBtn.setAttribute('aria-label', i18n.t('measurement.activate') || 'Activate');
-        activateBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (typeof this.sceneManager.toggleMeasureMode === 'function') {
-                this.sceneManager.toggleMeasureMode(true);
-            } else {
-                this.sceneManager.measureMode = true;
-            }
-            if (this.measureCtrl) {
-                this.measureCtrl.setValue(true);
-            }
-            if (this.controlCenter) {
-                this.controlCenter.syncSwitches();
-            }
-            this.updateMeasureHud();
-        };
-        actions.appendChild(activateBtn);
 
         const clearBtn = document.createElement('button');
         clearBtn.type = 'button';
@@ -1545,27 +1045,19 @@ export class UIManager {
         closeBtn.className = 'measure-action-btn close-btn';
         closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
         closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
-        closeBtn.textContent = '✕';
+        closeBtn.innerHTML = svgIcon('close');
         closeBtn.onclick = (e) => {
             e.stopPropagation();
-            if (this.sceneManager.measureMode) {
-                if (typeof this.sceneManager.toggleMeasureMode === 'function') {
-                    this.sceneManager.toggleMeasureMode(false);
-                } else {
-                    this.sceneManager.measureMode = false;
-                }
-                if (this.measureCtrl) {
-                    this.measureCtrl.setValue(false);
-                }
-                if (this.controlCenter) {
-                    this.controlCenter.syncSwitches();
-                }
-                this.updateMeasureHud();
+            if (typeof this.sceneManager.toggleMeasureMode === 'function') {
+                this.sceneManager.toggleMeasureMode(false);
             } else {
-                if (this.measureHudBar) {
-                    this.measureHudBar.style.display = 'none';
-                }
+                this.sceneManager.measureMode = false;
             }
+            this.controlCenter?.syncSwitches();
+            if (this.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+            }
+            this.updateMeasureHud();
         };
         actions.appendChild(closeBtn);
 
@@ -1576,41 +1068,23 @@ export class UIManager {
         return hud;
     }
 
-    public updateMeasureHud() {
+    public updateMeasureHud(): void {
         if (!this.measureHudBar) return;
+
+        if (!this.sceneManager.measureMode) {
+            this.measureHudBar.style.display = 'none';
+            return;
+        }
 
         this.measureHudBar.style.display = 'flex';
 
         const content = this.measureHudBar.querySelector<HTMLElement>('.measure-hud-text');
-        const activateBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.activate-btn');
         const clearBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.clear-btn');
         const closeBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.close-btn');
 
-        if (activateBtn) {
-            const activateText = i18n.t('measurement.activate') || 'Activate';
-            activateBtn.textContent = activateText;
-            activateBtn.title = activateText;
-            activateBtn.setAttribute('aria-label', activateText);
-        }
         if (clearBtn) clearBtn.textContent = i18n.t('measurement.clear') || 'Clear';
-
-        if (!this.sceneManager.measureMode) {
-            if (activateBtn) activateBtn.style.display = 'inline-block';
-            if (clearBtn) clearBtn.style.display = 'none';
-            if (closeBtn) {
-                closeBtn.style.display = 'inline-block';
-                closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
-                closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
-            }
-            if (content) {
-                content.innerHTML = `<span class="measure-hud-hint">${i18n.t('controls.measureMode') || 'Measure Mode'}</span>`;
-            }
-            return;
-        }
-
-        if (activateBtn) activateBtn.style.display = 'none';
         if (closeBtn) {
-            closeBtn.style.display = 'inline-block';
+            closeBtn.style.display = 'inline-flex';
             closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
             closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
         }
@@ -1623,7 +1097,13 @@ export class UIManager {
         const getLocalizedName = (target: any) => {
             if (!target) return '';
             const rawName = target.data?.name || target.name || '';
-            return i18n.getBodyName(rawName) || i18n.getStarName(rawName) || i18n.getCometName(rawName) || i18n.getSpacecraftName(rawName) || rawName;
+            return (
+                i18n.getBodyName(rawName) ||
+                i18n.getStarName(rawName) ||
+                i18n.getCometName(rawName) ||
+                i18n.getSpacecraftName(rawName) ||
+                rawName
+            );
         };
 
         if (targetA && targetB) {
@@ -1693,58 +1173,75 @@ export class UIManager {
     }
 
     public getTargetIcon(name: string, type?: string): string {
-        if (name === 'Sun' || type === 'Star') return '☀️';
-        if (type === 'Moon' || name.includes('Moon')) return '🌕';
-        if (type === 'Constellation') return '🌌';
-        if (type === 'Comet') return '☄️';
-        if (type === 'Spacecraft' || name === 'ISS' || name === 'Voyager 1' || name === 'Hubble' || name === 'JWST') return '🛰️';
-        if (name === 'Earth') return '🌎';
-        return '🪐';
+        if (name === 'Sun' || type === 'Star') return svgIcon('sun');
+        if (type === 'Moon' || name.includes('Moon')) return svgIcon('moons');
+        if (type === 'Constellation') return svgIcon('constellations');
+        if (type === 'Comet') return svgIcon('comets');
+        if (
+            type === 'Spacecraft' ||
+            name.includes('ISS') ||
+            name.includes('Voyager') ||
+            name.includes('Hubble') ||
+            name.includes('Webb') ||
+            name === 'JWST' ||
+            name === 'Sputnik 1' ||
+            name === 'Apollo 11'
+        ) {
+            return svgIcon('spacecraft');
+        }
+        if (name === 'Earth') return svgIcon('earth');
+        return svgIcon('planet');
     }
 
-    syncDropdownSelection(targetName: string, targetType?: string) {
+    syncDropdownSelection(targetName: string, targetType?: string): void {
         this.cameraTarget = targetName;
         const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
         const bodySelect = document.getElementById('bodySelect') as HTMLSelectElement;
 
-        if (typeSelect && bodySelect) {
-            let determinedType = targetType;
-            if (!determinedType) {
-                if (targetName === 'Sun' || this.sceneManager.starMeshes.some(m => m.userData?.name === targetName)) {
-                    determinedType = 'Star';
-                } else if (this.sceneManager.planets.find(p => p.data.name === targetName)) {
-                    determinedType = 'Planet';
-                } else if (this.sceneManager.planets.some(p => p.moons.find(m => m.data.name === targetName))) {
-                    determinedType = 'Moon';
-                } else if (this.sceneManager.constellationManager?.constellationMeshes.some(g => g.userData?.name === targetName)) {
-                    determinedType = 'Constellation';
-                } else if (this.sceneManager.comets.find(c => c.data.name === targetName)) {
-                    determinedType = 'Comet';
-                } else if (this.sceneManager.spacecrafts.find(s => s.data.name === targetName)) {
-                    determinedType = 'Spacecraft';
-                } else {
-                    determinedType = 'Planet';
-                }
+        let determinedType = targetType;
+        if (!determinedType) {
+            if (targetName === 'Sun' || this.sceneManager.starMeshes.some(m => m.userData?.name === targetName)) {
+                determinedType = 'Star';
+            } else if (this.sceneManager.planets.find(p => p.data.name === targetName)) {
+                determinedType = 'Planet';
+            } else if (this.sceneManager.planets.some(p => p.moons.find(m => m.data.name === targetName))) {
+                determinedType = 'Moon';
+            } else if (this.sceneManager.constellationManager?.constellationMeshes.some(g => g.userData?.name === targetName)) {
+                determinedType = 'Constellation';
+            } else if (this.sceneManager.comets.find(c => c.data.name === targetName)) {
+                determinedType = 'Comet';
+            } else if (this.sceneManager.spacecrafts.find(s => s.data.name === targetName)) {
+                determinedType = 'Spacecraft';
+            } else {
+                determinedType = 'Planet';
             }
+        }
 
+        if (typeSelect && bodySelect) {
             this.ignoreNextBodyChange = true;
-            setTimeout(() => { this.ignoreNextBodyChange = false; }, 100);
+            setTimeout(() => {
+                this.ignoreNextBodyChange = false;
+            }, 100);
 
             if (typeSelect.value !== determinedType) {
                 typeSelect.value = determinedType;
                 typeSelect.dispatchEvent(new Event('change'));
             }
             bodySelect.value = targetName;
-
-            if (this.targetPill) {
-                const icon = this.getTargetIcon(targetName, determinedType);
-                const localizedName = i18n.getBodyName(targetName) || i18n.getStarName(targetName) || i18n.getCometName(targetName) || i18n.getSpacecraftName(targetName) || targetName;
-                this.targetPill.innerHTML = `<span class="target-icon">${icon}</span><span class="target-name">${localizedName}</span>`;
-            }
-            if (this.controlCenter) {
-                this.controlCenter.updateActiveTargetChips(targetName);
-            }
         }
+
+        if (this.targetPill) {
+            const icon = this.getTargetIcon(targetName, determinedType);
+            const localizedName =
+                i18n.getBodyName(targetName) ||
+                i18n.getStarName(targetName) ||
+                i18n.getConstellationName(targetName) ||
+                i18n.getCometName(targetName) ||
+                i18n.getSpacecraftName(targetName) ||
+                targetName;
+            this.targetPill.innerHTML = `<span class="target-icon">${icon}</span><span class="target-name">${localizedName}</span>`;
+        }
+        this.controlCenter?.updateActiveTargetChips(targetName);
     }
 
     focusOrSurfaceTarget(targetName: string): void {
@@ -1757,836 +1254,105 @@ export class UIManager {
                 const res = this.sceneManager.setSurfaceView(targetName);
                 surfaceSuccess = res === true || (res === undefined && !!this.sceneManager.surfaceViewBody);
             }
-            if (!surfaceSuccess) {
-                if (typeof this.sceneManager?.focusOnBody === 'function') {
-                    this.sceneManager.focusOnBody(targetName);
-                }
-            }
-        } else {
-            if (typeof this.sceneManager?.focusOnBody === 'function') {
+            if (!surfaceSuccess && typeof this.sceneManager?.focusOnBody === 'function') {
                 this.sceneManager.focusOnBody(targetName);
             }
+        } else if (typeof this.sceneManager?.focusOnBody === 'function') {
+            this.sceneManager.focusOnBody(targetName);
         }
 
-        if (this.controlCenter) this.controlCenter.syncSwitches();
+        this.controlCenter?.syncSwitches();
         if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
     }
 
-    initInteraction() {
+    initInteraction(): void {
         const canvas = this.sceneManager.renderer.domElement;
-        // Use pointer events for better compatibility and to match OrbitControls
         this.onPointerDownBound = (event: PointerEvent) => this.onPointerDown(event);
         this.onPointerUpBound = (event: PointerEvent) => this.onPointerUp(event);
         canvas.addEventListener('pointerdown', this.onPointerDownBound);
         canvas.addEventListener('pointerup', this.onPointerUpBound);
-
-        // Keyboard navigation & shortcuts
-        this.onKeyDownBound = (event: KeyboardEvent) => {
-            const target = event.target as HTMLElement;
-            const tag = target?.tagName?.toLowerCase();
-            const inputType = (target as HTMLInputElement)?.type?.toLowerCase();
-            if (
-                tag === 'textarea' ||
-                tag === 'select' ||
-                (tag === 'input' && inputType !== 'checkbox' && inputType !== 'radio' && inputType !== 'range') ||
-                target?.isContentEditable
-            ) {
-                return;
-            }
-
-            if (event.code === 'Space') {
-                event.preventDefault();
-                this.togglePause();
-            } else if (event.key === 'Escape') {
-                if (this.closeLangDropdown) this.closeLangDropdown();
-                if (this.controlCenter && this.controlCenter.isOpen) {
-                    this.controlCenter.close();
-                }
-                this.modal.hide();
-                if (this.eventModal) this.eventModal.hide();
-                if (this.shortcutsModal) this.shortcutsModal.hide();
-                if (this.headerSlotsModal) this.headerSlotsModal.hide();
-                if (typeof this.sceneManager?.detachCamera === 'function') {
-                    this.sceneManager.detachCamera();
-                }
-            } else if (event.key >= '0' && event.key <= '9') {
-                const planetMap: Record<string, string> = {
-                    '0': 'Sun',
-                    '1': 'Mercury',
-                    '2': 'Venus',
-                    '3': 'Earth',
-                    '4': 'Mars',
-                    '5': 'Jupiter',
-                    '6': 'Saturn',
-                    '7': 'Uranus',
-                    '8': 'Neptune',
-                    '9': 'Pluto'
-                };
-                const target = planetMap[event.key];
-                if (target) {
-                    EventBus.emit('select-celestial-body', { name: target });
-                }
-            } else if (event.key === '[' || event.key === '-') {
-                const current = this.sceneManager.timeScale;
-                const next = Math.max(0, Math.round((current - 0.005) * 10000) / 10000);
-                this.sceneManager.timeScale = next;
-                if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(next);
-                this.audioManager.playTick();
-            } else if (event.key === ']' || event.key === '=' || event.key === '+') {
-                const current = this.sceneManager.timeScale;
-                const next = Math.round((current + 0.005) * 10000) / 10000;
-                this.sceneManager.timeScale = next;
-                if (this.sceneManager.onTimeScaleChange) this.sceneManager.onTimeScaleChange(next);
-                this.audioManager.playTick();
-            } else if (event.key === 's' || event.key === 'S') {
-                const enabled = this.audioManager.toggle();
-                const soundBtn = document.getElementById('hudSoundBtn');
-                if (soundBtn) {
-                    soundBtn.innerHTML = enabled ? '🔊' : '🔇';
-                    soundBtn.classList.toggle('active', enabled);
-                }
-            } else if (event.key === 'p' || event.key === 'P') {
-                event.preventDefault();
-                const visible = this.performanceMonitor.toggle();
-                const perfBtn = document.getElementById('hudPerfBtn');
-                if (perfBtn) perfBtn.classList.toggle('active', visible);
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'c' || event.key === 'C') {
-                if (this.sceneManager.constellationManager) {
-                    const next = !this.sceneManager.constellationManager.isVisible;
-                    this.sceneManager.constellationManager.toggleVisibility(next);
-                }
-            } else if (event.key === 'k' || event.key === 'K') {
-                this.audioManager.playShutter();
-                this.sceneManager.captureScreenshot(this.cameraTarget);
-            } else if (event.key === 'f' || event.key === 'F') {
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(() => {});
-                } else {
-                    document.exitFullscreen().catch(() => {});
-                }
-            } else if (event.key === '?' || event.key === '/' || event.key === 'h' || event.key === 'H') {
-                this.toggleShortcutsModal();
-            } else if (event.key === 't' || event.key === 'T') {
-                if (this.tourController) {
-                    this.tourController.setValue(!this.sceneManager.tourMode);
-                } else if (this.sceneManager) {
-                    const next = !this.sceneManager.tourMode;
-                    this.sceneManager.tourMode = next;
-                    if (next) {
-                        this.sceneManager.tourTimer = 0;
-                        const targetName = this.sceneManager.tourTargets ? this.sceneManager.tourTargets[this.sceneManager.tourIndex || 0] : 'Mercury';
-                        this.sceneManager.focusOnBody(targetName);
-                    } else {
-                        this.sceneManager.detachCamera();
-                    }
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'a' || event.key === 'A') {
-                if (this.cameraTarget) {
-                    const target = this.cameraTarget;
-                    const star = this.sceneManager?.starMeshes?.find(m => m.userData?.name === target);
-                    if (star) {
-                        this.sceneManager?.focusOnStar(star);
-                    } else if (typeof this.sceneManager?.focusOnBody === 'function') {
-                        this.sceneManager.focusOnBody(target);
-                    }
-                    if (this.controlCenter) this.controlCenter.syncSwitches();
-                    if (this.audioManager) this.audioManager.playTick();
-                    if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
-                }
-            } else if (event.key === 'v' || event.key === 'V') {
-                if (this.cameraTarget && typeof this.sceneManager?.setSurfaceView === 'function') {
-                    this.sceneManager.setSurfaceView(this.cameraTarget);
-                    if (this.controlCenter) this.controlCenter.syncSwitches();
-                    if (this.audioManager) this.audioManager.playTick();
-                    if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
-                }
-            } else if (event.key === 'd' || event.key === 'D') {
-                if (typeof this.sceneManager?.detachCamera === 'function') {
-                    this.sceneManager.detachCamera();
-                    if (this.controlCenter) this.controlCenter.syncSwitches();
-                    if (this.audioManager) this.audioManager.playTick();
-                    if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
-                }
-            } else if (event.key === 'm' || event.key === 'M') {
-                event.preventDefault();
-                this.toggleMinimap();
-            } else if (event.key === 'o' || event.key === 'O') {
-                if (typeof this.sceneManager?.toggleOrbits === 'function') {
-                    this.sceneManager.toggleOrbits(!this.sceneManager.showOrbits);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'n' || event.key === 'N') {
-                if (typeof this.sceneManager?.toggleMoons === 'function') {
-                    this.sceneManager.toggleMoons(!this.sceneManager.showMoons);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'e' || event.key === 'E') {
-                if (typeof this.sceneManager?.toggleAsteroids === 'function') {
-                    this.sceneManager.toggleAsteroids(!this.sceneManager.showAsteroids);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'u' || event.key === 'U') {
-                if (typeof this.sceneManager?.toggleKuiperBelt === 'function') {
-                    this.sceneManager.toggleKuiperBelt(!this.sceneManager.showKuiperBelt);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'w' || event.key === 'W') {
-                if (typeof this.sceneManager?.toggleDwarfPlanets === 'function') {
-                    this.sceneManager.toggleDwarfPlanets(!this.sceneManager.showDwarfPlanets);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'q' || event.key === 'Q') {
-                if (typeof this.sceneManager?.toggleComets === 'function') {
-                    this.sceneManager.toggleComets(!this.sceneManager.showComets);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'j' || event.key === 'J') {
-                if (typeof this.sceneManager?.toggleSpacecrafts === 'function') {
-                    this.sceneManager.toggleSpacecrafts(!this.sceneManager.showSpacecrafts);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'y' || event.key === 'Y') {
-                if (typeof this.sceneManager?.toggleMeteors === 'function') {
-                    const next = !this.sceneManager.showMeteors;
-                    this.sceneManager.toggleMeteors(next);
-                    if (next) {
-                        this.sceneManager.focusOnBody('Earth');
-                        this.modal.show({
-                            titleKey: 'popups.meteorsTitle',
-                            descKey: 'popups.meteorsDesc',
-                            name: i18n.t('popups.meteorsTitle'),
-                            description: i18n.t('popups.meteorsDesc')
-                        });
-                    } else if (this.modal.isOpen && (this.modal.isShowingPopup('popups.meteorsTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.meteorsTitle')))) {
-                        this.modal.hide();
-                    }
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'i' || event.key === 'I') {
-                if (typeof this.sceneManager?.toggleTrails === 'function') {
-                    this.sceneManager.toggleTrails(!this.sceneManager.showTrails);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'r' || event.key === 'R') {
-                if (this.realisticDistController) {
-                    this.realisticDistController.setValue(!this.sceneManager.realisticDistances);
-                } else {
-                    const newState = !this.sceneManager.realisticDistances;
-                    this.sceneManager.toggleRealisticDistances(newState);
-                    if (this.controlCenter) this.controlCenter.syncSwitches();
-                    if (this.audioManager) this.audioManager.playTick();
-                    if (newState) {
-                        this.modal.show({
-                            titleKey: 'popups.trueScaleTitle',
-                            descKey: 'popups.trueScaleDesc',
-                            name: i18n.t('popups.trueScaleTitle'),
-                            description: i18n.t('popups.trueScaleDesc')
-                        });
-                    } else if (this.modal.isOpen && (this.modal.isShowingPopup('popups.trueScaleTitle') || (this.modal.titleElement && this.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
-                        this.modal.hide();
-                    }
-                }
-            } else if (event.key === 'b' || event.key === 'B') {
-                if (typeof this.sceneManager?.toggleBloom === 'function') {
-                    this.sceneManager.toggleBloom();
-                } else if (this.sceneManager?.bloomPass) {
-                    this.sceneManager.bloomPass.enabled = !this.sceneManager.bloomPass.enabled;
-                    PreferencesManager.set('enableBloom', this.sceneManager.bloomPass.enabled);
-                } else {
-                    PreferencesManager.set('enableBloom', !PreferencesManager.get('enableBloom'));
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'l' || event.key === 'L') {
-                if (typeof this.sceneManager?.toggleRealisticLighting === 'function') {
-                    this.sceneManager.toggleRealisticLighting(!this.sceneManager.realisticLighting);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'g' || event.key === 'G') {
-                if (typeof this.sceneManager?.toggleEclipticGrid === 'function') {
-                    this.sceneManager.toggleEclipticGrid(!this.sceneManager.showEclipticGrid);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'z' || event.key === 'Z') {
-                if (typeof this.sceneManager?.toggleHabitableZone === 'function') {
-                    this.sceneManager.toggleHabitableZone(!this.sceneManager.showHabitableZone);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            } else if (event.key === 'x' || event.key === 'X') {
-                if (typeof this.sceneManager?.toggleAxes === 'function') {
-                    this.sceneManager.toggleAxes(!this.sceneManager.showAxes);
-                }
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.audioManager) this.audioManager.playTick();
-            }
-
-            if (this.headerSlotsContainer) {
-                HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
-            }
-        };
-        window.addEventListener('keydown', this.onKeyDownBound);
     }
 
-    onPointerDown(event: PointerEvent) {
+    onPointerDown(event: PointerEvent): void {
         if (event.isPrimary === false) return;
         this.mouseDownPos.set(event.clientX, event.clientY);
     }
 
-    onPointerUp(event: PointerEvent) {
+    onPointerUp(event: PointerEvent): void {
         if (event.isPrimary === false) return;
         this.mouseUpPos.set(event.clientX, event.clientY);
 
-        // Only process click if mouse hasn't moved much (not a drag)
         const dragDistance = this.mouseDownPos.distanceTo(this.mouseUpPos);
         const threshold = event.pointerType === 'touch' ? 22 : 10;
-        if (dragDistance < threshold) { // Threshold for click vs drag
+        if (dragDistance < threshold) {
             this.onClick(event.clientX, event.clientY);
         }
     }
 
-    private handlePlanetsAndMoonsIntersection(): boolean {
-        const interactableObjects: THREE.Object3D[] = [];
-        const bodyMap = new Map<THREE.Object3D, CelestialBodyData | MoonData | CometData | SpacecraftData>();
-
-        const addBodyToInteractables = (body: CelestialBody) => {
-            if (body.mesh) {
-                interactableObjects.push(body.mesh);
-                bodyMap.set(body.mesh, body.data);
-            }
-            if (body.cloudMesh) {
-                interactableObjects.push(body.cloudMesh);
-                bodyMap.set(body.cloudMesh, body.data);
-            }
-            if (body.atmosphereMesh) {
-                interactableObjects.push(body.atmosphereMesh);
-                bodyMap.set(body.atmosphereMesh, body.data);
-            }
-            body.moons.forEach(moon => addBodyToInteractables(moon));
-        };
-
-        this.sceneManager.planets.forEach(p => addBodyToInteractables(p));
-
-        this.sceneManager.comets.forEach(comet => {
-            if (comet.mesh?.visible) {
-                interactableObjects.push(comet.mesh);
-                bodyMap.set(comet.mesh, comet.data);
-            }
-        });
-
-        this.sceneManager.spacecrafts.forEach(sc => {
-            if (sc.mesh?.visible) {
-                interactableObjects.push(sc.mesh);
-                bodyMap.set(sc.mesh, sc.data);
-            }
-        });
-
-        const intersects = this.raycaster.intersectObjects(interactableObjects, true); // true for recursive (since spacecraft is a Group)
-
-        if (intersects.length > 0) {
-            for (const intersect of intersects) {
-                // Because we use recursive intersection (true), intersect.object might be a child mesh of the Spacecraft group
-                // We need to trace up to see if it's in our bodyMap
-                let currentObj: THREE.Object3D | null = intersect.object;
-                let foundData = null;
-
-                while (currentObj && currentObj !== this.sceneManager.scene) {
-                    foundData = bodyMap.get(currentObj);
-                    if (foundData) break;
-                    currentObj = currentObj.parent;
-                }
-
-                if (foundData) {
-                    if (this.sceneManager.tourMode && this.tourController) {
-                        this.tourController.setValue(false);
-                    }
-
-                    if (this.sceneManager.measureMode) {
-                        this.sceneManager.setMeasureTarget(foundData.name);
-                        return true; // Don't show modal or focus when measuring
-                    }
-
-                    this.syncDropdownSelection(foundData.name);
-                    this.showModal(foundData);
-                    this.focusOrSurfaceTarget(foundData.name);
-                    return true;
-                }
-            }
-        }
-        return false;
+    onClick(clientX: number, clientY: number): void {
+        this.scenePicker.pick(clientX, clientY);
     }
 
-    private handleStarsIntersection(): boolean {
-        if (!this.sceneManager.starMeshes) return false;
-
-        const starIntersects = this.raycaster.intersectObjects(this.sceneManager.starMeshes);
-        if (starIntersects.length > 0) {
-            if (this.sceneManager.tourMode && this.tourController) {
-                this.tourController.setValue(false);
-            }
-            const selectedStar = starIntersects[0].object;
-            if (selectedStar.userData?.name) {
-                this.syncDropdownSelection(selectedStar.userData.name, 'Star');
-                this.showModal(selectedStar.userData);
-                this.sceneManager.focusOnStar(selectedStar);
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
-            }
-            return true;
-        }
-        return false;
-    }
-
-    private handleConstellationsIntersection(): boolean {
-        if (!this.sceneManager.constellationManager) return false;
-
-        const constellationObjects = this.sceneManager.constellationManager.getInteractableObjects();
-        const constellationIntersects = this.raycaster.intersectObjects(constellationObjects);
-
-        if (constellationIntersects.length > 0) {
-            const selectedObj = constellationIntersects[0].object;
-            if (selectedObj.userData?.type === 'ConstellationStar' || selectedObj.userData?.type === 'ConstellationLine') {
-                if (this.sceneManager.tourMode && this.tourController) {
-                    this.tourController.setValue(false);
-                }
-                this.syncDropdownSelection(selectedObj.userData.name, 'Constellation');
-                this.showModal(selectedObj.userData);
-                this.sceneManager.focusOnConstellation(selectedObj.userData.name);
-                if (this.controlCenter) this.controlCenter.syncSwitches();
-                if (this.headerSlotsContainer) HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    onClick(clientX: number, clientY: number) {
-        try {
-            // Calculate NDC from click coordinates
-            const rect = this.sceneManager.renderer.domElement.getBoundingClientRect();
-            this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-            this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-
-            // Raycast
-            this.raycaster.setFromCamera(this.mouse, this.sceneManager.camera);
-
-            if (this.handlePlanetsAndMoonsIntersection()) return;
-            if (this.handleStarsIntersection()) return;
-            if (this.handleConstellationsIntersection()) return;
-
-            // On touch or small screens, assist with proximity detection within generous radius
-            if (this.handleProximityTouchIntersection(clientX, clientY)) return;
-
-            // Nothing clicked
-            this.hideInfo();
-        } catch (error) {
-            console.error("Error in onClick:", error);
-        }
-    }
-
-    private handleProximityTouchIntersection(clientX: number, clientY: number): boolean {
-        if (typeof window !== 'undefined' && window.innerWidth > 768 && !('ontouchstart' in window)) {
-            return false;
-        }
-
-        const rect = this.sceneManager.renderer.domElement.getBoundingClientRect();
-        const camera = this.sceneManager.camera;
-        if (!camera) return false;
-
-        let closestBody: any = null;
-        let minDistanceSq = 32 * 32; // 32px touch target radius squared
-
-        const tempVec = new THREE.Vector3();
-
-        const checkBody = (data: any, obj: THREE.Object3D | null) => {
-            if (!obj || !obj.visible) return;
-            obj.getWorldPosition(tempVec);
-            tempVec.project(camera);
-
-            // If behind camera, skip
-            if (tempVec.z > 1 || tempVec.z < -1) return;
-
-            const screenX = ((tempVec.x + 1) * 0.5) * rect.width + rect.left;
-            const screenY = ((-tempVec.y + 1) * 0.5) * rect.height + rect.top;
-
-            const dx = clientX - screenX;
-            const dy = clientY - screenY;
-            const distSq = dx * dx + dy * dy;
-
-            if (distSq < minDistanceSq) {
-                minDistanceSq = distSq;
-                closestBody = data;
-            }
-        };
-
-        this.sceneManager.planets.forEach(p => {
-            if (p.mesh) checkBody(p.data, p.mesh);
-            p.moons.forEach(m => {
-                if (m.mesh) checkBody(m.data, m.mesh);
-            });
-        });
-
-        this.sceneManager.comets.forEach(c => {
-            if (c.mesh) checkBody(c.data, c.mesh);
-        });
-
-        this.sceneManager.spacecrafts.forEach(sc => {
-            if (sc.mesh) checkBody(sc.data, sc.mesh);
-        });
-
-        if (closestBody) {
-            if (this.sceneManager.tourMode && this.tourController) {
-                this.tourController.setValue(false);
-            }
-            if (this.sceneManager.measureMode) {
-                this.sceneManager.setMeasureTarget(closestBody.name);
-                return true;
-            }
-            this.syncDropdownSelection(closestBody.name);
-            this.showModal(closestBody);
-            this.focusOrSurfaceTarget(closestBody.name);
-            return true;
-        }
-
-        return false;
-    }
-
-    showModal(data: any) {
+    showModal(data: any): void {
         if (this.eventModal) this.eventModal.hide();
         this.modal.show(data);
-        this.infoPanel.style.display = 'none'; // Ensure simple info is hidden
+        this.infoPanel.style.display = 'none';
 
-        // Slow down time for low Earth orbit spacecraft
         if ('targetBody' in data && data.targetBody === 'Earth' && 'distance' in data && data.distance < 10) {
             if (this.previousTimeSpeed === null) {
                 this.previousTimeSpeed = this.sceneManager.timeScale;
             }
-            const slowSpeed = 0.01; // Slow down
+            const slowSpeed = 0.01;
             if (this.sceneManager.timeScale > slowSpeed) {
                 this.sceneManager.timeScale = slowSpeed;
-                if (this.sceneManager.onTimeScaleChange) {
-                    this.sceneManager.onTimeScaleChange(slowSpeed);
-                }
+                this.sceneManager.onTimeScaleChange?.(slowSpeed);
             }
         } else if (this.previousTimeSpeed !== null) {
-            // Restore speed if switching to something else
             this.sceneManager.timeScale = this.previousTimeSpeed;
-            if (this.sceneManager.onTimeScaleChange) {
-                this.sceneManager.onTimeScaleChange(this.previousTimeSpeed);
-            }
+            this.sceneManager.onTimeScaleChange?.(this.previousTimeSpeed);
             this.previousTimeSpeed = null;
         }
     }
 
-    hideInfo() {
+    hideInfo(): void {
         this.selectedBody = null;
         this.infoPanel.style.display = 'none';
 
         if (this.previousTimeSpeed !== null) {
             this.sceneManager.timeScale = this.previousTimeSpeed;
-            if (this.sceneManager.onTimeScaleChange) {
-                this.sceneManager.onTimeScaleChange(this.previousTimeSpeed);
-            }
+            this.sceneManager.onTimeScaleChange?.(this.previousTimeSpeed);
             this.previousTimeSpeed = null;
         }
     }
 
-    toggleShortcutsModal() {
-        if (this.shortcutsModal.isOpen) {
-            this.shortcutsModal.hide();
-            return;
-        }
-
-        const s = (key: string) => i18n.t(`shortcuts.${key}`);
-
-        const shortcutsContent = `
-            <div class="shortcuts-guide-modal">
-                <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">🎯 ${s('navTitle')}</h4>
-                    <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>1</kbd>–<kbd>8</kbd><span>${s('mercuryToNeptune')}</span></div>
-                        <div class="shortcut-item"><kbd>9</kbd><span>${s('pluto')}</span></div>
-                        <div class="shortcut-item"><kbd>0</kbd><span>${s('sun')}</span></div>
-                    </div>
-                </div>
-
-                <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">🔭 ${s('cameraTitle') || 'Camera & Perspective'}</h4>
-                    <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>A</kbd><span>${s('attachCamera') || 'Focus / Attach Camera'}</span></div>
-                        <div class="shortcut-item"><kbd>V</kbd><span>${s('surfaceView') || 'View from Surface'}</span></div>
-                        <div class="shortcut-item"><kbd>D</kbd><span>${s('freeCamera') || 'Free Camera / Detach'}</span></div>
-                        <div class="shortcut-item"><kbd>T</kbd><span>${s('cinematicTour')}</span></div>
-                    </div>
-                </div>
-
-                <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">⏳ ${s('timeTitle')}</h4>
-                    <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>Space</kbd><span>${s('pauseResume')}</span></div>
-                        <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>${s('warpSpeed')}</span></div>
-                    </div>
-                </div>
-
-                <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">✨ ${s('opticsTitle') || 'Optics & Scale'}</h4>
-                    <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>B</kbd><span>${s('bloom') || 'Toggle Bloom Glow'}</span></div>
-                        <div class="shortcut-item"><kbd>L</kbd><span>${s('lighting') || 'Toggle Realistic Lighting'}</span></div>
-                        <div class="shortcut-item"><kbd>G</kbd><span>${s('eclipticGrid') || 'Toggle Ecliptic Grid'}</span></div>
-                        <div class="shortcut-item"><kbd>Z</kbd><span>${s('habitableZone') || 'Toggle Habitable Zone'}</span></div>
-                        <div class="shortcut-item"><kbd>X</kbd><span>${s('axes') || 'Toggle Coordinate Axes'}</span></div>
-                        <div class="shortcut-item"><kbd>R</kbd><span>${s('resetView')}</span></div>
-                    </div>
-                </div>
-
-                <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">🪐 ${i18n.t('ui.layersCategory') || 'Celestial Layers'}</h4>
-                    <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>O</kbd><span>${s('orbits') || i18n.t('controls.showOrbits')}</span></div>
-                        <div class="shortcut-item"><kbd>N</kbd><span>${i18n.t('controls.showMoons')}</span></div>
-                        <div class="shortcut-item"><kbd>C</kbd><span>${s('constellations') || i18n.t('controls.showConstellations')}</span></div>
-                        <div class="shortcut-item"><kbd>E</kbd><span>${i18n.t('controls.showAsteroids')}</span></div>
-                        <div class="shortcut-item"><kbd>U</kbd><span>${i18n.t('controls.showKuiperBelt')}</span></div>
-                        <div class="shortcut-item"><kbd>W</kbd><span>${i18n.t('controls.showDwarfPlanets')}</span></div>
-                        <div class="shortcut-item"><kbd>Q</kbd><span>${i18n.t('controls.showComets')}</span></div>
-                        <div class="shortcut-item"><kbd>J</kbd><span>${i18n.t('controls.showSpacecraft')}</span></div>
-                        <div class="shortcut-item"><kbd>Y</kbd><span>${i18n.t('controls.showMeteors')}</span></div>
-                        <div class="shortcut-item"><kbd>I</kbd><span>${i18n.t('controls.showTrails')}</span></div>
-                    </div>
-                </div>
-
-                <div class="shortcuts-section">
-                    <h4 class="shortcuts-group-title">🔭 ${s('toolsTitle')}</h4>
-                    <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>M</kbd><span>${s('minimap')}</span></div>
-                        <div class="shortcut-item"><kbd>S</kbd><span>${s('audio')}</span></div>
-                        <div class="shortcut-item"><kbd>P</kbd><span>${s('telemetry')}</span></div>
-                        <div class="shortcut-item"><kbd>K</kbd><span>${s('snapshot')}</span></div>
-                        <div class="shortcut-item"><kbd>F</kbd><span>${s('fullscreen')}</span></div>
-                        <div class="shortcut-item"><kbd>?</kbd> / <kbd>H</kbd><span>${s('help')}</span></div>
-                        <div class="shortcut-item"><kbd>Esc</kbd><span>${s('esc')}</span></div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        this.shortcutsModal.show({
-            name: `⌨️ ${s('title')}`,
-            description: shortcutsContent
-        });
+    toggleShortcutsModal(): void {
+        toggleShortcutsModal(this);
     }
 
-    openHeaderSlotsCustomizer() {
-        const availableSlots = HeaderSlotsManager.getAvailableSlots();
-        const currentActive = HeaderSlotsManager.getActiveSlotIds();
-
-        const categories: { id: HeaderSlotCategory; titleKey: string; defaultTitle: string }[] = [
-            { id: 'camera', titleKey: 'ui.cameraCategory', defaultTitle: '🔭 Camera Controls' },
-            { id: 'optics', titleKey: 'ui.opticsCategory', defaultTitle: '✨ Optics & Scale' },
-            { id: 'layers', titleKey: 'ui.layersCategory', defaultTitle: '🪐 Celestial Layers' },
-            { id: 'tools', titleKey: 'ui.toolsCategory', defaultTitle: '🛰️ Observatory Instruments' }
-        ];
-
-        const activeText = i18n.t('ui.slotsActive', { count: currentActive.length.toString() }) || `${currentActive.length} active slots`;
-
-        let html = `
-            <div class="header-slots-customizer-modal">
-                <div class="slots-modal-header-desc">
-                    <p class="slots-desc-text">${i18n.t('ui.slotsDescription') || 'Pin and organize your favorite tools, optics settings, and celestial layers directly to the observatory header bar for instant 1-click access.'}</p>
-                    <div class="slots-active-counter" id="slotsCounterBadge">
-                        <span class="slots-live-dot">●</span>
-                        <span class="counter-text">${activeText}</span>
-                    </div>
-                </div>
-        `;
-
-        categories.forEach(cat => {
-            const slotsInCat = availableSlots.filter(s => s.category === cat.id);
-            if (slotsInCat.length === 0) return;
-
-            const activeInCat = slotsInCat.filter(s => currentActive.includes(s.id)).length;
-            const catTitle = i18n.t(cat.titleKey) || cat.defaultTitle;
-            html += `
-                <div class="slots-category-section" data-cat-id="${cat.id}">
-                    <div class="slots-category-header">
-                        <h4 class="slots-category-title">${catTitle}</h4>
-                        <span class="category-pinned-pill" data-cat-counter="${cat.id}">${activeInCat} / ${slotsInCat.length}</span>
-                    </div>
-                    <div class="slots-grid">
-            `;
-
-            slotsInCat.forEach(slot => {
-                const isActive = currentActive.includes(slot.id);
-                const rawLabel = i18n.t(slot.labelKey) || slot.id;
-                const label = stripShortcutFromLabel(rawLabel);
-                const icon = typeof slot.icon === 'function' ? slot.icon(this) : slot.icon;
-                const isLocked = !HeaderSlotsManager.isSlotRemovable(slot.id);
-
-                const switchTitle = isLocked
-                    ? (i18n.t('ui.permanentSlotDesc') || 'Permanently pinned to header (cannot be removed)')
-                    : (isActive ? 'Remove from header' : 'Add to header');
-
-                html += `
-                    <div class="slot-config-card ${isActive ? 'is-active' : ''} ${isLocked ? 'is-locked' : ''}" data-slot-id="${slot.id}" ${isLocked ? 'data-locked="true"' : ''}>
-                        <div class="slot-card-left">
-                            <span class="slot-card-icon">${icon}</span>
-                            <div class="slot-card-details">
-                                <span class="slot-card-name" title="${label}">${label}</span>
-                                ${slot.shortcut ? `<kbd class="ctrl-kbd-badge">${slot.shortcut}</kbd>` : ''}
-                                ${isLocked ? `<span class="slot-locked-badge" title="${switchTitle}">🔒</span>` : ''}
-                            </div>
-                        </div>
-                        <label class="sci-switch ${isLocked ? 'is-disabled' : ''}" title="${switchTitle}">
-                            <input type="checkbox" class="slot-toggle-input" data-slot-id="${slot.id}" ${isActive ? 'checked' : ''} ${isLocked ? 'disabled aria-disabled="true"' : ''} />
-                            <span class="sci-slider"></span>
-                        </label>
-                    </div>
-                `;
-            });
-
-            html += `
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
-                <div class="slots-modal-footer">
-                    <button type="button" class="slot-footer-btn reset-btn" id="slotsResetBtn">
-                        <span>↺</span> <span>${i18n.t('ui.resetSlots') || 'Reset to Defaults'}</span>
-                    </button>
-                    <button type="button" class="slot-footer-btn done-btn" id="slotsDoneBtn">
-                        <span>✓</span> <span>${i18n.t('ui.close') || 'Done'}</span>
-                    </button>
-                </div>
-            </div>
-        `;
-
-        this.headerSlotsModal.show({
-            name: `⚙️ ${i18n.t('ui.headerSlots') || 'Header Quick Access'}`,
-            description: html
-        });
-
-        this.wireHeaderSlotsModalEvents();
+    openHeaderSlotsCustomizer(): void {
+        openHeaderSlotsCustomizer(this);
     }
 
-    private wireHeaderSlotsModalEvents() {
-        const modalContent = this.headerSlotsModal.contentElement;
-        if (!modalContent) return;
-
-        const checkboxes = modalContent.querySelectorAll<HTMLInputElement>('.slot-toggle-input');
-        checkboxes.forEach(input => {
-            input.onchange = () => {
-                const slotId = input.dataset.slotId;
-                if (!slotId) return;
-
-                if (!HeaderSlotsManager.isSlotRemovable(slotId)) {
-                    input.checked = true;
-                    return;
-                }
-
-                const willBeActive = input.checked;
-                if (willBeActive) {
-                    HeaderSlotsManager.addSlot(slotId);
-                } else {
-                    HeaderSlotsManager.removeSlot(slotId);
-                }
-
-                const card = modalContent.querySelector(`.slot-config-card[data-slot-id="${slotId}"]`);
-                if (card) card.classList.toggle('is-active', willBeActive);
-
-                const currentCount = HeaderSlotsManager.getActiveSlotIds().length;
-                const counterBadge = modalContent.querySelector('#slotsCounterBadge');
-                if (counterBadge) {
-                    const text = i18n.t('ui.slotsActive', { count: currentCount.toString() }) || `${currentCount} active slots`;
-                    counterBadge.innerHTML = `<span class="slots-live-dot">●</span> <span class="counter-text">${text}</span>`;
-                }
-
-                const catSection = card?.closest('.slots-category-section');
-                if (catSection) {
-                    const catCounter = catSection.querySelector<HTMLElement>('.category-pinned-pill');
-                    if (catCounter) {
-                        const catActiveCount = catSection.querySelectorAll('.slot-config-card.is-active').length;
-                        const catTotal = catSection.querySelectorAll('.slot-config-card').length;
-                        catCounter.textContent = `${catActiveCount} / ${catTotal}`;
-                    }
-                }
-
-                if (this.headerSlotsContainer) {
-                    HeaderSlotsManager.renderSlots(this.headerSlotsContainer, this);
-                }
-
-                if (this.audioManager) this.audioManager.playTick();
-            };
-        });
-
-        // Click on card to toggle switch
-        const cards = modalContent.querySelectorAll<HTMLElement>('.slot-config-card');
-        cards.forEach(card => {
-            card.onclick = (e) => {
-                if ((e.target as HTMLElement).closest('.sci-switch')) return;
-                const slotId = card.dataset.slotId;
-                if (slotId && !HeaderSlotsManager.isSlotRemovable(slotId)) return;
-                const input = card.querySelector<HTMLInputElement>('.slot-toggle-input');
-                if (input && !input.disabled) {
-                    input.checked = !input.checked;
-                    if (input.onchange) {
-                        input.onchange(new Event('change'));
-                    } else {
-                        input.dispatchEvent(new Event('change'));
-                    }
-                }
-            };
-        });
-
-        const resetBtn = modalContent.querySelector<HTMLButtonElement>('#slotsResetBtn');
-        if (resetBtn) {
-            resetBtn.onclick = () => {
-                HeaderSlotsManager.resetDefaults();
-                if (this.headerSlotsContainer) {
-                    HeaderSlotsManager.renderSlots(this.headerSlotsContainer, this);
-                }
-                if (this.audioManager) this.audioManager.playTick();
-                this.openHeaderSlotsCustomizer();
-            };
-        }
-
-        const doneBtn = modalContent.querySelector<HTMLButtonElement>('#slotsDoneBtn');
-        if (doneBtn) {
-            doneBtn.onclick = () => {
-                this.headerSlotsModal.hide();
-                if (this.audioManager) this.audioManager.playTick();
-            };
-        }
-    }
-
-    dispose() {
+    dispose(): void {
         if (this.unsubscribeI18n) {
             this.unsubscribeI18n();
             this.unsubscribeI18n = null;
         }
+        if (this.unsubscribeMeasureMode) {
+            this.unsubscribeMeasureMode();
+            this.unsubscribeMeasureMode = null;
+        }
+        if (this.unsubscribeMeasureTargets) {
+            this.unsubscribeMeasureTargets();
+            this.unsubscribeMeasureTargets = null;
+        }
+
+        this.shortcutController?.dispose();
 
         if (typeof window !== 'undefined') {
             if (this.onTourFocusBound) window.removeEventListener('tour-focus', this.onTourFocusBound);
             if (this.onJumpToDateBound) window.removeEventListener('jump-to-date', this.onJumpToDateBound);
             if (this.onSelectCelestialBodyBound) window.removeEventListener('select-celestial-body', this.onSelectCelestialBodyBound);
-            if (this.onKeyDownBound) window.removeEventListener('keydown', this.onKeyDownBound);
         }
 
         if (typeof document !== 'undefined') {
@@ -2594,14 +1360,6 @@ export class UIManager {
                 document.removeEventListener('click', this.onDocClickLangBound);
             }
             this.closeLangDropdown = null;
-            if (this.onDocClickGuiTooltipBound) {
-                document.removeEventListener('click', this.onDocClickGuiTooltipBound);
-            }
-        }
-
-        if (this.guiTooltipElement && this.guiTooltipElement.parentElement) {
-            this.guiTooltipElement.parentElement.removeChild(this.guiTooltipElement);
-            this.guiTooltipElement = null;
         }
 
         const canvas = this.sceneManager?.renderer?.domElement;
@@ -2610,39 +1368,17 @@ export class UIManager {
             if (this.onPointerUpBound) canvas.removeEventListener('pointerup', this.onPointerUpBound);
         }
 
-        if (this.gui) {
-            this.gui.destroy();
-            this.gui = null;
-        }
-
         if (this.controlCenter) {
             this.controlCenter.dispose();
             this.controlCenter = null;
         }
 
-        if (this.shortcutsModal) {
-            this.shortcutsModal.dispose();
-        }
-
-        if (this.headerSlotsModal) {
-            this.headerSlotsModal.dispose();
-        }
-
-        if (this.audioManager) {
-            this.audioManager.dispose();
-        }
-
-        if (this.performanceMonitor) {
-            this.performanceMonitor.dispose();
-        }
-
-        if (this.modal) {
-            this.modal.dispose();
-        }
-
-        if (this.eventModal) {
-            this.eventModal.dispose();
-        }
+        this.shortcutsModal?.dispose();
+        this.headerSlotsModal?.dispose();
+        this.audioManager?.dispose();
+        this.performanceMonitor?.dispose();
+        this.modal?.dispose();
+        this.eventModal?.dispose();
 
         if (this.customDatePicker) {
             this.customDatePicker.dispose();
@@ -2653,16 +1389,21 @@ export class UIManager {
             this.minimap.dispose();
         }
 
-        if (this.menuContainer && this.menuContainer.parentElement) {
+        if (this.measureHudBar?.parentElement) {
+            this.measureHudBar.parentElement.removeChild(this.measureHudBar);
+            this.measureHudBar = null;
+        }
+
+        if (this.menuContainer?.parentElement) {
             this.menuContainer.parentElement.removeChild(this.menuContainer);
             this.menuContainer = null;
         }
 
-        if (this.infoPanel && this.infoPanel.parentElement) {
+        if (this.infoPanel?.parentElement) {
             this.infoPanel.parentElement.removeChild(this.infoPanel);
         }
 
-        if (this.datePanel && this.datePanel.parentElement) {
+        if (this.datePanel?.parentElement) {
             this.datePanel.parentElement.removeChild(this.datePanel);
         }
     }

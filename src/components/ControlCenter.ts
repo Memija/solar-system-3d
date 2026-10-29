@@ -4,9 +4,12 @@ import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 import { HeaderSlotsManager } from './HeaderSlotsManager';
 import { getSettingOptionInfo } from './SettingOptionsData';
-import { HISTORICAL_SPACE_EVENTS } from './CustomDatePicker';
+import { HISTORICAL_SPACE_EVENTS, getLocalizedEventName, getLocalizedEventImpact } from './CustomDatePicker';
+import { svgIcon, stripLeadingEmoji, SvgIconName } from './SvgIcons';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
+
+const TAB_ORDER: ControlCenterTab[] = ['target', 'time', 'layers', 'camera', 'optics', 'system'];
 
 export class ControlCenter {
     uiManager: UIManager;
@@ -90,7 +93,7 @@ export class ControlCenter {
         closeBtn.className = 'drawer-close-btn';
         closeBtn.type = 'button';
         closeBtn.setAttribute('aria-label', i18n.t('ui.close') || 'Close Menu');
-        closeBtn.innerHTML = '✕';
+        closeBtn.innerHTML = svgIcon('close');
         closeBtn.onclick = () => this.close();
         header.appendChild(closeBtn);
         this.closeBtnEl = closeBtn;
@@ -100,25 +103,32 @@ export class ControlCenter {
         // Navigation Tabs Strip
         const tabsStrip = document.createElement('div');
         tabsStrip.className = 'drawer-tabs-strip';
+        tabsStrip.setAttribute('role', 'tablist');
 
-        const tabsConfig: { id: ControlCenterTab; icon: string; key: string }[] = [
-            { id: 'target', icon: '🎯', key: 'categories.planet' },
-            { id: 'time', icon: '⏱️', key: 'controls.simulationFolder' },
-            { id: 'layers', icon: '🪐', key: 'controls.showOrbits' },
-            { id: 'camera', icon: '🔭', key: 'controls.cameraFolder' },
-            { id: 'optics', icon: '✨', key: 'controls.environmentFolder' },
-            { id: 'system', icon: '⚙️', key: 'controls.toolsFolder' }
+        const tabsConfig: { id: ControlCenterTab; icon: SvgIconName; key: string }[] = [
+            { id: 'target', icon: 'target', key: 'categories.planet' },
+            { id: 'time', icon: 'time', key: 'controls.simulationFolder' },
+            { id: 'layers', icon: 'layers', key: 'controls.showOrbits' },
+            { id: 'camera', icon: 'camera', key: 'controls.cameraFolder' },
+            { id: 'optics', icon: 'optics', key: 'controls.environmentFolder' },
+            { id: 'system', icon: 'system', key: 'controls.toolsFolder' }
         ];
 
         tabsConfig.forEach(cfg => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `drawer-tab ${cfg.id === this.activeTab ? 'active' : ''}`;
+            const isSelected = cfg.id === this.activeTab;
+            btn.className = `drawer-tab ${isSelected ? 'active' : ''}`;
             btn.dataset.tab = cfg.id;
+            btn.id = `ctrl-tab-${cfg.id}`;
+            btn.setAttribute('role', 'tab');
+            btn.setAttribute('aria-selected', String(isSelected));
+            btn.setAttribute('aria-controls', `ctrl-panel-${cfg.id}`);
+            btn.tabIndex = isSelected ? 0 : -1;
 
             const iconSpan = document.createElement('span');
             iconSpan.className = 'tab-icon';
-            iconSpan.textContent = cfg.icon;
+            iconSpan.innerHTML = svgIcon(cfg.icon);
             btn.appendChild(iconSpan);
 
             const labelSpan = document.createElement('span');
@@ -133,6 +143,23 @@ export class ControlCenter {
             btn.onclick = () => this.switchTab(cfg.id);
             tabsStrip.appendChild(btn);
             this.tabButtons.set(cfg.id, btn);
+        });
+
+        tabsStrip.addEventListener('keydown', (e: KeyboardEvent) => {
+            const currIdx = TAB_ORDER.indexOf(this.activeTab);
+            if (currIdx === -1) return;
+            let nextIdx = -1;
+            if (e.key === 'ArrowRight') nextIdx = (currIdx + 1) % TAB_ORDER.length;
+            else if (e.key === 'ArrowLeft') nextIdx = (currIdx - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+            else if (e.key === 'Home') nextIdx = 0;
+            else if (e.key === 'End') nextIdx = TAB_ORDER.length - 1;
+
+            if (nextIdx !== -1) {
+                e.preventDefault();
+                const nextTab = TAB_ORDER[nextIdx];
+                this.switchTab(nextTab);
+                this.tabButtons.get(nextTab)?.focus();
+            }
         });
 
         drawer.appendChild(tabsStrip);
@@ -155,14 +182,23 @@ export class ControlCenter {
         return drawer;
     }
 
+    private configureTabPanel(panel: HTMLElement, tab: ControlCenterTab): void {
+        panel.className = `drawer-panel ${this.activeTab === tab ? 'active' : ''}`;
+        panel.dataset.panel = tab;
+        panel.id = `ctrl-panel-${tab}`;
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', `ctrl-tab-${tab}`);
+        this.tabPanels.set(tab, panel);
+    }
+
     public createInfoButton(optionId: string, label: string): HTMLButtonElement {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'ctrl-info-btn';
         btn.dataset.optionId = optionId;
         btn.setAttribute('aria-label', `Information about ${label}`);
-        btn.innerHTML = 'ℹ';
-        
+        btn.textContent = 'i';
+
         btn.addEventListener('mouseenter', () => {
             this.showOptionTooltip(optionId, btn);
         });
@@ -198,7 +234,7 @@ export class ControlCenter {
 
         const tooltip = this.tooltipElement;
         const kbdHtml = info.kbd ? `<kbd class="ctrl-kbd-badge">${info.kbd}</kbd>` : '';
-        const summaryText = info.summary || info.overview;
+        const summaryText = info.summary;
 
         tooltip.innerHTML = `
             <div class="ctrl-info-tooltip-header">
@@ -257,13 +293,21 @@ export class ControlCenter {
 
     private getTabLabel(tab: ControlCenterTab): string {
         switch (tab) {
-            case 'target': return i18n.t('controls.tabs.target') || 'Target';
-            case 'time': return i18n.t('controls.tabs.time') || i18n.t('controls.simulationFolder') || 'Simulation';
-            case 'layers': return i18n.t('controls.tabs.layers') || 'Layers';
-            case 'camera': return i18n.t('controls.tabs.camera') || i18n.t('controls.cameraFolder') || 'Camera';
-            case 'optics': return i18n.t('controls.tabs.optics') || i18n.t('controls.environmentFolder') || 'Optics';
-            case 'system': return i18n.t('controls.tabs.system') || i18n.t('controls.toolsFolder') || 'System';
+            case 'target': return stripLeadingEmoji(i18n.t('controls.tabs.target') || 'Target');
+            case 'time': return stripLeadingEmoji(i18n.t('controls.tabs.time') || i18n.t('controls.simulationFolder') || 'Simulation');
+            case 'layers': return stripLeadingEmoji(i18n.t('controls.tabs.layers') || 'Layers');
+            case 'camera': return stripLeadingEmoji(i18n.t('controls.tabs.camera') || i18n.t('controls.cameraFolder') || 'Camera');
+            case 'optics': return stripLeadingEmoji(i18n.t('controls.tabs.optics') || i18n.t('controls.environmentFolder') || 'Optics');
+            case 'system': return stripLeadingEmoji(i18n.t('controls.tabs.system') || i18n.t('controls.toolsFolder') || 'System');
         }
+    }
+
+    private formatTourSpeedText(intervalSec: number): string {
+        const translated = i18n.t('ui.secPerBody', { sec: String(intervalSec) });
+        if (translated && translated !== 'ui.secPerBody') {
+            return translated;
+        }
+        return `${intervalSec}s / body`;
     }
 
     // =========================================================================
@@ -271,9 +315,7 @@ export class ControlCenter {
     // =========================================================================
     private createTargetPanel(): HTMLElement {
         const panel = document.createElement('div');
-        panel.className = `drawer-panel ${this.activeTab === 'target' ? 'active' : ''}`;
-        panel.dataset.panel = 'target';
-        this.tabPanels.set('target', panel);
+        this.configureTabPanel(panel, 'target');
 
         // Category & Body Selection Group
         const selectGroup = document.createElement('div');
@@ -285,7 +327,9 @@ export class ControlCenter {
         leftWrap.style.display = 'inline-flex';
         leftWrap.style.alignItems = 'center';
         leftWrap.style.gap = '8px';
-        leftWrap.innerHTML = `<span data-i18n-key="controls.sections.celestialNav">${i18n.t('controls.sections.celestialNav') || 'Celestial Navigation'}</span><span class="group-tag">EPHEMERIS</span>`;
+        const ephTag = i18n.t('ui.ephemerisTag');
+        const ephText = ephTag && ephTag !== 'ui.ephemerisTag' ? ephTag : 'EPHEMERIS';
+        leftWrap.innerHTML = `<span data-i18n-key="controls.sections.celestialNav">${i18n.t('controls.sections.celestialNav') || 'Celestial Navigation'}</span><span class="group-tag" data-i18n-key="ui.ephemerisTag">${ephText}</span>`;
         groupTitle.appendChild(leftWrap);
         groupTitle.appendChild(this.createInfoButton('celestialNav', 'Celestial Navigation'));
         selectGroup.appendChild(groupTitle);
@@ -310,20 +354,20 @@ export class ControlCenter {
         const chipsWrap = document.createElement('div');
         chipsWrap.className = 'quick-target-chips';
 
-        const quickTargets = [
-            { name: 'Sun', icon: '☀️', type: 'Star' },
-            { name: 'Mercury', icon: '🪐', type: 'Planet' },
-            { name: 'Venus', icon: '🪐', type: 'Planet' },
-            { name: 'Earth', icon: '🌎', type: 'Planet' },
-            { name: 'Moon', icon: '🌕', type: 'Moon' },
-            { name: 'Mars', icon: '🪐', type: 'Planet' },
-            { name: 'Jupiter', icon: '🪐', type: 'Planet' },
-            { name: 'Saturn', icon: '🪐', type: 'Planet' },
-            { name: 'Uranus', icon: '🪐', type: 'Planet' },
-            { name: 'Neptune', icon: '🪐', type: 'Planet' },
-            { name: 'Pluto', icon: '🪐', type: 'Planet' },
-            { name: 'ISS', icon: '🛰️', type: 'Spacecraft' },
-            { name: 'Voyager 1', icon: '🛰️', type: 'Spacecraft' }
+        const quickTargets: { name: string; icon: SvgIconName; type: string }[] = [
+            { name: 'Sun', icon: 'sun', type: 'Star' },
+            { name: 'Mercury', icon: 'planet', type: 'Planet' },
+            { name: 'Venus', icon: 'planet', type: 'Planet' },
+            { name: 'Earth', icon: 'earth', type: 'Planet' },
+            { name: 'Moon', icon: 'moons', type: 'Moon' },
+            { name: 'Mars', icon: 'planet', type: 'Planet' },
+            { name: 'Jupiter', icon: 'planet', type: 'Planet' },
+            { name: 'Saturn', icon: 'planet', type: 'Planet' },
+            { name: 'Uranus', icon: 'planet', type: 'Planet' },
+            { name: 'Neptune', icon: 'planet', type: 'Planet' },
+            { name: 'Pluto', icon: 'planet', type: 'Planet' },
+            { name: 'ISS', icon: 'spacecraft', type: 'Spacecraft' },
+            { name: 'Voyager 1', icon: 'spacecraft', type: 'Spacecraft' }
         ];
 
         quickTargets.forEach(t => {
@@ -331,7 +375,7 @@ export class ControlCenter {
             chip.type = 'button';
             chip.className = `target-chip-btn ${this.uiManager?.cameraTarget === t.name ? 'active' : ''}`;
             const locName = i18n.getBodyName(t.name) || i18n.getStarName(t.name) || i18n.getSpacecraftName(t.name) || t.name;
-            chip.innerHTML = `${t.icon} <span class="chip-name">${locName}</span>`;
+            chip.innerHTML = `<span class="chip-icon">${svgIcon(t.icon)}</span> <span class="chip-name">${locName}</span>`;
             chip.onclick = () => {
                 this.uiManager.syncDropdownSelection(t.name, t.type);
                 EventBus.emit('select-celestial-body', { name: t.name });
@@ -351,7 +395,7 @@ export class ControlCenter {
         const actionBtn1 = document.createElement('button');
         actionBtn1.type = 'button';
         actionBtn1.className = 'master-action-btn focus-action-btn';
-        actionBtn1.innerHTML = `<span>🎯 <span data-i18n-key="controls.sections.focusAlign">${i18n.t('controls.sections.focusAlign') || 'Focus & Align Camera'}</span></span>`;
+        actionBtn1.innerHTML = `<span>${svgIcon('attach-camera')} <span data-i18n-key="controls.sections.focusAlign">${stripLeadingEmoji(i18n.t('controls.sections.focusAlign') || 'Focus & Align Camera')}</span></span>`;
         actionBtn1.onclick = () => {
             this.sceneManager.focusOnBody(this.uiManager.cameraTarget);
             this.syncSwitches();
@@ -361,7 +405,7 @@ export class ControlCenter {
         const actionBtn2 = document.createElement('button');
         actionBtn2.type = 'button';
         actionBtn2.className = 'master-action-btn surface-action-btn';
-        actionBtn2.innerHTML = `<span>🪐 <span data-i18n-key="controls.sections.viewSurface">${i18n.t('controls.sections.viewSurface') || 'View From Surface'}</span></span>`;
+        actionBtn2.innerHTML = `<span>${svgIcon('surface-view')} <span data-i18n-key="controls.sections.viewSurface">${stripLeadingEmoji(i18n.t('controls.sections.viewSurface') || 'View From Surface')}</span></span>`;
         actionBtn2.onclick = () => {
             this.sceneManager.setSurfaceView(this.uiManager.cameraTarget);
             this.syncSwitches();
@@ -377,9 +421,7 @@ export class ControlCenter {
     // =========================================================================
     private createTimePanel(): HTMLElement {
         const panel = document.createElement('div');
-        panel.className = `drawer-panel ${this.activeTab === 'time' ? 'active' : ''}`;
-        panel.dataset.panel = 'time';
-        this.tabPanels.set('time', panel);
+        this.configureTabPanel(panel, 'time');
 
         // Speed Presets Group
         const presetGroup = document.createElement('div');
@@ -426,7 +468,7 @@ export class ControlCenter {
 
         const dateTitle = document.createElement('h4');
         dateTitle.className = 'ctrl-group-title';
-        dateTitle.innerHTML = `<span data-i18n-key="ui.simDate">${i18n.t('ui.simDate') || 'Observation Date'}</span>`;
+        dateTitle.innerHTML = `<span data-i18n-key="ui.simDate">${stripLeadingEmoji(i18n.t('ui.simDate') || 'Observation Date')}</span>`;
         dateTitle.appendChild(this.createInfoButton('jumpToDate', 'Observation Date'));
         dateGroup.appendChild(dateTitle);
 
@@ -502,7 +544,9 @@ export class ControlCenter {
         const applyBtn = document.createElement('button');
         applyBtn.type = 'button';
         applyBtn.className = 'ctrl-date-apply-btn';
-        applyBtn.textContent = 'Set';
+        applyBtn.dataset.i18nKey = 'ui.set';
+        const setLabel = i18n.t('ui.set');
+        applyBtn.textContent = setLabel && setLabel !== 'ui.set' ? setLabel : 'Set';
         applyBtn.title = 'Set simulation to selected date';
         applyBtn.onclick = () => {
             onDateCommit();
@@ -550,7 +594,7 @@ export class ControlCenter {
 
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
-        defaultOpt.textContent = i18n.t('datepicker.historicalEvents') || '🚀 Historical Milestones...';
+        defaultOpt.textContent = stripLeadingEmoji(i18n.t('datepicker.historicalEvents') || 'Historical Milestones...');
         defaultOpt.disabled = true;
         defaultOpt.selected = true;
         milestoneSelect.appendChild(defaultOpt);
@@ -559,7 +603,7 @@ export class ControlCenter {
             const opt = document.createElement('option');
             opt.value = idx.toString();
             const year = evt.date.getUTCFullYear();
-            opt.textContent = `${evt.name} (${year})`;
+            opt.textContent = `${getLocalizedEventName(evt)} (${year})`;
             milestoneSelect.appendChild(opt);
         });
 
@@ -569,9 +613,11 @@ export class ControlCenter {
                 const evt = HISTORICAL_SPACE_EVENTS[idx];
                 this.applySelectedDate(evt.date, true);
                 if (evt.target) {
-                    window.dispatchEvent(new CustomEvent('select-celestial-body', {
-                        detail: { name: evt.target, eventName: evt.name, eventImpact: evt.impact }
-                    }));
+                    EventBus.emit('select-celestial-body', {
+                        name: evt.target,
+                        eventName: getLocalizedEventName(evt),
+                        eventImpact: getLocalizedEventImpact(evt)
+                    });
                 }
                 milestoneSelect.value = '';
             }
@@ -587,7 +633,7 @@ export class ControlCenter {
         const jumpBtn = document.createElement('button');
         jumpBtn.type = 'button';
         jumpBtn.className = 'master-action-btn jump-date-action-btn';
-        jumpBtn.innerHTML = `<span>📅 <span data-i18n-key="ui.liveRealTime">${i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today'}</span></span>`;
+        jumpBtn.innerHTML = `<span>${svgIcon('globe')} <span data-i18n-key="ui.liveRealTime">${stripLeadingEmoji(i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today')}</span></span>`;
         jumpBtn.onclick = () => {
             const now = new Date();
             this.applySelectedDate(now, false);
@@ -597,7 +643,7 @@ export class ControlCenter {
         const openCalBtn = document.createElement('button');
         openCalBtn.type = 'button';
         openCalBtn.className = 'master-action-btn open-cal-action-btn';
-        openCalBtn.innerHTML = `<span>🗓 <span data-i18n-key="datepicker.calendarTitle">${i18n.t('datepicker.calendarTitle') || 'Mission Calendar'}</span></span>`;
+        openCalBtn.innerHTML = `<span>${svgIcon('calendar')} <span data-i18n-key="datepicker.calendarTitle">${stripLeadingEmoji(i18n.t('datepicker.calendarTitle') || 'Mission Calendar')}</span></span>`;
         openCalBtn.onclick = (e: MouseEvent) => {
             e.stopPropagation();
             if (this.uiManager?.customDatePicker) {
@@ -616,9 +662,7 @@ export class ControlCenter {
     // =========================================================================
     private createLayersPanel(): HTMLElement {
         const panel = document.createElement('div');
-        panel.className = `drawer-panel ${this.activeTab === 'layers' ? 'active' : ''}`;
-        panel.dataset.panel = 'layers';
-        this.tabPanels.set('layers', panel);
+        this.configureTabPanel(panel, 'layers');
 
         const group = document.createElement('div');
         group.className = 'ctrl-group';
@@ -632,73 +676,104 @@ export class ControlCenter {
             {
                 prop: 'showOrbits',
                 key: 'controls.showOrbits',
-                icon: '🪐',
+                icon: svgIcon('orbits'),
                 kbd: 'O',
-                initial: true,
+                initial: this.sceneManager.showOrbits ?? true,
                 onChange: (v) => this.sceneManager.toggleOrbits(v)
             },
             {
                 prop: 'showMoons',
                 key: 'controls.showMoons',
-                icon: '🌕',
+                icon: svgIcon('moons'),
                 kbd: 'N',
-                initial: true,
+                initial: this.sceneManager.showMoons ?? true,
                 onChange: (v) => this.sceneManager.toggleMoons(v)
+            },
+            {
+                prop: 'showConstellations',
+                key: 'controls.showConstellations',
+                icon: svgIcon('constellations'),
+                kbd: 'C',
+                initial: this.sceneManager.showConstellations ?? this.sceneManager.constellationManager?.isVisible ?? true,
+                onChange: (v) => {
+                    if (typeof this.sceneManager.toggleConstellations === 'function') {
+                        this.sceneManager.toggleConstellations(v);
+                    } else {
+                        this.sceneManager.constellationManager?.toggleVisibility(v);
+                    }
+                }
             },
             {
                 prop: 'showAsteroids',
                 key: 'controls.showAsteroids',
-                icon: '🪨',
+                icon: svgIcon('asteroids'),
                 kbd: 'E',
-                initial: true,
+                initial: this.sceneManager.showAsteroids ?? true,
                 onChange: (v) => this.sceneManager.toggleAsteroids(v)
             },
             {
                 prop: 'showKuiperBelt',
                 key: 'controls.showKuiperBelt',
-                icon: '❄️',
+                icon: svgIcon('kuiper'),
                 kbd: 'U',
-                initial: true,
+                initial: this.sceneManager.showKuiperBelt ?? true,
                 onChange: (v) => this.sceneManager.toggleKuiperBelt(v)
             },
             {
                 prop: 'showDwarfPlanets',
                 key: 'controls.showDwarfPlanets',
-                icon: '⚪',
+                icon: svgIcon('dwarf'),
                 kbd: 'W',
-                initial: true,
+                initial: this.sceneManager.showDwarfPlanets ?? true,
                 onChange: (v) => this.sceneManager.toggleDwarfPlanets(v)
             },
             {
                 prop: 'showComets',
                 key: 'controls.showComets',
-                icon: '☄️',
+                icon: svgIcon('comets'),
                 kbd: 'Q',
-                initial: true,
+                initial: this.sceneManager.showComets ?? true,
                 onChange: (v) => this.sceneManager.toggleComets(v)
             },
             {
                 prop: 'showSpacecraft',
                 key: 'controls.showSpacecraft',
-                icon: '🛰️',
+                icon: svgIcon('spacecraft'),
                 kbd: 'J',
-                initial: true,
+                initial: this.sceneManager.showSpacecrafts ?? true,
                 onChange: (v) => this.sceneManager.toggleSpacecrafts(v)
             },
             {
                 prop: 'showMeteors',
                 key: 'controls.showMeteors',
-                icon: '🌠',
+                icon: svgIcon('meteors'),
                 kbd: 'Y',
-                initial: false,
-                onChange: (v) => this.sceneManager.toggleMeteors(v)
+                initial: this.sceneManager.showMeteors ?? false,
+                onChange: (v) => {
+                    this.sceneManager.toggleMeteors(v);
+                    if (v) {
+                        this.sceneManager.focusOnBody?.('Earth');
+                        this.uiManager?.modal?.show?.({
+                            titleKey: 'popups.meteorsTitle',
+                            descKey: 'popups.meteorsDesc',
+                            name: i18n.t('popups.meteorsTitle'),
+                            description: i18n.t('popups.meteorsDesc')
+                        });
+                    } else if (
+                        this.uiManager?.modal?.isOpen &&
+                        (this.uiManager.modal.isShowingPopup?.('popups.meteorsTitle') ||
+                            this.uiManager.modal.titleElement?.textContent === i18n.t('popups.meteorsTitle'))
+                    ) {
+                        this.uiManager.modal.hide();
+                    }
+                }
             },
             {
                 prop: 'showTrails',
                 key: 'controls.showTrails',
-                icon: '〰️',
+                icon: svgIcon('trails'),
                 kbd: 'I',
-                initial: true,
+                initial: this.sceneManager.showTrails ?? true,
                 onChange: (v) => this.sceneManager.toggleTrails(v)
             }
         ];
@@ -712,12 +787,12 @@ export class ControlCenter {
 
             const icon = document.createElement('span');
             icon.className = 'toggle-icon';
-            icon.textContent = cfg.icon;
+            icon.innerHTML = cfg.icon;
             labelWrap.appendChild(icon);
 
             const labelText = document.createElement('span');
             labelText.dataset.i18nKey = cfg.key;
-            labelText.textContent = i18n.t(cfg.key);
+            labelText.textContent = stripLeadingEmoji(i18n.t(cfg.key));
             labelWrap.appendChild(labelText);
 
             if (cfg.kbd) {
@@ -737,7 +812,12 @@ export class ControlCenter {
             const input = document.createElement('input');
             input.type = 'checkbox';
             input.checked = cfg.initial;
-            input.onchange = () => cfg.onChange(input.checked);
+            input.onchange = () => {
+                cfg.onChange(input.checked);
+                if (this.uiManager?.headerSlotsContainer) {
+                    HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+                }
+            };
             switchWrap.appendChild(input);
 
             const slider = document.createElement('span');
@@ -759,9 +839,7 @@ export class ControlCenter {
     // =========================================================================
     private createCameraPanel(): HTMLElement {
         const panel = document.createElement('div');
-        panel.className = `drawer-panel ${this.activeTab === 'camera' ? 'active' : ''}`;
-        panel.dataset.panel = 'camera';
-        this.tabPanels.set('camera', panel);
+        this.configureTabPanel(panel, 'camera');
 
         // View Modes Segmented Control
         const modesGroup = document.createElement('div');
@@ -775,24 +853,30 @@ export class ControlCenter {
         const segmented = document.createElement('div');
         segmented.className = 'camera-modes-segmented';
 
-        const modes = [
-            { key: 'orbit', optionId: 'orbitFocus', icon: '🎯', labelKey: 'controls.sections.orbitFocus', fallback: 'Orbit Focus', kbd: 'A', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
-            { key: 'surface', optionId: 'surfaceView', icon: '🪐', labelKey: 'controls.sections.surfaceView', fallback: 'Surface View', kbd: 'V', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
-            { key: 'detach', optionId: 'freeCamera', icon: '🚀', labelKey: 'controls.sections.freeCam', fallback: 'Free Camera', kbd: 'D', action: () => this.sceneManager.detachCamera() }
+        const modes: { key: string; optionId: string; icon: SvgIconName; labelKey: string; fallback: string; kbd: string; action: () => void }[] = [
+            { key: 'orbit', optionId: 'orbitFocus', icon: 'attach-camera', labelKey: 'controls.sections.orbitFocus', fallback: 'Orbit Focus', kbd: 'A', action: () => this.sceneManager.focusOnBody(this.uiManager.cameraTarget) },
+            { key: 'surface', optionId: 'surfaceView', icon: 'surface-view', labelKey: 'controls.sections.surfaceView', fallback: 'Surface View', kbd: 'V', action: () => this.sceneManager.setSurfaceView(this.uiManager.cameraTarget) },
+            { key: 'detach', optionId: 'freeCamera', icon: 'free-camera', labelKey: 'controls.sections.freeCam', fallback: 'Free Camera', kbd: 'D', action: () => this.sceneManager.detachCamera() }
         ];
 
         modes.forEach(m => {
+            const itemWrap = document.createElement('div');
+            itemWrap.className = `cam-mode-item ${m.key === 'orbit' ? 'active' : ''}`;
+            itemWrap.dataset.modeItem = m.key;
+
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = `cam-mode-btn ${m.key === 'orbit' ? 'active' : ''}`;
             btn.dataset.modeKey = m.key;
-            btn.innerHTML = `${m.icon} <span data-i18n-key="${m.labelKey}">${i18n.t(m.labelKey) || m.fallback}</span> <kbd class="ctrl-kbd-badge">${m.kbd}</kbd>`;
-            btn.appendChild(this.createInfoButton(m.optionId, m.fallback));
+            btn.innerHTML = `${svgIcon(m.icon)} <span data-i18n-key="${m.labelKey}">${stripLeadingEmoji(i18n.t(m.labelKey) || m.fallback)}</span> <kbd class="ctrl-kbd-badge">${m.kbd}</kbd>`;
             btn.onclick = () => {
                 m.action();
                 this.syncSwitches();
             };
-            segmented.appendChild(btn);
+
+            itemWrap.appendChild(btn);
+            itemWrap.appendChild(this.createInfoButton(m.optionId, m.fallback));
+            segmented.appendChild(itemWrap);
             this.camModeButtons.set(m.key, btn);
         });
 
@@ -805,7 +889,7 @@ export class ControlCenter {
 
         const tourTitle = document.createElement('h4');
         tourTitle.className = 'ctrl-group-title';
-        tourTitle.innerHTML = `<span data-i18n-key="controls.cinematicTour">${i18n.t('controls.cinematicTour') || 'Cinematic Grand Tour'}</span>`;
+        tourTitle.innerHTML = `<span data-i18n-key="controls.cinematicTour">${stripLeadingEmoji(i18n.t('controls.cinematicTour') || 'Cinematic Grand Tour')}</span>`;
         tourGroup.appendChild(tourTitle);
 
         const tourRow = document.createElement('div');
@@ -813,7 +897,7 @@ export class ControlCenter {
 
         const tourLabel = document.createElement('label');
         tourLabel.className = 'toggle-label-wrap';
-        tourLabel.innerHTML = `<span class="toggle-icon">🎬</span><span data-i18n-key="controls.sections.autonomousTour">${i18n.t('controls.sections.autonomousTour') || 'Autonomous Grand Tour'}</span><kbd class="ctrl-kbd-badge">T</kbd>`;
+        tourLabel.innerHTML = `<span class="toggle-icon">${svgIcon('cinematic-tour')}</span><span data-i18n-key="controls.sections.autonomousTour">${stripLeadingEmoji(i18n.t('controls.sections.autonomousTour') || 'Autonomous Grand Tour')}</span><kbd class="ctrl-kbd-badge">T</kbd>`;
         tourLabel.appendChild(this.createInfoButton('cinematicTour', 'Autonomous Grand Tour'));
         tourRow.appendChild(tourLabel);
 
@@ -825,20 +909,21 @@ export class ControlCenter {
         tourInput.checked = this.sceneManager.tourMode;
         tourInput.onchange = () => {
             const val = tourInput.checked;
-            this.sceneManager.tourMode = val;
-            if (this.uiManager.tourController) {
-                this.uiManager.tourController.setValue(val);
-            }
-            if (val) {
-                this.sceneManager.tourTimer = 0;
-                const targetName = this.sceneManager.tourTargets[this.sceneManager.tourIndex];
-                this.sceneManager.focusOnBody(targetName);
-                EventBus.emit('tour-focus', targetName);
+            if (typeof this.uiManager?.setTourMode === 'function') {
+                this.uiManager.setTourMode(val);
             } else {
-                this.sceneManager.detachCamera();
-            }
-            if (this.uiManager?.headerSlotsContainer) {
-                HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+                this.sceneManager.tourMode = val;
+                if (val) {
+                    this.sceneManager.tourTimer = 0;
+                    const targetName = this.sceneManager.tourTargets[this.sceneManager.tourIndex];
+                    this.sceneManager.focusOnBody(targetName);
+                    EventBus.emit('tour-focus', targetName);
+                } else {
+                    this.sceneManager.detachCamera();
+                }
+                if (this.uiManager?.headerSlotsContainer) {
+                    HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+                }
             }
         };
         tourSwitch.appendChild(tourInput);
@@ -850,7 +935,7 @@ export class ControlCenter {
         // Tour Speed Slider
         const tourSpeedHeader = document.createElement('div');
         tourSpeedHeader.className = 'speed-slider-label-row';
-        tourSpeedHeader.innerHTML = `<span class="slider-sublabel">⏱️ <span data-i18n-key="controls.tourSpeed">${i18n.t('controls.tourSpeed') || 'Tour Dwell Duration'}</span></span>`;
+        tourSpeedHeader.innerHTML = `<span class="slider-sublabel">${svgIcon('time')} <span data-i18n-key="controls.tourSpeed">${stripLeadingEmoji(i18n.t('controls.tourSpeed') || 'Tour Dwell Duration')}</span></span>`;
         tourSpeedHeader.appendChild(this.createInfoButton('tourSpeed', 'Tour Dwell Duration'));
         tourGroup.appendChild(tourSpeedHeader);
 
@@ -867,14 +952,15 @@ export class ControlCenter {
             const speed = parseInt(tourSlider.value, 10);
             this.sceneManager.tourInterval = 22 - (speed * 2);
             if (this.tourSpeedDisplay) {
-                this.tourSpeedDisplay.textContent = `${this.sceneManager.tourInterval}s / body`;
+                this.tourSpeedDisplay.textContent = this.formatTourSpeedText(this.sceneManager.tourInterval);
             }
         };
         tourSpeedWrap.appendChild(tourSlider);
 
         const tourSpeedVal = document.createElement('span');
         tourSpeedVal.className = 'speed-val-display';
-        tourSpeedVal.textContent = '12s / body';
+        const initialInterval = this.sceneManager.tourInterval || 12;
+        tourSpeedVal.textContent = this.formatTourSpeedText(initialInterval);
         tourSpeedWrap.appendChild(tourSpeedVal);
         this.tourSpeedDisplay = tourSpeedVal;
 
@@ -889,9 +975,7 @@ export class ControlCenter {
     // =========================================================================
     private createOpticsPanel(): HTMLElement {
         const panel = document.createElement('div');
-        panel.className = `drawer-panel ${this.activeTab === 'optics' ? 'active' : ''}`;
-        panel.dataset.panel = 'optics';
-        this.tabPanels.set('optics', panel);
+        this.configureTabPanel(panel, 'optics');
 
         const group = document.createElement('div');
         group.className = 'ctrl-group';
@@ -905,20 +989,26 @@ export class ControlCenter {
             {
                 prop: 'realisticDistances',
                 key: 'controls.realisticScale',
-                icon: '📏',
+                icon: svgIcon('scale'),
                 kbd: 'R',
-                initial: false,
+                initial: this.sceneManager.realisticDistances ?? false,
                 onChange: (v: boolean) => {
-                    this.sceneManager.toggleRealisticDistances(v);
-                    if (v) {
-                        this.uiManager.modal.show({
-                            titleKey: 'popups.trueScaleTitle',
-                            descKey: 'popups.trueScaleDesc',
-                            name: i18n.t('popups.trueScaleTitle'),
-                            description: i18n.t('popups.trueScaleDesc')
-                        });
+                    if (typeof this.uiManager?.setRealisticDistances === 'function') {
+                        this.uiManager.setRealisticDistances(v);
                     } else {
-                        if (this.uiManager.modal.isOpen && (this.uiManager.modal.isShowingPopup('popups.trueScaleTitle') || (this.uiManager.modal.titleElement && this.uiManager.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))) {
+                        this.sceneManager.toggleRealisticDistances(v);
+                        if (v) {
+                            this.uiManager.modal?.show?.({
+                                titleKey: 'popups.trueScaleTitle',
+                                descKey: 'popups.trueScaleDesc',
+                                name: i18n.t('popups.trueScaleTitle'),
+                                description: i18n.t('popups.trueScaleDesc')
+                            });
+                        } else if (
+                            this.uiManager.modal?.isOpen &&
+                            (this.uiManager.modal.isShowingPopup?.('popups.trueScaleTitle') ||
+                                (this.uiManager.modal.titleElement && this.uiManager.modal.titleElement.textContent === i18n.t('popups.trueScaleTitle')))
+                        ) {
                             this.uiManager.modal.hide();
                         }
                     }
@@ -927,31 +1017,31 @@ export class ControlCenter {
             {
                 prop: 'showHabitableZone',
                 key: 'controls.habitableZone',
-                icon: '🌱',
+                icon: svgIcon('habitable'),
                 kbd: 'Z',
-                initial: false,
+                initial: this.sceneManager.showHabitableZone ?? false,
                 onChange: (v: boolean) => this.sceneManager.toggleHabitableZone(v)
             },
             {
                 prop: 'showEclipticGrid',
                 key: 'controls.eclipticGrid',
-                icon: '🌐',
+                icon: svgIcon('grid'),
                 kbd: 'G',
-                initial: false,
+                initial: this.sceneManager.showEclipticGrid ?? false,
                 onChange: (v: boolean) => this.sceneManager.toggleEclipticGrid(v)
             },
             {
                 prop: 'enableBloom',
                 key: 'controls.enableBloom',
-                icon: '✨',
+                icon: svgIcon('bloom'),
                 kbd: 'B',
-                initial: true,
+                initial: this.sceneManager.bloomPass ? this.sceneManager.bloomPass.enabled : true,
                 onChange: (v: boolean) => this.sceneManager.toggleBloom(v)
             },
             {
                 prop: 'realisticLighting',
                 key: 'controls.realisticLighting',
-                icon: '💡',
+                icon: svgIcon('lighting'),
                 kbd: 'L',
                 initial: this.sceneManager.realisticLighting,
                 onChange: (v: boolean) => this.sceneManager.toggleRealisticLighting(v)
@@ -959,9 +1049,9 @@ export class ControlCenter {
             {
                 prop: 'showAxes',
                 key: 'controls.showAxes',
-                icon: '🧭',
+                icon: svgIcon('axes'),
                 kbd: 'X',
-                initial: false,
+                initial: this.sceneManager.showAxes ?? false,
                 onChange: (v: boolean) => this.sceneManager.toggleAxes(v)
             }
         ];
@@ -975,12 +1065,12 @@ export class ControlCenter {
 
             const icon = document.createElement('span');
             icon.className = 'toggle-icon';
-            icon.textContent = cfg.icon;
+            icon.innerHTML = cfg.icon;
             labelWrap.appendChild(icon);
 
             const labelText = document.createElement('span');
             labelText.dataset.i18nKey = cfg.key;
-            labelText.textContent = i18n.t(cfg.key);
+            labelText.textContent = stripLeadingEmoji(i18n.t(cfg.key));
             labelWrap.appendChild(labelText);
 
             if (cfg.kbd) {
@@ -1000,7 +1090,12 @@ export class ControlCenter {
             const input = document.createElement('input');
             input.type = 'checkbox';
             input.checked = cfg.initial;
-            input.onchange = () => cfg.onChange(input.checked);
+            input.onchange = () => {
+                cfg.onChange(input.checked);
+                if (this.uiManager?.headerSlotsContainer) {
+                    HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+                }
+            };
             switchWrap.appendChild(input);
 
             const slider = document.createElement('span');
@@ -1022,9 +1117,7 @@ export class ControlCenter {
     // =========================================================================
     private createSystemPanel(): HTMLElement {
         const panel = document.createElement('div');
-        panel.className = `drawer-panel ${this.activeTab === 'system' ? 'active' : ''}`;
-        panel.dataset.panel = 'system';
-        this.tabPanels.set('system', panel);
+        this.configureTabPanel(panel, 'system');
 
         // Tools Group
         const toolsGroup = document.createElement('div');
@@ -1038,10 +1131,10 @@ export class ControlCenter {
         // Radar Toggle
         const radarRow = document.createElement('div');
         radarRow.className = 'ctrl-row-toggle';
-        
+
         const radarLabel = document.createElement('label');
         radarLabel.className = 'toggle-label-wrap';
-        radarLabel.innerHTML = `<span class="toggle-icon">🛰️</span><span data-i18n-key="controls.showMinimap">${i18n.t('controls.showMinimap') || 'Tactical Radar Minimap'}</span><kbd class="ctrl-kbd-badge">M</kbd>`;
+        radarLabel.innerHTML = `<span class="toggle-icon">${svgIcon('minimap')}</span><span data-i18n-key="controls.showMinimap">${stripLeadingEmoji(i18n.t('controls.showMinimap') || 'Tactical Radar Minimap')}</span><kbd class="ctrl-kbd-badge">M</kbd>`;
         radarLabel.appendChild(this.createInfoButton('minimap', 'Tactical Radar Minimap'));
         radarRow.appendChild(radarLabel);
 
@@ -1053,8 +1146,11 @@ export class ControlCenter {
         radarInput.onchange = () => {
             this.uiManager.minimap.setVisible(radarInput.checked);
             const radarBtn = document.getElementById('hudRadarBtn');
-            if (radarBtn) radarBtn.classList.toggle('active', radarInput.checked);
-            if (this.uiManager.audioManager) this.uiManager.audioManager.playTick();
+            if (radarBtn) {
+                radarBtn.classList.toggle('active', radarInput.checked);
+                radarBtn.setAttribute('aria-pressed', String(radarInput.checked));
+            }
+            if (this.uiManager.audioManager) this.uiManager.audioManager.playTick?.();
         };
         radarSwitch.appendChild(radarInput);
         radarSwitch.appendChild(document.createElement('span')).className = 'sci-slider';
@@ -1068,7 +1164,7 @@ export class ControlCenter {
 
         const perfLabel = document.createElement('label');
         perfLabel.className = 'toggle-label-wrap';
-        perfLabel.innerHTML = `<span class="toggle-icon">⚡</span><span data-i18n-key="ui.telemetry">${i18n.t('ui.telemetry') || 'Engine Performance Telemetry'}</span><kbd class="ctrl-kbd-badge">P</kbd>`;
+        perfLabel.innerHTML = `<span class="toggle-icon">${svgIcon('telemetry')}</span><span data-i18n-key="ui.telemetry">${stripLeadingEmoji(i18n.t('ui.telemetry') || 'Engine Performance Telemetry')}</span><kbd class="ctrl-kbd-badge">P</kbd>`;
         perfLabel.appendChild(this.createInfoButton('telemetry', 'Engine Performance Telemetry'));
         perfRow.appendChild(perfLabel);
 
@@ -1080,8 +1176,11 @@ export class ControlCenter {
         perfInput.onchange = () => {
             this.uiManager.performanceMonitor.setVisible(perfInput.checked);
             const perfBtn = document.getElementById('hudPerfBtn');
-            if (perfBtn) perfBtn.classList.toggle('active', perfInput.checked);
-            if (this.uiManager.audioManager) this.uiManager.audioManager.playTick();
+            if (perfBtn) {
+                perfBtn.classList.toggle('active', perfInput.checked);
+                perfBtn.setAttribute('aria-pressed', String(perfInput.checked));
+            }
+            if (this.uiManager.audioManager) this.uiManager.audioManager.playTick?.();
         };
         perfSwitch.appendChild(perfInput);
         perfSwitch.appendChild(document.createElement('span')).className = 'sci-slider';
@@ -1116,6 +1215,7 @@ export class ControlCenter {
         const controlsBtn = document.getElementById('hudControlsBtn');
         if (controlsBtn) {
             controlsBtn.classList.toggle('active', this.isOpen);
+            controlsBtn.setAttribute('aria-expanded', String(this.isOpen));
         }
     }
 
@@ -1133,7 +1233,10 @@ export class ControlCenter {
         this.activeTab = tab;
 
         this.tabButtons.forEach((btn, id) => {
-            btn.classList.toggle('active', id === tab);
+            const isSelected = id === tab;
+            btn.classList.toggle('active', isSelected);
+            btn.setAttribute('aria-selected', String(isSelected));
+            btn.tabIndex = isSelected ? 0 : -1;
         });
 
         this.tabPanels.forEach((panel, id) => {
@@ -1207,11 +1310,13 @@ export class ControlCenter {
 
         setChecked('showOrbits', sm.showOrbits);
         setChecked('showMoons', sm.showMoons);
+        setChecked('showConstellations', sm.showConstellations ?? sm.constellationManager?.isVisible ?? true);
         setChecked('showAsteroids', sm.showAsteroids);
         setChecked('showKuiperBelt', sm.showKuiperBelt);
         setChecked('showDwarfPlanets', sm.showDwarfPlanets);
         setChecked('showComets', sm.showComets);
         setChecked('showSpacecraft', sm.showSpacecrafts);
+        setChecked('showMeteors', sm.showMeteors);
         setChecked('showTrails', sm.showTrails);
         setChecked('showHabitableZone', sm.showHabitableZone);
         setChecked('showEclipticGrid', sm.showEclipticGrid);
@@ -1229,9 +1334,9 @@ export class ControlCenter {
         const isOrbit = !isSurface && !isFree;
 
         this.camModeButtons.forEach((btn, key) => {
-            if (key === 'surface') btn.classList.toggle('active', isSurface);
-            else if (key === 'detach') btn.classList.toggle('active', isFree);
-            else if (key === 'orbit') btn.classList.toggle('active', isOrbit);
+            const active = key === 'surface' ? isSurface : key === 'detach' ? isFree : isOrbit;
+            btn.classList.toggle('active', active);
+            btn.parentElement?.classList.toggle('active', active);
         });
 
         if (this.uiManager?.headerSlotsContainer) {
@@ -1263,11 +1368,11 @@ export class ControlCenter {
                 const key = el.dataset.i18nKey;
                 if (key) {
                     const text = i18n.t(key);
-                    if (text) {
+                    if (text && text !== key) {
                         if (el.classList.contains('toggle-info-hint')) {
-                            el.title = text;
+                            el.title = stripLeadingEmoji(text);
                         } else {
-                            el.textContent = text;
+                            el.textContent = stripLeadingEmoji(text);
                         }
                     }
                 }
@@ -1295,8 +1400,19 @@ export class ControlCenter {
             }
         });
 
+        if (this.tourSpeedDisplay) {
+            const interval = this.sceneManager?.tourInterval || 12;
+            this.tourSpeedDisplay.textContent = this.formatTourSpeedText(interval);
+        }
+
         if (this.milestoneSelect && this.milestoneSelect.options.length > 0) {
-            this.milestoneSelect.options[0].textContent = i18n.t('datepicker.historicalEvents') || '🚀 Historical Milestones...';
+            this.milestoneSelect.options[0].textContent = stripLeadingEmoji(i18n.t('datepicker.historicalEvents') || 'Historical Milestones...');
+            HISTORICAL_SPACE_EVENTS.forEach((evt, idx) => {
+                const opt = this.milestoneSelect!.options[idx + 1];
+                if (opt) {
+                    opt.textContent = `${getLocalizedEventName(evt)} (${evt.date.getUTCFullYear()})`;
+                }
+            });
         }
 
         if (this.drawerElement) {
@@ -1322,6 +1438,19 @@ export class ControlCenter {
             if (e.key === 'Escape') {
                 if (this.tooltipElement?.classList.contains('visible')) {
                     this.hideOptionTooltip();
+                    e.stopImmediatePropagation();
+                    return;
+                }
+                const ui = this.uiManager as any;
+                const hasHigherOverlay =
+                    ui?.customDatePicker?.isYearModalActive?.() ||
+                    ui?.customDatePicker?.isOpen ||
+                    (typeof document !== 'undefined' && !!document.querySelector('.lang-switcher-container.open')) ||
+                    ui?.shortcutsModal?.isOpen ||
+                    ui?.headerSlotsModal?.isOpen ||
+                    ui?.eventModal?.isOpen ||
+                    ui?.modal?.isOpen;
+                if (hasHigherOverlay) {
                     return;
                 }
                 if (this.isOpen) {

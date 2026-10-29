@@ -21,6 +21,7 @@ export interface UserPreferences {
     showSpacecraft: boolean;
     showMeteors: boolean;
     showTrails: boolean;
+    showConstellations: boolean;
     realisticDistances: boolean;
     showHabitableZone: boolean;
     showEclipticGrid: boolean;
@@ -55,6 +56,7 @@ export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     showSpacecraft: true,
     showMeteors: false,
     showTrails: true,
+    showConstellations: true,
     realisticDistances: false,
     showHabitableZone: false,
     showEclipticGrid: false,

@@ -30,6 +30,7 @@ describe('ControlCenter Component', () => {
             showSpacecrafts: true,
             showMeteors: false,
             showTrails: true,
+            showConstellations: true,
             showHabitableZone: false,
             showEclipticGrid: false,
             realisticLighting: false,
@@ -53,6 +54,7 @@ describe('ControlCenter Component', () => {
             toggleSpacecrafts: vi.fn(),
             toggleMeteors: vi.fn(),
             toggleTrails: vi.fn(),
+            toggleConstellations: vi.fn((v: boolean) => { mockSceneManager.showConstellations = v; }),
             toggleHabitableZone: vi.fn(),
             toggleEclipticGrid: vi.fn(),
             toggleRealisticLighting: vi.fn(),
@@ -113,6 +115,7 @@ describe('ControlCenter Component', () => {
         const timePanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="time"]');
         expect(timeBtn?.classList.contains('active')).toBe(true);
         expect(timePanel?.classList.contains('active')).toBe(true);
+        expect(timeBtn?.getAttribute('aria-selected')).toBe('true');
 
         controlCenter.switchTab('layers');
         expect(controlCenter.activeTab).toBe('layers');
@@ -121,6 +124,7 @@ describe('ControlCenter Component', () => {
         expect(layersBtn?.classList.contains('active')).toBe(true);
         expect(layersPanel?.classList.contains('active')).toBe(true);
         expect(timePanel?.classList.contains('active')).toBe(false);
+        expect(timeBtn?.getAttribute('aria-selected')).toBe('false');
     });
 
     it('should select quick target chips and trigger focus and synchronization', () => {
@@ -133,14 +137,41 @@ describe('ControlCenter Component', () => {
         expect(emitSpy).toHaveBeenCalledWith('select-celestial-body', { name: 'Mars' });
     });
 
-    it('should toggle cosmic layer options and call sceneManager methods', () => {
+    it('should toggle cosmic layer options including Constellations (C) and call sceneManager methods', () => {
         controlCenter.switchTab('layers');
-        const orbitsInput = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="layers"] input[type="checkbox"]') as HTMLInputElement;
-        expect(orbitsInput).toBeTruthy();
+        const checkboxes = controlCenter.drawerElement.querySelectorAll<HTMLInputElement>('.drawer-panel[data-panel="layers"] input[type="checkbox"]');
+        expect(checkboxes.length).toBe(10);
 
+        const orbitsInput = checkboxes[0];
         orbitsInput.checked = false;
         orbitsInput.dispatchEvent(new Event('change'));
         expect(mockSceneManager.toggleOrbits).toHaveBeenCalledWith(false);
+
+        // Constellations toggle (3rd switch in Layers panel)
+        const constellationsInput = checkboxes[2];
+        expect(constellationsInput.checked).toBe(true);
+        constellationsInput.checked = false;
+        constellationsInput.dispatchEvent(new Event('change'));
+        expect(mockSceneManager.toggleConstellations).toHaveBeenCalledWith(false);
+
+        mockSceneManager.showConstellations = true;
+        controlCenter.syncSwitches();
+        expect(constellationsInput.checked).toBe(true);
+    });
+
+    it('should render valid sibling button DOM structure inside camera modes segmented control', () => {
+        controlCenter.switchTab('camera');
+        const items = controlCenter.drawerElement.querySelectorAll('.camera-modes-segmented .cam-mode-item');
+        expect(items.length).toBe(3);
+
+        items.forEach(item => {
+            const modeBtn = item.querySelector('.cam-mode-btn');
+            const infoBtn = item.querySelector('.ctrl-info-btn');
+            expect(modeBtn).not.toBeNull();
+            expect(infoBtn).not.toBeNull();
+            // Ensure info button is a sibling of mode button, never nested inside <button>
+            expect(modeBtn?.querySelector('button')).toBeNull();
+        });
     });
 
     it('should close on Escape key press when open', () => {
@@ -237,6 +268,7 @@ describe('ControlCenter Component', () => {
         expect(badgeTexts).toContain('J');
         expect(badgeTexts).toContain('Y');
         expect(badgeTexts).toContain('I');
+        expect(badgeTexts).toContain('C');
     });
 
     it('should not contain unnecessary header quick access section in system controls', () => {
@@ -297,7 +329,7 @@ describe('ControlCenter Component', () => {
 
     it('should render info buttons on setting options across panels', () => {
         const infoBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.ctrl-info-btn');
-        expect(infoBtns.length).toBeGreaterThanOrEqual(20);
+        expect(infoBtns.length).toBeGreaterThanOrEqual(21);
 
         // Verify specific option info buttons exist
         const optionIds = Array.from(infoBtns).map(btn => btn.dataset.optionId);
@@ -314,6 +346,7 @@ describe('ControlCenter Component', () => {
         expect(optionIds).toContain('showSpacecraft');
         expect(optionIds).toContain('showMeteors');
         expect(optionIds).toContain('showTrails');
+        expect(optionIds).toContain('showConstellations');
         expect(optionIds).toContain('orbitFocus');
         expect(optionIds).toContain('surfaceView');
         expect(optionIds).toContain('freeCamera');
@@ -347,7 +380,6 @@ describe('ControlCenter Component', () => {
 
         const desc = tooltip.querySelector('.ctrl-info-tooltip-desc');
         expect(desc?.textContent).toBeTruthy();
-        // Concise summary should be present
         expect(desc?.textContent?.length).toBeLessThan(200);
 
         // Shortcut badge should be included
@@ -605,4 +637,3 @@ describe('ControlCenter Component', () => {
         expect(mockUIManager.customDatePicker.togglePopup).toHaveBeenCalled();
     });
 });
-

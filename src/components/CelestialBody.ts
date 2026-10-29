@@ -4,16 +4,20 @@ import { CelestialBodyData, MoonData } from './SolarSystemData';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
 import { solveKepler } from './MathUtils';
 import { TextureGenerator } from './TextureGenerator';
+import { i18n } from '../i18n';
 
 
 const auroraVertexShader = `
 varying vec2 vUv;
 varying vec3 vNormal;
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
 uniform float time;
 
 void main() {
     vUv = uv;
     vNormal = normalize(normalMatrix * normal);
+    vWorldNormal = normalize(mat3(modelMatrix) * normal);
 
     vec3 pos = position;
     float angle = atan(pos.z, pos.x);
@@ -26,6 +30,7 @@ void main() {
     pos.z += dir.y * displacement;
     pos.y += displacement * 0.5;
 
+    vWorldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
 }
 `;
@@ -33,6 +38,8 @@ void main() {
 const auroraFragmentShader = `
 varying vec2 vUv;
 varying vec3 vNormal;
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
 uniform float time;
 uniform vec3 colorBase;
 uniform vec3 colorMid;
@@ -49,7 +56,11 @@ void main() {
     vec3 col = mix(colorBase, colorMid, smoothstep(0.15, 0.6, vUv.y));
     col = mix(col, colorTop, smoothstep(0.6, 0.95, vUv.y));
 
-    float alpha = verticalFade * fluting * opacity;
+    // Intensify auroral curtains across Earth's unlit night hemisphere
+    vec3 sunDir = length(vWorldPos) > 0.0001 ? normalize(-vWorldPos) : vec3(1.0, 0.0, 0.0);
+    float nightFactor = mix(1.18, 0.38, smoothstep(-0.25, 0.45, dot(normalize(vWorldNormal), sunDir)));
+
+    float alpha = verticalFade * fluting * opacity * nightFactor;
     gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -65,6 +76,7 @@ export class CelestialBody {
     tiltGroup: THREE.Group;
     cloudMesh?: THREE.Mesh;
     atmosphereMesh?: THREE.Mesh;
+    coronaMesh?: THREE.Mesh;
     shaderMaterial?: THREE.ShaderMaterial;
     ringMeshes: THREE.Mesh[];
     lastUpdate?: number;
@@ -93,6 +105,8 @@ export class CelestialBody {
     private static _tempWorldPos = new THREE.Vector3();
     private static _tempLocalPos = new THREE.Vector3();
     private static _tempMeteorDir = new THREE.Vector3();
+    private static _tempTangent = new THREE.Vector3();
+    private static _unitZ = new THREE.Vector3(0, 0, 1);
 
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D, isMoon: boolean = false) {
         this.data = data;
@@ -179,16 +193,19 @@ export class CelestialBody {
             material = sunMaterial;
             this.shaderMaterial = sunMaterial;
         } else if (this.data.name === 'Earth') {
-            // High-resolution real NASA Blue Marble satellite map of Earth
-            const textureUrl = `${import.meta.env.BASE_URL}textures/earth_equirectangular.png`;
-            const texture = new THREE.TextureLoader().load(textureUrl);
+            // High-resolution NASA Blue Marble WebP satellite map of Earth
+            const roughnessMap = TextureGenerator.getPlanetRoughnessMap('Earth');
+            const textureUrl = `${import.meta.env.BASE_URL}textures/earth_equirectangular.webp`;
+            const texture = new THREE.TextureLoader().load(textureUrl, (loadedTex) => {
+                if (loadedTex?.image) {
+                    TextureGenerator.updateEarthRoughnessFromImage(loadedTex.image);
+                }
+            });
             texture.colorSpace = THREE.SRGBColorSpace;
             texture.anisotropy = TextureGenerator.maxAnisotropy;
             texture.minFilter = THREE.LinearMipmapLinearFilter;
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.ClampToEdgeWrapping;
-
-            const roughnessMap = TextureGenerator.getPlanetRoughnessMap('Earth');
 
             material = new THREE.MeshStandardMaterial({
                 map: texture,
@@ -197,13 +214,34 @@ export class CelestialBody {
                 metalness: 0.05,
                 color: 0xffffff
             });
-        } else {
-            // Apply 2:1 equirectangular seamless texture
-            const texture = TextureGenerator.getPlanetTexture(this.data.name);
+        } else if (this.data.name === 'Moon') {
+            // Real Lunar Reconnaissance Orbiter equirectangular map + surface crater relief
+            const textureUrl = `${import.meta.env.BASE_URL}textures/moon.webp`;
+            const texture = new THREE.TextureLoader().load(textureUrl);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = TextureGenerator.maxAnisotropy;
+            texture.minFilter = THREE.LinearMipmapLinearFilter;
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
 
             material = new THREE.MeshStandardMaterial({
                 map: texture,
-                roughness: ['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Venus'].includes(this.data.name) ? 0.95 : 0.8,
+                bumpMap: texture,
+                bumpScale: 0.018,
+                roughness: 0.92,
+                metalness: 0.02,
+                color: 0xffffff
+            });
+        } else {
+            // Apply 2:1 equirectangular seamless texture + bump relief on rocky/icy cratered worlds
+            const texture = TextureGenerator.getPlanetTexture(this.data.name);
+            const bumpMap = TextureGenerator.getPlanetBumpMap(this.data.name);
+            const isGasOrCloud = ['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Venus', 'Titan'].includes(this.data.name);
+
+            material = new THREE.MeshStandardMaterial({
+                map: texture,
+                ...(bumpMap ? { bumpMap, bumpScale: 0.02 } : {}),
+                roughness: isGasOrCloud ? 0.95 : 0.82,
                 metalness: ['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name) ? 0.0 : 0.05,
                 color: 0xffffff
             });
@@ -225,6 +263,9 @@ export class CelestialBody {
         this.tiltGroup.add(this.mesh);
 
         // --- ATMOSPHERE & SPECIAL FEATURES ---
+        if (this.data.name === 'Sun') {
+            this.createSolarCorona();
+        }
         this.createAtmosphere();
 
         if (this.data.name === 'Earth') {
@@ -287,48 +328,105 @@ export class CelestialBody {
     }
 
 
+    createSolarCorona() {
+        const coronaGeo = new THREE.SphereGeometry(this.data.radius * 1.28, 64, 64);
+        const coronaMat = new THREE.ShaderMaterial({
+            uniforms: {
+                glowColor: { value: new THREE.Color(1.0, 0.58, 0.14) },
+                innerColor: { value: new THREE.Color(1.0, 0.88, 0.45) }
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vViewPos;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vViewPos = -mvPosition.xyz;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 glowColor;
+                uniform vec3 innerColor;
+                varying vec3 vNormal;
+                varying vec3 vViewPos;
+                void main() {
+                    // BackSide normal faces inward; dot(-vNormal, viewDir) peaks toward center and fades smoothly to 0 at outer corona edge
+                    vec3 viewDir = normalize(vViewPos);
+                    float radial = clamp(dot(-normalize(vNormal), viewDir), 0.0, 1.0);
+                    float halo = pow(radial, 3.6) * 0.58;
+                    vec3 col = mix(glowColor, innerColor, pow(radial, 2.0));
+                    gl_FragColor = vec4(col, halo);
+                }
+            `,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            depthWrite: false
+        });
+        this.coronaMesh = new THREE.Mesh(coronaGeo, coronaMat);
+        this.coronaMesh.frustumCulled = false;
+        this.tiltGroup.add(this.coronaMesh);
+    }
+
+    private renderLabelCanvas(canvas: HTMLCanvasElement) {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const localizedName = i18n.getBodyName(this.data.name) || this.data.name;
+        const font = 'bold 34px "Exo 2", "Space Grotesk", "Outfit", Arial, sans-serif';
+        ctx.font = font;
+        const measuredWidth = typeof ctx.measureText === 'function' ? ctx.measureText(localizedName).width : localizedName.length * 20;
+        const pillWidth = Math.max(224, Math.ceil(measuredWidth + 56));
+        const canvasWidth = Math.max(256, pillWidth + 32);
+
+        if (canvas.width !== canvasWidth) {
+            canvas.width = canvasWidth;
+        }
+        canvas.height = 256;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cx = canvas.width / 2;
+        const pillX = cx - pillWidth / 2;
+        const accentHex = '#' + (this.data.color || 0x38bdf8).toString(16).padStart(6, '0');
+
+        // Subtle dark glass pill behind text
+        ctx.fillStyle = 'rgba(8, 14, 30, 0.82)';
+        ctx.fillRect(pillX, 26, pillWidth, 54);
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+        ctx.lineWidth = 2;
+        if (typeof ctx.strokeRect === 'function') {
+            ctx.strokeRect(pillX, 26, pillWidth, 54);
+        }
+
+        ctx.font = font;
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.fillText(localizedName, cx, 64);
+
+        // Observatory target reticle & pointer
+        ctx.fillStyle = accentHex;
+        ctx.beginPath();
+        ctx.arc(cx, 132, 26, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(cx - 24, 138);
+        ctx.lineTo(cx, 190);
+        ctx.lineTo(cx + 24, 138);
+        ctx.fill();
+
+        ctx.fillStyle = '#040917';
+        ctx.beginPath();
+        ctx.arc(cx, 132, 12, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     createLabel() {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
         canvas.height = 256;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const accentHex = '#' + (this.data.color || 0x38bdf8).toString(16).padStart(6, '0');
-
-            // Subtle dark glass pill behind text
-            ctx.fillStyle = 'rgba(8, 14, 30, 0.78)';
-            ctx.fillRect(16, 26, 224, 54);
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-            ctx.lineWidth = 2;
-            if (typeof ctx.strokeRect === 'function') {
-                ctx.strokeRect(16, 26, 224, 54);
-            }
-
-            ctx.font = 'bold 34px "Space Grotesk", "Outfit", Arial, sans-serif';
-            ctx.fillStyle = '#f8fafc';
-            ctx.textAlign = 'center';
-            ctx.fillText(this.data.name, 128, 64);
-
-            // Sci-fi observatory target reticle & pointer
-            ctx.fillStyle = accentHex;
-            ctx.beginPath();
-            ctx.arc(128, 132, 26, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(104, 138);
-            ctx.lineTo(128, 190); // bottom pointer
-            ctx.lineTo(152, 138);
-            ctx.fill();
-
-            ctx.fillStyle = '#040917';
-            ctx.beginPath();
-            ctx.arc(128, 132, 12, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        this.renderLabelCanvas(canvas);
 
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.SpriteMaterial({
@@ -338,28 +436,37 @@ export class CelestialBody {
             sizeAttenuation: false
         });
         this.labelSprite = new THREE.Sprite(material);
-        // With sizeAttenuation: false, scale is in pixels/viewport relative units
-        // Typically a small decimal value like 0.05
-        this.labelSprite.scale.set(0.05, 0.05, 1);
-
-        // When sizeAttenuation is false, position does not strictly scale up linearly in screen space,
-        // but we keep the relative world position. We might want to offset it slightly or put it at the center.
+        const aspect = canvas.width / canvas.height;
+        this.labelSprite.scale.set(0.05 * aspect, 0.05, 1);
         this.labelSprite.position.set(0, this.data.radius * 1.2, 0);
         this.labelSprite.visible = this.showLabel;
         // Don't add it to tiltGroup so the label stays upright
         this.orbitGroup.add(this.labelSprite);
     }
 
+    refreshLabel() {
+        if (this.labelSprite && this.labelSprite.material?.map) {
+            const canvas = this.labelSprite.material.map.image as HTMLCanvasElement | undefined;
+            if (canvas && typeof canvas.getContext === 'function') {
+                this.renderLabelCanvas(canvas);
+                this.labelSprite.material.map.needsUpdate = true;
+                const aspect = canvas.width / canvas.height;
+                this.labelSprite.scale.set(0.05 * aspect, 0.05, 1);
+            }
+        }
+        this.moons.forEach(moon => moon.refreshLabel());
+    }
+
     createAtmosphere() {
         const atmosphereConfigs: Record<string, { color: number; scale: number; coefficient: number; power: number }> = {
-            'Earth': { color: 0x38bdf8, scale: 1.018, coefficient: 0.35, power: 4.5 },
-            'Venus': { color: 0xf59e0b, scale: 1.022, coefficient: 0.40, power: 3.8 },
-            'Mars': { color: 0xf97316, scale: 1.012, coefficient: 0.25, power: 5.0 },
-            'Jupiter': { color: 0xfde68a, scale: 1.012, coefficient: 0.25, power: 4.5 },
-            'Saturn': { color: 0xfef08a, scale: 1.012, coefficient: 0.25, power: 4.5 },
-            'Uranus': { color: 0x67e8f9, scale: 1.018, coefficient: 0.35, power: 4.0 },
-            'Neptune': { color: 0x3b82f6, scale: 1.020, coefficient: 0.40, power: 4.0 },
-            'Titan': { color: 0xd97706, scale: 1.025, coefficient: 0.30, power: 3.8 }
+            'Earth': { color: 0x38bdf8, scale: 1.018, coefficient: 0.42, power: 4.2 },
+            'Venus': { color: 0xf59e0b, scale: 1.022, coefficient: 0.44, power: 3.6 },
+            'Mars': { color: 0xf97316, scale: 1.012, coefficient: 0.28, power: 4.8 },
+            'Jupiter': { color: 0xfde68a, scale: 1.012, coefficient: 0.28, power: 4.4 },
+            'Saturn': { color: 0xfef08a, scale: 1.012, coefficient: 0.28, power: 4.4 },
+            'Uranus': { color: 0x67e8f9, scale: 1.018, coefficient: 0.38, power: 3.9 },
+            'Neptune': { color: 0x3b82f6, scale: 1.020, coefficient: 0.44, power: 3.9 },
+            'Titan': { color: 0xd97706, scale: 1.025, coefficient: 0.34, power: 3.6 }
         };
 
         const config = atmosphereConfigs[this.data.name];
@@ -376,8 +483,12 @@ export class CelestialBody {
             vertexShader: `
                 varying vec3 vNormal;
                 varying vec3 vPosition;
+                varying vec3 vWorldNormal;
+                varying vec3 vWorldPos;
                 void main() {
                     vNormal = normalize(normalMatrix * normal);
+                    vWorldNormal = normalize(mat3(modelMatrix) * normal);
+                    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
                     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                     vPosition = mvPosition.xyz;
                     gl_Position = projectionMatrix * mvPosition;
@@ -389,11 +500,23 @@ export class CelestialBody {
                 uniform float power;
                 varying vec3 vNormal;
                 varying vec3 vPosition;
+                varying vec3 vWorldNormal;
+                varying vec3 vWorldPos;
                 void main() {
                     vec3 viewDir = normalize(-vPosition);
-                    float fresnel = 1.0 - max(0.0, dot(vNormal, viewDir));
-                    float intensity = pow(fresnel, power) * coefficient;
-                    gl_FragColor = vec4(glowColor, intensity);
+                    float fresnel = 1.0 - max(0.0, dot(normalize(vNormal), viewDir));
+
+                    // Solar direction from world position toward Sun at (0, 0, 0)
+                    vec3 sunDir = length(vWorldPos) > 0.0001 ? normalize(-vWorldPos) : vec3(0.0, 1.0, 0.0);
+                    float sunDot = dot(normalize(vWorldNormal), sunDir);
+
+                    // Day-side Rayleigh scattering + twilight terminator band, fading to 6% subtle airglow on night side
+                    float dayScatter = mix(0.06, 1.0, smoothstep(-0.32, 0.42, sunDot));
+                    float twilightBand = exp(-pow((sunDot + 0.04) * 3.6, 2.0)) * 0.32;
+                    vec3 scatteredColor = mix(glowColor, glowColor * vec3(1.22, 0.86, 0.68), twilightBand);
+
+                    float intensity = pow(fresnel, power) * coefficient * dayScatter;
+                    gl_FragColor = vec4(scatteredColor, intensity);
                 }
             `,
             side: THREE.FrontSide,
@@ -417,38 +540,47 @@ export class CelestialBody {
         // Add to tiltGroup so it shows the actual rotation axis
         this.tiltGroup.add(this.axesHelper);
     }
+
     createRings() {
-        if (!('rings' in this.data) || !this.data.rings) return;
+        if (!('rings' in this.data) || !this.data.rings || this.data.rings.length === 0) return;
+
+        // Compute global radial span across all sub-rings of this body so multi-part ring systems
+        // (e.g. Saturn's inner C/B rings + outer A ring across the Cassini gap) sample their true
+        // radial fraction of the ring texture rather than duplicating the entire C->A texture per sub-ring.
+        const minInner = Math.min(...this.data.rings.map(r => r.innerRadius));
+        const maxOuter = Math.max(...this.data.rings.map(r => r.outerRadius));
+        const totalSpan = Math.max(0.0001, maxOuter - minInner);
+        const ringTexture = TextureGenerator.getRingTexture(this.data.name);
 
         this.data.rings.forEach(ringData => {
             const segments = 128;
             const geometry = new THREE.RingGeometry(ringData.innerRadius, ringData.outerRadius, segments);
 
-            // Compute radial UV coordinates: u is radial distance (0 at inner to 1 at outer)
+            // Compute normalized radial UV coordinate u across [minInner, maxOuter]
             const pos = geometry.attributes.position;
             const uvs = geometry.attributes.uv;
             for (let i = 0; i < pos.count; i++) {
                 const x = pos.getX(i);
                 const y = pos.getY(i);
                 const r = Math.sqrt(x * x + y * y);
-                const u = Math.max(0, Math.min(1, (r - ringData.innerRadius) / (ringData.outerRadius - ringData.innerRadius)));
+                const u = Math.max(0, Math.min(1, (r - minInner) / totalSpan));
                 uvs.setXY(i, u, 0.5);
             }
             uvs.needsUpdate = true;
 
-            const ringTexture = TextureGenerator.getRingTexture(this.data.name);
             const material = new THREE.MeshStandardMaterial({
                 map: ringTexture,
                 side: THREE.DoubleSide,
                 transparent: true,
-                roughness: 0.8,
+                alphaTest: 0.04,
+                roughness: 0.78,
                 metalness: 0.0,
                 depthWrite: false
             });
             const ringMesh = new THREE.Mesh(geometry, material);
 
-            // Shadows for rings
-            ringMesh.castShadow = true;
+            // Planet casts spherical shadow onto rings; ring plane must not self-shadow in PointLight cubemap
+            ringMesh.castShadow = false;
             ringMesh.receiveShadow = true;
 
             // Rings are aligned with the planet's equator in the XZ plane
@@ -780,10 +912,15 @@ export class CelestialBody {
         this.parent.worldToLocal(CelestialBody._tempLocalPos);
 
         // Only add a point if we've moved a certain distance to avoid too many points when slow
-        if (this.trailPositions.length === 0 || CelestialBody._tempLocalPos.distanceTo(this.trailPositions[this.trailPositions.length - 1]) > 0.01) {
-            this.trailPositions.push(CelestialBody._tempLocalPos.clone());
-            if (this.trailPositions.length > maxTrailLength) {
-                this.trailPositions.shift();
+        const minStep = this.realisticDistances ? 0.002 : 0.01;
+        if (this.trailPositions.length === 0 || CelestialBody._tempLocalPos.distanceTo(this.trailPositions[this.trailPositions.length - 1]) > minStep) {
+            if (this.trailPositions.length >= maxTrailLength) {
+                // Recycle oldest Vector3 instance to eliminate per-frame GC churn
+                const recycled = this.trailPositions.shift()!;
+                recycled.copy(CelestialBody._tempLocalPos);
+                this.trailPositions.push(recycled);
+            } else {
+                this.trailPositions.push(CelestialBody._tempLocalPos.clone());
             }
 
             const positions = this.trailLine.geometry.attributes.position.array as Float32Array;
@@ -793,7 +930,6 @@ export class CelestialBody {
                 positions[i * 3 + 2] = this.trailPositions[i].z;
             }
 
-            // If trail isn't full yet, set draw range
             this.trailLine.geometry.setDrawRange(0, this.trailPositions.length);
             this.trailLine.geometry.attributes.position.needsUpdate = true;
         }
@@ -808,11 +944,17 @@ export class CelestialBody {
         const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
         this.tiltGroup.scale.setScalar(scale);
 
+        if (this.velocityVectorGroup) {
+            this.velocityVectorGroup.scale.setScalar(scale);
+        }
+
+        // Clear stale trail vertices when switching between schematic and true 1:1 scale
+        if (this.trailLine) {
+            this.trailPositions.length = 0;
+            this.trailLine.geometry.setDrawRange(0, 0);
+        }
+
         if (this.labelSprite) {
-            // Update the label position based on the new visual scale of the planet.
-            // When realistic, we use the newly computed realisticRadius, otherwise default radius.
-            // The labelSprite is not in the tiltGroup (so it stays upright), meaning it doesn't
-            // inherit the tiltGroup's scale automatically. We must set its local Y position.
             const currentRadius = realistic ? realisticRadius : this.data.radius;
             this.labelSprite.position.set(0, currentRadius * 1.2, 0);
         }
@@ -906,12 +1048,6 @@ export class CelestialBody {
             this.mesh.rotation.y += rotationSpeed * deltaTime;
         }
 
-        // Rotate Rings
-        this.ringMeshes.forEach(ring => {
-            // Rotate around local Z axis since they were rotated 90deg on X
-            ring.rotation.z += 0.2 * deltaTime;
-        });
-
         // Rotate Clouds independently with real-time atmospheric circulation drift
         if (this.cloudMesh) {
             const atmosphericDrift = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 0.045 : 0;
@@ -920,8 +1056,6 @@ export class CelestialBody {
 
         // Update Shader Time
         if (this.shaderMaterial) {
-            // Solar surface plasma convection and coronal loops churn via wall-clock delta when running,
-            // ensuring the Sun is dynamic and alive in real-time (1:1) scale without freezing static.
             const plasmaDelta = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 0.45 : deltaTime;
             this.shaderMaterial.uniforms.time.value += plasmaDelta;
         }
@@ -931,17 +1065,16 @@ export class CelestialBody {
             this.auroraMaterial.uniforms.time.value += rawDelta * 1.8;
         }
 
-        // Update Orbital Velocity Vector
-        if (this.velocityVectorGroup) {
-            // Tangent direction in orbital plane: (-sin(angle), 0, cos(angle))
-            // For retrograde bodies, orbital velocity points in the opposite direction (dir = -1)
-            const tangent = new THREE.Vector3(-Math.sin(this.angle) * dir, 0, Math.cos(this.angle) * dir).normalize();
+        // Update Orbital Velocity Vector (zero per-frame heap allocations)
+        if (this.velocityVectorGroup && this.velocityVectorGroup.visible) {
+            const tangent = CelestialBody._tempTangent.set(-Math.sin(this.angle) * dir, 0, Math.cos(this.angle) * dir).normalize();
+            const visualScale = this.tiltGroup ? this.tiltGroup.scale.x : 1.0;
             const r = this.data.radius;
             const bodyScale = this.getVelocityBodyScale();
             const clearanceR = this.data.name === 'Haumea' ? r * 1.45 : r;
-            const offsetDist = clearanceR * 1.35 + bodyScale * 0.4;
+            const offsetDist = (clearanceR * 1.35 + bodyScale * 0.4) * visualScale;
             this.velocityVectorGroup.position.copy(tangent).multiplyScalar(offsetDist);
-            this.velocityVectorGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
+            this.velocityVectorGroup.quaternion.setFromUnitVectors(CelestialBody._unitZ, tangent);
 
             if (this.velocityPulseChevron && rawDelta !== undefined && rawDelta > 0) {
                 this.velocityPulseTimer += rawDelta * 2.5;
@@ -1062,6 +1195,16 @@ export class CelestialBody {
             } else {
                 this.atmosphereMesh.material?.dispose();
             }
+        }
+
+        if (this.coronaMesh) {
+            this.coronaMesh.geometry?.dispose();
+            if (Array.isArray(this.coronaMesh.material)) {
+                this.coronaMesh.material.forEach(m => m.dispose());
+            } else {
+                this.coronaMesh.material?.dispose();
+            }
+            this.coronaMesh = undefined;
         }
 
         this.ringMeshes.forEach(ring => {

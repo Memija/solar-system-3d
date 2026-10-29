@@ -2,6 +2,7 @@ import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, Sp
 import { i18n } from '../i18n/index';
 import { EventBus } from './EventBus';
 import { AudioNarrator } from './AudioNarrator';
+import { svgIcon, SvgIconName } from './SvgIcons';
 
 type ModalData = CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData;
 
@@ -10,12 +11,23 @@ export interface CustomModalData {
     description: string;
     titleKey?: string;
     descKey?: string;
+    titleIcon?: SvgIconName;
     images?: string[];
     imageUrl?: string;
     links?: any[];
 }
 
+function escapeAttr(val: string): string {
+    return val
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 export class Modal {
+    private static nextModalId = 0;
+
     container: HTMLElement;
     modalElement: HTMLElement;
     contentElement!: HTMLElement;
@@ -29,6 +41,7 @@ export class Modal {
     public currentData: ModalData | CustomModalData | null = null;
     private unregisterI18n: (() => void) | null = null;
     private hideTooltipHandler: () => void;
+    private previousFocusedElement: HTMLElement | null = null;
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -63,13 +76,20 @@ export class Modal {
     private createTooltipModal(): HTMLElement {
         const tooltip = document.createElement('div');
         tooltip.className = 'modal-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
         this.container.appendChild(tooltip);
         return tooltip;
     }
 
     private createModal(): HTMLElement {
+        const modalId = ++Modal.nextModalId;
+        const titleId = `dossier-modal-title-${modalId}`;
+
         const modal = document.createElement('div');
         modal.className = 'dossier-modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'false');
+        modal.setAttribute('aria-labelledby', titleId);
         modal.style.display = 'none';
 
         // Drag handle for mobile bottom sheet
@@ -119,6 +139,7 @@ export class Modal {
 
         const title = document.createElement('h2');
         title.className = 'modal-title';
+        title.id = titleId;
         this.titleElement = title;
         header.appendChild(title);
 
@@ -127,6 +148,7 @@ export class Modal {
 
         // Audio Guide narration button
         const audioGuideBtn = document.createElement('button');
+        audioGuideBtn.type = 'button';
         audioGuideBtn.className = 'modal-audio-guide-btn';
         this.audioGuideBtn = audioGuideBtn;
         this.updateAudioGuideButtonLabel(false);
@@ -146,8 +168,9 @@ export class Modal {
 
         // Close button
         const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
         closeBtn.className = 'modal-close-btn';
-        closeBtn.innerHTML = '&times;';
+        closeBtn.innerHTML = svgIcon('close');
         closeBtn.setAttribute('aria-label', i18n.t('ui.close'));
         closeBtn.title = i18n.t('ui.close');
         closeBtn.onclick = () => {
@@ -184,17 +207,17 @@ export class Modal {
             return `
                 <div class="gallery-container">
                     ${data.images.map((img: string, index: number) => `
-                        <img src="${this.formatImageUrl(img)}" alt="${data.name} visual ${index + 1}" class="gallery-img" data-index="${index}" style="opacity: ${index === 0 ? 1 : 0};">
+                        <img src="${this.formatImageUrl(img)}" alt="${escapeAttr(data.name)} visual ${index + 1}" class="gallery-img" data-index="${index}" style="opacity: ${index === 0 ? 1 : 0};">
                     `).join('')}
 
                     ${data.images.length > 1 ? `
-                        <button class="gallery-btn prev-btn" aria-label="${i18n.t('modal.prevImageAria') || 'Previous image'}">❮</button>
-                        <button class="gallery-btn next-btn" aria-label="${i18n.t('modal.nextImageAria') || 'Next image'}">❯</button>
+                        <button type="button" class="gallery-btn prev-btn" aria-label="${escapeAttr(i18n.t('modal.prevImageAria') || 'Previous image')}">❮</button>
+                        <button type="button" class="gallery-btn next-btn" aria-label="${escapeAttr(i18n.t('modal.nextImageAria') || 'Next image')}">❯</button>
                     ` : ''}
                 </div>
             `;
         } else if (data.imageUrl) {
-            return `<div class="gallery-container"><img src="${this.formatImageUrl(data.imageUrl)}" alt="${data.name}" class="gallery-img" style="opacity: 1;"></div>`;
+            return `<div class="gallery-container"><img src="${this.formatImageUrl(data.imageUrl)}" alt="${escapeAttr(data.name)}" class="gallery-img" style="opacity: 1;"></div>`;
         }
         return '';
     }
@@ -208,7 +231,7 @@ export class Modal {
                     <ul>
                         ${sortedLinks.map((link: any) => `
                             <li>
-                                <a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.title} ↗</a>
+                                <a href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer">${link.title} ↗</a>
                             </li>
                         `).join('')}
                     </ul>
@@ -278,14 +301,14 @@ export class Modal {
     }
 
     private getExtraInfo(data: ModalData | CustomModalData): string {
-        let stats: { label: string; value: string; tooltipTitle: string; tooltipText: string; subValue?: string }[] = [];
+        const stats: { label: string; value: string; tooltipTitle: string; tooltipText: string; subValue?: string }[] = [];
         let additionalHtml = '';
 
         const createChip = (label: string, value: string, tooltipTitle: string, tooltipText: string, subValue?: string) => `
             <div class="stat-chip">
                 <div class="stat-label-wrap">
                     <span class="stat-label">${label}</span>
-                    <span class="info-btn gui-info-icon" data-title="${tooltipTitle}" data-text="${tooltipText}">i</span>
+                    <button type="button" class="info-btn gui-info-icon" aria-label="${escapeAttr(tooltipTitle)}" data-title="${escapeAttr(tooltipTitle)}" data-text="${escapeAttr(tooltipText)}">i</button>
                 </div>
                 <span class="stat-value">${value}</span>
                 ${subValue ? `<span class="stat-subvalue">${subValue}</span>` : ''}
@@ -301,7 +324,7 @@ export class Modal {
             });
 
             if ('launchDate' in data && data.launchDate && (data.name === 'Sputnik 1' || data.name === 'Apollo 11')) {
-                additionalHtml += `<button class="jump-to-date-btn" data-date="${data.launchDate}">${i18n.t('ui.jumpToDate', { date: data.launchDate })}</button>`;
+                additionalHtml += `<button type="button" class="jump-to-date-btn" data-date="${escapeAttr(data.launchDate)}">${i18n.t('ui.jumpToDate', { date: data.launchDate })}</button>`;
             }
         }
 
@@ -438,7 +461,15 @@ export class Modal {
         const title = btn.getAttribute('data-title') || '';
         const text = btn.getAttribute('data-text') || '';
 
-        this.tooltipElement.innerHTML = `<div class="modal-tooltip-title">${title}</div><div class="modal-tooltip-text">${text}</div>`;
+        this.tooltipElement.innerHTML = '';
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'modal-tooltip-title';
+        titleDiv.textContent = title;
+        const textDiv = document.createElement('div');
+        textDiv.className = 'modal-tooltip-text';
+        textDiv.textContent = text;
+        this.tooltipElement.appendChild(titleDiv);
+        this.tooltipElement.appendChild(textDiv);
         this.tooltipElement.style.display = 'block';
 
         const rect = btn.getBoundingClientRect();
@@ -498,11 +529,24 @@ export class Modal {
                 }
             });
 
+            btn.addEventListener('focus', () => {
+                if (!isTouch) {
+                    this.positionTooltip(btn);
+                }
+            });
+
+            btn.addEventListener('blur', () => {
+                if (!isTouch) {
+                    this.tooltipElement.style.display = 'none';
+                }
+            });
+
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (isTouch) {
                     const title = btn.getAttribute('data-title') || '';
-                    const isCurrentlyShowing = this.tooltipElement.style.display === 'block' && this.tooltipElement.innerHTML.includes(title);
+                    const currentTitle = this.tooltipElement.querySelector('.modal-tooltip-title')?.textContent || '';
+                    const isCurrentlyShowing = this.tooltipElement.style.display === 'block' && currentTitle === title;
 
                     if (isCurrentlyShowing) {
                         this.tooltipElement.style.display = 'none';
@@ -527,6 +571,10 @@ export class Modal {
 
     public show(data: ModalData | CustomModalData, preserveAudio: boolean = false) {
         if (!this.contentElement) return;
+
+        if (!this.isOpen && typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            this.previousFocusedElement = document.activeElement;
+        }
 
         this.isOpen = true;
         this.currentData = data;
@@ -564,7 +612,13 @@ export class Modal {
         }
 
         if (this.titleElement) {
-            this.titleElement.textContent = displayName;
+            if (custom.titleIcon) {
+                this.titleElement.innerHTML = `${svgIcon(custom.titleIcon, 'obs-svg-icon modal-title-icon')}<span></span>`;
+                const span = this.titleElement.querySelector('span');
+                if (span) span.textContent = displayName;
+            } else {
+                this.titleElement.textContent = displayName;
+            }
         }
 
         const galleryHtml = this.getGalleryHtml(data);
@@ -591,6 +645,7 @@ export class Modal {
     }
 
     public hide() {
+        const wasOpen = this.isOpen;
         this.isOpen = false;
         this.currentData = null;
         if (this.titleElement) {
@@ -600,6 +655,15 @@ export class Modal {
         this.updateAudioGuideButtonLabel(false);
         this.modalElement.style.display = 'none';
         this.tooltipElement.style.display = 'none';
+
+        if (wasOpen && this.previousFocusedElement && this.previousFocusedElement.isConnected) {
+            try {
+                this.previousFocusedElement.focus({ preventScroll: true });
+            } catch {
+                // Ignore focus restoration errors in non-DOM test environments
+            }
+        }
+        this.previousFocusedElement = null;
     }
 
     private updateAudioGuideButtonLabel(isSpeaking: boolean): void {
@@ -617,8 +681,8 @@ export class Modal {
         this.audioGuideBtn.title = guideTitle;
         this.audioGuideBtn.setAttribute('aria-label', guideAria);
         this.audioGuideBtn.innerHTML = isSpeaking
-            ? `🔊 <span class="audio-guide-label">${playingLabel}</span>`
-            : `🎙️ <span class="audio-guide-label">${listenLabel}</span>`;
+            ? `${svgIcon('audio-on')} <span class="audio-guide-label">${playingLabel}</span>`
+            : `${svgIcon('headphones')} <span class="audio-guide-label">${listenLabel}</span>`;
     }
 
     public dispose() {

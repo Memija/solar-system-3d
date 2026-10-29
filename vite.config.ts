@@ -13,9 +13,6 @@ export default defineConfig({
                     if (id.includes('node_modules/three')) {
                         return 'three-core';
                     }
-                    if (id.includes('node_modules/dat.gui')) {
-                        return 'dat-gui';
-                    }
                 }
             }
         }

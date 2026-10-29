@@ -84,7 +84,7 @@ describe('HeaderSlotsManager', () => {
         expect(parsed.headerSlots).toContain('showAxes');
     });
 
-    it('renders slot buttons into DOM container with correct attributes and classes', () => {
+    it('renders slot buttons into DOM container with correct attributes and monochrome SVG icons', () => {
         const container = document.createElement('div');
         const mockUi = {
             minimap: { isVisible: true },
@@ -102,10 +102,11 @@ describe('HeaderSlotsManager', () => {
         const radarBtn = container.querySelector('#hudRadarBtn') as HTMLButtonElement;
         expect(radarBtn).not.toBeNull();
         expect(radarBtn.classList.contains('active')).toBe(true);
+        expect(radarBtn.querySelector('svg[data-icon="minimap"]')).not.toBeNull();
 
         const soundBtn = container.querySelector('#hudSoundBtn') as HTMLButtonElement;
         expect(soundBtn).not.toBeNull();
-        expect(soundBtn.textContent).toContain('🔊');
+        expect(soundBtn.querySelector('svg[data-icon="audio-on"]')).not.toBeNull();
     });
 
     it('triggers action and updates states when a rendered slot button is clicked', () => {
@@ -148,11 +149,11 @@ describe('HeaderSlotsManager', () => {
 
         HeaderSlotsManager.renderSlots(container, mockUi);
         const soundBtn = container.querySelector('#hudSoundBtn') as HTMLButtonElement;
-        expect(soundBtn.textContent).toContain('🔇');
+        expect(soundBtn.querySelector('svg[data-icon="audio-off"]')).not.toBeNull();
 
         soundEnabled = true;
         HeaderSlotsManager.updateSlotStates(container, mockUi);
-        expect(soundBtn.textContent).toContain('🔊');
+        expect(soundBtn.querySelector('svg[data-icon="audio-on"]')).not.toBeNull();
         expect(soundBtn.classList.contains('active')).toBe(true);
     });
 
@@ -211,7 +212,7 @@ describe('HeaderSlotsManager', () => {
         expect(activeIds).toContain('cinematicTour');
     });
 
-    it('renders cinematicTour with dataset.locked and icon in the header', () => {
+    it('renders cinematicTour with dataset.locked and vector icon in the header', () => {
         const container = document.createElement('div');
         const mockUi = {
             minimap: { isVisible: true },
@@ -225,6 +226,6 @@ describe('HeaderSlotsManager', () => {
         const tourBtn = container.querySelector('#hudSlot_cinematicTour') as HTMLButtonElement;
         expect(tourBtn).not.toBeNull();
         expect(tourBtn.dataset.locked).toBe('true');
-        expect(tourBtn.textContent).toContain('🎬');
+        expect(tourBtn.querySelector('svg[data-icon="cinematic-tour"]')).not.toBeNull();
     });
 });

@@ -37,7 +37,20 @@ export const sr: TranslationSchema = {
         overview: 'Преглед',
         astronomicalScience: 'Астрономска механика и наука',
         observationTip: 'Савет за посматрање',
-        understood: 'Разумем'
+        understood: 'Разумем',
+        ephemerisTag: 'ЕФЕМЕРИДЕ',
+        set: 'Постави',
+        secPerBody: '{sec}с / тело',
+        perfCalls: 'Позиви',
+        perfTris: 'Троугл.',
+        perfTex: 'Текст.',
+        perfMem: 'Мем.',
+        compassN: 'С',
+        compassS: 'Ј',
+        compassE: 'И',
+        compassW: 'З',
+        webglUnavailableTitle: 'WebGL 3D хардвер није доступан',
+        webglUnavailableDesc: 'Ова опсерваторија захтева WebGL хардверско убрзање. Омогућите хардверско убрзање у подешавањима прегледача.'
     },
     categories: {
         star: '🌟 Звезде',
@@ -100,6 +113,12 @@ export const sr: TranslationSchema = {
             oneMonthPerSec: '1 месец / сек',
             paused: 'Паузирано',
             custom: 'Прилагођено'
+        },
+        speedUnits: {
+            hrPerSec: 'сат/с',
+            dayPerSec: 'дан/с',
+            wkPerSec: 'нед/с',
+            moPerSec: 'мес/с'
         },
         pause: 'Пауза',
         resume: 'Настави',
@@ -267,7 +286,18 @@ export const sr: TranslationSchema = {
         decade: 'Деценија',
         year: 'Година',
         historicalEvents: 'Историјски догађаји...',
-        calendarTitle: 'Календар мисије'
+        calendarTitle: 'Календар мисије',
+        chronometerTitle: 'АСТРОНАВИГАЦИОНИ ХРОНОМЕТАР',
+        todayShort: 'ДАНАС',
+        spaceMilestones: 'ПРЕКРЕТНИЦЕ СВЕМИРСКИХ ЛЕТОВА',
+        milestones: {
+            sputnik1: { name: 'Лансирање Спутњика 1', impact: 'Лансирање Спутњика 1 означило је почетак свемирског доба и доказало могућност вештачких сателита.' },
+            apollo11: { name: 'Аполо 11 слетање на Месец', impact: 'Први људи на Месецу — историјска прекретница у истраживању свемира.' },
+            voyager1: { name: 'Лансирање Војаџера 1', impact: 'Војаџер 1 је постао прва људска летелица која је ушла у међузвездани простор.' },
+            hubble: { name: 'Лансирање телескопа Хабл', impact: 'Револуционисао је астрономију дубоким снимцима галаксија и ширења свемира.' },
+            iss: { name: 'Први модул МСС-а', impact: 'Почетак непрекидног боравка људи у орбити и међународне научне сарадње.' },
+            jwst: { name: 'Лансирање телескопа Џејмс Веб', impact: 'Конструисан за инфрацрвено посматрање најранијих галаксија и рађања звезда.' }
+        }
     },
     loading: {
         boot: 'Покретање опсерваторије',

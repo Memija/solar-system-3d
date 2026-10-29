@@ -1,21 +1,78 @@
 import { i18n } from '../i18n';
+import { EventBus } from './EventBus';
+import { svgIcon, stripLeadingEmoji, SvgIconName } from './SvgIcons';
 
 export interface HistoricalSpaceEvent {
+    id: 'sputnik1' | 'apollo11' | 'voyager1' | 'hubble' | 'iss' | 'jwst';
     name: string;
     date: Date;
     target?: string;
     impact?: string;
-    badgeIcon?: string;
+    iconName: SvgIconName;
 }
 
 export const HISTORICAL_SPACE_EVENTS: HistoricalSpaceEvent[] = [
-    { name: 'Sputnik 1 Launch', date: new Date("1957-10-04T19:28:35Z"), target: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and the US-USSR space race, demonstrating the feasibility of artificial satellites.', badgeIcon: '🛰️' },
-    { name: 'Apollo 11 Moon Landing', date: new Date("1969-07-20T12:00:00Z"), target: 'Apollo 11', impact: 'First humans on the Moon, proving that crewed extraterrestrial travel was possible and achieving a major milestone in human history.', badgeIcon: '🌕' },
-    { name: 'Voyager 1 Launch', date: new Date("1977-09-05T12:56:01Z"), target: 'Voyager 1', impact: 'Voyager 1 became the first human-made object to enter interstellar space, providing unprecedented images and data of the outer solar system.', badgeIcon: '🛸' },
-    { name: 'Hubble Space Telescope Launch', date: new Date("1990-04-24T12:33:52Z"), target: 'Hubble Space Telescope', impact: 'Revolutionized astronomy by providing clear, deep images of the universe, leading to discoveries about the age of the universe, dark energy, and exoplanets.', badgeIcon: '🔭' },
-    { name: 'ISS First Module Launch', date: new Date("1998-11-20T06:40:01Z"), target: 'ISS (International Space Station)', impact: 'Began the era of continuous human presence in space and international cooperation in scientific research in microgravity.', badgeIcon: '🛰️' },
-    { name: 'James Webb Telescope Launch', date: new Date("2021-12-25T12:20:01Z"), target: 'James Webb Space Telescope', impact: 'Designed to observe the first galaxies formed in the universe and look inside dust clouds where stars and planetary systems are forming today.', badgeIcon: '🌌' }
+    {
+        id: 'sputnik1',
+        name: 'Sputnik 1 Launch',
+        date: new Date('1957-10-04T19:28:35Z'),
+        target: 'Sputnik 1',
+        impact: 'The launch of Sputnik 1 marked the beginning of the space age and the US-USSR space race, demonstrating the feasibility of artificial satellites.',
+        iconName: 'spacecraft'
+    },
+    {
+        id: 'apollo11',
+        name: 'Apollo 11 Moon Landing',
+        date: new Date('1969-07-20T12:00:00Z'),
+        target: 'Apollo 11',
+        impact: 'First humans on the Moon, proving that crewed extraterrestrial travel was possible and achieving a major milestone in human history.',
+        iconName: 'moons'
+    },
+    {
+        id: 'voyager1',
+        name: 'Voyager 1 Launch',
+        date: new Date('1977-09-05T12:56:01Z'),
+        target: 'Voyager 1',
+        impact: 'Voyager 1 became the first human-made object to enter interstellar space, providing unprecedented images and data of the outer solar system.',
+        iconName: 'rocket'
+    },
+    {
+        id: 'hubble',
+        name: 'Hubble Space Telescope Launch',
+        date: new Date('1990-04-24T12:33:52Z'),
+        target: 'Hubble Space Telescope',
+        impact: 'Revolutionized astronomy by providing clear, deep images of the universe, leading to discoveries about the age of the universe, dark energy, and exoplanets.',
+        iconName: 'camera'
+    },
+    {
+        id: 'iss',
+        name: 'ISS First Module Launch',
+        date: new Date('1998-11-20T06:40:01Z'),
+        target: 'ISS (International Space Station)',
+        impact: 'Began the era of continuous human presence in space and international cooperation in scientific research in microgravity.',
+        iconName: 'spacecraft'
+    },
+    {
+        id: 'jwst',
+        name: 'James Webb Telescope Launch',
+        date: new Date('2021-12-25T12:20:01Z'),
+        target: 'James Webb Space Telescope',
+        impact: 'Designed to observe the first galaxies formed in the universe and look inside dust clouds where stars and planetary systems are forming today.',
+        iconName: 'constellations'
+    }
 ];
+
+export function getLocalizedEventName(evt: HistoricalSpaceEvent): string {
+    const key = `datepicker.milestones.${evt.id}.name`;
+    const val = i18n.t(key);
+    return val && val !== key ? val : evt.name;
+}
+
+export function getLocalizedEventImpact(evt: HistoricalSpaceEvent): string {
+    const key = `datepicker.milestones.${evt.id}.impact`;
+    const val = i18n.t(key);
+    return val && val !== key ? val : (evt.impact || '');
+}
 
 function getJulianDate(d: Date): number {
     return (d.getTime() / 86400000) + 2440587.5;
@@ -34,6 +91,11 @@ export class CustomDatePicker {
     private eventsDefaultOpt: HTMLOptionElement | null = null;
     private ephemerisBannerDate: HTMLElement | null = null;
     private ephemerisBannerJd: HTMLElement | null = null;
+    private hudStatusTitleEl: HTMLElement | null = null;
+    private livePillLabelEl: HTMLElement | null = null;
+    private milestoneHeaderTitleEl: HTMLElement | null = null;
+    private todayBtnLabelEl: HTMLElement | null = null;
+    private milestoneChipEls: { evt: HistoricalSpaceEvent; chip: HTMLButtonElement; labelEl: HTMLElement }[] = [];
 
     public currentDate: Date;
     private viewDate: Date;
@@ -80,10 +142,52 @@ export class CustomDatePicker {
         });
     }
 
-    private updateHistoricalEventsLabel(): void {
-        if (this.eventsDefaultOpt) {
-            this.eventsDefaultOpt.textContent = i18n.t('datepicker.historicalEvents') || 'Historical Events...';
+    private getShortChipLabel(evt: HistoricalSpaceEvent): string {
+        const locName = getLocalizedEventName(evt);
+        return locName
+            .replace(/ Launch| Moon Landing| First Module/gi, '')
+            .trim();
+    }
+
+    private updateLocalizedLabels(): void {
+        if (this.hudStatusTitleEl) {
+            const title = i18n.t('datepicker.chronometerTitle');
+            this.hudStatusTitleEl.textContent = title && title !== 'datepicker.chronometerTitle'
+                ? title
+                : 'ASTRONAVIGATION CHRONOMETER';
         }
+        if (this.livePillLabelEl) {
+            const todayShort = i18n.t('datepicker.todayShort');
+            this.livePillLabelEl.textContent = todayShort && todayShort !== 'datepicker.todayShort'
+                ? todayShort
+                : 'TODAY';
+        }
+        if (this.milestoneHeaderTitleEl) {
+            const milestonesTitle = i18n.t('datepicker.spaceMilestones');
+            this.milestoneHeaderTitleEl.textContent = milestonesTitle && milestonesTitle !== 'datepicker.spaceMilestones'
+                ? milestonesTitle
+                : 'SPACE FLIGHT MILESTONES';
+        }
+        if (this.todayBtnLabelEl) {
+            this.todayBtnLabelEl.textContent = stripLeadingEmoji(i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today');
+        }
+        if (this.eventsDefaultOpt) {
+            this.eventsDefaultOpt.textContent = stripLeadingEmoji(i18n.t('datepicker.historicalEvents') || 'Historical Events...');
+        }
+        if (this.eventsSelect) {
+            HISTORICAL_SPACE_EVENTS.forEach((evt, i) => {
+                const opt = this.eventsSelect.options[i + 1];
+                if (opt) {
+                    opt.textContent = `${getLocalizedEventName(evt)} (${evt.date.getUTCFullYear()})`;
+                }
+            });
+        }
+        this.milestoneChipEls.forEach(({ evt, chip, labelEl }) => {
+            const locName = getLocalizedEventName(evt);
+            const locImpact = getLocalizedEventImpact(evt);
+            chip.title = `${locName} (${evt.date.getUTCFullYear()}): ${locImpact}`;
+            labelEl.textContent = this.getShortChipLabel(evt);
+        });
     }
 
     constructor(initialDate: Date, onChange: (date: Date) => void, onOpen?: () => void) {
@@ -127,14 +231,20 @@ export class CustomDatePicker {
 
         const hudStatus = document.createElement('div');
         hudStatus.className = 'datepicker-status-badge';
-        hudStatus.innerHTML = '<span class="datepicker-pulse-beacon"></span><span class="hud-status-title">ASTRONAVIGATION CHRONOMETER</span>';
+        const beacon = document.createElement('span');
+        beacon.className = 'datepicker-pulse-beacon';
+        const hudStatusTitle = document.createElement('span');
+        hudStatusTitle.className = 'hud-status-title';
+        hudStatus.appendChild(beacon);
+        hudStatus.appendChild(hudStatusTitle);
+        this.hudStatusTitleEl = hudStatusTitle;
         hudBar.appendChild(hudStatus);
 
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'datepicker-close-x-btn';
         closeBtn.setAttribute('aria-label', 'Close Calendar');
-        closeBtn.innerHTML = '✕';
+        closeBtn.innerHTML = svgIcon('close');
         closeBtn.onclick = (e) => {
             e.stopPropagation();
             this.closePopup();
@@ -162,7 +272,12 @@ export class CustomDatePicker {
         const livePill = document.createElement('button');
         livePill.type = 'button';
         livePill.className = 'hero-live-pill';
-        livePill.innerHTML = '<span class="live-dot"></span><span>TODAY</span>';
+        const liveDot = document.createElement('span');
+        liveDot.className = 'live-dot';
+        const livePillLabel = document.createElement('span');
+        livePill.appendChild(liveDot);
+        livePill.appendChild(livePillLabel);
+        this.livePillLabelEl = livePillLabel;
         livePill.title = 'Snap to Real-Time Today';
         livePill.onclick = (e) => {
             e.stopPropagation();
@@ -381,7 +496,12 @@ export class CustomDatePicker {
 
         const milestoneHeader = document.createElement('div');
         milestoneHeader.className = 'milestone-section-title';
-        milestoneHeader.innerHTML = '<span>🚀</span><span>SPACE FLIGHT MILESTONES</span>';
+        const milestoneIconSpan = document.createElement('span');
+        milestoneIconSpan.innerHTML = svgIcon('rocket');
+        const milestoneHeaderTitle = document.createElement('span');
+        milestoneHeader.appendChild(milestoneIconSpan);
+        milestoneHeader.appendChild(milestoneHeaderTitle);
+        this.milestoneHeaderTitleEl = milestoneHeaderTitle;
         milestonesWrap.appendChild(milestoneHeader);
 
         const chipsContainer = document.createElement('div');
@@ -391,20 +511,33 @@ export class CustomDatePicker {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'milestone-chip';
-            chip.title = `${evt.name} (${evt.date.getUTCFullYear()}): ${evt.impact || ''}`;
-            chip.innerHTML = `<span class="chip-icon">${evt.badgeIcon || '🛰️'}</span><span class="chip-label">${evt.name.replace(/ Launch| Moon Landing/g, '')}</span><span class="chip-year">'${String(evt.date.getUTCFullYear()).slice(-2)}</span>`;
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'chip-icon';
+            iconSpan.innerHTML = svgIcon(evt.iconName);
+            const labelEl = document.createElement('span');
+            labelEl.className = 'chip-label';
+            const yearEl = document.createElement('span');
+            yearEl.className = 'chip-year';
+            yearEl.textContent = `'${String(evt.date.getUTCFullYear()).slice(-2)}`;
+            chip.appendChild(iconSpan);
+            chip.appendChild(labelEl);
+            chip.appendChild(yearEl);
+
             chip.onclick = (e) => {
                 e.stopPropagation();
                 this.setDate(evt.date);
                 this.onChange(evt.date);
                 this.closePopup();
                 if (evt.target) {
-                    window.dispatchEvent(new CustomEvent('select-celestial-body', {
-                        detail: { name: evt.target, eventName: evt.name, eventImpact: evt.impact }
-                    }));
+                    EventBus.emit('select-celestial-body', {
+                        name: evt.target,
+                        eventName: getLocalizedEventName(evt),
+                        eventImpact: getLocalizedEventImpact(evt)
+                    });
                 }
             };
             chipsContainer.appendChild(chip);
+            this.milestoneChipEls.push({ evt, chip, labelEl });
         });
         milestonesWrap.appendChild(chipsContainer);
 
@@ -418,7 +551,7 @@ export class CustomDatePicker {
 
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
-        defaultOpt.textContent = i18n.t('datepicker.historicalEvents') || 'Historical Events...';
+        defaultOpt.textContent = stripLeadingEmoji(i18n.t('datepicker.historicalEvents') || 'Historical Events...');
         defaultOpt.hidden = true;
         defaultOpt.selected = true;
         this.eventsSelect.appendChild(defaultOpt);
@@ -427,7 +560,7 @@ export class CustomDatePicker {
         HISTORICAL_SPACE_EVENTS.forEach((evt, i) => {
             const opt = document.createElement('option');
             opt.value = i.toString();
-            opt.textContent = `${evt.name} (${evt.date.getUTCFullYear()})`;
+            opt.textContent = `${getLocalizedEventName(evt)} (${evt.date.getUTCFullYear()})`;
             this.eventsSelect.appendChild(opt);
         });
 
@@ -442,9 +575,11 @@ export class CustomDatePicker {
                 this.eventsSelect.value = ''; // Reset select
 
                 if (evt.target) {
-                    window.dispatchEvent(new CustomEvent('select-celestial-body', {
-                        detail: { name: evt.target, eventName: evt.name, eventImpact: evt.impact }
-                    }));
+                    EventBus.emit('select-celestial-body', {
+                        name: evt.target,
+                        eventName: getLocalizedEventName(evt),
+                        eventImpact: getLocalizedEventImpact(evt)
+                    });
                 }
             }
         });
@@ -457,7 +592,12 @@ export class CustomDatePicker {
         const todayBtn = document.createElement('button');
         todayBtn.type = 'button';
         todayBtn.className = 'custom-datepicker-today-btn';
-        todayBtn.innerHTML = '<span>🌐</span><span>' + (i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today') + '</span>';
+        const todayIconSpan = document.createElement('span');
+        todayIconSpan.innerHTML = svgIcon('globe');
+        const todayBtnLabel = document.createElement('span');
+        todayBtn.appendChild(todayIconSpan);
+        todayBtn.appendChild(todayBtnLabel);
+        this.todayBtnLabelEl = todayBtnLabel;
         todayBtn.onclick = (e) => {
             e.stopPropagation();
             const now = new Date();
@@ -494,18 +634,27 @@ export class CustomDatePicker {
         };
         document.addEventListener('click', this.onClickOutsideBound);
 
+        this.updateLocalizedLabels();
         this.updateDisplay();
 
         this.unregisterI18n = i18n.onLanguageChange(() => {
             this.populateMonths();
             this.populateWeekdays();
-            this.updateHistoricalEventsLabel();
+            this.updateLocalizedLabels();
             this.renderCalendar();
             this.updateDisplay();
             if (this.isYearModalOpen) {
                 this.renderYearModal();
             }
         });
+    }
+
+    public isYearModalActive(): boolean {
+        return this.isYearModalOpen;
+    }
+
+    public dismissYearModal(): void {
+        this.closeYearModal();
     }
 
     private openYearModal() {
@@ -515,12 +664,19 @@ export class CustomDatePicker {
         this.yearModalState = 'CENTURY';
         this.yearModalBaseYear = this.viewDate.getUTCFullYear();
 
-        // Position relative to year input
-        const rect = this.yearInput.getBoundingClientRect();
-        this.yearModalElement.style.top = (rect.bottom + window.scrollY + 6) + 'px';
-        this.yearModalElement.style.left = Math.max(10, rect.left + window.scrollX - 70) + 'px';
-
         this.renderYearModal();
+
+        // Position relative to year input while clamping inside viewport
+        const rect = this.yearInput.getBoundingClientRect();
+        const modalWidth = this.yearModalElement.offsetWidth || 250;
+        const modalHeight = this.yearModalElement.offsetHeight || 220;
+        const maxLeft = Math.max(10, window.innerWidth - modalWidth - 10);
+        const maxTop = Math.max(10, window.innerHeight - modalHeight - 10);
+        const desiredLeft = rect.left + window.scrollX - 70;
+        const desiredTop = rect.bottom + window.scrollY + 6;
+
+        this.yearModalElement.style.left = `${Math.max(10, Math.min(desiredLeft, maxLeft))}px`;
+        this.yearModalElement.style.top = `${Math.max(10, Math.min(desiredTop, maxTop))}px`;
     }
 
     private closeYearModal() {
@@ -556,7 +712,7 @@ export class CustomDatePicker {
         grid.className = 'datepicker-modal-grid';
         this.yearModalElement.appendChild(grid);
 
-        let items: { label: string, value: number, isOutOfRange?: boolean }[] = [];
+        const items: { label: string; value: number; isOutOfRange?: boolean }[] = [];
         let onSelect: (val: number) => void;
 
         if (this.yearModalState === 'CENTURY') {
@@ -580,7 +736,6 @@ export class CustomDatePicker {
                 this.yearModalState = 'DECADE';
                 this.renderYearModal();
             };
-
         } else if (this.yearModalState === 'DECADE') {
             const startYear = Math.floor(this.yearModalBaseYear / 100) * 100;
             titleSpan.textContent = `${this.formatYear(startYear)} - ${this.formatYear(startYear + 99)}`;
@@ -603,8 +758,7 @@ export class CustomDatePicker {
                 this.yearModalState = 'YEAR';
                 this.renderYearModal();
             };
-
-        } else { // YEAR
+        } else {
             const startYear = Math.floor(this.yearModalBaseYear / 10) * 10;
             titleSpan.textContent = `${this.formatYear(startYear)} - ${this.formatYear(startYear + 9)}`;
 
@@ -633,6 +787,8 @@ export class CustomDatePicker {
             const el = document.createElement('div');
             el.textContent = item.label;
             el.className = 'datepicker-modal-cell';
+            el.setAttribute('role', 'button');
+            el.setAttribute('tabindex', '0');
 
             if (item.isOutOfRange) {
                 el.classList.add('out-of-range');
@@ -645,6 +801,13 @@ export class CustomDatePicker {
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
                 onSelect(item.value);
+            });
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSelect(item.value);
+                }
             });
 
             grid.appendChild(el);
@@ -718,8 +881,10 @@ export class CustomDatePicker {
             const slot = document.createElement('div');
             slot.textContent = prevDayNum.toString();
             slot.className = 'datepicker-day-slot trailing';
+            slot.setAttribute('role', 'button');
+            slot.setAttribute('tabindex', '0');
             slot.title = `Previous month: day ${prevDayNum}`;
-            slot.onclick = (e) => {
+            const activatePrev = (e: Event) => {
                 e.stopPropagation();
                 const newD = new Date(Date.UTC(year, month - 1, prevDayNum, 12, 0, 0));
                 this.setDate(newD);
@@ -727,6 +892,13 @@ export class CustomDatePicker {
                 this.onChange(newD);
                 this.closePopup();
             };
+            slot.onclick = activatePrev;
+            slot.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activatePrev(e);
+                }
+            });
             this.daysGridElement.appendChild(slot);
         }
 
@@ -756,13 +928,20 @@ export class CustomDatePicker {
                 dayEl.classList.add('active');
             }
 
-            dayEl.addEventListener('click', (e) => {
+            const activateDay = (e: Event) => {
                 e.stopPropagation();
                 // Set the new date using UTC noon to prevent timezone shifts
                 const newDate = new Date(Date.UTC(year, month, i, 12, 0, 0));
                 this.setDate(newDate);
                 this.onChange(newDate);
                 this.closePopup();
+            };
+            dayEl.addEventListener('click', activateDay);
+            dayEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activateDay(e);
+                }
             });
 
             this.daysGridElement.appendChild(dayEl);
@@ -775,8 +954,10 @@ export class CustomDatePicker {
             const slot = document.createElement('div');
             slot.textContent = nextDay.toString();
             slot.className = 'datepicker-day-slot trailing';
+            slot.setAttribute('role', 'button');
+            slot.setAttribute('tabindex', '0');
             slot.title = `Next month: day ${nextDay}`;
-            slot.onclick = (e) => {
+            const activateNext = (e: Event) => {
                 e.stopPropagation();
                 const newD = new Date(Date.UTC(year, month + 1, nextDay, 12, 0, 0));
                 this.setDate(newD);
@@ -784,6 +965,13 @@ export class CustomDatePicker {
                 this.onChange(newD);
                 this.closePopup();
             };
+            slot.onclick = activateNext;
+            slot.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activateNext(e);
+                }
+            });
             this.daysGridElement.appendChild(slot);
         }
     }

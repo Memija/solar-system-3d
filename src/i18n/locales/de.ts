@@ -37,7 +37,20 @@ export const de: TranslationSchema = {
         overview: 'Überblick',
         astronomicalScience: 'Astronomische Mechanik & Wissenschaft',
         observationTip: 'Beobachtungstipp',
-        understood: 'Verstanden'
+        understood: 'Verstanden',
+        ephemerisTag: 'EPHEMERIDEN',
+        set: 'Setzen',
+        secPerBody: '{sec}s / Ziel',
+        perfCalls: 'Calls',
+        perfTris: 'Tris',
+        perfTex: 'Tex',
+        perfMem: 'RAM',
+        compassN: 'N',
+        compassS: 'S',
+        compassE: 'O',
+        compassW: 'W',
+        webglUnavailableTitle: 'WebGL 3D-Hardware nicht verfügbar',
+        webglUnavailableDesc: 'Dieses Observatorium benötigt WebGL-Hardwarebeschleunigung. Bitte aktivieren Sie die Hardwarebeschleunigung in Ihren Browsereinstellungen.'
     },
     categories: {
         star: '🌟 Sterne',
@@ -100,6 +113,12 @@ export const de: TranslationSchema = {
             oneMonthPerSec: '1 Monat / Sek.',
             paused: 'Pausiert',
             custom: 'Benutzerdefiniert'
+        },
+        speedUnits: {
+            hrPerSec: 'Std./s',
+            dayPerSec: 'Tag/s',
+            wkPerSec: 'Wo./s',
+            moPerSec: 'Mon./s'
         },
         pause: 'Pause',
         resume: 'Fortsetzen',
@@ -267,7 +286,18 @@ export const de: TranslationSchema = {
         decade: 'Jahrzehnt',
         year: 'Jahr',
         historicalEvents: 'Historische Ereignisse...',
-        calendarTitle: 'Missionskalender'
+        calendarTitle: 'Missionskalender',
+        chronometerTitle: 'ASTRONAVIGATIONS-CHRONOMETER',
+        todayShort: 'HEUTE',
+        spaceMilestones: 'MEILENSTEINE DER RAUMFAHRT',
+        milestones: {
+            sputnik1: { name: 'Start von Sputnik 1', impact: 'Der Start von Sputnik 1 läutete das Raumfahrtzeitalter ein und bewies die Machbarkeit künstlicher Erdsatelliten.' },
+            apollo11: { name: 'Apollo-11-Mondlandung', impact: 'Die ersten Menschen auf dem Mond – ein historischer Meilenstein der bemannten Raumfahrt.' },
+            voyager1: { name: 'Start von Voyager 1', impact: 'Voyager 1 erreichte als erstes von Menschen geschaffenes Objekt den interstellaren Raum.' },
+            hubble: { name: 'Start des Hubble-Weltraumteleskops', impact: 'Revolutionierte die Astronomie mit tiefen Aufnahmen des Universums, Galaxien und Exoplaneten.' },
+            iss: { name: 'Start des ersten ISS-Moduls', impact: 'Beginn der dauerhaften menschlichen Präsenz und internationalen Forschung im Erdorbit.' },
+            jwst: { name: 'Start des James-Webb-Teleskops', impact: 'Entwickelt zur Infrarot-Beobachtung der ersten Galaxien und planetarer Entstehungsgebiete.' }
+        }
     },
     loading: {
         boot: 'Observatorium-Start',

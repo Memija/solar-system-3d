@@ -37,7 +37,20 @@ export const bs: TranslationSchema = {
         overview: 'Pregled',
         astronomicalScience: 'Astronomska mehanika i nauka',
         observationTip: 'Savjet za posmatranje',
-        understood: 'Razumijem'
+        understood: 'Razumijem',
+        ephemerisTag: 'EFEMERIDE',
+        set: 'Postavi',
+        secPerBody: '{sec}s / tijelo',
+        perfCalls: 'Pozivi',
+        perfTris: 'Trougl.',
+        perfTex: 'Tekst.',
+        perfMem: 'Mem.',
+        compassN: 'S',
+        compassS: 'J',
+        compassE: 'I',
+        compassW: 'Z',
+        webglUnavailableTitle: 'WebGL 3D hardver nije dostupan',
+        webglUnavailableDesc: 'Ova opservatorija zahtijeva WebGL hardversko ubrzanje. Omogućite hardversko ubrzanje u postavkama preglednika.'
     },
     categories: {
         star: '🌟 Zvijezde',
@@ -100,6 +113,12 @@ export const bs: TranslationSchema = {
             oneMonthPerSec: '1 mjesec / sek',
             paused: 'Pauzirano',
             custom: 'Prilagođeno'
+        },
+        speedUnits: {
+            hrPerSec: 'sat/s',
+            dayPerSec: 'dan/s',
+            wkPerSec: 'sed/s',
+            moPerSec: 'mjes/s'
         },
         pause: 'Pauza',
         resume: 'Nastavi',
@@ -267,7 +286,18 @@ export const bs: TranslationSchema = {
         decade: 'Decenija',
         year: 'Godina',
         historicalEvents: 'Historijski događaji...',
-        calendarTitle: 'Kalendar misije'
+        calendarTitle: 'Kalendar misije',
+        chronometerTitle: 'ASTRONAVIGACIONI HRONOMETAR',
+        todayShort: 'DANAS',
+        spaceMilestones: 'PREKRETNICE SVEMIRSKIH LETOVA',
+        milestones: {
+            sputnik1: { name: 'Lansiranje Sputnjika 1', impact: 'Lansiranje Sputnjika 1 označilo je početak svemirskog doba i dokazalo izvodljivost vještačkih satelita.' },
+            apollo11: { name: 'Apollo 11 slijetanje na Mjesec', impact: 'Prvi ljudi na Mjesecu — historijska prekretnica čovječanstva.' },
+            voyager1: { name: 'Lansiranje Voyagera 1', impact: 'Voyager 1 je postao prva ljudska letjelica u međuzvjezdanom prostoru.' },
+            hubble: { name: 'Lansiranje teleskopa Hubble', impact: 'Revolucionirao je astronomiju dubokim snimcima galaksija i širenja svemira.' },
+            iss: { name: 'Prvi modul ISS-a', impact: 'Početak neprekidnog boravka ljudi u orbiti i međunarodne naučne saradnje.' },
+            jwst: { name: 'Lansiranje teleskopa James Webb', impact: 'Konstruisan za infracrveno posmatranje najranijih galaksija i rađanja zvijezda.' }
+        }
     },
     loading: {
         boot: 'Pokretanje opservatorije',

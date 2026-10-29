@@ -37,7 +37,20 @@ export const pl: TranslationSchema = {
         overview: 'Przegląd',
         astronomicalScience: 'Mechanika astronomiczna i nauka',
         observationTip: 'Wskazówka obserwacyjna',
-        understood: 'Rozumiem'
+        understood: 'Rozumiem',
+        ephemerisTag: 'EFEMERYDY',
+        set: 'Ustaw',
+        secPerBody: '{sec}s / obiekt',
+        perfCalls: 'Wywoł.',
+        perfTris: 'Trójk.',
+        perfTex: 'Tekst.',
+        perfMem: 'Pam.',
+        compassN: 'Pn',
+        compassS: 'Pd',
+        compassE: 'W',
+        compassW: 'Z',
+        webglUnavailableTitle: 'Sprzęt WebGL 3D niedostępny',
+        webglUnavailableDesc: 'To obserwatorium wymaga akceleracji sprzętowej WebGL. Włącz akcelerację sprzętową w ustawieniach przeglądarki.'
     },
     categories: {
         star: '🌟 Gwiazdy',
@@ -100,6 +113,12 @@ export const pl: TranslationSchema = {
             oneMonthPerSec: '1 miesiąc / sek',
             paused: 'Wstrzymana',
             custom: 'Własna'
+        },
+        speedUnits: {
+            hrPerSec: 'godz./s',
+            dayPerSec: 'dzień/s',
+            wkPerSec: 'tydz./s',
+            moPerSec: 'mies./s'
         },
         pause: 'Wstrzymaj',
         resume: 'Wznów',
@@ -267,7 +286,18 @@ export const pl: TranslationSchema = {
         decade: 'Dekada',
         year: 'Rok',
         historicalEvents: 'Wydarzenia historyczne...',
-        calendarTitle: 'Kalendarz misji'
+        calendarTitle: 'Kalendarz misji',
+        chronometerTitle: 'CHRONOMETR ASTRONAWIGACYJNY',
+        todayShort: 'DZIŚ',
+        spaceMilestones: 'KAMIENIE MILOWE KOSMONAUTYKI',
+        milestones: {
+            sputnik1: { name: 'Start Sputnika 1', impact: 'Start Sputnika 1 zapoczątkował erę kosmiczną i udowodnił możliwość umieszczania sztucznych satelitów na orbicie.' },
+            apollo11: { name: 'Lądowanie Apollo 11 na Księżycu', impact: 'Pierwsi ludzie na Księżycu — przełomowy kamień milowy w historii ludzkości.' },
+            voyager1: { name: 'Start sondy Voyager 1', impact: 'Voyager 1 stał się pierwszym obiektem stworzonym przez człowieka w przestrzeni międzygwiazdowej.' },
+            hubble: { name: 'Start Teleskopu Hubble’a', impact: 'Zrewolucjonizował astronomię głębokimi obrazami galaktyk, egzoplanet i ekspansji wszechświata.' },
+            iss: { name: 'Pierwszy moduł stacji ISS', impact: 'Rozpoczął erę stałej obecności człowieka na orbicie i międzynarodowych badań w mikrograwitacji.' },
+            jwst: { name: 'Start Teleskopu Jamesa Webba', impact: 'Zaprojektowany do obserwacji najstarszych galaktyk i obszarów narodzin gwiazd w podczerwieni.' }
+        }
     },
     loading: {
         boot: 'Rozruch obserwatorium',

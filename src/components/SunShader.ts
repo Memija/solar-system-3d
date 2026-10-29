@@ -86,28 +86,43 @@ float snoise(vec3 v){
 }
 
 void main() {
-    // Multi-octave convective turbulence
-    float n1 = snoise(vPosition * 0.06 + vec3(time * 0.15, time * 0.1, 0.0));
-    float n2 = snoise(vPosition * 0.12 - vec3(0.0, time * 0.22, time * 0.18));
-    float n3 = snoise(vPosition * 0.25 + vec3(time * 0.35, 0.0, time * 0.28));
+    // Normalize local sphere direction so noise frequency is scale-invariant
+    vec3 dir = normalize(vPosition);
 
-    float combinedNoise = n1 * 0.55 + n2 * 0.3 + n3 * 0.15;
+    // Multi-octave convective photosphere granulation & supergranulation
+    float n1 = snoise(dir * 3.2 + vec3(time * 0.11, time * 0.08, -time * 0.05));
+    float n2 = snoise(dir * 7.5 - vec3(time * 0.06, time * 0.16, time * 0.12));
+    float n3 = snoise(dir * 16.0 + vec3(time * 0.22, -time * 0.09, time * 0.19));
+    float gran = snoise(dir * 34.0 - vec3(time * 0.28, time * 0.21, 0.0));
 
-    // Palette: Deep solar core red -> molten gold -> bright yellow -> radiant plasma white
-    vec3 colorCore = vec3(0.85, 0.18, 0.02);    // Deep Molten Red-Orange
-    vec3 colorMid = vec3(1.0, 0.55, 0.05);      // Glowing Solar Amber
-    vec3 colorBright = vec3(1.0, 0.92, 0.35);   // Blazing Yellow
-    vec3 colorHot = vec3(1.0, 1.0, 0.95);       // Radiant Corona White
+    float combinedNoise = n1 * 0.45 + n2 * 0.28 + n3 * 0.17 + gran * 0.10;
 
-    vec3 finalColor = mix(colorCore, colorMid, smoothstep(-0.6, 0.1, combinedNoise));
-    finalColor = mix(finalColor, colorBright, smoothstep(0.1, 0.6, combinedNoise));
-    finalColor = mix(finalColor, colorHot, smoothstep(0.6, 1.0, combinedNoise));
+    // HDR Photosphere Palette (drives organic ACES-toned UnrealBloom across the solar disk)
+    vec3 colorUmbra  = vec3(0.72, 0.20, 0.03); // Cooler convective intergranular lanes / active regions
+    vec3 colorMid    = vec3(1.22, 0.68, 0.14); // Blazing golden photosphere
+    vec3 colorBright = vec3(1.52, 1.18, 0.48); // Hot convective granule tops
+    vec3 colorPlage  = vec3(1.78, 1.58, 1.15); // Magnetic plage / faculae hot spots
 
-    // Dynamic camera-relative solar limb flare / Fresnel edge boost
+    vec3 photosphere = mix(colorUmbra, colorMid, smoothstep(-0.62, -0.05, combinedNoise));
+    photosphere = mix(photosphere, colorBright, smoothstep(-0.05, 0.45, combinedNoise));
+    photosphere = mix(photosphere, colorPlage, smoothstep(0.45, 0.92, combinedNoise));
+
+    // Astrophysical Solar Limb Darkening:
+    // At disk center (mu = 1), line of sight penetrates deeper, hotter photosphere layers;
+    // near the limb (mu -> 0), higher, cooler, redder optical depth tau ~ 1 dominates.
+    vec3 normal = normalize(vNormal);
     vec3 viewDir = normalize(vViewPosition);
-    float fresnel = 1.0 - max(0.0, dot(vNormal, viewDir));
-    float limbGlow = pow(fresnel, 2.5) * 0.95;
-    finalColor += vec3(1.0, 0.48, 0.1) * limbGlow;
+    float mu = clamp(dot(normal, viewDir), 0.0, 1.0);
+    float limbDarkening = 0.42 + 0.58 * pow(mu, 0.62);
+
+    // Wavelength-dependent limb reddening (shorter blue/green wavelengths darken faster than red)
+    vec3 limbTint = mix(vec3(1.0, 0.58, 0.24), vec3(1.0, 1.0, 1.0), pow(mu, 0.48));
+    vec3 finalColor = photosphere * limbDarkening * limbTint;
+
+    // Thin chromospheric spicule transition rim right at grazing incidence
+    float grazing = pow(1.0 - mu, 5.0);
+    float spicule = 0.75 + 0.25 * n3;
+    finalColor += vec3(1.15, 0.36, 0.08) * grazing * spicule * 0.55;
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

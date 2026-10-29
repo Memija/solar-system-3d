@@ -1,11 +1,5 @@
 import { SupportedLanguage, LocaleInfo, TranslationSchema } from './types';
 import { en } from './locales/en';
-import { id } from './locales/id';
-import { bs } from './locales/bs';
-import { de } from './locales/de';
-import { pl } from './locales/pl';
-import { sr } from './locales/sr';
-
 import { PreferencesManager } from '../components/PreferencesManager';
 
 export * from './types';
@@ -19,12 +13,7 @@ export const FLAG_CODE_MAP: Record<string, string> = {
     de: 'de.png',
     pl: 'pl.png',
     sr: 'rs.png',
-    rs: 'rs.png',
-    hr: 'hr.png',
-    ee: 'ee.png',
-    eg: 'eg.png',
-    et: 'et.png',
-    om: 'om.png'
+    rs: 'rs.png'
 };
 
 export function getLocaleFlagUrl(localeOrCode: LocaleInfo | string): string {
@@ -46,32 +35,66 @@ export const AVAILABLE_LOCALES: LocaleInfo[] = [
     { code: 'sr', label: 'Serbian', nativeName: 'Serbian', flag: '🇷🇸', flagFile: 'rs.png' }
 ];
 
+const LOCALE_LOADERS: Record<string, () => Promise<TranslationSchema>> = {
+    id: () => import('./locales/id').then(m => m.id),
+    bs: () => import('./locales/bs').then(m => m.bs),
+    de: () => import('./locales/de').then(m => m.de),
+    pl: () => import('./locales/pl').then(m => m.pl),
+    sr: () => import('./locales/sr').then(m => m.sr)
+};
+
 class I18nManager {
     private currentLang: SupportedLanguage | string = 'en';
-    private locales: Map<string, { meta: LocaleInfo; translations: TranslationSchema }> = new Map();
+    private locales: Map<string, { meta: LocaleInfo; translations: TranslationSchema; loaded: boolean }> = new Map();
+    private inflightLoads: Map<string, Promise<void>> = new Map();
     private listeners: Set<(lang: SupportedLanguage | string) => void> = new Set();
+    private numberFormatCache: Map<string, Intl.NumberFormat> = new Map();
 
     constructor() {
-        // Register built-in locales in alphabetical order
-        const localeDataMap: Record<string, TranslationSchema> = { en, id, bs, de, pl, sr };
+        // Register built-in locale metadata; English is loaded synchronously, others lazy-load on demand
         AVAILABLE_LOCALES.forEach(loc => {
-            this.registerLocale(loc.code as string, loc, localeDataMap[loc.code as string]);
+            const code = loc.code as string;
+            const isEn = code === 'en';
+            this.locales.set(code, {
+                meta: loc,
+                translations: en,
+                loaded: isEn
+            });
         });
 
         // Detect initial language
         this.currentLang = this.detectInitialLanguage();
         this.applyDocumentLanguage(this.currentLang);
+        if (this.currentLang !== 'en') {
+            void this.preloadLocale(this.currentLang);
+        }
     }
 
     private detectInitialLanguage(): SupportedLanguage {
-        // 1. Check PreferencesManager
+        // 1. Check whether user explicitly saved a language in localStorage
+        let hasExplicitStoredLang = false;
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+                const raw = window.localStorage.getItem('solar-system-3d');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed.language === 'string' && this.locales.has(parsed.language)) {
+                        hasExplicitStoredLang = true;
+                        return parsed.language as SupportedLanguage;
+                    }
+                }
+            } catch {
+                // Fall back to PreferencesManager / navigator
+            }
+        }
+
         const stored = PreferencesManager.get('language');
-        if (stored && this.locales.has(stored)) {
+        if (stored && stored !== 'en' && this.locales.has(stored)) {
             return stored as SupportedLanguage;
         }
 
-        // 2. Check navigator.language
-        if (typeof navigator !== 'undefined' && navigator.language) {
+        // 2. Check navigator.language if no explicit saved preference
+        if (!hasExplicitStoredLang && typeof navigator !== 'undefined' && navigator.language) {
             const browserLang = navigator.language.toLowerCase();
             if (browserLang.startsWith('id')) return 'id';
             if (browserLang.startsWith('bs')) return 'bs';
@@ -84,8 +107,36 @@ class I18nManager {
         return 'en';
     }
 
+    public async preloadLocale(code: string): Promise<void> {
+        const entry = this.locales.get(code);
+        if (entry?.loaded) return;
+        const loader = LOCALE_LOADERS[code];
+        if (!loader) return;
+
+        const existing = this.inflightLoads.get(code);
+        if (existing) return existing;
+
+        const promise = loader()
+            .then(translations => {
+                const meta = entry?.meta || AVAILABLE_LOCALES.find(l => l.code === code) || AVAILABLE_LOCALES[0];
+                this.locales.set(code, { meta, translations, loaded: true });
+                if (this.currentLang === code) {
+                    this.notifyListeners(code);
+                }
+            })
+            .catch(err => {
+                console.error(`[i18n] Failed to load locale '${code}':`, err);
+            })
+            .finally(() => {
+                this.inflightLoads.delete(code);
+            });
+
+        this.inflightLoads.set(code, promise);
+        return promise;
+    }
+
     public registerLocale(code: string, meta: LocaleInfo, translations: TranslationSchema) {
-        this.locales.set(code, { meta, translations });
+        this.locales.set(code, { meta, translations, loaded: true });
     }
 
     public get currentLanguage(): SupportedLanguage | string {
@@ -108,13 +159,25 @@ class I18nManager {
             lang = 'en';
         }
 
-        if (this.currentLang === lang) return;
+        const entry = this.locales.get(lang);
+        const needsLazyLoad = !!entry && !entry.loaded && !!LOCALE_LOADERS[lang];
+
+        if (this.currentLang === lang) {
+            if (needsLazyLoad) {
+                void this.preloadLocale(lang);
+            }
+            return;
+        }
 
         this.currentLang = lang;
         PreferencesManager.set('language', lang);
 
         this.applyDocumentLanguage(lang);
         this.notifyListeners(lang);
+
+        if (needsLazyLoad) {
+            void this.preloadLocale(lang);
+        }
     }
 
     private applyDocumentLanguage(lang: SupportedLanguage | string) {
@@ -146,7 +209,8 @@ class I18nManager {
      * Resolves a dotted key path with fallback to English
      */
     public t(path: string, params?: Record<string, string | number>): string {
-        const currentTranslations = this.locales.get(this.currentLang)?.translations;
+        const currentEntry = this.locales.get(this.currentLang);
+        const currentTranslations = currentEntry?.loaded ? currentEntry.translations : undefined;
         const fallbackTranslations = this.locales.get('en')?.translations;
 
         let val: any = this.resolvePath(currentTranslations, path);
@@ -179,7 +243,7 @@ class I18nManager {
     }
 
     /**
-     * Formats a numeric value according to the current locale using Intl.NumberFormat
+     * Formats a numeric value according to the current locale using cached Intl.NumberFormat
      */
     public formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
         const localeMap: Record<string, string> = {
@@ -191,21 +255,33 @@ class I18nManager {
             id: 'id-ID'
         };
         const bcp47 = localeMap[this.currentLang] || this.currentLang || 'en-US';
-        try {
-            return new Intl.NumberFormat(bcp47, options).format(value);
-        } catch {
-            return new Intl.NumberFormat('en-US', options).format(value);
+        const cacheKey = options ? `${bcp47}:${JSON.stringify(options)}` : bcp47;
+
+        let formatter = this.numberFormatCache.get(cacheKey);
+        if (!formatter) {
+            try {
+                formatter = new Intl.NumberFormat(bcp47, options);
+            } catch {
+                formatter = new Intl.NumberFormat('en-US', options);
+            }
+            this.numberFormatCache.set(cacheKey, formatter);
         }
+        return formatter.format(value);
+    }
+
+    private getLoadedTranslations(lang: string): TranslationSchema | undefined {
+        const entry = this.locales.get(lang);
+        return entry?.loaded ? entry.translations : undefined;
     }
 
     /**
      * Translated Celestial Body Name
      */
     public getBodyName(canonicalName: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.bodies?.[canonicalName];
+        const current = this.getLoadedTranslations(this.currentLang)?.bodies?.[canonicalName];
         if (current?.name) return current.name;
 
-        const fallback = this.locales.get('en')?.translations.bodies?.[canonicalName];
+        const fallback = this.getLoadedTranslations('en')?.bodies?.[canonicalName];
         return fallback?.name || canonicalName;
     }
 
@@ -213,15 +289,15 @@ class I18nManager {
      * Translated Celestial Body Description
      */
     public getBodyDescription(canonicalName: string, fallbackDesc?: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.bodies?.[canonicalName];
+        const current = this.getLoadedTranslations(this.currentLang)?.bodies?.[canonicalName];
         if (current?.description) return current.description;
 
-        const fallback = this.locales.get('en')?.translations.bodies?.[canonicalName];
+        const fallback = this.getLoadedTranslations('en')?.bodies?.[canonicalName];
         return fallback?.description || fallbackDesc || '';
     }
 
     private resolveSpacecraftEntry(lang: string, canonicalName: string) {
-        const scMap = this.locales.get(lang)?.translations.spacecraft;
+        const scMap = this.getLoadedTranslations(lang)?.spacecraft;
         if (!scMap) return undefined;
         if (scMap[canonicalName]) return scMap[canonicalName];
         const aliases: Record<string, string[]> = {
@@ -240,7 +316,7 @@ class I18nManager {
     }
 
     private resolveCometEntry(lang: string, canonicalName: string) {
-        const cometMap = this.locales.get(lang)?.translations.comets;
+        const cometMap = this.getLoadedTranslations(lang)?.comets;
         if (!cometMap) return undefined;
         if (cometMap[canonicalName]) return cometMap[canonicalName];
         const aliases: Record<string, string[]> = {
@@ -256,7 +332,7 @@ class I18nManager {
     }
 
     private resolveConstellationEntry(lang: string, canonicalName: string) {
-        const constMap = this.locales.get(lang)?.translations.constellations;
+        const constMap = this.getLoadedTranslations(lang)?.constellations;
         if (!constMap) return undefined;
         if (constMap[canonicalName]) return constMap[canonicalName];
         const aliases: Record<string, string[]> = {
@@ -276,9 +352,6 @@ class I18nManager {
         return undefined;
     }
 
-    /**
-     * Translated Spacecraft Name & Description
-     */
     public getSpacecraftName(canonicalName: string): string {
         const current = this.resolveSpacecraftEntry(this.currentLang, canonicalName);
         if (current?.name) return current.name;
@@ -295,9 +368,6 @@ class I18nManager {
         return fallback?.description || fallbackDesc || '';
     }
 
-    /**
-     * Translated Comet Name & Description
-     */
     public getCometName(canonicalName: string): string {
         const current = this.resolveCometEntry(this.currentLang, canonicalName);
         if (current?.name) return current.name;
@@ -314,9 +384,6 @@ class I18nManager {
         return fallback?.description || fallbackDesc || '';
     }
 
-    /**
-     * Translated Constellation Name & Description
-     */
     public getConstellationName(canonicalName: string): string {
         const current = this.resolveConstellationEntry(this.currentLang, canonicalName);
         if (current?.name) return current.name;
@@ -341,33 +408,30 @@ class I18nManager {
         return fallback?.family || fallbackFamily || '';
     }
 
-    /**
-     * Translated Star Name & Description
-     */
     public getStarName(canonicalName: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.stars?.[canonicalName];
+        const current = this.getLoadedTranslations(this.currentLang)?.stars?.[canonicalName];
         if (current?.name) return current.name;
 
-        const fallback = this.locales.get('en')?.translations.stars?.[canonicalName];
+        const fallback = this.getLoadedTranslations('en')?.stars?.[canonicalName];
         return fallback?.name || canonicalName;
     }
 
     public getStarDescription(canonicalName: string, fallbackDesc?: string): string {
-        const current = this.locales.get(this.currentLang)?.translations.stars?.[canonicalName];
+        const current = this.getLoadedTranslations(this.currentLang)?.stars?.[canonicalName];
         if (current?.description) return current.description;
 
-        const fallback = this.locales.get('en')?.translations.stars?.[canonicalName];
+        const fallback = this.getLoadedTranslations('en')?.stars?.[canonicalName];
         return fallback?.description || fallbackDesc || '';
     }
 
     public getMonths(): string[] {
-        const entry = this.locales.get(this.currentLang)?.translations.datepicker?.months;
+        const entry = this.getLoadedTranslations(this.currentLang)?.datepicker?.months;
         if (Array.isArray(entry) && entry.length === 12) return entry;
         return this.locales.get('en')!.translations.datepicker.months;
     }
 
     public getWeekdays(): string[] {
-        const entry = this.locales.get(this.currentLang)?.translations.datepicker?.weekdays;
+        const entry = this.getLoadedTranslations(this.currentLang)?.datepicker?.weekdays;
         if (Array.isArray(entry) && entry.length === 7) return entry;
         return this.locales.get('en')!.translations.datepicker.weekdays;
     }
@@ -388,8 +452,9 @@ class I18nManager {
             return { titleKey: 'popups.meteorsTitle', descKey: 'popups.meteorsDesc' };
         }
 
-        // Localized string matches across all registered locales
+        // Localized string matches across all loaded locales
         for (const [, localeData] of this.locales) {
+            if (!localeData.loaded) continue;
             const popups = localeData.translations.popups;
             if (!popups) continue;
 

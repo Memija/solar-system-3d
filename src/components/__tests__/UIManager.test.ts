@@ -3,31 +3,6 @@ import { UIManager } from '../UIManager';
 import { Modal } from '../Modal';
 import { i18n } from '../../i18n';
 
-// Mock dat.gui
-vi.mock('dat.gui', () => ({
-    GUI: class {
-addFolder = vi.fn(() => ({
-            add: vi.fn().mockReturnValue({
-                name: vi.fn().mockReturnThis(),
-                onChange: vi.fn().mockReturnThis(),
-                step: vi.fn().mockReturnThis(),
-                min: vi.fn().mockReturnThis(),
-                setValue: vi.fn().mockReturnThis()
-            }),
-            open: vi.fn()
-        }));
-        domElement = document.createElement('div');
-        add = vi.fn(() => ({
-            name: vi.fn().mockReturnThis(),
-            onChange: vi.fn().mockReturnThis(),
-            step: vi.fn().mockReturnThis(),
-            min: vi.fn().mockReturnThis(),
-            setValue: vi.fn().mockReturnThis()
-        }));
-        destroy = vi.fn();
-    }
-}));
-
 vi.mock('three', () => ({
     Raycaster: class {
         setFromCamera = vi.fn();
@@ -111,7 +86,8 @@ describe('UIManager', () => {
             toggleComets: vi.fn(),
             toggleSpacecrafts: vi.fn(),
             toggleMeteors: vi.fn(),
-            toggleTrails: vi.fn()
+            toggleTrails: vi.fn(),
+            toggleConstellations: vi.fn()
         };
 
         // Mock modal to avoid errors
@@ -166,6 +142,25 @@ describe('UIManager', () => {
         expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Mars');
     });
 
+    it('should synchronize initial bodySelect dropdown and active chip to Earth on boot when Earth exists', () => {
+        uiManager.dispose();
+        uiContainer.innerHTML = '';
+
+        sceneManager.planets = [
+            { data: { name: 'Mercury', description: 'Innermost planet' }, moons: [] },
+            { data: { name: 'Venus', description: 'Second planet' }, moons: [] },
+            { data: { name: 'Earth', description: 'Blue marble' }, moons: [] },
+            { data: { name: 'Mars', description: 'Red planet' }, moons: [] }
+        ];
+
+        uiManager = new UIManager(sceneManager);
+        const bodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
+        expect(bodySelect.value).toBe('Earth');
+
+        const activeChip = uiContainer.querySelector('.target-chip-btn.active .chip-name');
+        expect(activeChip?.textContent).toBe('Earth');
+    });
+
     it('should cleanly dispose all event listeners and subcomponents on dispose()', () => {
         const removeWindowListenerSpy = vi.spyOn(window, 'removeEventListener');
         const removeDocListenerSpy = vi.spyOn(document, 'removeEventListener');
@@ -204,7 +199,7 @@ describe('UIManager', () => {
         expect(langContainer).toBeTruthy();
         expect(menuContainer).toBeTruthy();
 
-        // Baseline menu container z-index must be higher than modal z-index (1500)
+        // Baseline menu container z-index must be >= 1600
         expect(parseInt(menuContainer.style.zIndex, 10)).toBeGreaterThanOrEqual(1600);
 
         // Initially dropdown is hidden
@@ -287,6 +282,24 @@ describe('UIManager', () => {
         expect(langBtn.classList.contains('active')).toBe(false);
         expect(langContainer.classList.contains('open')).toBe(false);
         expect(menuContainer.classList.contains('has-lang-open')).toBe(false);
+    });
+
+    it('should dismiss top modal on Escape while keeping Control Center drawer open until second Escape', () => {
+        uiManager.controlCenter?.open('optics');
+        expect(uiManager.controlCenter?.isOpen).toBe(true);
+
+        // Open dossier/popup modal on top of open Control Center
+        uiManager.modal.show({ name: 'True Scale', description: 'True scale warning' });
+        expect(uiManager.modal.isOpen).toBe(true);
+
+        // First Escape dismisses the top modal only; Control Center remains open
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(uiManager.modal.isOpen).toBe(false);
+        expect(uiManager.controlCenter?.isOpen).toBe(true);
+
+        // Second Escape closes the Control Center
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(uiManager.controlCenter?.isOpen).toBe(false);
     });
 
     it('should display simulation speed badge in date panel', () => {
@@ -403,9 +416,10 @@ describe('UIManager', () => {
         expect(modalArg.description).toContain('<kbd>J</kbd>');
         expect(modalArg.description).toContain('<kbd>Y</kbd>');
         expect(modalArg.description).toContain('<kbd>I</kbd>');
+        expect(modalArg.description).toContain('<kbd>C</kbd>');
     });
 
-    it('should toggle celestial layers via keyboard shortcuts (O, N, E, U, W, Q, J, Y, I)', () => {
+    it('should toggle celestial layers via keyboard shortcuts (O, N, E, U, W, Q, J, Y, I, C)', () => {
         sceneManager.toggleOrbits = vi.fn();
         sceneManager.toggleMoons = vi.fn();
         sceneManager.toggleAsteroids = vi.fn();
@@ -415,6 +429,7 @@ describe('UIManager', () => {
         sceneManager.toggleSpacecrafts = vi.fn();
         sceneManager.toggleMeteors = vi.fn();
         sceneManager.toggleTrails = vi.fn();
+        sceneManager.toggleConstellations = vi.fn();
 
         sceneManager.showOrbits = true;
         sceneManager.showMoons = true;
@@ -425,6 +440,7 @@ describe('UIManager', () => {
         sceneManager.showSpacecrafts = true;
         sceneManager.showMeteors = false;
         sceneManager.showTrails = true;
+        sceneManager.showConstellations = true;
 
         // O toggles orbits
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', code: 'KeyO' }));
@@ -461,6 +477,10 @@ describe('UIManager', () => {
         // I toggles trails
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', code: 'KeyI' }));
         expect(sceneManager.toggleTrails).toHaveBeenCalledWith(false);
+
+        // C toggles constellations
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', code: 'KeyC' }));
+        expect(sceneManager.toggleConstellations).toHaveBeenCalledWith(false);
     });
 
     it('should handle camera keyboard shortcuts (A, V, D)', () => {
@@ -518,7 +538,6 @@ describe('UIManager', () => {
         expect(sceneManager.setSurfaceView).toHaveBeenCalledWith('Mars');
         expect(sceneManager.focusOnBody).not.toHaveBeenCalled();
     });
-
 
     it('should not mark Real-Time preset as paused', () => {
         const speedBadge = uiContainer.querySelector('.sim-speed-badge') as HTMLElement;
@@ -587,10 +606,10 @@ describe('UIManager', () => {
         expect(targetPill.querySelector('.target-name')?.textContent).toBe('Земља');
     });
 
-    it('should have customize header slots button (+) in the observatory header bar', () => {
+    it('should have customize header slots button (+) with monochrome SVG icon in the observatory header bar', () => {
         const slotAddBtn = uiContainer.querySelector('#hudSlotAddBtn') as HTMLButtonElement;
         expect(slotAddBtn).not.toBeNull();
-        expect(slotAddBtn.textContent).toContain('＋');
+        expect(slotAddBtn.querySelector('svg[data-icon="plus"]')).not.toBeNull();
 
         const slotsContainer = uiContainer.querySelector('.obs-header-slots') as HTMLElement;
         expect(slotsContainer).not.toBeNull();
@@ -726,48 +745,29 @@ describe('UIManager', () => {
         expect(mkmEl?.textContent).toBe('(224.4 Mkm)');
     });
 
-    it('should display Measure Mode HUD bar by default with activation button', () => {
+    it('should keep Measure Mode HUD bar hidden by default until measureMode is activated', () => {
         const hud = document.getElementById('measureHudBar');
         expect(hud).not.toBeNull();
-        expect(hud?.style.display).toBe('flex');
-
-        const activateBtn = hud?.querySelector('.measure-action-btn.activate-btn') as HTMLButtonElement;
-        const clearBtn = hud?.querySelector('.measure-action-btn.clear-btn') as HTMLButtonElement;
-        const closeBtn = hud?.querySelector('.measure-action-btn.close-btn') as HTMLButtonElement;
-        const textEl = hud?.querySelector('.measure-hud-text');
-
-        expect(activateBtn).not.toBeNull();
-        expect(activateBtn.style.display).toBe('inline-block');
-        expect(activateBtn.textContent).toBe('Activate');
-        expect(clearBtn.style.display).toBe('none');
-        expect(closeBtn.style.display).toBe('inline-block');
-        expect(textEl?.textContent).toContain('Measure Mode');
+        expect(hud?.style.display).toBe('none');
     });
 
-    it('should activate measure mode when activation button is clicked and handle close button', () => {
+    it('should display Measure Mode HUD bar when measureMode is active and hide it on close button click', () => {
         const hud = document.getElementById('measureHudBar');
-        const activateBtn = hud?.querySelector('.measure-action-btn.activate-btn') as HTMLButtonElement;
         const clearBtn = hud?.querySelector('.measure-action-btn.clear-btn') as HTMLButtonElement;
         const closeBtn = hud?.querySelector('.measure-action-btn.close-btn') as HTMLButtonElement;
         const textEl = hud?.querySelector('.measure-hud-text');
 
-        activateBtn.click();
+        sceneManager.measureMode = true;
+        uiManager.updateMeasureHud();
 
-        expect(sceneManager.measureMode).toBe(true);
-        expect(activateBtn.style.display).toBe('none');
-        expect(closeBtn.style.display).toBe('inline-block');
+        expect(hud?.style.display).toBe('flex');
+        expect(closeBtn.style.display).toBe('inline-flex');
         expect(clearBtn.style.display).toBe('none');
         expect(textEl?.textContent).toContain('Click a celestial body to begin measuring');
 
-        // Clicking close button exits active measure mode back to inactive state with activation button
+        // Clicking close button exits active measure mode and hides the HUD bar cleanly
         closeBtn.click();
         expect(sceneManager.measureMode).toBe(false);
-        expect(activateBtn.style.display).toBe('inline-block');
-        expect(textEl?.textContent).toContain('Measure Mode');
-
-        // Clicking close button when inactive dismisses HUD bar
-        closeBtn.click();
         expect(hud?.style.display).toBe('none');
     });
 });
-

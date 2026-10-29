@@ -37,7 +37,20 @@ export const en: TranslationSchema = {
         overview: 'Overview',
         astronomicalScience: 'Astronomical Mechanics & Science',
         observationTip: 'Observatory Tip',
-        understood: 'Understood'
+        understood: 'Understood',
+        ephemerisTag: 'EPHEMERIS',
+        set: 'Set',
+        secPerBody: '{sec}s / body',
+        perfCalls: 'Calls',
+        perfTris: 'Tris',
+        perfTex: 'Tex',
+        perfMem: 'Mem',
+        compassN: 'N',
+        compassS: 'S',
+        compassE: 'E',
+        compassW: 'W',
+        webglUnavailableTitle: 'WebGL 3D Hardware Unavailable',
+        webglUnavailableDesc: 'This observatory requires WebGL hardware acceleration. Please enable hardware acceleration in your browser settings or update your graphics drivers.'
     },
     categories: {
         star: '🌟 Stars',
@@ -100,6 +113,12 @@ export const en: TranslationSchema = {
             oneMonthPerSec: '1 month / sec',
             paused: 'Paused',
             custom: 'Custom'
+        },
+        speedUnits: {
+            hrPerSec: 'hr/s',
+            dayPerSec: 'day/s',
+            wkPerSec: 'wk/s',
+            moPerSec: 'mo/s'
         },
         pause: 'Pause',
         resume: 'Resume',
@@ -267,7 +286,18 @@ export const en: TranslationSchema = {
         decade: 'Decade',
         year: 'Year',
         historicalEvents: 'Historical Events...',
-        calendarTitle: 'Mission Calendar'
+        calendarTitle: 'Mission Calendar',
+        chronometerTitle: 'ASTRONAVIGATION CHRONOMETER',
+        todayShort: 'TODAY',
+        spaceMilestones: 'SPACE FLIGHT MILESTONES',
+        milestones: {
+            sputnik1: { name: 'Sputnik 1 Launch', impact: 'The launch of Sputnik 1 marked the beginning of the space age and demonstrated the feasibility of artificial satellites.' },
+            apollo11: { name: 'Apollo 11 Moon Landing', impact: 'First humans on the Moon, proving crewed extraterrestrial travel was possible and achieving a milestone in human history.' },
+            voyager1: { name: 'Voyager 1 Launch', impact: 'Voyager 1 became the first human-made object to enter interstellar space, returning unprecedented outer Solar System imagery.' },
+            hubble: { name: 'Hubble Space Telescope Launch', impact: 'Revolutionized astronomy with deep optical views of galaxies, exoplanets, and the expansion of the universe.' },
+            iss: { name: 'ISS First Module Launch', impact: 'Began the era of continuous human presence in low-Earth orbit and international microgravity research.' },
+            jwst: { name: 'James Webb Telescope Launch', impact: 'Engineered to observe the earliest galaxies in the cosmos and peer inside stellar nurseries in infrared light.' }
+        }
     },
     loading: {
         boot: 'Observatory Boot',

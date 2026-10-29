@@ -52,6 +52,19 @@ export interface TranslationSchema {
         astronomicalScience?: string;
         observationTip?: string;
         understood?: string;
+        ephemerisTag?: string;
+        set?: string;
+        secPerBody?: string;
+        perfCalls?: string;
+        perfTris?: string;
+        perfTex?: string;
+        perfMem?: string;
+        compassN?: string;
+        compassS?: string;
+        compassE?: string;
+        compassW?: string;
+        webglUnavailableTitle?: string;
+        webglUnavailableDesc?: string;
     };
     categories: {
         star: string;
@@ -114,6 +127,12 @@ export interface TranslationSchema {
             oneMonthPerSec: string;
             paused: string;
             custom: string;
+        };
+        speedUnits?: {
+            hrPerSec: string;
+            dayPerSec: string;
+            wkPerSec: string;
+            moPerSec: string;
         };
         pause: string;
         resume: string;
@@ -279,6 +298,10 @@ export interface TranslationSchema {
         year: string;
         historicalEvents: string;
         calendarTitle: string;
+        chronometerTitle?: string;
+        todayShort?: string;
+        spaceMilestones?: string;
+        milestones?: Record<string, { name: string; impact: string }>;
     };
     loading: {
         boot: string;
