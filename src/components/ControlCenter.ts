@@ -481,7 +481,7 @@ export class ControlCenter {
         prevDayBtn.className = 'date-stepper-btn';
         prevDayBtn.setAttribute('aria-label', 'Previous Day');
         prevDayBtn.title = 'Previous Day (-1d)';
-        prevDayBtn.innerHTML = '◀';
+        prevDayBtn.innerHTML = svgIcon('chevron-left');
         prevDayBtn.onclick = () => {
             const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
             curr.setUTCDate(curr.getUTCDate() - 1);
@@ -534,7 +534,7 @@ export class ControlCenter {
         nextDayBtn.className = 'date-stepper-btn';
         nextDayBtn.setAttribute('aria-label', 'Next Day');
         nextDayBtn.title = 'Next Day (+1d)';
-        nextDayBtn.innerHTML = '▶';
+        nextDayBtn.innerHTML = svgIcon('chevron-right');
         nextDayBtn.onclick = () => {
             const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
             curr.setUTCDate(curr.getUTCDate() + 1);
@@ -623,7 +623,11 @@ export class ControlCenter {
             }
         };
         this.milestoneSelect = milestoneSelect;
+        const milestoneChevron = document.createElement('span');
+        milestoneChevron.className = 'ctrl-select-chevron';
+        milestoneChevron.innerHTML = svgIcon('chevron-down');
         milestoneWrap.appendChild(milestoneSelect);
+        milestoneWrap.appendChild(milestoneChevron);
         dateGroup.appendChild(milestoneWrap);
 
         // Actions Row: Jump to Today & Open Mission Calendar
@@ -633,7 +637,8 @@ export class ControlCenter {
         const jumpBtn = document.createElement('button');
         jumpBtn.type = 'button';
         jumpBtn.className = 'master-action-btn jump-date-action-btn';
-        jumpBtn.innerHTML = `<span>${svgIcon('globe')} <span data-i18n-key="ui.liveRealTime">${stripLeadingEmoji(i18n.t('ui.liveRealTime') || 'Jump to Real-Time Today')}</span></span>`;
+        jumpBtn.title = stripLeadingEmoji(i18n.t('ui.liveRealTime') || 'Snap to Real-Time Today');
+        jumpBtn.innerHTML = `<span>${svgIcon('globe')} <span data-i18n-key="datepicker.todayShort">${stripLeadingEmoji(i18n.t('datepicker.todayShort') || 'TODAY')}</span></span>`;
         jumpBtn.onclick = () => {
             const now = new Date();
             this.applySelectedDate(now, false);

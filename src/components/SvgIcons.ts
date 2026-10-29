@@ -55,7 +55,12 @@ export type SvgIconName =
     | 'info'
     | 'lock'
     | 'reset'
-    | 'check';
+    | 'check'
+    | 'chevron-left'
+    | 'chevron-right'
+    | 'chevrons-left'
+    | 'chevrons-right'
+    | 'chevron-down';
 
 const ICON_PATHS: Record<SvgIconName, string> = {
     'attach-camera': '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
@@ -108,7 +113,12 @@ const ICON_PATHS: Record<SvgIconName, string> = {
     'info': '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5M12 8h.01"/>',
     'lock': '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     'reset': '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
-    'check': '<path d="M20 6L9 17l-5-5"/>'
+    'check': '<path d="M20 6L9 17l-5-5"/>',
+    'chevron-left': '<path d="M15 18l-6-6 6-6"/>',
+    'chevron-right': '<path d="M9 18l6-6-6-6"/>',
+    'chevrons-left': '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>',
+    'chevrons-right': '<path d="M13 17l5-5-5-5M6 17l5-5-5-5"/>',
+    'chevron-down': '<path d="M6 9l6 6 6-6"/>'
 };
 
 export function svgIcon(name: SvgIconName, className: string = 'obs-svg-icon'): string {

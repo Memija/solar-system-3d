@@ -22,15 +22,22 @@ describe('CustomDatePicker', () => {
         expect(display?.textContent).toBe('2025-06-15');
     });
 
-    it('toggles popup on display click', () => {
+    it('toggles popup on display click and syncs is-open / aria-expanded state', () => {
         const display = datePicker.domElement.querySelector('.custom-datepicker-display') as HTMLElement;
+        expect(display.getAttribute('aria-expanded')).toBe('false');
+        expect(datePicker.domElement.classList.contains('is-open')).toBe(false);
+
         display.click();
         expect(datePicker.isOpen).toBe(true);
+        expect(datePicker.domElement.classList.contains('is-open')).toBe(true);
+        expect(display.getAttribute('aria-expanded')).toBe('true');
         expect(mockOnOpen).toHaveBeenCalled();
 
         // Clicking outside closes the popup
         document.body.click();
         expect(datePicker.isOpen).toBe(false);
+        expect(datePicker.domElement.classList.contains('is-open')).toBe(false);
+        expect(display.getAttribute('aria-expanded')).toBe('false');
     });
 
     it('sets date programmatically and updates display without mutation glitches', () => {
@@ -102,5 +109,48 @@ describe('CustomDatePicker', () => {
         // Switch back to English
         i18n.setLanguage('en');
         expect(display?.textContent).toContain('BC');
+    });
+
+    it('keeps hero ephemeris readout locked to active simulation date when browsing shorter months', () => {
+        datePicker.setDate(new Date(Date.UTC(2026, 0, 31, 12, 0, 0))); // Jan 31, 2026
+        datePicker.openPopup();
+
+        const heroDate = datePicker.domElement.querySelector('.hero-date-readout') as HTMLElement;
+        const returnBtn = datePicker.domElement.querySelector('.hero-return-btn') as HTMLButtonElement;
+        const nextMonthBtn = datePicker.domElement.querySelector('.next-month') as HTMLButtonElement;
+
+        expect(heroDate.textContent).toBe('31 JANUARY 2026');
+        expect(returnBtn.style.display).toBe('none');
+
+        // Browse to February: hero banner must still show active date (not invalid "31 FEBRUARY 2026")
+        nextMonthBtn.click();
+        expect(heroDate.textContent).toBe('31 JANUARY 2026');
+        expect(returnBtn.style.display).toBe('inline-flex');
+
+        // Return button snaps view back to active month
+        returnBtn.click();
+        const monthSelect = datePicker.domElement.querySelector('.custom-datepicker-select') as HTMLSelectElement;
+        expect(monthSelect.value).toBe('0');
+        expect(returnBtn.style.display).toBe('none');
+    });
+
+    it('renders monochrome SVG chevrons and activates historical mission bento cards cleanly', () => {
+        datePicker.openPopup();
+
+        expect(datePicker.domElement.querySelector('svg[data-icon="chevron-left"]')).not.toBeNull();
+        expect(datePicker.domElement.querySelector('svg[data-icon="chevrons-left"]')).not.toBeNull();
+        expect(datePicker.domElement.querySelector('svg[data-icon="chevron-down"]')).not.toBeNull();
+
+        const apolloChip = datePicker.domElement.querySelector('.milestone-chip[data-mission-id="apollo11"]') as HTMLButtonElement;
+        expect(apolloChip).not.toBeNull();
+        apolloChip.click();
+
+        expect(mockOnChange).toHaveBeenCalled();
+        expect(datePicker.currentDate.getUTCFullYear()).toBe(1969);
+        expect(datePicker.currentDate.getUTCMonth()).toBe(6);
+        expect(datePicker.currentDate.getUTCDate()).toBe(20);
+
+        datePicker.openPopup();
+        expect(apolloChip.classList.contains('active')).toBe(true);
     });
 });
