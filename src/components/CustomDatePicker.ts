@@ -82,6 +82,7 @@ export interface CustomDatePickerOptions {
     portalContainer?: HTMLElement;
     displayId?: string;
     ariaLabel?: string;
+    ariaLabelKey?: string;
 }
 
 export class CustomDatePicker {
@@ -89,6 +90,8 @@ export class CustomDatePicker {
     public displayElement: HTMLElement;
     public popupElement: HTMLElement;
     private readonly isPortaled: boolean = false;
+    private readonly customAriaLabel?: string;
+    private readonly ariaLabelKey?: string;
     private daysGridElement: HTMLElement;
     private daysHeader: HTMLElement;
 
@@ -99,7 +102,23 @@ export class CustomDatePicker {
     private heroReturnBtn: HTMLButtonElement | null = null;
     private hudStatusTitleEl: HTMLElement | null = null;
     private hudEpochTagEl: HTMLElement | null = null;
+    private closeBtn: HTMLButtonElement | null = null;
+    private livePill: HTMLButtonElement | null = null;
     private livePillLabelEl: HTMLElement | null = null;
+    private decMonthBtn: HTMLButtonElement | null = null;
+    private incMonthBtn: HTMLButtonElement | null = null;
+    private decDecadeBtn: HTMLButtonElement | null = null;
+    private decYearBtn: HTMLButtonElement | null = null;
+    private incYearBtn: HTMLButtonElement | null = null;
+    private incDecadeBtn: HTMLButtonElement | null = null;
+    private scrubBtnItems: {
+        btn: HTMLButtonElement;
+        sign: '-' | '+';
+        amount: number;
+        unitKey: 'day' | 'year';
+        tooltipKey: string;
+        fallbackTooltip: string;
+    }[] = [];
     private milestoneHeaderTitleEl: HTMLElement | null = null;
     private milestoneChipEls: { evt: HistoricalSpaceEvent; chip: HTMLButtonElement; labelEl: HTMLElement }[] = [];
 
@@ -149,7 +168,17 @@ export class CustomDatePicker {
         });
     }
 
+    private tr(key: string, fallback: string, params?: Record<string, string | number>): string {
+        const val = i18n.t(key, params);
+        return val && val !== key ? val : fallback;
+    }
+
     private getShortChipLabel(evt: HistoricalSpaceEvent): string {
+        const shortKey = `datepicker.milestones.${evt.id}.shortName`;
+        const shortVal = i18n.t(shortKey);
+        if (shortVal && shortVal !== shortKey) {
+            return shortVal;
+        }
         const locName = getLocalizedEventName(evt);
         return locName
             .replace(/ Launch| Moon Landing| First Module/gi, '')
@@ -158,27 +187,104 @@ export class CustomDatePicker {
     }
 
     private updateLocalizedLabels(): void {
+        if (this.displayElement) {
+            this.displayElement.title = this.tr(
+                'datepicker.openCalendarTooltip',
+                'Click to open Flight Chronometer & Ephemeris Calendar'
+            );
+            const displayAria = this.ariaLabelKey
+                ? this.tr(this.ariaLabelKey, this.customAriaLabel || 'Flight Chronometer Date')
+                : (this.customAriaLabel || this.tr('datepicker.chronometerDateAria', 'Flight Chronometer Date'));
+            this.displayElement.setAttribute('aria-label', displayAria);
+        }
+        if (this.popupElement) {
+            this.popupElement.setAttribute(
+                'aria-label',
+                this.tr('datepicker.calendarDialogAria', 'Flight Chronometer Calendar')
+            );
+        }
         if (this.hudStatusTitleEl) {
-            const title = i18n.t('datepicker.chronometerTitle');
-            this.hudStatusTitleEl.textContent = title && title !== 'datepicker.chronometerTitle'
-                ? title
-                : 'ASTRONAVIGATION CHRONOMETER';
+            this.hudStatusTitleEl.textContent = this.tr('datepicker.chronometerTitle', 'ASTRONAVIGATION CHRONOMETER');
         }
         if (this.hudEpochTagEl) {
-            const tag = i18n.t('ui.ephemerisTag');
-            this.hudEpochTagEl.textContent = tag && tag !== 'ui.ephemerisTag' ? tag : 'EPHEMERIS';
+            this.hudEpochTagEl.textContent = this.tr('ui.ephemerisTag', 'EPHEMERIS');
+        }
+        if (this.closeBtn) {
+            this.closeBtn.setAttribute('aria-label', this.tr('datepicker.closeCalendarAria', 'Close Calendar'));
+            this.closeBtn.title = this.tr('ui.close', 'Close');
+        }
+        if (this.heroReturnBtn) {
+            this.heroReturnBtn.setAttribute(
+                'aria-label',
+                this.tr('datepicker.returnToActiveMonthAria', 'Return to Active Simulation Month')
+            );
+            this.heroReturnBtn.title = this.tr(
+                'datepicker.returnToActiveDateTitle',
+                'Return calendar view to active simulation date'
+            );
+        }
+        if (this.livePill) {
+            this.livePill.title = this.tr('datepicker.snapToToday', 'Snap to Real-Time Today');
         }
         if (this.livePillLabelEl) {
-            const todayShort = i18n.t('datepicker.todayShort');
-            this.livePillLabelEl.textContent = todayShort && todayShort !== 'datepicker.todayShort'
-                ? todayShort
-                : 'TODAY';
+            this.livePillLabelEl.textContent = this.tr('datepicker.todayShort', 'TODAY');
         }
+
+        const uDay = this.tr('datepicker.stepUnits.day', 'd');
+        const uMonth = this.tr('datepicker.stepUnits.month', 'm');
+        const uYear = this.tr('datepicker.stepUnits.year', 'y');
+
+        if (this.decMonthBtn) {
+            const prevMonth = this.tr('datepicker.prevMonth', 'Previous Month');
+            this.decMonthBtn.setAttribute('aria-label', prevMonth);
+            this.decMonthBtn.title = `${prevMonth} (-1${uMonth})`;
+        }
+        if (this.monthSelect) {
+            this.monthSelect.setAttribute('aria-label', this.tr('datepicker.selectMonth', 'Select Month'));
+        }
+        if (this.incMonthBtn) {
+            const nextMonth = this.tr('datepicker.nextMonth', 'Next Month');
+            this.incMonthBtn.setAttribute('aria-label', nextMonth);
+            this.incMonthBtn.title = `${nextMonth} (+1${uMonth})`;
+        }
+        if (this.decDecadeBtn) {
+            const prevDecade = this.tr('datepicker.prevDecade', 'Previous Decade');
+            const prev10 = this.tr('datepicker.prev10Years', 'Previous 10 Years');
+            this.decDecadeBtn.setAttribute('aria-label', prevDecade);
+            this.decDecadeBtn.title = `${prev10} (-10${uYear})`;
+        }
+        if (this.decYearBtn) {
+            const prevYear = this.tr('datepicker.prevYear', 'Previous Year');
+            this.decYearBtn.setAttribute('aria-label', prevYear);
+            this.decYearBtn.title = `${prevYear} (-1${uYear})`;
+        }
+        if (this.yearInput) {
+            this.yearInput.setAttribute('aria-label', this.tr('datepicker.observationYear', 'Observation Year'));
+            this.yearInput.title = this.tr(
+                'datepicker.yearInputTooltip',
+                'Click to browse centuries, or type year & press Enter'
+            );
+        }
+        if (this.incYearBtn) {
+            const nextYear = this.tr('datepicker.nextYear', 'Next Year');
+            this.incYearBtn.setAttribute('aria-label', nextYear);
+            this.incYearBtn.title = `${nextYear} (+1${uYear})`;
+        }
+        if (this.incDecadeBtn) {
+            const nextDecade = this.tr('datepicker.nextDecade', 'Next Decade');
+            const next10 = this.tr('datepicker.next10Years', 'Next 10 Years');
+            this.incDecadeBtn.setAttribute('aria-label', nextDecade);
+            this.incDecadeBtn.title = `${next10} (+10${uYear})`;
+        }
+
+        this.scrubBtnItems.forEach(({ btn, sign, amount, unitKey, tooltipKey, fallbackTooltip }) => {
+            const unit = unitKey === 'day' ? uDay : uYear;
+            btn.textContent = `${sign}${amount}${unit}`;
+            btn.title = this.tr(tooltipKey, fallbackTooltip);
+        });
+
         if (this.milestoneHeaderTitleEl) {
-            const milestonesTitle = i18n.t('datepicker.spaceMilestones');
-            this.milestoneHeaderTitleEl.textContent = milestonesTitle && milestonesTitle !== 'datepicker.spaceMilestones'
-                ? milestonesTitle
-                : 'SPACE FLIGHT MILESTONES';
+            this.milestoneHeaderTitleEl.textContent = this.tr('datepicker.spaceMilestones', 'SPACE FLIGHT MILESTONES');
         }
         this.milestoneChipEls.forEach(({ evt, chip, labelEl }) => {
             const locName = getLocalizedEventName(evt);
@@ -186,6 +292,13 @@ export class CustomDatePicker {
             chip.title = `${locName} (${evt.date.getUTCFullYear()}): ${locImpact}`;
             labelEl.textContent = this.getShortChipLabel(evt);
         });
+
+        if (this.yearModalElement) {
+            this.yearModalElement.setAttribute(
+                'aria-label',
+                this.tr('datepicker.yearSelectorAria', 'Epoch Year Selector')
+            );
+        }
     }
 
     constructor(
@@ -199,6 +312,8 @@ export class CustomDatePicker {
         this.onChange = onChange;
         this.onOpen = onOpen;
         this.isPortaled = Boolean(options?.portalContainer);
+        this.customAriaLabel = options?.ariaLabel;
+        this.ariaLabelKey = options?.ariaLabelKey;
 
         this.domElement = document.createElement('div');
         this.domElement.className = 'custom-datepicker-container';
@@ -268,6 +383,7 @@ export class CustomDatePicker {
             e.stopPropagation();
             this.closePopup();
         };
+        this.closeBtn = closeBtn;
         hudRight.appendChild(closeBtn);
         hudBar.appendChild(hudRight);
         this.popupElement.appendChild(hudBar);
@@ -315,6 +431,7 @@ export class CustomDatePicker {
         const livePillLabel = document.createElement('span');
         livePill.appendChild(liveDot);
         livePill.appendChild(livePillLabel);
+        this.livePill = livePill;
         this.livePillLabelEl = livePillLabel;
         livePill.title = 'Snap to Real-Time Today';
         livePill.onclick = (e) => {
@@ -386,6 +503,8 @@ export class CustomDatePicker {
             this.renderCalendar();
         };
 
+        this.decMonthBtn = decMonthBtn;
+        this.incMonthBtn = incMonthBtn;
         monthContainer.appendChild(decMonthBtn);
         monthContainer.appendChild(selectWrap);
         monthContainer.appendChild(incMonthBtn);
@@ -490,6 +609,10 @@ export class CustomDatePicker {
             this.renderCalendar();
         };
 
+        this.decDecadeBtn = decDecadeBtn;
+        this.decYearBtn = decYearBtn;
+        this.incYearBtn = incYearBtn;
+        this.incDecadeBtn = incDecadeBtn;
         yearContainer.appendChild(decDecadeBtn);
         yearContainer.appendChild(decYearBtn);
         yearContainer.appendChild(this.yearInput);
@@ -504,12 +627,19 @@ export class CustomDatePicker {
         const scrubBar = document.createElement('div');
         scrubBar.className = 'datepicker-scrub-bar';
 
-        const addScrubBtn = (label: string, title: string, modifier: (d: Date) => void) => {
+        const addScrubBtn = (
+            sign: '-' | '+',
+            amount: number,
+            unitKey: 'day' | 'year',
+            tooltipKey: string,
+            fallbackTooltip: string,
+            modifier: (d: Date) => void
+        ) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'scrub-step-btn';
-            btn.textContent = label;
-            btn.title = title;
+            btn.textContent = `${sign}${amount}${unitKey === 'day' ? 'd' : 'y'}`;
+            btn.title = fallbackTooltip;
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const newD = new Date(this.currentDate.getTime());
@@ -520,22 +650,23 @@ export class CustomDatePicker {
                 this.renderCalendar();
             };
             scrubBar.appendChild(btn);
+            this.scrubBtnItems.push({ btn, sign, amount, unitKey, tooltipKey, fallbackTooltip });
         };
 
-        addScrubBtn('-100y', 'Step ephemeris -100 years', d => d.setUTCFullYear(d.getUTCFullYear() - 100));
-        addScrubBtn('-10y', 'Step ephemeris -10 years', d => d.setUTCFullYear(d.getUTCFullYear() - 10));
-        addScrubBtn('-1y', 'Step ephemeris -1 year', d => d.setUTCFullYear(d.getUTCFullYear() - 1));
-        addScrubBtn('-1d', 'Step ephemeris -1 day', d => d.setUTCDate(d.getUTCDate() - 1));
+        addScrubBtn('-', 100, 'year', 'datepicker.scrubTooltips.minus100y', 'Step ephemeris -100 years', d => d.setUTCFullYear(d.getUTCFullYear() - 100));
+        addScrubBtn('-', 10, 'year', 'datepicker.scrubTooltips.minus10y', 'Step ephemeris -10 years', d => d.setUTCFullYear(d.getUTCFullYear() - 10));
+        addScrubBtn('-', 1, 'year', 'datepicker.scrubTooltips.minus1y', 'Step ephemeris -1 year', d => d.setUTCFullYear(d.getUTCFullYear() - 1));
+        addScrubBtn('-', 1, 'day', 'datepicker.scrubTooltips.minus1d', 'Step ephemeris -1 day', d => d.setUTCDate(d.getUTCDate() - 1));
 
         const scrubDivider = document.createElement('span');
         scrubDivider.className = 'scrub-divider';
         scrubDivider.setAttribute('aria-hidden', 'true');
         scrubBar.appendChild(scrubDivider);
 
-        addScrubBtn('+1d', 'Step ephemeris +1 day', d => d.setUTCDate(d.getUTCDate() + 1));
-        addScrubBtn('+1y', 'Step ephemeris +1 year', d => d.setUTCFullYear(d.getUTCFullYear() + 1));
-        addScrubBtn('+10y', 'Step ephemeris +10 years', d => d.setUTCFullYear(d.getUTCFullYear() + 10));
-        addScrubBtn('+100y', 'Step ephemeris +100 years', d => d.setUTCFullYear(d.getUTCFullYear() + 100));
+        addScrubBtn('+', 1, 'day', 'datepicker.scrubTooltips.plus1d', 'Step ephemeris +1 day', d => d.setUTCDate(d.getUTCDate() + 1));
+        addScrubBtn('+', 1, 'year', 'datepicker.scrubTooltips.plus1y', 'Step ephemeris +1 year', d => d.setUTCFullYear(d.getUTCFullYear() + 1));
+        addScrubBtn('+', 10, 'year', 'datepicker.scrubTooltips.plus10y', 'Step ephemeris +10 years', d => d.setUTCFullYear(d.getUTCFullYear() + 10));
+        addScrubBtn('+', 100, 'year', 'datepicker.scrubTooltips.plus100y', 'Step ephemeris +100 years', d => d.setUTCFullYear(d.getUTCFullYear() + 100));
 
         this.popupElement.appendChild(scrubBar);
 
@@ -597,6 +728,7 @@ export class CustomDatePicker {
                 if (evt.target) {
                     EventBus.emit('select-celestial-body', {
                         name: evt.target,
+                        eventId: evt.id,
                         eventName: getLocalizedEventName(evt),
                         eventImpact: getLocalizedEventImpact(evt)
                     });
@@ -719,15 +851,21 @@ export class CustomDatePicker {
 
     private renderYearModal() {
         this.yearModalElement.innerHTML = '';
+        this.yearModalElement.setAttribute(
+            'aria-label',
+            this.tr('datepicker.yearSelectorAria', 'Epoch Year Selector')
+        );
 
         const header = document.createElement('div');
         header.className = 'datepicker-modal-header';
 
+        const prevRangeLabel = this.tr('datepicker.prevRangeAria', 'Previous Range');
         const prevBtn = document.createElement('button');
         prevBtn.type = 'button';
         prevBtn.innerHTML = svgIcon('chevron-left');
         prevBtn.className = 'custom-datepicker-nav-btn';
-        prevBtn.setAttribute('aria-label', 'Previous Range');
+        prevBtn.setAttribute('aria-label', prevRangeLabel);
+        prevBtn.title = prevRangeLabel;
 
         const titleBtn = document.createElement('button');
         titleBtn.type = 'button';
@@ -745,17 +883,20 @@ export class CustomDatePicker {
         const rightControls = document.createElement('div');
         rightControls.className = 'datepicker-modal-right-controls';
 
+        const nextRangeLabel = this.tr('datepicker.nextRangeAria', 'Next Range');
         const nextBtn = document.createElement('button');
         nextBtn.type = 'button';
         nextBtn.innerHTML = svgIcon('chevron-right');
         nextBtn.className = 'custom-datepicker-nav-btn';
-        nextBtn.setAttribute('aria-label', 'Next Range');
+        nextBtn.setAttribute('aria-label', nextRangeLabel);
+        nextBtn.title = nextRangeLabel;
 
         const closeModalBtn = document.createElement('button');
         closeModalBtn.type = 'button';
         closeModalBtn.innerHTML = svgIcon('close');
         closeModalBtn.className = 'datepicker-modal-close';
-        closeModalBtn.setAttribute('aria-label', 'Close Year Matrix');
+        closeModalBtn.setAttribute('aria-label', this.tr('datepicker.closeYearModalAria', 'Close Year Matrix'));
+        closeModalBtn.title = this.tr('ui.close', 'Close');
         closeModalBtn.onclick = (e) => {
             e.stopPropagation();
             this.closeYearModal();
@@ -779,8 +920,7 @@ export class CustomDatePicker {
 
         if (this.yearModalState === 'CENTURY') {
             const startYear = Math.floor(this.yearModalBaseYear / 1000) * 1000;
-            const centuryLabel = i18n.t('datepicker.century');
-            levelSpan.textContent = centuryLabel && centuryLabel !== 'datepicker.century' ? centuryLabel : 'Century';
+            levelSpan.textContent = this.tr('datepicker.century', 'Century');
             titleSpan.textContent = `${this.formatYear(startYear)} – ${this.formatYear(startYear + 999)}`;
             titleBtn.disabled = true;
 
@@ -788,9 +928,20 @@ export class CustomDatePicker {
             nextBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear += 1000; this.renderYearModal(); };
 
             for (let i = -1; i <= 10; i++) {
+                const cellYear = startYear + i * 100;
+                let cellLabel: string;
+                if (cellYear <= 0) {
+                    cellLabel = this.formatYear(cellYear);
+                } else {
+                    const endShort = String((cellYear + 99) % 100).padStart(2, '0');
+                    cellLabel = this.tr('datepicker.centuryFormat', '{year}s', {
+                        year: String(cellYear),
+                        endShort
+                    });
+                }
                 items.push({
-                    label: `${this.formatYear(startYear + i * 100)}s`,
-                    value: startYear + i * 100,
+                    label: cellLabel,
+                    value: cellYear,
                     isOutOfRange: i < 0 || i === 10
                 });
             }
@@ -802,10 +953,9 @@ export class CustomDatePicker {
             };
         } else if (this.yearModalState === 'DECADE') {
             const startYear = Math.floor(this.yearModalBaseYear / 100) * 100;
-            const decadeLabel = i18n.t('datepicker.decade');
-            levelSpan.textContent = decadeLabel && decadeLabel !== 'datepicker.decade' ? decadeLabel : 'Decade';
+            levelSpan.textContent = this.tr('datepicker.decade', 'Decade');
             titleSpan.textContent = `${this.formatYear(startYear)} – ${this.formatYear(startYear + 99)}`;
-            titleBtn.title = 'Zoom out to centuries';
+            titleBtn.title = this.tr('datepicker.zoomOutToCenturies', 'Zoom out to centuries');
             titleBtn.onclick = (e) => { e.stopPropagation(); this.yearModalState = 'CENTURY'; this.renderYearModal(); };
 
             prevBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear -= 100; this.renderYearModal(); };
@@ -826,10 +976,9 @@ export class CustomDatePicker {
             };
         } else {
             const startYear = Math.floor(this.yearModalBaseYear / 10) * 10;
-            const yearLabel = i18n.t('datepicker.year');
-            levelSpan.textContent = yearLabel && yearLabel !== 'datepicker.year' ? yearLabel : 'Year';
+            levelSpan.textContent = this.tr('datepicker.year', 'Year');
             titleSpan.textContent = `${this.formatYear(startYear)} – ${this.formatYear(startYear + 9)}`;
-            titleBtn.title = 'Zoom out to decades';
+            titleBtn.title = this.tr('datepicker.zoomOutToDecades', 'Zoom out to decades');
             titleBtn.onclick = (e) => { e.stopPropagation(); this.yearModalState = 'DECADE'; this.renderYearModal(); };
 
             prevBtn.onclick = (e) => { e.stopPropagation(); this.yearModalBaseYear -= 10; this.renderYearModal(); };
@@ -1007,7 +1156,16 @@ export class CustomDatePicker {
             const jd = getJulianDate(this.currentDate);
             const j2000d = jd - 2451545.0;
             const sign = j2000d >= 0 ? '+' : '';
-            this.ephemerisBannerJd.textContent = `JD ${jd.toFixed(1)}  •  J2000 ${sign}${j2000d.toFixed(1)}d`;
+            const jdAbbrev = this.tr('datepicker.julianDayAbbrev', 'JD');
+            const dayUnit = this.tr('datepicker.stepUnits.day', 'd');
+            const isEn = i18n.currentLanguage === 'en';
+            const jdStr = isEn
+                ? jd.toFixed(1)
+                : i18n.formatNumber(jd, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
+            const j2000Str = isEn
+                ? j2000d.toFixed(1)
+                : i18n.formatNumber(j2000d, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
+            this.ephemerisBannerJd.textContent = `${jdAbbrev} ${jdStr}  •  J2000 ${sign}${j2000Str}${dayUnit}`;
         }
 
         if (this.heroReturnBtn) {
@@ -1049,7 +1207,7 @@ export class CustomDatePicker {
             slot.className = 'datepicker-day-slot trailing';
             slot.setAttribute('role', 'button');
             slot.setAttribute('tabindex', '-1');
-            slot.title = `Previous month: day ${prevDayNum}`;
+            slot.title = this.tr('datepicker.prevMonthDay', `Previous month: day ${prevDayNum}`, { day: prevDayNum });
             const activatePrev = (e: Event) => {
                 e.stopPropagation();
                 const newD = new Date(Date.UTC(year, month - 1, prevDayNum, 12, 0, 0));
@@ -1082,7 +1240,7 @@ export class CustomDatePicker {
 
             if (isCurrentRealMonth && i === realTodayDate) {
                 dayEl.classList.add('is-today');
-                dayEl.title = 'Real-Time Today';
+                dayEl.title = this.tr('datepicker.realTimeToday', 'Real-Time Today');
             }
 
             const isSelected = curY === year && curM === month && curD === i;
@@ -1130,7 +1288,7 @@ export class CustomDatePicker {
             slot.className = 'datepicker-day-slot trailing';
             slot.setAttribute('role', 'button');
             slot.setAttribute('tabindex', '-1');
-            slot.title = `Next month: day ${nextDay}`;
+            slot.title = this.tr('datepicker.nextMonthDay', `Next month: day ${nextDay}`, { day: nextDay });
             const activateNext = (e: Event) => {
                 e.stopPropagation();
                 const newD = new Date(Date.UTC(year, month + 1, nextDay, 12, 0, 0));

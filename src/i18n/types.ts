@@ -65,6 +65,9 @@ export interface TranslationSchema {
         compassW?: string;
         webglUnavailableTitle?: string;
         webglUnavailableDesc?: string;
+        liveBadge?: string;
+        milkyWay?: string;
+        orbitTelemetry?: string;
     };
     categories: {
         star: string;
@@ -129,6 +132,7 @@ export interface TranslationSchema {
             custom: string;
         };
         speedUnits?: {
+            minPerSec?: string;
             hrPerSec: string;
             dayPerSec: string;
             wkPerSec: string;
@@ -301,7 +305,59 @@ export interface TranslationSchema {
         chronometerTitle?: string;
         todayShort?: string;
         spaceMilestones?: string;
-        milestones?: Record<string, { name: string; impact: string }>;
+        milestones?: Record<string, { name: string; shortName?: string; impact: string }>;
+        stepUnits?: {
+            day: string;
+            month: string;
+            year: string;
+        };
+        openCalendarTooltip?: string;
+        chronometerDateAria?: string;
+        selectSimDateAria?: string;
+        calendarDialogAria?: string;
+        closeCalendarAria?: string;
+        returnToActiveMonthAria?: string;
+        returnToActiveDateTitle?: string;
+        snapToToday?: string;
+        julianDayAbbrev?: string;
+        prevDay?: string;
+        nextDay?: string;
+        prevMonth?: string;
+        nextMonth?: string;
+        selectMonth?: string;
+        prevYear?: string;
+        nextYear?: string;
+        prevDecade?: string;
+        nextDecade?: string;
+        prev10Years?: string;
+        next10Years?: string;
+        observationYear?: string;
+        yearInputTooltip?: string;
+        historicalMilestonesAria?: string;
+        stepBackwardYear?: string;
+        stepBackwardMonth?: string;
+        stepForwardMonth?: string;
+        stepForwardYear?: string;
+        scrubTooltips?: {
+            minus100y: string;
+            minus10y: string;
+            minus1y: string;
+            minus1d: string;
+            plus1d: string;
+            plus1y: string;
+            plus10y: string;
+            plus100y: string;
+        };
+        prevMonthDay?: string;
+        nextMonthDay?: string;
+        realTimeToday?: string;
+        yearSelectorAria?: string;
+        prevRangeAria?: string;
+        nextRangeAria?: string;
+        closeYearModalAria?: string;
+        zoomOutToCenturies?: string;
+        zoomOutToDecades?: string;
+        centuryFormat?: string;
     };
     loading: {
         boot: string;

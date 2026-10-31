@@ -770,4 +770,84 @@ describe('UIManager', () => {
         expect(sceneManager.measureMode).toBe(false);
         expect(hud?.style.display).toBe('none');
     });
+
+    it('should localize header mission clock live badge, telemetry ticker, and milestone event modal on language change', async () => {
+        await Promise.all(['en', 'bs', 'de', 'id', 'pl', 'sr'].map(code => i18n.preloadLocale(code)));
+
+        const liveText = uiContainer.querySelector('.sim-live-indicator .live-text') as HTMLElement;
+        const tickerBody = uiContainer.querySelector('.sim-telemetry-ticker .ticker-body') as HTMLElement;
+        const tickerDist = uiContainer.querySelector('.sim-telemetry-ticker .ticker-dist') as HTMLElement;
+
+        sceneManager.simDate = new Date(Date.UTC(2026, 8, 6, 14, 30, 45));
+        sceneManager.timeScale = 3.9817e-7; // Real-Time (1:1)
+        sceneManager.focusedBody = { data: { name: 'Sun' } };
+        uiManager.update();
+
+        expect(liveText.textContent).toBe('LIVE 1:1');
+        expect(tickerBody.textContent).toBe('Sun (Milky Way)');
+        expect(tickerDist.textContent).toContain('Orbit: +');
+
+        // Switch to Bosnian while real-time ticker is visible
+        i18n.setLanguage('bs');
+        expect(liveText.textContent).toBe('UŽIVO 1:1');
+        expect(tickerBody.textContent).toBe('Sunce (Mliječni put)');
+        expect(tickerDist.textContent).toContain('Orbita: +');
+
+        // Switch to Serbian
+        i18n.setLanguage('sr');
+        expect(liveText.textContent).toBe('УЖИВО 1:1');
+        expect(tickerBody.textContent).toBe('Сунце (Млечни пут)');
+        expect(tickerDist.textContent).toContain('Орбита: +');
+
+        // Dispatch milestone selection with eventId and verify eventModal updates on language switch
+        window.dispatchEvent(new CustomEvent('select-celestial-body', {
+            detail: {
+                name: 'Mars',
+                eventId: 'apollo11',
+                eventName: 'Аполо 11 слетање на Месец',
+                eventImpact: 'Први људи на Месецу — историјска прекретница у истраживању свемира.'
+            }
+        }));
+        expect(uiManager.eventModal.isOpen).toBe(true);
+        expect(uiManager.eventModal.currentData?.name).toContain('Аполо 11');
+
+        i18n.setLanguage('de');
+        expect(uiManager.eventModal.currentData?.name).toBe('Apollo-11-Mondlandung');
+        expect(uiManager.eventModal.contentElement.textContent).toContain('Die ersten Menschen auf dem Mond');
+
+        i18n.setLanguage('en');
+    });
+
+    it('should expose Distance Measuring Tool in header quick access and Control Center, keep them synced, and route body selection while active', () => {
+        const headerMeasureBtn = uiContainer.querySelector('#hudSlot_measureMode') as HTMLButtonElement;
+        expect(headerMeasureBtn).toBeTruthy();
+        expect(headerMeasureBtn.classList.contains('active')).toBe(false);
+
+        const systemCheckboxes = uiManager.controlCenter!.drawerElement.querySelectorAll<HTMLInputElement>(
+            '.drawer-panel[data-panel="system"] input[type="checkbox"]'
+        );
+        const ccMeasureInput = systemCheckboxes[2];
+        expect(ccMeasureInput).toBeTruthy();
+        expect(ccMeasureInput.checked).toBe(false);
+
+        // Toggle ON via header quick-access button
+        sceneManager.setMeasureTarget = vi.fn();
+        headerMeasureBtn.click();
+        expect(sceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
+        expect(sceneManager.measureMode).toBe(true);
+        expect(headerMeasureBtn.classList.contains('active')).toBe(true);
+        expect(ccMeasureInput.checked).toBe(true);
+
+        // Selecting a body via select-celestial-body (Quick Focus chip / number shortcut) routes to setMeasureTarget
+        window.dispatchEvent(new CustomEvent('select-celestial-body', { detail: { name: 'Mars' } }));
+        expect(sceneManager.setMeasureTarget).toHaveBeenCalledWith('Mars');
+
+        // Closing via Measure HUD close button syncs both header button and Control Center switch back to off
+        uiManager.updateMeasureHud();
+        const hudCloseBtn = document.querySelector('#measureHudBar .measure-action-btn.close-btn') as HTMLButtonElement;
+        hudCloseBtn.click();
+        expect(sceneManager.measureMode).toBe(false);
+        expect(headerMeasureBtn.classList.contains('active')).toBe(false);
+        expect(ccMeasureInput.checked).toBe(false);
+    });
 });

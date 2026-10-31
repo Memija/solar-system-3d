@@ -492,5 +492,81 @@ describe('I18n System', () => {
             expect(i18n.t('controls.sections.languageLocalization')).toBeTruthy();
         });
     });
+
+    it('should provide complete simulation date control translations across all 6 languages', async () => {
+        const codes = ['en', 'id', 'bs', 'de', 'pl', 'sr'];
+        await Promise.all(codes.map(c => i18n.preloadLocale(c)));
+
+        const requiredKeys = [
+            'ui.liveBadge',
+            'ui.milkyWay',
+            'ui.orbitTelemetry',
+            'controls.speedUnits.minPerSec',
+            'datepicker.stepUnits.day',
+            'datepicker.stepUnits.month',
+            'datepicker.stepUnits.year',
+            'datepicker.openCalendarTooltip',
+            'datepicker.chronometerDateAria',
+            'datepicker.selectSimDateAria',
+            'datepicker.calendarDialogAria',
+            'datepicker.closeCalendarAria',
+            'datepicker.returnToActiveMonthAria',
+            'datepicker.returnToActiveDateTitle',
+            'datepicker.snapToToday',
+            'datepicker.julianDayAbbrev',
+            'datepicker.prevDay',
+            'datepicker.nextDay',
+            'datepicker.prevMonth',
+            'datepicker.nextMonth',
+            'datepicker.selectMonth',
+            'datepicker.prevYear',
+            'datepicker.nextYear',
+            'datepicker.prevDecade',
+            'datepicker.nextDecade',
+            'datepicker.prev10Years',
+            'datepicker.next10Years',
+            'datepicker.observationYear',
+            'datepicker.yearInputTooltip',
+            'datepicker.historicalMilestonesAria',
+            'datepicker.stepBackwardYear',
+            'datepicker.stepBackwardMonth',
+            'datepicker.stepForwardMonth',
+            'datepicker.stepForwardYear',
+            'datepicker.scrubTooltips.minus100y',
+            'datepicker.scrubTooltips.minus10y',
+            'datepicker.scrubTooltips.minus1y',
+            'datepicker.scrubTooltips.minus1d',
+            'datepicker.scrubTooltips.plus1d',
+            'datepicker.scrubTooltips.plus1y',
+            'datepicker.scrubTooltips.plus10y',
+            'datepicker.scrubTooltips.plus100y',
+            'datepicker.prevMonthDay',
+            'datepicker.nextMonthDay',
+            'datepicker.realTimeToday',
+            'datepicker.yearSelectorAria',
+            'datepicker.prevRangeAria',
+            'datepicker.nextRangeAria',
+            'datepicker.closeYearModalAria',
+            'datepicker.zoomOutToCenturies',
+            'datepicker.zoomOutToDecades',
+            'datepicker.centuryFormat',
+            'datepicker.milestones.sputnik1.shortName',
+            'datepicker.milestones.apollo11.shortName',
+            'datepicker.milestones.voyager1.shortName',
+            'datepicker.milestones.hubble.shortName',
+            'datepicker.milestones.iss.shortName',
+            'datepicker.milestones.jwst.shortName'
+        ];
+
+        for (const code of codes) {
+            i18n.setLanguage(code);
+            for (const key of requiredKeys) {
+                const val = i18n.t(key);
+                expect(val, `Missing or unresolved key '${key}' in locale '${code}'`).toBeTruthy();
+                expect(val, `Unresolved key path '${key}' in locale '${code}'`).not.toBe(key);
+            }
+        }
+        i18n.setLanguage('en');
+    });
 });
 

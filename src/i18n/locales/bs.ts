@@ -50,7 +50,10 @@ export const bs: TranslationSchema = {
         compassE: 'I',
         compassW: 'Z',
         webglUnavailableTitle: 'WebGL 3D hardver nije dostupan',
-        webglUnavailableDesc: 'Ova opservatorija zahtijeva WebGL hardversko ubrzanje. Omogućite hardversko ubrzanje u postavkama preglednika.'
+        webglUnavailableDesc: 'Ova opservatorija zahtijeva WebGL hardversko ubrzanje. Omogućite hardversko ubrzanje u postavkama preglednika.',
+        liveBadge: 'UŽIVO 1:1',
+        milkyWay: 'Mliječni put',
+        orbitTelemetry: 'Orbita: +{dist}'
     },
     categories: {
         star: '🌟 Zvijezde',
@@ -115,6 +118,7 @@ export const bs: TranslationSchema = {
             custom: 'Prilagođeno'
         },
         speedUnits: {
+            minPerSec: 'min/s',
             hrPerSec: 'sat/s',
             dayPerSec: 'dan/s',
             wkPerSec: 'sed/s',
@@ -291,13 +295,65 @@ export const bs: TranslationSchema = {
         todayShort: 'DANAS',
         spaceMilestones: 'PREKRETNICE SVEMIRSKIH LETOVA',
         milestones: {
-            sputnik1: { name: 'Lansiranje Sputnjika 1', impact: 'Lansiranje Sputnjika 1 označilo je početak svemirskog doba i dokazalo izvodljivost vještačkih satelita.' },
-            apollo11: { name: 'Apollo 11 slijetanje na Mjesec', impact: 'Prvi ljudi na Mjesecu — historijska prekretnica čovječanstva.' },
-            voyager1: { name: 'Lansiranje Voyagera 1', impact: 'Voyager 1 je postao prva ljudska letjelica u međuzvjezdanom prostoru.' },
-            hubble: { name: 'Lansiranje teleskopa Hubble', impact: 'Revolucionirao je astronomiju dubokim snimcima galaksija i širenja svemira.' },
-            iss: { name: 'Prvi modul ISS-a', impact: 'Početak neprekidnog boravka ljudi u orbiti i međunarodne naučne saradnje.' },
-            jwst: { name: 'Lansiranje teleskopa James Webb', impact: 'Konstruisan za infracrveno posmatranje najranijih galaksija i rađanja zvijezda.' }
-        }
+            sputnik1: { name: 'Lansiranje Sputnjika 1', shortName: 'Sputnjik 1', impact: 'Lansiranje Sputnjika 1 označilo je početak svemirskog doba i dokazalo izvodljivost vještačkih satelita.' },
+            apollo11: { name: 'Apollo 11 slijetanje na Mjesec', shortName: 'Apollo 11', impact: 'Prvi ljudi na Mjesecu — historijska prekretnica čovječanstva.' },
+            voyager1: { name: 'Lansiranje Voyagera 1', shortName: 'Voyager 1', impact: 'Voyager 1 je postao prva ljudska letjelica u međuzvjezdanom prostoru.' },
+            hubble: { name: 'Lansiranje teleskopa Hubble', shortName: 'Hubble', impact: 'Revolucionirao je astronomiju dubokim snimcima galaksija i širenja svemira.' },
+            iss: { name: 'Prvi modul ISS-a', shortName: 'ISS', impact: 'Početak neprekidnog boravka ljudi u orbiti i međunarodne naučne saradnje.' },
+            jwst: { name: 'Lansiranje teleskopa James Webb', shortName: 'James Webb', impact: 'Konstruisan za infracrveno posmatranje najranijih galaksija i rađanja zvijezda.' }
+        },
+        stepUnits: {
+            day: 'd',
+            month: 'mj',
+            year: 'g'
+        },
+        openCalendarTooltip: 'Kliknite da otvorite hronometar leta i kalendar efemerida',
+        chronometerDateAria: 'Datum hronometra leta',
+        selectSimDateAria: 'Odaberite datum simulacije',
+        calendarDialogAria: 'Kalendar hronometra leta',
+        closeCalendarAria: 'Zatvori kalendar',
+        returnToActiveMonthAria: 'Povratak na aktivni mjesec simulacije',
+        returnToActiveDateTitle: 'Vrati prikaz kalendara na aktivni datum simulacije',
+        snapToToday: 'Skoči na današnji datum u stvarnom vremenu',
+        julianDayAbbrev: 'JD',
+        prevDay: 'Prethodni dan',
+        nextDay: 'Sljedeći dan',
+        prevMonth: 'Prethodni mjesec',
+        nextMonth: 'Sljedeći mjesec',
+        selectMonth: 'Odaberite mjesec',
+        prevYear: 'Prethodna godina',
+        nextYear: 'Sljedeća godina',
+        prevDecade: 'Prethodna decenija',
+        nextDecade: 'Sljedeća decenija',
+        prev10Years: 'Prethodnih 10 godina',
+        next10Years: 'Sljedećih 10 godina',
+        observationYear: 'Godina posmatranja',
+        yearInputTooltip: 'Kliknite za pregled stoljeća ili unesite godinu i pritisnite Enter',
+        historicalMilestonesAria: 'Historijske prekretnice u svemiru',
+        stepBackwardYear: 'Korak unazad za 1 godinu',
+        stepBackwardMonth: 'Korak unazad za 1 mjesec',
+        stepForwardMonth: 'Korak unaprijed za 1 mjesec',
+        stepForwardYear: 'Korak unaprijed za 1 godinu',
+        scrubTooltips: {
+            minus100y: 'Pomjeri efemeride -100 godina',
+            minus10y: 'Pomjeri efemeride -10 godina',
+            minus1y: 'Pomjeri efemeride -1 godinu',
+            minus1d: 'Pomjeri efemeride -1 dan',
+            plus1d: 'Pomjeri efemeride +1 dan',
+            plus1y: 'Pomjeri efemeride +1 godinu',
+            plus10y: 'Pomjeri efemeride +10 godina',
+            plus100y: 'Pomjeri efemeride +100 godina'
+        },
+        prevMonthDay: 'Prethodni mjesec: {day}. dan',
+        nextMonthDay: 'Sljedeći mjesec: {day}. dan',
+        realTimeToday: 'Današnji dan (stvarno vrijeme)',
+        yearSelectorAria: 'Odabir godine epohe',
+        prevRangeAria: 'Prethodni raspon',
+        nextRangeAria: 'Sljedeći raspon',
+        closeYearModalAria: 'Zatvori matricu godina',
+        zoomOutToCenturies: 'Prikaži stoljeća',
+        zoomOutToDecades: 'Prikaži decenije',
+        centuryFormat: '{year}-te'
     },
     loading: {
         boot: 'Pokretanje opservatorije',

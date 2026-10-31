@@ -50,7 +50,10 @@ export const en: TranslationSchema = {
         compassE: 'E',
         compassW: 'W',
         webglUnavailableTitle: 'WebGL 3D Hardware Unavailable',
-        webglUnavailableDesc: 'This observatory requires WebGL hardware acceleration. Please enable hardware acceleration in your browser settings or update your graphics drivers.'
+        webglUnavailableDesc: 'This observatory requires WebGL hardware acceleration. Please enable hardware acceleration in your browser settings or update your graphics drivers.',
+        liveBadge: 'LIVE 1:1',
+        milkyWay: 'Milky Way',
+        orbitTelemetry: 'Orbit: +{dist}'
     },
     categories: {
         star: '🌟 Stars',
@@ -115,6 +118,7 @@ export const en: TranslationSchema = {
             custom: 'Custom'
         },
         speedUnits: {
+            minPerSec: 'min/s',
             hrPerSec: 'hr/s',
             dayPerSec: 'day/s',
             wkPerSec: 'wk/s',
@@ -291,13 +295,65 @@ export const en: TranslationSchema = {
         todayShort: 'TODAY',
         spaceMilestones: 'SPACE FLIGHT MILESTONES',
         milestones: {
-            sputnik1: { name: 'Sputnik 1 Launch', impact: 'The launch of Sputnik 1 marked the beginning of the space age and demonstrated the feasibility of artificial satellites.' },
-            apollo11: { name: 'Apollo 11 Moon Landing', impact: 'First humans on the Moon, proving crewed extraterrestrial travel was possible and achieving a milestone in human history.' },
-            voyager1: { name: 'Voyager 1 Launch', impact: 'Voyager 1 became the first human-made object to enter interstellar space, returning unprecedented outer Solar System imagery.' },
-            hubble: { name: 'Hubble Space Telescope Launch', impact: 'Revolutionized astronomy with deep optical views of galaxies, exoplanets, and the expansion of the universe.' },
-            iss: { name: 'ISS First Module Launch', impact: 'Began the era of continuous human presence in low-Earth orbit and international microgravity research.' },
-            jwst: { name: 'James Webb Telescope Launch', impact: 'Engineered to observe the earliest galaxies in the cosmos and peer inside stellar nurseries in infrared light.' }
-        }
+            sputnik1: { name: 'Sputnik 1 Launch', shortName: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and demonstrated the feasibility of artificial satellites.' },
+            apollo11: { name: 'Apollo 11 Moon Landing', shortName: 'Apollo 11', impact: 'First humans on the Moon, proving crewed extraterrestrial travel was possible and achieving a milestone in human history.' },
+            voyager1: { name: 'Voyager 1 Launch', shortName: 'Voyager 1', impact: 'Voyager 1 became the first human-made object to enter interstellar space, returning unprecedented outer Solar System imagery.' },
+            hubble: { name: 'Hubble Space Telescope Launch', shortName: 'Hubble', impact: 'Revolutionized astronomy with deep optical views of galaxies, exoplanets, and the expansion of the universe.' },
+            iss: { name: 'ISS First Module Launch', shortName: 'ISS', impact: 'Began the era of continuous human presence in low-Earth orbit and international microgravity research.' },
+            jwst: { name: 'James Webb Telescope Launch', shortName: 'James Webb', impact: 'Engineered to observe the earliest galaxies in the cosmos and peer inside stellar nurseries in infrared light.' }
+        },
+        stepUnits: {
+            day: 'd',
+            month: 'm',
+            year: 'y'
+        },
+        openCalendarTooltip: 'Click to open Flight Chronometer & Ephemeris Calendar',
+        chronometerDateAria: 'Flight Chronometer Date',
+        selectSimDateAria: 'Select Simulation Date',
+        calendarDialogAria: 'Flight Chronometer Calendar',
+        closeCalendarAria: 'Close Calendar',
+        returnToActiveMonthAria: 'Return to Active Simulation Month',
+        returnToActiveDateTitle: 'Return calendar view to active simulation date',
+        snapToToday: 'Snap to Real-Time Today',
+        julianDayAbbrev: 'JD',
+        prevDay: 'Previous Day',
+        nextDay: 'Next Day',
+        prevMonth: 'Previous Month',
+        nextMonth: 'Next Month',
+        selectMonth: 'Select Month',
+        prevYear: 'Previous Year',
+        nextYear: 'Next Year',
+        prevDecade: 'Previous Decade',
+        nextDecade: 'Next Decade',
+        prev10Years: 'Previous 10 Years',
+        next10Years: 'Next 10 Years',
+        observationYear: 'Observation Year',
+        yearInputTooltip: 'Click to browse centuries, or type year & press Enter',
+        historicalMilestonesAria: 'Historical Space Milestones',
+        stepBackwardYear: 'Step backward 1 year',
+        stepBackwardMonth: 'Step backward 1 month',
+        stepForwardMonth: 'Step forward 1 month',
+        stepForwardYear: 'Step forward 1 year',
+        scrubTooltips: {
+            minus100y: 'Step ephemeris -100 years',
+            minus10y: 'Step ephemeris -10 years',
+            minus1y: 'Step ephemeris -1 year',
+            minus1d: 'Step ephemeris -1 day',
+            plus1d: 'Step ephemeris +1 day',
+            plus1y: 'Step ephemeris +1 year',
+            plus10y: 'Step ephemeris +10 years',
+            plus100y: 'Step ephemeris +100 years'
+        },
+        prevMonthDay: 'Previous month: day {day}',
+        nextMonthDay: 'Next month: day {day}',
+        realTimeToday: 'Real-Time Today',
+        yearSelectorAria: 'Epoch Year Selector',
+        prevRangeAria: 'Previous Range',
+        nextRangeAria: 'Next Range',
+        closeYearModalAria: 'Close Year Matrix',
+        zoomOutToCenturies: 'Zoom out to centuries',
+        zoomOutToDecades: 'Zoom out to decades',
+        centuryFormat: '{year}s'
     },
     loading: {
         boot: 'Observatory Boot',

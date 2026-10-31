@@ -176,7 +176,11 @@ export class SceneManager {
         if (daysPerSec < 0.9) {
             if (hoursPerSec < 0.1) {
                 const minsPerSec = hoursPerSec * 60;
-                return `${fmt(minsPerSec)} min/s`;
+                const minUnitVal = i18n.t('controls.speedUnits.minPerSec');
+                const unit = isEn
+                    ? 'min/s'
+                    : (minUnitVal && minUnitVal !== 'controls.speedUnits.minPerSec' ? minUnitVal : 'min/s');
+                return `${fmt(minsPerSec)} ${unit}`;
             }
             const unit = isEn ? 'hr/s' : (i18n.t('controls.speedUnits.hrPerSec') || 'hr/s');
             return `${fmt(hoursPerSec)} ${unit}`;

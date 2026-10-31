@@ -188,9 +188,9 @@ describe('ControlCenter Component', () => {
         const systemPanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="system"]');
         expect(systemPanel).toBeTruthy();
 
-        // Minimap radar toggle and telemetry toggle should be present
+        // Minimap radar toggle, telemetry toggle, and distance measuring tool toggle should be present
         const switches = systemPanel?.querySelectorAll('.ctrl-row-toggle');
-        expect(switches?.length).toBe(2);
+        expect(switches?.length).toBe(3);
 
         // Language presets, snapshot, audio, and shortcuts buttons should not be in system controls
         expect(systemPanel?.querySelector('.lang-presets-grid')).toBeNull();
@@ -310,7 +310,7 @@ describe('ControlCenter Component', () => {
         expect(detachBtn?.classList.contains('active')).toBe(true);
     });
 
-    it('should not render Measure Mode toggle in settings drawer', () => {
+    it('should not render Measure Mode toggle in camera panel', () => {
         controlCenter.switchTab('camera');
         const cameraPanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="camera"]');
         expect(cameraPanel).toBeTruthy();
@@ -360,6 +360,7 @@ describe('ControlCenter Component', () => {
         expect(optionIds).toContain('showAxes');
         expect(optionIds).toContain('minimap');
         expect(optionIds).toContain('telemetry');
+        expect(optionIds).toContain('measureMode');
     });
 
     it('should display concise tooltip on info button hover (mouseenter) and hide on mouseleave', () => {
@@ -676,5 +677,118 @@ describe('ControlCenter Component', () => {
         // 3rd Escape closes Control Center drawer
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         expect(controlCenter.isOpen).toBe(false);
+    });
+
+    it('should localize all simulation date controls in Time panel when switching languages', async () => {
+        await Promise.all(['en', 'bs', 'de', 'id', 'pl', 'sr'].map(code => i18n.preloadLocale(code)));
+        controlCenter.switchTab('time');
+
+        const stepperBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.date-stepper-btn');
+        const prevBtn = stepperBtns[0];
+        const nextBtn = stepperBtns[1];
+        const quickBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.quick-step-btn');
+        const dateDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
+        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect') as HTMLSelectElement;
+        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
+        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
+
+        // Bosnian
+        i18n.setLanguage('bs');
+        controlCenter.updateTranslations();
+        expect(prevBtn.getAttribute('aria-label')).toBe('Prethodni dan');
+        expect(prevBtn.title).toBe('Prethodni dan (-1d)');
+        expect(nextBtn.getAttribute('aria-label')).toBe('Sljedeći dan');
+        expect(nextBtn.title).toBe('Sljedeći dan (+1d)');
+        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1g', '-1mj', '+1mj', '+1g']);
+        expect(quickBtns[0].title).toBe('Korak unazad za 1 godinu');
+        expect(dateDisplay.getAttribute('aria-label')).toBe('Odaberite datum simulacije');
+        expect(milestoneSelect.getAttribute('aria-label')).toBe('Historijske prekretnice u svemiru');
+        expect(jumpBtn.title).toBe('Skoči na današnji datum u stvarnom vremenu');
+        expect(openCalBtn.title).toBe('Kliknite da otvorite hronometar leta i kalendar efemerida');
+
+        // German
+        i18n.setLanguage('de');
+        controlCenter.updateTranslations();
+        expect(prevBtn.getAttribute('aria-label')).toBe('Vorheriger Tag');
+        expect(prevBtn.title).toBe('Vorheriger Tag (-1T)');
+        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1J', '-1M', '+1M', '+1J']);
+        expect(quickBtns[1].title).toBe('1 Monat zurückspringen');
+        expect(dateDisplay.getAttribute('aria-label')).toBe('Simulationsdatum auswählen');
+
+        // Indonesian
+        i18n.setLanguage('id');
+        controlCenter.updateTranslations();
+        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1th', '-1bl', '+1bl', '+1th']);
+        expect(prevBtn.title).toBe('Hari Sebelumnya (-1hr)');
+
+        // Polish
+        i18n.setLanguage('pl');
+        controlCenter.updateTranslations();
+        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1r', '-1m', '+1m', '+1r']);
+        expect(prevBtn.getAttribute('aria-label')).toBe('Poprzedni dzień');
+
+        // Serbian
+        i18n.setLanguage('sr');
+        controlCenter.updateTranslations();
+        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1г', '-1м', '+1м', '+1г']);
+        expect(prevBtn.getAttribute('aria-label')).toBe('Претходни дан');
+        expect(dateDisplay.getAttribute('aria-label')).toBe('Изаберите датум симулације');
+
+        // Restore English
+        i18n.setLanguage('en');
+        controlCenter.updateTranslations();
+        expect(prevBtn.getAttribute('aria-label')).toBe('Previous Day');
+        expect(nextBtn.getAttribute('aria-label')).toBe('Next Day');
+        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1y', '-1m', '+1m', '+1y']);
+    });
+
+    it('should render Distance Measuring Tool toggle in System (Observatory Instruments) panel and localize across all 6 languages', async () => {
+        await Promise.all(['en', 'bs', 'de', 'id', 'pl', 'sr'].map(code => i18n.preloadLocale(code)));
+        controlCenter.switchTab('system');
+
+        const systemPanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="system"]');
+        expect(systemPanel).toBeTruthy();
+
+        const measureLabel = systemPanel?.querySelector('[data-i18n-key="controls.measureTool"]');
+        expect(measureLabel).toBeTruthy();
+        expect(measureLabel?.textContent).toBe('Distance Measuring Tool');
+
+        const checkboxes = systemPanel!.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+        expect(checkboxes.length).toBe(3); // minimap, telemetry, measureMode
+        const measureInput = checkboxes[2];
+        expect(measureInput.checked).toBe(false);
+
+        measureInput.checked = true;
+        measureInput.dispatchEvent(new Event('change'));
+        expect(mockSceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
+
+        mockSceneManager.measureMode = true;
+        controlCenter.syncSwitches();
+        expect(measureInput.checked).toBe(true);
+
+        mockSceneManager.measureMode = false;
+        controlCenter.syncSwitches();
+        expect(measureInput.checked).toBe(false);
+
+        // Verify localized label & tooltip across all 6 languages
+        const infoBtn = systemPanel?.querySelector('.ctrl-info-btn[data-option-id="measureMode"]') as HTMLButtonElement;
+        expect(infoBtn).toBeTruthy();
+
+        const locales = ['en', 'bs', 'de', 'id', 'pl', 'sr'] as const;
+        for (const lang of locales) {
+            i18n.setLanguage(lang);
+            controlCenter.updateTranslations();
+            expect(measureLabel?.textContent).toBe(i18n.t('controls.measureTool'));
+
+            infoBtn.dispatchEvent(new MouseEvent('mouseenter'));
+            const tooltip = container.querySelector('.ctrl-info-tooltip') as HTMLElement;
+            expect(tooltip).toBeTruthy();
+            expect(tooltip.querySelector('.ctrl-info-tooltip-title')?.textContent).toBe(i18n.t('controls.measureTool'));
+            expect(tooltip.querySelector('.ctrl-info-tooltip-desc')?.textContent?.length).toBeGreaterThan(20);
+            infoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+        }
+
+        i18n.setLanguage('en');
+        controlCenter.updateTranslations();
     });
 });

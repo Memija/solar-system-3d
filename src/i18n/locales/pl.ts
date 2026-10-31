@@ -50,7 +50,10 @@ export const pl: TranslationSchema = {
         compassE: 'W',
         compassW: 'Z',
         webglUnavailableTitle: 'Sprzęt WebGL 3D niedostępny',
-        webglUnavailableDesc: 'To obserwatorium wymaga akceleracji sprzętowej WebGL. Włącz akcelerację sprzętową w ustawieniach przeglądarki.'
+        webglUnavailableDesc: 'To obserwatorium wymaga akceleracji sprzętowej WebGL. Włącz akcelerację sprzętową w ustawieniach przeglądarki.',
+        liveBadge: 'NA ŻYWO 1:1',
+        milkyWay: 'Droga Mleczna',
+        orbitTelemetry: 'Orbita: +{dist}'
     },
     categories: {
         star: '🌟 Gwiazdy',
@@ -115,6 +118,7 @@ export const pl: TranslationSchema = {
             custom: 'Własna'
         },
         speedUnits: {
+            minPerSec: 'min/s',
             hrPerSec: 'godz./s',
             dayPerSec: 'dzień/s',
             wkPerSec: 'tydz./s',
@@ -291,13 +295,65 @@ export const pl: TranslationSchema = {
         todayShort: 'DZIŚ',
         spaceMilestones: 'KAMIENIE MILOWE KOSMONAUTYKI',
         milestones: {
-            sputnik1: { name: 'Start Sputnika 1', impact: 'Start Sputnika 1 zapoczątkował erę kosmiczną i udowodnił możliwość umieszczania sztucznych satelitów na orbicie.' },
-            apollo11: { name: 'Lądowanie Apollo 11 na Księżycu', impact: 'Pierwsi ludzie na Księżycu — przełomowy kamień milowy w historii ludzkości.' },
-            voyager1: { name: 'Start sondy Voyager 1', impact: 'Voyager 1 stał się pierwszym obiektem stworzonym przez człowieka w przestrzeni międzygwiazdowej.' },
-            hubble: { name: 'Start Teleskopu Hubble’a', impact: 'Zrewolucjonizował astronomię głębokimi obrazami galaktyk, egzoplanet i ekspansji wszechświata.' },
-            iss: { name: 'Pierwszy moduł stacji ISS', impact: 'Rozpoczął erę stałej obecności człowieka na orbicie i międzynarodowych badań w mikrograwitacji.' },
-            jwst: { name: 'Start Teleskopu Jamesa Webba', impact: 'Zaprojektowany do obserwacji najstarszych galaktyk i obszarów narodzin gwiazd w podczerwieni.' }
-        }
+            sputnik1: { name: 'Start Sputnika 1', shortName: 'Sputnik 1', impact: 'Start Sputnika 1 zapoczątkował erę kosmiczną i udowodnił możliwość umieszczania sztucznych satelitów na orbicie.' },
+            apollo11: { name: 'Lądowanie Apollo 11 na Księżycu', shortName: 'Apollo 11', impact: 'Pierwsi ludzie na Księżycu — przełomowy kamień milowy w historii ludzkości.' },
+            voyager1: { name: 'Start sondy Voyager 1', shortName: 'Voyager 1', impact: 'Voyager 1 stał się pierwszym obiektem stworzonym przez człowieka w przestrzeni międzygwiazdowej.' },
+            hubble: { name: 'Start Teleskopu Hubble’a', shortName: 'Hubble', impact: 'Zrewolucjonizował astronomię głębokimi obrazami galaktyk, egzoplanet i ekspansji wszechświata.' },
+            iss: { name: 'Pierwszy moduł stacji ISS', shortName: 'ISS', impact: 'Rozpoczął erę stałej obecności człowieka na orbicie i międzynarodowych badań w mikrograwitacji.' },
+            jwst: { name: 'Start Teleskopu Jamesa Webba', shortName: 'James Webb', impact: 'Zaprojektowany do obserwacji najstarszych galaktyk i obszarów narodzin gwiazd w podczerwieni.' }
+        },
+        stepUnits: {
+            day: 'd',
+            month: 'm',
+            year: 'r'
+        },
+        openCalendarTooltip: 'Kliknij, aby otworzyć chronometr lotu i kalendarz efemeryd',
+        chronometerDateAria: 'Data chronometru lotu',
+        selectSimDateAria: 'Wybierz datę symulacji',
+        calendarDialogAria: 'Kalendarz chronometru lotu',
+        closeCalendarAria: 'Zamknij kalendarz',
+        returnToActiveMonthAria: 'Powrót do aktywnego miesiąca symulacji',
+        returnToActiveDateTitle: 'Przywróć widok kalendarza do aktywnej daty symulacji',
+        snapToToday: 'Przejdź do dzisiejszej daty czasu rzeczywistego',
+        julianDayAbbrev: 'JD',
+        prevDay: 'Poprzedni dzień',
+        nextDay: 'Następny dzień',
+        prevMonth: 'Poprzedni miesiąc',
+        nextMonth: 'Następny miesiąc',
+        selectMonth: 'Wybierz miesiąc',
+        prevYear: 'Poprzedni rok',
+        nextYear: 'Następny rok',
+        prevDecade: 'Poprzednia dekada',
+        nextDecade: 'Następna dekada',
+        prev10Years: 'Poprzednie 10 lat',
+        next10Years: 'Następne 10 lat',
+        observationYear: 'Rok obserwacji',
+        yearInputTooltip: 'Kliknij, aby przeglądać stulecia, lub wpisz rok i naciśnij Enter',
+        historicalMilestonesAria: 'Historyczne kamienie milowe kosmonautyki',
+        stepBackwardYear: 'Cofnij o 1 rok',
+        stepBackwardMonth: 'Cofnij o 1 miesiąc',
+        stepForwardMonth: 'Przesuń o 1 miesiąc do przodu',
+        stepForwardYear: 'Przesuń o 1 rok do przodu',
+        scrubTooltips: {
+            minus100y: 'Przesuń efemerydy o -100 lat',
+            minus10y: 'Przesuń efemerydy o -10 lat',
+            minus1y: 'Przesuń efemerydy o -1 rok',
+            minus1d: 'Przesuń efemerydy o -1 dzień',
+            plus1d: 'Przesuń efemerydy o +1 dzień',
+            plus1y: 'Przesuń efemerydy o +1 rok',
+            plus10y: 'Przesuń efemerydy o +10 lat',
+            plus100y: 'Przesuń efemerydy o +100 lat'
+        },
+        prevMonthDay: 'Poprzedni miesiąc: dzień {day}',
+        nextMonthDay: 'Następny miesiąc: dzień {day}',
+        realTimeToday: 'Dzisiaj (czas rzeczywisty)',
+        yearSelectorAria: 'Wybór roku epoki',
+        prevRangeAria: 'Poprzedni zakres',
+        nextRangeAria: 'Następny zakres',
+        closeYearModalAria: 'Zamknij siatkę lat',
+        zoomOutToCenturies: 'Oddal do stuleci',
+        zoomOutToDecades: 'Oddal do dekad',
+        centuryFormat: '{year}–{endShort}'
     },
     loading: {
         boot: 'Rozruch obserwatorium',

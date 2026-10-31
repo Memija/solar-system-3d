@@ -50,7 +50,10 @@ export const id: TranslationSchema = {
         compassE: 'T',
         compassW: 'B',
         webglUnavailableTitle: 'Perangkat Keras WebGL 3D Tidak Tersedia',
-        webglUnavailableDesc: 'Observatorium ini memerlukan akselerasi perangkat keras WebGL. Aktifkan akselerasi perangkat keras di pengaturan peramban Anda.'
+        webglUnavailableDesc: 'Observatorium ini memerlukan akselerasi perangkat keras WebGL. Aktifkan akselerasi perangkat keras di pengaturan peramban Anda.',
+        liveBadge: 'LANGSUNG 1:1',
+        milkyWay: 'Bima Sakti',
+        orbitTelemetry: 'Orbit: +{dist}'
     },
     categories: {
         star: '🌟 Bintang',
@@ -115,6 +118,7 @@ export const id: TranslationSchema = {
             custom: 'Kustom'
         },
         speedUnits: {
+            minPerSec: 'mnt/d',
             hrPerSec: 'jam/d',
             dayPerSec: 'hari/d',
             wkPerSec: 'mgg/d',
@@ -291,13 +295,65 @@ export const id: TranslationSchema = {
         todayShort: 'HARI INI',
         spaceMilestones: 'TONGGAK PENERBANGAN ANTARIKSA',
         milestones: {
-            sputnik1: { name: 'Peluncuran Sputnik 1', impact: 'Peluncuran Sputnik 1 menandai dimulainya era antariksa dan membuktikan kelayakan satelit buatan.' },
-            apollo11: { name: 'Pendaratan Bulan Apollo 11', impact: 'Manusia pertama di Bulan — tonggak bersejarah penjelajahan antariksa berawak.' },
-            voyager1: { name: 'Peluncuran Voyager 1', impact: 'Voyager 1 menjadi objek buatan manusia pertama yang memasuki ruang antarbintang.' },
-            hubble: { name: 'Peluncuran Teleskop Hubble', impact: 'Merevolusi astronomi dengan citra mendalam galaksi, eksoplanet, dan perluasan alam semesta.' },
-            iss: { name: 'Peluncuran Modul Pertama ISS', impact: 'Memulai era kehadiran manusia berkelanjutan di orbit dan riset mikrogravitasi internasional.' },
-            jwst: { name: 'Peluncuran Teleskop James Webb', impact: 'Dirancang untuk mengamati galaksi paling awal dan wilayah pembentukan bintang dalam inframerah.' }
-        }
+            sputnik1: { name: 'Peluncuran Sputnik 1', shortName: 'Sputnik 1', impact: 'Peluncuran Sputnik 1 menandai dimulainya era antariksa dan membuktikan kelayakan satelit buatan.' },
+            apollo11: { name: 'Pendaratan Bulan Apollo 11', shortName: 'Apollo 11', impact: 'Manusia pertama di Bulan — tonggak bersejarah penjelajahan antariksa berawak.' },
+            voyager1: { name: 'Peluncuran Voyager 1', shortName: 'Voyager 1', impact: 'Voyager 1 menjadi objek buatan manusia pertama yang memasuki ruang antarbintang.' },
+            hubble: { name: 'Peluncuran Teleskop Hubble', shortName: 'Hubble', impact: 'Merevolusi astronomi dengan citra mendalam galaksi, eksoplanet, dan perluasan alam semesta.' },
+            iss: { name: 'Peluncuran Modul Pertama ISS', shortName: 'ISS', impact: 'Memulai era kehadiran manusia berkelanjutan di orbit dan riset mikrogravitasi internasional.' },
+            jwst: { name: 'Peluncuran Teleskop James Webb', shortName: 'James Webb', impact: 'Dirancang untuk mengamati galaksi paling awal dan wilayah pembentukan bintang dalam inframerah.' }
+        },
+        stepUnits: {
+            day: 'hr',
+            month: 'bl',
+            year: 'th'
+        },
+        openCalendarTooltip: 'Klik untuk membuka Kronometer Penerbangan & Kalender Efemeris',
+        chronometerDateAria: 'Tanggal Kronometer Penerbangan',
+        selectSimDateAria: 'Pilih Tanggal Simulasi',
+        calendarDialogAria: 'Kalender Kronometer Penerbangan',
+        closeCalendarAria: 'Tutup Kalender',
+        returnToActiveMonthAria: 'Kembali ke Bulan Simulasi Aktif',
+        returnToActiveDateTitle: 'Kembalikan tampilan kalender ke tanggal simulasi aktif',
+        snapToToday: 'Lompat ke Hari Ini (Waktu Nyata)',
+        julianDayAbbrev: 'JD',
+        prevDay: 'Hari Sebelumnya',
+        nextDay: 'Hari Berikutnya',
+        prevMonth: 'Bulan Sebelumnya',
+        nextMonth: 'Bulan Berikutnya',
+        selectMonth: 'Pilih Bulan',
+        prevYear: 'Tahun Sebelumnya',
+        nextYear: 'Tahun Berikutnya',
+        prevDecade: 'Dekade Sebelumnya',
+        nextDecade: 'Dekade Berikutnya',
+        prev10Years: '10 Tahun Sebelumnya',
+        next10Years: '10 Tahun Berikutnya',
+        observationYear: 'Tahun Pengamatan',
+        yearInputTooltip: 'Klik untuk menelusuri abad, atau ketik tahun & tekan Enter',
+        historicalMilestonesAria: 'Tonggak Sejarah Antariksa',
+        stepBackwardYear: 'Mundur 1 tahun',
+        stepBackwardMonth: 'Mundur 1 bulan',
+        stepForwardMonth: 'Maju 1 bulan',
+        stepForwardYear: 'Maju 1 tahun',
+        scrubTooltips: {
+            minus100y: 'Geser efemeris -100 tahun',
+            minus10y: 'Geser efemeris -10 tahun',
+            minus1y: 'Geser efemeris -1 tahun',
+            minus1d: 'Geser efemeris -1 hari',
+            plus1d: 'Geser efemeris +1 hari',
+            plus1y: 'Geser efemeris +1 tahun',
+            plus10y: 'Geser efemeris +10 tahun',
+            plus100y: 'Geser efemeris +100 tahun'
+        },
+        prevMonthDay: 'Bulan sebelumnya: tanggal {day}',
+        nextMonthDay: 'Bulan berikutnya: tanggal {day}',
+        realTimeToday: 'Hari Ini (Waktu Nyata)',
+        yearSelectorAria: 'Pemilih Tahun Epok',
+        prevRangeAria: 'Rentang Sebelumnya',
+        nextRangeAria: 'Rentang Berikutnya',
+        closeYearModalAria: 'Tutup Matriks Tahun',
+        zoomOutToCenturies: 'Perluas ke tampilan abad',
+        zoomOutToDecades: 'Perluas ke tampilan dekade',
+        centuryFormat: '{year}-an'
     },
     loading: {
         boot: 'Memulai Observatorium',

@@ -185,4 +185,107 @@ describe('CustomDatePicker', () => {
         portaledPicker.dispose();
         expect(portalHost.querySelector('.custom-datepicker-popup')).toBeNull();
     });
+
+    it('localizes all date picker controls, step units, tooltips, milestone chips, and year matrix across all 6 languages', async () => {
+        datePicker.dispose();
+        const { i18n, AVAILABLE_LOCALES } = await import('../../i18n');
+        await Promise.all(AVAILABLE_LOCALES.map(l => i18n.preloadLocale(l.code)));
+
+        const picker = new CustomDatePicker(
+            new Date(Date.UTC(2026, 0, 15, 12, 0, 0)), // Jan 15, 2026 (has trailing prev/next month slots)
+            mockOnChange,
+            mockOnOpen,
+            { ariaLabelKey: 'datepicker.selectSimDateAria' }
+        );
+        document.body.appendChild(picker.domElement);
+        picker.openPopup();
+
+        const scrubBtns = picker.popupElement.querySelectorAll<HTMLButtonElement>('.scrub-step-btn');
+        const hubbleLabel = picker.popupElement.querySelector('.milestone-chip[data-mission-id="hubble"] .chip-label') as HTMLElement;
+        const issLabel = picker.popupElement.querySelector('.milestone-chip[data-mission-id="iss"] .chip-label') as HTMLElement;
+        const jwstLabel = picker.popupElement.querySelector('.milestone-chip[data-mission-id="jwst"] .chip-label') as HTMLElement;
+        const jdReadout = picker.popupElement.querySelector('.hero-jd-readout') as HTMLElement;
+        const prevMonthBtn = picker.popupElement.querySelector('.prev-month') as HTMLButtonElement;
+        const nextDecadeBtn = picker.popupElement.querySelector('.next-decade') as HTMLButtonElement;
+        const closeBtn = picker.popupElement.querySelector('.datepicker-close-x-btn') as HTMLButtonElement;
+
+        // Bosnian
+        i18n.setLanguage('bs');
+        expect(picker.displayElement.getAttribute('aria-label')).toBe('Odaberite datum simulacije');
+        expect(scrubBtns[0].textContent).toBe('-100g');
+        expect(scrubBtns[3].textContent).toBe('-1d');
+        expect(scrubBtns[0].title).toBe('Pomjeri efemeride -100 godina');
+        expect(prevMonthBtn.getAttribute('aria-label')).toBe('Prethodni mjesec');
+        expect(prevMonthBtn.title).toBe('Prethodni mjesec (-1mj)');
+        expect(nextDecadeBtn.title).toBe('Sljedećih 10 godina (+10g)');
+        expect(closeBtn.getAttribute('aria-label')).toBe('Zatvori kalendar');
+        expect(hubbleLabel.textContent).toBe('Hubble');
+        expect(jwstLabel.textContent).toBe('James Webb');
+
+        // German
+        i18n.setLanguage('de');
+        expect(picker.displayElement.getAttribute('aria-label')).toBe('Simulationsdatum auswählen');
+        expect(scrubBtns[0].textContent).toBe('-100J');
+        expect(scrubBtns[3].textContent).toBe('-1T');
+        expect(scrubBtns[4].textContent).toBe('+1T');
+        expect(scrubBtns[7].textContent).toBe('+100J');
+        expect(prevMonthBtn.title).toBe('Vorheriger Monat (-1M)');
+        expect(jdReadout.textContent).toContain(',');
+        expect(jdReadout.textContent?.endsWith('T')).toBe(true);
+        const trailingSlotsDe = picker.popupElement.querySelectorAll<HTMLElement>('.datepicker-day-slot.trailing');
+        expect(trailingSlotsDe[0].title).toContain('Vorheriger Monat:');
+
+        // Indonesian
+        i18n.setLanguage('id');
+        expect(picker.displayElement.getAttribute('aria-label')).toBe('Pilih Tanggal Simulasi');
+        expect(scrubBtns[0].textContent).toBe('-100th');
+        expect(scrubBtns[3].textContent).toBe('-1hr');
+        expect(prevMonthBtn.title).toBe('Bulan Sebelumnya (-1bl)');
+        expect(hubbleLabel.textContent).toBe('Hubble');
+
+        // Polish
+        i18n.setLanguage('pl');
+        expect(picker.displayElement.getAttribute('aria-label')).toBe('Wybierz datę symulacji');
+        expect(scrubBtns[0].textContent).toBe('-100r');
+        expect(scrubBtns[3].textContent).toBe('-1d');
+        expect(scrubBtns[2].title).toBe('Przesuń efemerydy o -1 rok');
+
+        // Serbian (Cyrillic)
+        i18n.setLanguage('sr');
+        expect(picker.displayElement.getAttribute('aria-label')).toBe('Изаберите датум симулације');
+        expect(scrubBtns[0].textContent).toBe('-100г');
+        expect(scrubBtns[3].textContent).toBe('-1д');
+        expect(jdReadout.textContent?.startsWith('ЈД ')).toBe(true);
+        expect(jdReadout.textContent?.endsWith('д')).toBe(true);
+        expect(hubbleLabel.textContent).toBe('Хабл');
+        expect(issLabel.textContent).toBe('МСС');
+        expect(jwstLabel.textContent).toBe('Џејмс Веб');
+
+        // Open Year Matrix Modal and verify localized century cells + BC year handling
+        const yearInput = picker.popupElement.querySelector('.custom-datepicker-input') as HTMLInputElement;
+        yearInput.click();
+        const yearModal = document.body.querySelector('.custom-datepicker-year-modal') as HTMLElement;
+        expect(yearModal.getAttribute('aria-label')).toBe('Избор године епохе');
+        let cells = Array.from(yearModal.querySelectorAll('.datepicker-modal-cell')).map(c => c.textContent);
+        expect(cells).toContain('2000-те');
+
+        i18n.setLanguage('pl');
+        cells = Array.from(yearModal.querySelectorAll('.datepicker-modal-cell')).map(c => c.textContent);
+        expect(cells).toContain('2000–99');
+
+        i18n.setLanguage('de');
+        cells = Array.from(yearModal.querySelectorAll('.datepicker-modal-cell')).map(c => c.textContent);
+        expect(cells).toContain('2000er');
+
+        // Navigate back to 0..999 range so cellYear <= 0 is tested (no broken "v. Chr.s" suffix)
+        const modalPrevBtn = yearModal.querySelector('.custom-datepicker-nav-btn') as HTMLButtonElement;
+        modalPrevBtn.click(); // 1000..1999
+        modalPrevBtn.click(); // 0..999 (first out-of-range cell is -100 => 101 v. Chr., second is 0 => 1 v. Chr.)
+        cells = Array.from(yearModal.querySelectorAll('.datepicker-modal-cell')).map(c => c.textContent);
+        expect(cells).toContain('101 v. Chr.');
+        expect(cells).toContain('1 v. Chr.');
+
+        i18n.setLanguage('en');
+        picker.dispose();
+    });
 });

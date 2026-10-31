@@ -24,6 +24,7 @@ describe('HeaderSlotsManager', () => {
         expect(activeIds).toEqual(DEFAULT_HEADER_SLOTS);
         expect(activeIds).toContain('cinematicTour');
         expect(activeIds).toContain('minimap');
+        expect(activeIds).toContain('measureMode');
         expect(activeIds).toContain('snapshot');
         expect(activeIds).toContain('audio');
         expect(activeIds).toContain('telemetry');

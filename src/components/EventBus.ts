@@ -1,5 +1,6 @@
 export interface SelectCelestialBodyPayload {
     name: string;
+    eventId?: string;
     eventName?: string;
     eventImpact?: string;
 }

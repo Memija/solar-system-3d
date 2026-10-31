@@ -35,7 +35,18 @@ export class ControlCenter {
     private subTitleEl: HTMLElement | null = null;
     private closeBtnEl: HTMLElement | null = null;
     public customDatePicker: CustomDatePicker | null = null;
+    private prevDayBtn: HTMLButtonElement | null = null;
+    private nextDayBtn: HTMLButtonElement | null = null;
+    private quickStepItems: {
+        btn: HTMLButtonElement;
+        sign: '-' | '+';
+        unitKey: 'month' | 'year';
+        tooltipKey: string;
+        fallbackTooltip: string;
+    }[] = [];
     private milestoneSelect: HTMLSelectElement | null = null;
+    private jumpTodayBtn: HTMLButtonElement | null = null;
+    private openCalBtn: HTMLButtonElement | null = null;
 
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -206,12 +217,19 @@ export class ControlCenter {
         this.tabPanels.set(tab, panel);
     }
 
+    private tr(key: string, fallback: string): string {
+        const val = i18n.t(key);
+        return val && val !== key ? val : fallback;
+    }
+
     public createInfoButton(optionId: string, label: string): HTMLButtonElement {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'ctrl-info-btn';
         btn.dataset.optionId = optionId;
-        btn.setAttribute('aria-label', `Information about ${label}`);
+        const info = getSettingOptionInfo(optionId);
+        const infoWord = this.tr('ui.help', 'Information');
+        btn.setAttribute('aria-label', `${infoWord}: ${info?.title || label}`);
         btn.textContent = 'i';
 
         btn.addEventListener('mouseenter', () => {
@@ -502,6 +520,7 @@ export class ControlCenter {
             curr.setUTCDate(curr.getUTCDate() - 1);
             this.applySelectedDate(curr, true);
         };
+        this.prevDayBtn = prevDayBtn;
 
         const initialDate = this.sceneManager?.simDate || new Date();
         this.customDatePicker = new CustomDatePicker(
@@ -520,7 +539,8 @@ export class ControlCenter {
             {
                 portalContainer: this.uiContainer,
                 displayId: 'controlCenterDatePicker',
-                ariaLabel: 'Select Simulation Date'
+                ariaLabel: 'Select Simulation Date',
+                ariaLabelKey: 'datepicker.selectSimDateAria'
             }
         );
 
@@ -535,6 +555,7 @@ export class ControlCenter {
             curr.setUTCDate(curr.getUTCDate() + 1);
             this.applySelectedDate(curr, true);
         };
+        this.nextDayBtn = nextDayBtn;
 
         pickerWrap.appendChild(prevDayBtn);
         pickerWrap.appendChild(this.customDatePicker.domElement);
@@ -544,25 +565,33 @@ export class ControlCenter {
         // Quick Jump Steppers
         const quickSteppers = document.createElement('div');
         quickSteppers.className = 'date-quick-steppers';
+        this.quickStepItems = [];
 
-        const createStepBtn = (label: string, title: string, modifier: (d: Date) => void) => {
+        const createStepBtn = (
+            sign: '-' | '+',
+            unitKey: 'month' | 'year',
+            tooltipKey: string,
+            fallbackTooltip: string,
+            modifier: (d: Date) => void
+        ) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'quick-step-btn';
-            btn.textContent = label;
-            btn.title = title;
+            btn.textContent = `${sign}1${unitKey === 'month' ? 'm' : 'y'}`;
+            btn.title = fallbackTooltip;
             btn.onclick = () => {
                 const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
                 modifier(curr);
                 this.applySelectedDate(curr, true);
             };
+            this.quickStepItems.push({ btn, sign, unitKey, tooltipKey, fallbackTooltip });
             return btn;
         };
 
-        quickSteppers.appendChild(createStepBtn('-1y', 'Step backward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() - 1)));
-        quickSteppers.appendChild(createStepBtn('-1m', 'Step backward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() - 1)));
-        quickSteppers.appendChild(createStepBtn('+1m', 'Step forward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() + 1)));
-        quickSteppers.appendChild(createStepBtn('+1y', 'Step forward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() + 1)));
+        quickSteppers.appendChild(createStepBtn('-', 'year', 'datepicker.stepBackwardYear', 'Step backward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() - 1)));
+        quickSteppers.appendChild(createStepBtn('-', 'month', 'datepicker.stepBackwardMonth', 'Step backward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() - 1)));
+        quickSteppers.appendChild(createStepBtn('+', 'month', 'datepicker.stepForwardMonth', 'Step forward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() + 1)));
+        quickSteppers.appendChild(createStepBtn('+', 'year', 'datepicker.stepForwardYear', 'Step forward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() + 1)));
 
         dateGroup.appendChild(quickSteppers);
 
@@ -573,7 +602,7 @@ export class ControlCenter {
         const milestoneSelect = document.createElement('select');
         milestoneSelect.className = 'ctrl-milestone-select';
         milestoneSelect.id = 'controlCenterMilestoneSelect';
-        milestoneSelect.setAttribute('aria-label', 'Historical Space Milestones');
+        milestoneSelect.setAttribute('aria-label', this.tr('datepicker.historicalMilestonesAria', 'Historical Space Milestones'));
 
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
@@ -598,6 +627,7 @@ export class ControlCenter {
                 if (evt.target) {
                     EventBus.emit('select-celestial-body', {
                         name: evt.target,
+                        eventId: evt.id,
                         eventName: getLocalizedEventName(evt),
                         eventImpact: getLocalizedEventImpact(evt)
                     });
@@ -620,24 +650,28 @@ export class ControlCenter {
         const jumpBtn = document.createElement('button');
         jumpBtn.type = 'button';
         jumpBtn.className = 'master-action-btn jump-date-action-btn';
-        jumpBtn.title = stripLeadingEmoji(i18n.t('ui.liveRealTime') || 'Snap to Real-Time Today');
+        jumpBtn.title = stripLeadingEmoji(this.tr('datepicker.snapToToday', 'Snap to Real-Time Today'));
         jumpBtn.innerHTML = `<span>${svgIcon('globe')} <span data-i18n-key="datepicker.todayShort">${stripLeadingEmoji(i18n.t('datepicker.todayShort') || 'TODAY')}</span></span>`;
         jumpBtn.onclick = () => {
             const now = new Date();
             this.applySelectedDate(now, false);
         };
+        this.jumpTodayBtn = jumpBtn;
         actionsRow.appendChild(jumpBtn);
 
         const openCalBtn = document.createElement('button');
         openCalBtn.type = 'button';
         openCalBtn.className = 'master-action-btn open-cal-action-btn';
+        openCalBtn.title = stripLeadingEmoji(this.tr('datepicker.openCalendarTooltip', 'Click to open Flight Chronometer & Ephemeris Calendar'));
         openCalBtn.innerHTML = `<span>${svgIcon('calendar')} <span data-i18n-key="datepicker.calendarTitle">${stripLeadingEmoji(i18n.t('datepicker.calendarTitle') || 'Mission Calendar')}</span></span>`;
         openCalBtn.onclick = (e: MouseEvent) => {
             e.stopPropagation();
             this.customDatePicker?.togglePopup();
         };
+        this.openCalBtn = openCalBtn;
         actionsRow.appendChild(openCalBtn);
 
+        this.updateDateControlsTranslations();
         dateGroup.appendChild(actionsRow);
         panel.appendChild(dateGroup);
         return panel;
@@ -1174,6 +1208,44 @@ export class ControlCenter {
         toolsGroup.appendChild(perfRow);
         this.switches.set('telemetry', perfInput);
 
+        // Distance Measuring Tool Toggle
+        const measureRow = document.createElement('div');
+        measureRow.className = 'ctrl-row-toggle';
+
+        const measureLabel = document.createElement('label');
+        measureLabel.className = 'toggle-label-wrap';
+        measureLabel.innerHTML = `<span class="toggle-icon">${svgIcon('measure')}</span><span data-i18n-key="controls.measureTool">${stripLeadingEmoji(i18n.t('controls.measureTool') || 'Distance Measuring Tool')}</span>`;
+        measureLabel.appendChild(this.createInfoButton('measureMode', 'Distance Measuring Tool'));
+        measureRow.appendChild(measureLabel);
+
+        const measureSwitch = document.createElement('label');
+        measureSwitch.className = 'sci-switch';
+        const measureInput = document.createElement('input');
+        measureInput.type = 'checkbox';
+        measureInput.checked = !!this.sceneManager?.measureMode;
+        measureInput.onchange = () => {
+            if (typeof this.sceneManager?.toggleMeasureMode === 'function') {
+                this.sceneManager.toggleMeasureMode(measureInput.checked);
+            } else if (this.sceneManager) {
+                this.sceneManager.measureMode = measureInput.checked;
+            }
+            const measureBtn = document.getElementById('hudSlot_measureMode');
+            if (measureBtn) {
+                measureBtn.classList.toggle('active', measureInput.checked);
+                measureBtn.setAttribute('aria-pressed', String(measureInput.checked));
+            }
+            if (this.uiManager?.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+            }
+            this.uiManager?.updateMeasureHud?.();
+            if (this.uiManager?.audioManager) this.uiManager.audioManager.playTick?.();
+        };
+        measureSwitch.appendChild(measureInput);
+        measureSwitch.appendChild(document.createElement('span')).className = 'sci-slider';
+        measureRow.appendChild(measureSwitch);
+        toolsGroup.appendChild(measureRow);
+        this.switches.set('measureMode', measureInput);
+
         panel.appendChild(toolsGroup);
         return panel;
     }
@@ -1310,6 +1382,7 @@ export class ControlCenter {
         setChecked('tourMode', sm.tourMode);
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
         setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
+        setChecked('measureMode', !!sm.measureMode);
 
         // Sync camera mode segmented buttons
         const isSurface = !!sm.surfaceViewBody;
@@ -1324,6 +1397,58 @@ export class ControlCenter {
 
         if (this.uiManager?.headerSlotsContainer) {
             HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+        }
+    }
+
+    private updateDateControlsTranslations(): void {
+        const uDay = this.tr('datepicker.stepUnits.day', 'd');
+        const uMonth = this.tr('datepicker.stepUnits.month', 'm');
+        const uYear = this.tr('datepicker.stepUnits.year', 'y');
+
+        if (this.prevDayBtn) {
+            const prevDay = this.tr('datepicker.prevDay', 'Previous Day');
+            this.prevDayBtn.setAttribute('aria-label', prevDay);
+            this.prevDayBtn.title = `${prevDay} (-1${uDay})`;
+        }
+        if (this.nextDayBtn) {
+            const nextDay = this.tr('datepicker.nextDay', 'Next Day');
+            this.nextDayBtn.setAttribute('aria-label', nextDay);
+            this.nextDayBtn.title = `${nextDay} (+1${uDay})`;
+        }
+
+        this.quickStepItems.forEach(({ btn, sign, unitKey, tooltipKey, fallbackTooltip }) => {
+            const unit = unitKey === 'month' ? uMonth : uYear;
+            btn.textContent = `${sign}1${unit}`;
+            btn.title = this.tr(tooltipKey, fallbackTooltip);
+        });
+
+        if (this.milestoneSelect) {
+            this.milestoneSelect.setAttribute(
+                'aria-label',
+                this.tr('datepicker.historicalMilestonesAria', 'Historical Space Milestones')
+            );
+            if (this.milestoneSelect.options.length > 0) {
+                this.milestoneSelect.options[0].textContent = stripLeadingEmoji(
+                    this.tr('datepicker.historicalEvents', 'Historical Milestones...')
+                );
+                HISTORICAL_SPACE_EVENTS.forEach((evt, idx) => {
+                    const opt = this.milestoneSelect!.options[idx + 1];
+                    if (opt) {
+                        opt.textContent = `${getLocalizedEventName(evt)} (${evt.date.getUTCFullYear()})`;
+                    }
+                });
+            }
+        }
+
+        if (this.jumpTodayBtn) {
+            this.jumpTodayBtn.title = stripLeadingEmoji(
+                this.tr('datepicker.snapToToday', 'Snap to Real-Time Today')
+            );
+        }
+        if (this.openCalBtn) {
+            this.openCalBtn.title = stripLeadingEmoji(
+                this.tr('datepicker.openCalendarTooltip', 'Click to open Flight Chronometer & Ephemeris Calendar')
+            );
         }
     }
 
@@ -1388,15 +1513,7 @@ export class ControlCenter {
             this.tourSpeedDisplay.textContent = this.formatTourSpeedText(interval);
         }
 
-        if (this.milestoneSelect && this.milestoneSelect.options.length > 0) {
-            this.milestoneSelect.options[0].textContent = stripLeadingEmoji(i18n.t('datepicker.historicalEvents') || 'Historical Milestones...');
-            HISTORICAL_SPACE_EVENTS.forEach((evt, idx) => {
-                const opt = this.milestoneSelect!.options[idx + 1];
-                if (opt) {
-                    opt.textContent = `${getLocalizedEventName(evt)} (${evt.date.getUTCFullYear()})`;
-                }
-            });
-        }
+        this.updateDateControlsTranslations();
 
         if (this.drawerElement) {
             this.drawerElement.querySelectorAll<HTMLButtonElement>('.ctrl-info-btn').forEach(btn => {

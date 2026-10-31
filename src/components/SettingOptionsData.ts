@@ -294,6 +294,15 @@ export const SETTING_OPTIONS_INFO: Record<string, SettingOptionInfo> = {
         fallbackCategory: 'System Instrument',
         kbd: 'P',
         summary: 'Displays real-time graphics performance metrics including FPS (Frames Per Second), draw calls, and GPU (Graphics Processing Unit) load.'
+    },
+    measureMode: {
+        id: 'measureMode',
+        iconName: 'measure',
+        titleKey: 'controls.measureTool',
+        fallbackTitle: 'Distance Measuring Tool',
+        categoryKey: 'controls.tabs.system',
+        fallbackCategory: 'System Instrument',
+        summary: 'Measures real-time astronomical distances in AU and million km between any two selected celestial bodies.'
     }
 };
 
@@ -326,7 +335,8 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         realisticLighting: 'Simulates true inverse-square solar radiation falloff with realistic planetary shadows.',
         showAxes: 'Overlays 3D Cartesian coordinate axes (X: Red, Y: Green, Z: Blue) centered on the Sun.',
         minimap: 'Toggles the top-down tactical radar display in the lower-right corner showing nearby bodies.',
-        telemetry: 'Displays real-time graphics performance metrics including FPS (Frames Per Second), draw calls, and GPU (Graphics Processing Unit) load.'
+        telemetry: 'Displays real-time graphics performance metrics including FPS (Frames Per Second), draw calls, and GPU (Graphics Processing Unit) load.',
+        measureMode: 'Measures real-time astronomical distances in AU and million km between any two selected celestial bodies.'
     },
     bs: {
         celestialNav: 'Ciljajte, pratite i usmjerite kameru na planete, mjesece i letjelice prema JPL efemeridama.',
@@ -356,7 +366,8 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         realisticLighting: 'Simulira realistično opadanje sunčevog zračenja uz oštre, prirodne svemirske sjenke.',
         showAxes: 'Prikazuje 3D Kartezijeve koordinatne ose (X: crvena, Y: zelena, Z: plava) sa centrom u Suncu.',
         minimap: 'Prikazuje taktički radarski ekran u donjem desnom uglu sa prikazom obližnjih tijela.',
-        telemetry: 'Prikazuje performanse grafičkog enginea uključujući FPS (broj sličica u sekundi), vrijeme renderovanja i GPU (grafički procesor) memoriju.'
+        telemetry: 'Prikazuje performanse grafičkog enginea uključujući FPS (broj sličica u sekundi), vrijeme renderovanja i GPU (grafički procesor) memoriju.',
+        measureMode: 'Mjeri astronomske udaljenosti u realnom vremenu (u AJ i milionima km) između bilo koja dva odabrana nebeska tijela.'
     },
     sr: {
         celestialNav: 'Циљајте, пратите и усмерите камеру на планете, месеце и летелице према JPL ефемеридама.',
@@ -386,7 +397,8 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         realisticLighting: 'Симулира реалистично опадање сунчевог зрачења уз оштре, природне свемирске сенке.',
         showAxes: 'Приказује 3D Декартове координатне осе (X: црвена, Y: зелена, Z: плава) са центром у Сунцу.',
         minimap: 'Приказује тактички радарски екран у доњем десном углу са приказом оближњих тела.',
-        telemetry: 'Приказује перформансе графичког енџина укључујући FPS (број сличица у секунди), време рендеровања и GPU (графички процесор) меморију.'
+        telemetry: 'Приказује перформансе графичког енџина укључујући FPS (број сличица у секунди), време рендеровања и GPU (графички процесор) меморију.',
+        measureMode: 'Мери астрономске удаљености у реалном времену (у АЈ и милионима км) између било која два одабрана небеска тела.'
     },
     de: {
         celestialNav: 'Zielen, verfolgen und richten Sie die Kamera mit JPL-Ephemeriden auf Planeten, Monde und Sonden aus.',
@@ -416,7 +428,8 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         realisticLighting: 'Simuliert authentischen Strahlungsabfall und tiefschwarze Weltraumschatten.',
         showAxes: 'Blendet räumliche 3D-Koordinatenachsen (X: Rot, Y: Grün, Z: Blau) an der Sonne ein.',
         minimap: 'Aktiviert das taktische holografische Radarfenster unten rechts.',
-        telemetry: 'Zeigt technische Echtzeit-Metriken wie FPS (Bilder pro Sekunde), Frametime und GPU-Last (Grafikprozessor) an.'
+        telemetry: 'Zeigt technische Echtzeit-Metriken wie FPS (Bilder pro Sekunde), Frametime und GPU-Last (Grafikprozessor) an.',
+        measureMode: 'Misst astronomische Echtzeit-Entfernungen in AE und Millionen km zwischen zwei beliebigen Himmelskörpern.'
     },
     id: {
         celestialNav: 'Arahkan, lacak, dan kunci kamera ke planet, bulan, dan wahana antariksa dengan efemeris JPL.',
@@ -446,7 +459,8 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         realisticLighting: 'Mensimulasikan penurunan radiasi matahari hukum kuadrat terbalik dengan bayangan tajam.',
         showAxes: 'Menampilkan sumbu koordinat kartesius 3D (X: Merah, Y: Hijau, Z: Biru) berpusat di Matahari.',
         minimap: 'Menampilkan radar taktis di sudut kanan bawah yang melacak benda langit terdekat.',
-        telemetry: 'Menampilkan metrik performa grafis real-time termasuk FPS (Frame Per Detik), waktu render, dan beban GPU (Unit Pemroses Grafis).'
+        telemetry: 'Menampilkan metrik performa grafis real-time termasuk FPS (Frame Per Detik), waktu render, dan beban GPU (Unit Pemroses Grafis).',
+        measureMode: 'Mengukur jarak astronomis waktu nyata dalam SA dan juta km di antara dua benda langit yang dipilih.'
     },
     pl: {
         celestialNav: 'Namierzaj, śledź i ustawiaj kamerę na planety, księżyce i sondy z efemerydami JPL.',
@@ -476,7 +490,8 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         realisticLighting: 'Symuluje realistyczny spadek natężenia światła słonecznego i głębokie cienie kosmiczne.',
         showAxes: 'Wyświetla przestrzenne osie współrzędnych (X: czerwona, Y: zielona, Z: niebieska) w centrum Słońca.',
         minimap: 'Włącza taktyczny ekran radaru w prawym dolnym rogu śledzący pobliskie obiekty.',
-        telemetry: 'Wyświetla wskaźniki wydajności graficznej w czasie rzeczywistym, w tym FPS (klatki na sekundę), czas klatki i pamięć GPU (procesora graficznego).'
+        telemetry: 'Wyświetla wskaźniki wydajności graficznej w czasie rzeczywistym, w tym FPS (klatki na sekundę), czas klatki i pamięć GPU (procesora graficznego).',
+        measureMode: 'Mierzy odległości astronomiczne w czasie rzeczywistym (w j.a. i mln km) między dwoma wybranymi ciałami niebieskimi.'
     }
 };
 

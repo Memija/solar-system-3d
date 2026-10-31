@@ -50,7 +50,10 @@ export const de: TranslationSchema = {
         compassE: 'O',
         compassW: 'W',
         webglUnavailableTitle: 'WebGL 3D-Hardware nicht verfügbar',
-        webglUnavailableDesc: 'Dieses Observatorium benötigt WebGL-Hardwarebeschleunigung. Bitte aktivieren Sie die Hardwarebeschleunigung in Ihren Browsereinstellungen.'
+        webglUnavailableDesc: 'Dieses Observatorium benötigt WebGL-Hardwarebeschleunigung. Bitte aktivieren Sie die Hardwarebeschleunigung in Ihren Browsereinstellungen.',
+        liveBadge: 'LIVE 1:1',
+        milkyWay: 'Milchstraße',
+        orbitTelemetry: 'Orbit: +{dist}'
     },
     categories: {
         star: '🌟 Sterne',
@@ -115,6 +118,7 @@ export const de: TranslationSchema = {
             custom: 'Benutzerdefiniert'
         },
         speedUnits: {
+            minPerSec: 'Min./s',
             hrPerSec: 'Std./s',
             dayPerSec: 'Tag/s',
             wkPerSec: 'Wo./s',
@@ -291,13 +295,65 @@ export const de: TranslationSchema = {
         todayShort: 'HEUTE',
         spaceMilestones: 'MEILENSTEINE DER RAUMFAHRT',
         milestones: {
-            sputnik1: { name: 'Start von Sputnik 1', impact: 'Der Start von Sputnik 1 läutete das Raumfahrtzeitalter ein und bewies die Machbarkeit künstlicher Erdsatelliten.' },
-            apollo11: { name: 'Apollo-11-Mondlandung', impact: 'Die ersten Menschen auf dem Mond – ein historischer Meilenstein der bemannten Raumfahrt.' },
-            voyager1: { name: 'Start von Voyager 1', impact: 'Voyager 1 erreichte als erstes von Menschen geschaffenes Objekt den interstellaren Raum.' },
-            hubble: { name: 'Start des Hubble-Weltraumteleskops', impact: 'Revolutionierte die Astronomie mit tiefen Aufnahmen des Universums, Galaxien und Exoplaneten.' },
-            iss: { name: 'Start des ersten ISS-Moduls', impact: 'Beginn der dauerhaften menschlichen Präsenz und internationalen Forschung im Erdorbit.' },
-            jwst: { name: 'Start des James-Webb-Teleskops', impact: 'Entwickelt zur Infrarot-Beobachtung der ersten Galaxien und planetarer Entstehungsgebiete.' }
-        }
+            sputnik1: { name: 'Start von Sputnik 1', shortName: 'Sputnik 1', impact: 'Der Start von Sputnik 1 läutete das Raumfahrtzeitalter ein und bewies die Machbarkeit künstlicher Erdsatelliten.' },
+            apollo11: { name: 'Apollo-11-Mondlandung', shortName: 'Apollo 11', impact: 'Die ersten Menschen auf dem Mond – ein historischer Meilenstein der bemannten Raumfahrt.' },
+            voyager1: { name: 'Start von Voyager 1', shortName: 'Voyager 1', impact: 'Voyager 1 erreichte als erstes von Menschen geschaffenes Objekt den interstellaren Raum.' },
+            hubble: { name: 'Start des Hubble-Weltraumteleskops', shortName: 'Hubble', impact: 'Revolutionierte die Astronomie mit tiefen Aufnahmen des Universums, Galaxien und Exoplaneten.' },
+            iss: { name: 'Start des ersten ISS-Moduls', shortName: 'ISS', impact: 'Beginn der dauerhaften menschlichen Präsenz und internationalen Forschung im Erdorbit.' },
+            jwst: { name: 'Start des James-Webb-Teleskops', shortName: 'James Webb', impact: 'Entwickelt zur Infrarot-Beobachtung der ersten Galaxien und planetarer Entstehungsgebiete.' }
+        },
+        stepUnits: {
+            day: 'T',
+            month: 'M',
+            year: 'J'
+        },
+        openCalendarTooltip: 'Klicken, um Flugchronometer & Ephemeriden-Kalender zu öffnen',
+        chronometerDateAria: 'Datum des Flugchronometers',
+        selectSimDateAria: 'Simulationsdatum auswählen',
+        calendarDialogAria: 'Flugchronometer-Kalender',
+        closeCalendarAria: 'Kalender schließen',
+        returnToActiveMonthAria: 'Zurück zum aktiven Simulationsmonat',
+        returnToActiveDateTitle: 'Kalenderansicht zum aktiven Simulationsdatum zurücksetzen',
+        snapToToday: 'Auf heutiges Echtzeit-Datum springen',
+        julianDayAbbrev: 'JD',
+        prevDay: 'Vorheriger Tag',
+        nextDay: 'Nächster Tag',
+        prevMonth: 'Vorheriger Monat',
+        nextMonth: 'Nächster Monat',
+        selectMonth: 'Monat auswählen',
+        prevYear: 'Vorheriges Jahr',
+        nextYear: 'Nächstes Jahr',
+        prevDecade: 'Vorheriges Jahrzehnt',
+        nextDecade: 'Nächstes Jahrzehnt',
+        prev10Years: 'Vorherige 10 Jahre',
+        next10Years: 'Nächste 10 Jahre',
+        observationYear: 'Beobachtungsjahr',
+        yearInputTooltip: 'Klicken zum Durchsuchen von Jahrhunderten oder Jahr eingeben & Enter drücken',
+        historicalMilestonesAria: 'Historische Meilensteine der Raumfahrt',
+        stepBackwardYear: '1 Jahr zurückspringen',
+        stepBackwardMonth: '1 Monat zurückspringen',
+        stepForwardMonth: '1 Monat vorspringen',
+        stepForwardYear: '1 Jahr vorspringen',
+        scrubTooltips: {
+            minus100y: 'Ephemeriden -100 Jahre verschieben',
+            minus10y: 'Ephemeriden -10 Jahre verschieben',
+            minus1y: 'Ephemeriden -1 Jahr verschieben',
+            minus1d: 'Ephemeriden -1 Tag verschieben',
+            plus1d: 'Ephemeriden +1 Tag verschieben',
+            plus1y: 'Ephemeriden +1 Jahr verschieben',
+            plus10y: 'Ephemeriden +10 Jahre verschieben',
+            plus100y: 'Ephemeriden +100 Jahre verschieben'
+        },
+        prevMonthDay: 'Vorheriger Monat: Tag {day}',
+        nextMonthDay: 'Nächster Monat: Tag {day}',
+        realTimeToday: 'Heute (Echtzeit)',
+        yearSelectorAria: 'Epochenjahr-Auswahl',
+        prevRangeAria: 'Vorheriger Bereich',
+        nextRangeAria: 'Nächster Bereich',
+        closeYearModalAria: 'Jahresmatrix schließen',
+        zoomOutToCenturies: 'Zu Jahrhunderten herauszoomen',
+        zoomOutToDecades: 'Zu Jahrzehnten herauszoomen',
+        centuryFormat: '{year}er'
     },
     loading: {
         boot: 'Observatorium-Start',

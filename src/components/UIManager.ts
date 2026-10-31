@@ -2,7 +2,13 @@ import * as THREE from 'three';
 import { SceneManager } from './SceneManager';
 import { Modal } from './Modal';
 import { Minimap } from './Minimap';
-import { CustomDatePicker } from './CustomDatePicker';
+import {
+    CustomDatePicker,
+    HISTORICAL_SPACE_EVENTS,
+    HistoricalSpaceEvent,
+    getLocalizedEventName,
+    getLocalizedEventImpact
+} from './CustomDatePicker';
 import { EventBus } from './EventBus';
 import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData } from './SolarSystemData';
 import { i18n, AVAILABLE_LOCALES, getLocaleFlagUrl } from '../i18n/index';
@@ -47,6 +53,8 @@ export class UIManager {
     timeBadge: HTMLElement | null = null;
     private timeNumsEl: HTMLElement | null = null;
     liveIndicator: HTMLElement | null = null;
+    private liveTextEl: HTMLElement | null = null;
+    private activeHistoricalEventId: HistoricalSpaceEvent['id'] | null = null;
     telemetryTicker: HTMLElement | null = null;
     private tickerBodyEl: HTMLElement | null = null;
     private tickerSpeedEl: HTMLElement | null = null;
@@ -128,7 +136,13 @@ export class UIManager {
 
         this.createMeasureHudBar();
         this.updateMeasureHud();
-        this.unsubscribeMeasureMode = EventBus.on('measure-mode-changed', () => this.updateMeasureHud());
+        this.unsubscribeMeasureMode = EventBus.on('measure-mode-changed', () => {
+            this.updateMeasureHud();
+            this.controlCenter?.syncSwitches();
+            if (this.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+            }
+        });
         this.unsubscribeMeasureTargets = EventBus.on('measure-targets-changed', () => this.updateMeasureHud());
 
         this.onTourFocusBound = (e: Event) => {
@@ -185,6 +199,12 @@ export class UIManager {
             const eventName = customEvent.detail?.eventName;
             const eventImpact = customEvent.detail?.eventImpact;
 
+            if (this.sceneManager.measureMode && !eventName && !eventImpact && typeof this.sceneManager.setMeasureTarget === 'function') {
+                this.sceneManager.setMeasureTarget(targetName);
+                this.updateMeasureHud();
+                return;
+            }
+
             this.cameraTarget = targetName;
             this.focusOrSurfaceTarget(targetName);
             this.syncDropdownSelection(targetName);
@@ -206,10 +226,13 @@ export class UIManager {
             if (foundData) {
                 this.showModal(foundData);
                 if (eventName && eventImpact) {
+                    this.activeHistoricalEventId = customEvent.detail?.eventId || null;
                     this.eventModal.show({
                         name: `${eventName}`,
                         description: `<div style="padding: 10px; background-color: rgba(255, 215, 0, 0.2); margin-bottom: 10px; color: white;">${eventImpact}</div>`
                     });
+                } else {
+                    this.activeHistoricalEventId = null;
                 }
             }
         };
@@ -350,10 +373,18 @@ export class UIManager {
         const liveIndicator = document.createElement('div');
         liveIndicator.className = 'sim-live-indicator';
         liveIndicator.title = i18n.t('ui.liveRealTime');
-        liveIndicator.innerHTML = '<span class="live-pulse-dot"></span><span class="live-text">LIVE 1:1</span>';
+        const liveDotEl = document.createElement('span');
+        liveDotEl.className = 'live-pulse-dot';
+        const liveTextEl = document.createElement('span');
+        liveTextEl.className = 'live-text';
+        const liveBadgeVal = i18n.t('ui.liveBadge');
+        liveTextEl.textContent = liveBadgeVal && liveBadgeVal !== 'ui.liveBadge' ? liveBadgeVal : 'LIVE 1:1';
+        liveIndicator.appendChild(liveDotEl);
+        liveIndicator.appendChild(liveTextEl);
         liveIndicator.style.display = 'none';
         mainRow.appendChild(liveIndicator);
         this.liveIndicator = liveIndicator;
+        this.liveTextEl = liveTextEl;
 
         panel.appendChild(mainRow);
 
@@ -388,7 +419,9 @@ export class UIManager {
 
     private getOrbitalVelocity(bodyName: string): { speedKmS: number; label: string } {
         if (bodyName === 'Sun') {
-            return { speedKmS: 220, label: `${i18n.getBodyName('Sun') || 'Sun'} (Milky Way)` };
+            const mwVal = i18n.t('ui.milkyWay');
+            const mwText = mwVal && mwVal !== 'ui.milkyWay' ? mwVal : 'Milky Way';
+            return { speedKmS: 220, label: `${i18n.getBodyName('Sun') || 'Sun'} (${mwText})` };
         }
         const velocities: Record<string, { speedKmS: number; key: string }> = {
             Mercury: { speedKmS: 47.4, key: 'Mercury' },
@@ -481,7 +514,12 @@ export class UIManager {
 
                 if (this.tickerBodyEl) this.tickerBodyEl.textContent = vel.label;
                 if (this.tickerSpeedEl) this.tickerSpeedEl.textContent = `${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s`;
-                if (this.tickerDistEl) this.tickerDistEl.textContent = `Orbit: +${distFormatted}`;
+                if (this.tickerDistEl) {
+                    const orbitVal = i18n.t('ui.orbitTelemetry', { dist: distFormatted });
+                    this.tickerDistEl.textContent = orbitVal && orbitVal !== 'ui.orbitTelemetry'
+                        ? orbitVal
+                        : `Orbit: +${distFormatted}`;
+                }
             } else {
                 this.telemetryTicker.style.display = 'none';
                 if (this.sceneManager.simDate) {
@@ -984,6 +1022,34 @@ export class UIManager {
             }
             if (this.liveIndicator) {
                 this.liveIndicator.title = i18n.t('ui.liveRealTime');
+            }
+            if (this.liveTextEl) {
+                const liveBadgeVal = i18n.t('ui.liveBadge');
+                this.liveTextEl.textContent = liveBadgeVal && liveBadgeVal !== 'ui.liveBadge' ? liveBadgeVal : 'LIVE 1:1';
+            }
+            if (this.telemetryTicker && this.telemetryTicker.style.display !== 'none') {
+                const targetName = (this.sceneManager.focusedBody as any)?.data?.name || 'Earth';
+                const vel = this.getOrbitalVelocity(targetName);
+                const distFormatted = this.realtimeDistanceKm >= 1000
+                    ? `${i18n.formatNumber(Math.round(this.realtimeDistanceKm))} km`
+                    : `${i18n.formatNumber(this.realtimeDistanceKm, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+                if (this.tickerBodyEl) this.tickerBodyEl.textContent = vel.label;
+                if (this.tickerSpeedEl) this.tickerSpeedEl.textContent = `${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s`;
+                if (this.tickerDistEl) {
+                    const orbitVal = i18n.t('ui.orbitTelemetry', { dist: distFormatted });
+                    this.tickerDistEl.textContent = orbitVal && orbitVal !== 'ui.orbitTelemetry'
+                        ? orbitVal
+                        : `Orbit: +${distFormatted}`;
+                }
+            }
+            if (this.eventModal?.isOpen && this.activeHistoricalEventId) {
+                const evt = HISTORICAL_SPACE_EVENTS.find(e => e.id === this.activeHistoricalEventId);
+                if (evt) {
+                    this.eventModal.show({
+                        name: getLocalizedEventName(evt),
+                        description: `<div style="padding: 10px; background-color: rgba(255, 215, 0, 0.2); margin-bottom: 10px; color: white;">${getLocalizedEventImpact(evt)}</div>`
+                    });
+                }
             }
 
             renderLangDropdown();
