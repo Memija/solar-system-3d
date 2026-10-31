@@ -306,6 +306,7 @@ export class UIManager {
                 this.controlCenter?.syncTimePanel();
             },
             () => {
+                this.controlCenter?.customDatePicker?.closePopup();
                 this.sceneManager.timeScale = 0;
                 this.sceneManager.onTimeScaleChange?.(0);
                 this.controlCenter?.syncTimePanel();

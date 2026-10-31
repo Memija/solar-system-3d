@@ -303,6 +303,15 @@
         background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.85), rgba(129, 140, 248, 0.7), transparent);
         pointer-events: none;
     }
+
+    &.is-portaled {
+        position: fixed;
+        bottom: auto;
+        right: auto;
+        z-index: 2400;
+        max-height: calc(100dvh - 24px);
+        overflow-y: auto;
+    }
 }
 
 @media (max-width: 520px) {

@@ -543,18 +543,23 @@ describe('ControlCenter Component', () => {
         expect(weekBtn.classList.contains('active')).toBe(false);
     });
 
-    it('should render date picker input, day steppers, milestone select, and date action buttons in time panel', () => {
+    it('should render premium CustomDatePicker, day steppers, milestone select, and date action buttons in time panel', () => {
         controlCenter.switchTab('time');
-        const dateInput = controlCenter.drawerElement.querySelector('#controlCenterDateInput') as HTMLInputElement;
+        const datePickerContainer = controlCenter.drawerElement.querySelector('.ctrl-date-picker-wrap .custom-datepicker-container') as HTMLElement;
+        const datePickerDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
+        const nativeDateInput = controlCenter.drawerElement.querySelector('input[type="date"]');
         const prevBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Previous Day"]') as HTMLButtonElement;
         const nextBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Next Day"]') as HTMLButtonElement;
         const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect') as HTMLSelectElement;
         const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
         const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
 
-        expect(dateInput).toBeTruthy();
-        expect(dateInput.type).toBe('date');
-        expect(dateInput.value).toBe('2026-10-23');
+        expect(nativeDateInput).toBeNull();
+        expect(datePickerContainer).toBeTruthy();
+        expect(datePickerDisplay).toBeTruthy();
+        expect(datePickerDisplay.textContent).toBe('2026-10-23');
+        expect(controlCenter.customDatePicker?.popupElement.parentElement).toBe(container);
+        expect(controlCenter.customDatePicker?.popupElement.classList.contains('is-portaled')).toBe(true);
         expect(prevBtn).toBeTruthy();
         expect(nextBtn).toBeTruthy();
         expect(milestoneSelect).toBeTruthy();
@@ -563,28 +568,36 @@ describe('ControlCenter Component', () => {
         expect(openCalBtn).toBeTruthy();
     });
 
-    it('should update simulation date and sync customDatePicker when date input changes', () => {
+    it('should update simulation date and sync header customDatePicker when selecting a date in premium CustomDatePicker', () => {
         controlCenter.switchTab('time');
-        const dateInput = controlCenter.drawerElement.querySelector('#controlCenterDateInput') as HTMLInputElement;
-        expect(dateInput).toBeTruthy();
+        const datePickerDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
+        expect(datePickerDisplay).toBeTruthy();
 
-        dateInput.value = '2030-05-15';
-        dateInput.dispatchEvent(new Event('change'));
+        // Open the premium CustomDatePicker popup
+        datePickerDisplay.click();
+        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
+
+        // Select Day 15 from the portaled popup calendar grid
+        const dayCells = controlCenter.customDatePicker!.popupElement.querySelectorAll('.datepicker-day-cell');
+        expect(dayCells.length).toBeGreaterThanOrEqual(15);
+        (dayCells[14] as HTMLElement).click();
 
         expect(mockSceneManager.setSimDate).toHaveBeenCalled();
         const calledDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
-        expect(calledDate.getUTCFullYear()).toBe(2030);
-        expect(calledDate.getUTCMonth()).toBe(4); // May is index 4
+        expect(calledDate.getUTCFullYear()).toBe(2026);
+        expect(calledDate.getUTCMonth()).toBe(9); // October is index 9
         expect(calledDate.getUTCDate()).toBe(15);
+        expect(datePickerDisplay.textContent).toBe('2026-10-15');
         expect(mockUIManager.customDatePicker.setDate).toHaveBeenCalledWith(calledDate);
         expect(mockSceneManager.timeScale).toBe(0);
+        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
     });
 
-    it('should step date backward and forward with stepper buttons', () => {
+    it('should step date backward and forward with stepper buttons and update premium date picker display', () => {
         controlCenter.switchTab('time');
         const prevBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Previous Day"]') as HTMLButtonElement;
         const nextBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Next Day"]') as HTMLButtonElement;
-        const dateInput = controlCenter.drawerElement.querySelector('#controlCenterDateInput') as HTMLInputElement;
+        const datePickerDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
 
         mockSceneManager.simDate = new Date('2026-10-23T12:00:00Z');
         controlCenter.syncTimePanel();
@@ -594,14 +607,14 @@ describe('ControlCenter Component', () => {
         expect(mockSceneManager.setSimDate).toHaveBeenCalled();
         let lastDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
         expect(lastDate.getUTCDate()).toBe(22);
-        expect(dateInput.value).toBe('2026-10-22');
+        expect(datePickerDisplay.textContent).toBe('2026-10-22');
 
         // Step +1 day
         nextBtn.click();
         expect(mockSceneManager.setSimDate).toHaveBeenCalled();
         lastDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
         expect(lastDate.getUTCDate()).toBe(23);
-        expect(dateInput.value).toBe('2026-10-23');
+        expect(datePickerDisplay.textContent).toBe('2026-10-23');
     });
 
     it('should jump to historical space milestone, pause simulation, and dispatch selection event', () => {
@@ -622,18 +635,46 @@ describe('ControlCenter Component', () => {
         expect(dispatchSpy).toHaveBeenCalled();
     });
 
-    it('should trigger jump to real-time and toggle mission calendar popup', () => {
+    it('should trigger jump to real-time and toggle ControlCenter premium mission calendar popup', () => {
         controlCenter.switchTab('time');
         const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
         const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
-
-        mockUIManager.customDatePicker.togglePopup = vi.fn();
 
         jumpBtn.click();
         expect(mockSceneManager.setSimDate).toHaveBeenCalled();
         expect(mockUIManager.customDatePicker.setDate).toHaveBeenCalled();
 
+        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
         openCalBtn.click();
-        expect(mockUIManager.customDatePicker.togglePopup).toHaveBeenCalled();
+        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
+        openCalBtn.click();
+        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
+    });
+
+    it('should dismiss premium date picker year modal and popup on Escape before closing drawer', () => {
+        controlCenter.open('time');
+        expect(controlCenter.isOpen).toBe(true);
+
+        controlCenter.customDatePicker?.openPopup();
+        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
+
+        const yearInput = controlCenter.customDatePicker!.popupElement.querySelector('.custom-datepicker-input') as HTMLInputElement;
+        yearInput.click();
+        expect(controlCenter.customDatePicker?.isYearModalActive()).toBe(true);
+
+        // 1st Escape dismisses Year Modal
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(controlCenter.customDatePicker?.isYearModalActive()).toBe(false);
+        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
+        expect(controlCenter.isOpen).toBe(true);
+
+        // 2nd Escape dismisses Date Picker popup
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
+        expect(controlCenter.isOpen).toBe(true);
+
+        // 3rd Escape closes Control Center drawer
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(controlCenter.isOpen).toBe(false);
     });
 });

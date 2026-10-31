@@ -78,10 +78,17 @@ function getJulianDate(d: Date): number {
     return (d.getTime() / 86400000) + 2440587.5;
 }
 
+export interface CustomDatePickerOptions {
+    portalContainer?: HTMLElement;
+    displayId?: string;
+    ariaLabel?: string;
+}
+
 export class CustomDatePicker {
     public domElement: HTMLElement;
-    private displayElement: HTMLElement;
-    private popupElement: HTMLElement;
+    public displayElement: HTMLElement;
+    public popupElement: HTMLElement;
+    private readonly isPortaled: boolean = false;
     private daysGridElement: HTMLElement;
     private daysHeader: HTMLElement;
 
@@ -181,23 +188,32 @@ export class CustomDatePicker {
         });
     }
 
-    constructor(initialDate: Date, onChange: (date: Date) => void, onOpen?: () => void) {
+    constructor(
+        initialDate: Date,
+        onChange: (date: Date) => void,
+        onOpen?: () => void,
+        options?: CustomDatePickerOptions
+    ) {
         this.currentDate = new Date(initialDate.getTime());
         this.viewDate = new Date(initialDate.getTime());
         this.onChange = onChange;
         this.onOpen = onOpen;
+        this.isPortaled = Boolean(options?.portalContainer);
 
         this.domElement = document.createElement('div');
         this.domElement.className = 'custom-datepicker-container';
 
         this.displayElement = document.createElement('div');
         this.displayElement.className = 'custom-datepicker-display';
+        if (options?.displayId) {
+            this.displayElement.id = options.displayId;
+        }
         this.displayElement.title = 'Click to open Flight Chronometer & Ephemeris Calendar';
         this.displayElement.setAttribute('role', 'button');
         this.displayElement.setAttribute('tabindex', '0');
         this.displayElement.setAttribute('aria-haspopup', 'dialog');
         this.displayElement.setAttribute('aria-expanded', 'false');
-        this.displayElement.setAttribute('aria-label', 'Flight Chronometer Date');
+        this.displayElement.setAttribute('aria-label', options?.ariaLabel || 'Flight Chronometer Date');
 
         this.displayElement.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -600,7 +616,12 @@ export class CustomDatePicker {
         this.yearModalElement.style.display = 'none';
         document.body.appendChild(this.yearModalElement);
 
-        this.domElement.appendChild(this.popupElement);
+        if (options?.portalContainer) {
+            this.popupElement.classList.add('is-portaled');
+            options.portalContainer.appendChild(this.popupElement);
+        } else {
+            this.domElement.appendChild(this.popupElement);
+        }
 
         // Close on click outside
         this.onClickOutsideBound = (e: MouseEvent) => {
@@ -612,7 +633,12 @@ export class CustomDatePicker {
                 return;
             }
 
-            if (this.isOpen && !this.domElement.contains(target) && !this.yearModalElement.contains(target)) {
+            if (
+                this.isOpen &&
+                !this.domElement.contains(target) &&
+                !this.popupElement.contains(target) &&
+                !this.yearModalElement.contains(target)
+            ) {
                 this.closePopup();
             }
             if (this.isYearModalOpen && !this.yearModalElement.contains(target) && target !== this.yearInput) {
@@ -622,6 +648,9 @@ export class CustomDatePicker {
         document.addEventListener('click', this.onClickOutsideBound);
 
         this.onResizeBound = () => {
+            if (this.isOpen && this.isPortaled) {
+                this.updatePopupPosition(true);
+            }
             if (this.isYearModalOpen) {
                 this.positionYearModal();
             }
@@ -871,6 +900,49 @@ export class CustomDatePicker {
         }
     }
 
+    public updatePopupPosition(reanchor: boolean = true): void {
+        if (!this.isPortaled || !this.isOpen || typeof window === 'undefined') {
+            return;
+        }
+
+        if (window.innerWidth <= 520) {
+            this.popupElement.style.left = '';
+            this.popupElement.style.top = '';
+            return;
+        }
+
+        const rect = this.displayElement.getBoundingClientRect();
+        const popupWidth = this.popupElement.offsetWidth || 368;
+        const popupHeight = this.popupElement.offsetHeight || 540;
+        const margin = 12;
+
+        const maxLeft = Math.max(margin, window.innerWidth - popupWidth - margin);
+        const centeredLeft = rect.left + (rect.width / 2) - (popupWidth / 2);
+        const finalLeft = Math.max(margin, Math.min(centeredLeft, maxLeft));
+
+        let finalTop: number;
+        const existingTop = parseFloat(this.popupElement.style.top);
+        if (!reanchor && !Number.isNaN(existingTop)) {
+            if (existingTop + popupHeight > window.innerHeight - margin) {
+                finalTop = Math.max(margin, window.innerHeight - popupHeight - margin);
+            } else {
+                finalTop = existingTop;
+            }
+        } else {
+            finalTop = rect.bottom + 8;
+            if (finalTop + popupHeight > window.innerHeight - margin) {
+                if (rect.top - popupHeight - 8 >= margin) {
+                    finalTop = rect.top - popupHeight - 8;
+                } else {
+                    finalTop = Math.max(margin, window.innerHeight - popupHeight - margin);
+                }
+            }
+        }
+
+        this.popupElement.style.left = `${Math.round(finalLeft)}px`;
+        this.popupElement.style.top = `${Math.round(finalTop)}px`;
+    }
+
     public openPopup() {
         this.isOpen = true;
         this.domElement.classList.add('is-open');
@@ -880,6 +952,9 @@ export class CustomDatePicker {
         this.popupElement.style.display = 'block';
         this.viewDate.setTime(this.currentDate.getTime());
         this.renderCalendar();
+        if (this.isPortaled) {
+            this.updatePopupPosition(true);
+        }
         if (this.onOpen) {
             this.onOpen();
         }
@@ -1073,6 +1148,10 @@ export class CustomDatePicker {
             });
             this.daysGridElement.appendChild(slot);
         }
+
+        if (this.isOpen && this.isPortaled) {
+            this.updatePopupPosition(false);
+        }
     }
 
     private updateDisplay() {
@@ -1101,6 +1180,9 @@ export class CustomDatePicker {
         }
         if (this.yearModalElement && this.yearModalElement.parentElement) {
             this.yearModalElement.parentElement.removeChild(this.yearModalElement);
+        }
+        if (this.popupElement && this.popupElement.parentElement) {
+            this.popupElement.parentElement.removeChild(this.popupElement);
         }
         if (this.domElement && this.domElement.parentElement) {
             this.domElement.parentElement.removeChild(this.domElement);

@@ -1003,71 +1003,19 @@
         }
     }
 
-    .ctrl-date-input {
+    .custom-datepicker-container {
         flex: 1;
-        height: 36px;
-        background: rgba(11, 18, 36, 0.88);
-        border: 1px solid rgba(56, 189, 248, 0.28);
-        border-radius: 9px;
-        padding: 0 10px;
-        font-family: $font-mono;
-        font-variant-numeric: tabular-nums;
-        font-size: 12.5px;
-        font-weight: 600;
-        letter-spacing: 0.03em;
-        color: #f8fafc;
-        outline: none;
-        transition: all 0.2s ease;
-        box-sizing: border-box;
-        color-scheme: dark;
-
-        &:hover {
-            border-color: rgba(56, 189, 248, 0.6);
-        }
-
-        &:focus {
-            border-color: $neon-cyan;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-        }
-
-        &::-webkit-calendar-picker-indicator {
-            filter: invert(0.8) sepia(1) saturate(5) hue-rotate(160deg);
-            cursor: pointer;
-            padding: 2px;
-            border-radius: 4px;
-            transition: transform 0.15s ease;
-
-            &:hover {
-                transform: scale(1.15);
-            }
-        }
+        min-width: 0;
+        display: flex;
     }
 
-    .ctrl-date-apply-btn {
+    .custom-datepicker-display {
+        width: 100%;
         height: 36px;
         padding: 0 12px;
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(99, 102, 241, 0.22) 100%);
-        border: 1px solid rgba(56, 189, 248, 0.45);
-        border-radius: 8px;
-        color: #f8fafc;
-        font-family: $font-mono;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-
-        &:hover {
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.45) 0%, rgba(99, 102, 241, 0.4) 100%);
-            border-color: $neon-cyan;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-            color: #ffffff;
-        }
-
-        &:active {
-            transform: scale(0.95);
-        }
+        border-radius: 9px;
+        font-size: 12.5px;
+        box-sizing: border-box;
     }
 }
 

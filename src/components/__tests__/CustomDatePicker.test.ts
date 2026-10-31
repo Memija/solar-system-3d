@@ -153,4 +153,36 @@ describe('CustomDatePicker', () => {
         datePicker.openPopup();
         expect(apolloChip.classList.contains('active')).toBe(true);
     });
+
+    it('supports portalContainer option without premature click-outside dismissal and cleans up on dispose', () => {
+        const portalHost = document.createElement('div');
+        document.body.appendChild(portalHost);
+
+        const portaledPicker = new CustomDatePicker(initialDate, mockOnChange, mockOnOpen, {
+            portalContainer: portalHost,
+            displayId: 'portaledDateTrigger',
+            ariaLabel: 'Portaled Simulation Date'
+        });
+        document.body.appendChild(portaledPicker.domElement);
+
+        expect(portaledPicker.displayElement.id).toBe('portaledDateTrigger');
+        expect(portaledPicker.displayElement.getAttribute('aria-label')).toBe('Portaled Simulation Date');
+        expect(portaledPicker.popupElement.parentElement).toBe(portalHost);
+        expect(portaledPicker.popupElement.classList.contains('is-portaled')).toBe(true);
+
+        portaledPicker.openPopup();
+        expect(portaledPicker.isOpen).toBe(true);
+
+        // Clicking inside portaled popup (outside domElement) must NOT close the popup
+        const hudBar = portaledPicker.popupElement.querySelector('.datepicker-hud-bar') as HTMLElement;
+        hudBar.click();
+        expect(portaledPicker.isOpen).toBe(true);
+
+        // Clicking outside both domElement and popupElement closes the popup
+        document.body.click();
+        expect(portaledPicker.isOpen).toBe(false);
+
+        portaledPicker.dispose();
+        expect(portalHost.querySelector('.custom-datepicker-popup')).toBeNull();
+    });
 });

@@ -4,7 +4,7 @@ import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 import { HeaderSlotsManager } from './HeaderSlotsManager';
 import { getSettingOptionInfo } from './SettingOptionsData';
-import { HISTORICAL_SPACE_EVENTS, getLocalizedEventName, getLocalizedEventImpact } from './CustomDatePicker';
+import { CustomDatePicker, HISTORICAL_SPACE_EVENTS, getLocalizedEventName, getLocalizedEventImpact } from './CustomDatePicker';
 import { svgIcon, stripLeadingEmoji, SvgIconName } from './SvgIcons';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
@@ -34,8 +34,7 @@ export class ControlCenter {
     private mainTitleEl: HTMLElement | null = null;
     private subTitleEl: HTMLElement | null = null;
     private closeBtnEl: HTMLElement | null = null;
-    private dateInput: HTMLInputElement | null = null;
-    private isDateInputFocused: boolean = false;
+    public customDatePicker: CustomDatePicker | null = null;
     private milestoneSelect: HTMLSelectElement | null = null;
 
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
@@ -58,7 +57,17 @@ export class ControlCenter {
     private createBackdrop(): HTMLElement {
         const backdrop = document.createElement('div');
         backdrop.className = 'drawer-backdrop';
-        backdrop.onclick = () => this.close();
+        backdrop.onclick = () => {
+            if (this.customDatePicker?.isYearModalActive()) {
+                this.customDatePicker.dismissYearModal();
+                return;
+            }
+            if (this.customDatePicker?.isOpen) {
+                this.customDatePicker.closePopup();
+                return;
+            }
+            this.close();
+        };
         return backdrop;
     }
 
@@ -175,8 +184,14 @@ export class ControlCenter {
         body.appendChild(this.createOpticsPanel());
         body.appendChild(this.createSystemPanel());
 
-        drawer.addEventListener('scroll', () => this.hideOptionTooltip(), { passive: true });
-        body.addEventListener('scroll', () => this.hideOptionTooltip(), { passive: true });
+        drawer.addEventListener('scroll', () => {
+            this.hideOptionTooltip();
+            this.customDatePicker?.updatePopupPosition(true);
+        }, { passive: true });
+        body.addEventListener('scroll', () => {
+            this.hideOptionTooltip();
+            this.customDatePicker?.updatePopupPosition(true);
+        }, { passive: true });
 
         drawer.appendChild(body);
         return drawer;
@@ -472,7 +487,7 @@ export class ControlCenter {
         dateTitle.appendChild(this.createInfoButton('jumpToDate', 'Observation Date'));
         dateGroup.appendChild(dateTitle);
 
-        // Date Picker with Stepper Buttons
+        // Premium Flight Chronometer Date Picker with Stepper Buttons
         const pickerWrap = document.createElement('div');
         pickerWrap.className = 'ctrl-date-picker-wrap';
 
@@ -488,46 +503,26 @@ export class ControlCenter {
             this.applySelectedDate(curr, true);
         };
 
-        const dateInput = document.createElement('input');
-        dateInput.type = 'date';
-        dateInput.id = 'controlCenterDateInput';
-        dateInput.className = 'ctrl-date-input';
-        dateInput.setAttribute('aria-label', 'Select Simulation Date');
-        if (this.sceneManager?.simDate) {
-            const d = this.sceneManager.simDate;
-            const yyyy = d.getUTCFullYear();
-            if (yyyy >= 1000 && yyyy <= 9999) {
-                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-                const dd = String(d.getUTCDate()).padStart(2, '0');
-                dateInput.value = `${yyyy}-${mm}-${dd}`;
-            }
-        }
-        const onDateCommit = () => {
-            if (dateInput.value) {
-                const parts = dateInput.value.split('-').map(Number);
-                if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-                    const targetDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
-                    this.applySelectedDate(targetDate, true);
+        const initialDate = this.sceneManager?.simDate || new Date();
+        this.customDatePicker = new CustomDatePicker(
+            initialDate,
+            (newDate: Date) => {
+                this.applySelectedDate(newDate, true);
+            },
+            () => {
+                this.uiManager?.customDatePicker?.closePopup?.();
+                if (this.sceneManager) {
+                    this.sceneManager.timeScale = 0;
+                    this.sceneManager.onTimeScaleChange?.(0);
                 }
+                this.syncTimePanel();
+            },
+            {
+                portalContainer: this.uiContainer,
+                displayId: 'controlCenterDatePicker',
+                ariaLabel: 'Select Simulation Date'
             }
-        };
-
-        dateInput.onfocus = () => {
-            this.isDateInputFocused = true;
-        };
-        dateInput.onblur = () => {
-            this.isDateInputFocused = false;
-            onDateCommit();
-        };
-        dateInput.onchange = onDateCommit;
-        dateInput.onkeydown = (e: KeyboardEvent) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                onDateCommit();
-                dateInput.blur();
-            }
-        };
-        this.dateInput = dateInput;
+        );
 
         const nextDayBtn = document.createElement('button');
         nextDayBtn.type = 'button';
@@ -541,21 +536,9 @@ export class ControlCenter {
             this.applySelectedDate(curr, true);
         };
 
-        const applyBtn = document.createElement('button');
-        applyBtn.type = 'button';
-        applyBtn.className = 'ctrl-date-apply-btn';
-        applyBtn.dataset.i18nKey = 'ui.set';
-        const setLabel = i18n.t('ui.set');
-        applyBtn.textContent = setLabel && setLabel !== 'ui.set' ? setLabel : 'Set';
-        applyBtn.title = 'Set simulation to selected date';
-        applyBtn.onclick = () => {
-            onDateCommit();
-        };
-
         pickerWrap.appendChild(prevDayBtn);
-        pickerWrap.appendChild(dateInput);
+        pickerWrap.appendChild(this.customDatePicker.domElement);
         pickerWrap.appendChild(nextDayBtn);
-        pickerWrap.appendChild(applyBtn);
         dateGroup.appendChild(pickerWrap);
 
         // Quick Jump Steppers
@@ -651,9 +634,7 @@ export class ControlCenter {
         openCalBtn.innerHTML = `<span>${svgIcon('calendar')} <span data-i18n-key="datepicker.calendarTitle">${stripLeadingEmoji(i18n.t('datepicker.calendarTitle') || 'Mission Calendar')}</span></span>`;
         openCalBtn.onclick = (e: MouseEvent) => {
             e.stopPropagation();
-            if (this.uiManager?.customDatePicker) {
-                this.uiManager.customDatePicker.togglePopup();
-            }
+            this.customDatePicker?.togglePopup();
         };
         actionsRow.appendChild(openCalBtn);
 
@@ -1213,6 +1194,7 @@ export class ControlCenter {
             this.syncTimePanel();
             this.syncSwitches();
         } else {
+            this.customDatePicker?.closePopup();
             this.drawerElement.classList.add('closed');
             this.backdropElement.classList.remove('open');
         }
@@ -1231,10 +1213,14 @@ export class ControlCenter {
 
     public close() {
         this.hideOptionTooltip();
+        this.customDatePicker?.closePopup();
         this.toggle(false);
     }
 
     public switchTab(tab: ControlCenterTab) {
+        if (tab !== 'time') {
+            this.customDatePicker?.closePopup();
+        }
         this.activeTab = tab;
 
         this.tabButtons.forEach((btn, id) => {
@@ -1259,6 +1245,7 @@ export class ControlCenter {
         if (this.sceneManager?.setSimDate) {
             this.sceneManager.setSimDate(date);
         }
+        this.customDatePicker?.setDate(date);
         if (this.uiManager?.customDatePicker) {
             this.uiManager.customDatePicker.setDate(date);
         }
@@ -1289,18 +1276,9 @@ export class ControlCenter {
             btn.classList.toggle('active', key === matchedKey);
         });
 
-        // Sync date input with current simulation date if not actively focused by user
-        if (this.dateInput && !this.isDateInputFocused && document.activeElement !== this.dateInput && this.sceneManager?.simDate) {
-            const d = this.sceneManager.simDate;
-            const yyyy = d.getUTCFullYear();
-            if (yyyy >= 1000 && yyyy <= 9999) {
-                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-                const dd = String(d.getUTCDate()).padStart(2, '0');
-                const iso = `${yyyy}-${mm}-${dd}`;
-                if (this.dateInput.value !== iso) {
-                    this.dateInput.value = iso;
-                }
-            }
+        // Sync premium date picker with current simulation date when popup is closed
+        if (this.customDatePicker && !this.customDatePicker.isOpen && this.sceneManager?.simDate) {
+            this.customDatePicker.setDate(this.sceneManager.simDate);
         }
     }
 
@@ -1446,6 +1424,16 @@ export class ControlCenter {
                     e.stopImmediatePropagation();
                     return;
                 }
+                if (this.customDatePicker?.isYearModalActive()) {
+                    this.customDatePicker.dismissYearModal();
+                    e.stopImmediatePropagation();
+                    return;
+                }
+                if (this.customDatePicker?.isOpen) {
+                    this.customDatePicker.closePopup();
+                    e.stopImmediatePropagation();
+                    return;
+                }
                 const ui = this.uiManager as any;
                 const hasHigherOverlay =
                     ui?.customDatePicker?.isYearModalActive?.() ||
@@ -1472,6 +1460,10 @@ export class ControlCenter {
 
     public dispose() {
         this.closeOptionInfoModal();
+        if (this.customDatePicker) {
+            this.customDatePicker.dispose();
+            this.customDatePicker = null;
+        }
         if (this.tooltipElement?.parentElement) {
             this.tooltipElement.parentElement.removeChild(this.tooltipElement);
             this.tooltipElement = null;

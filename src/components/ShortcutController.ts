@@ -45,8 +45,16 @@ export class ShortcutController {
             ui.controlCenter.hideOptionTooltip();
             return;
         }
+        if (ui.controlCenter?.customDatePicker?.isYearModalActive?.()) {
+            ui.controlCenter.customDatePicker.dismissYearModal();
+            return;
+        }
         if (ui.customDatePicker?.isYearModalActive?.()) {
             ui.customDatePicker.dismissYearModal();
+            return;
+        }
+        if (ui.controlCenter?.customDatePicker?.isOpen) {
+            ui.controlCenter.customDatePicker.closePopup();
             return;
         }
         if (ui.customDatePicker?.isOpen) {
