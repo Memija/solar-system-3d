@@ -1535,11 +1535,11 @@
         }
 
         .obs-header-slots {
-            max-width: 64px;
+            max-width: 96px;
             gap: 4px;
             overflow: hidden;
 
-            .obs-header-slot-btn:nth-child(n + 3) {
+            .obs-header-slot-btn:nth-child(n + 4) {
                 display: none !important;
             }
         }
@@ -1589,9 +1589,9 @@
 @media (max-width: 430px) {
     .observatory-header-bar {
         .obs-header-slots {
-            max-width: 32px;
+            max-width: 64px;
 
-            .obs-header-slot-btn:nth-child(n + 2) {
+            .obs-header-slot-btn:nth-child(n + 3) {
                 display: none !important;
             }
         }

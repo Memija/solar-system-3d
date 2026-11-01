@@ -62,6 +62,7 @@ export class ControlCenter {
         this.uiContainer.appendChild(this.backdropElement);
         this.uiContainer.appendChild(this.drawerElement);
 
+        this.syncTimePanel();
         this.initEventListeners();
     }
 
@@ -1331,7 +1332,7 @@ export class ControlCenter {
     }
 
     public syncTimePanel() {
-        const currentSpeed = this.sceneManager?.timeScale || 0;
+        const currentSpeed = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
         const isPaused = this.sceneManager?.timeScale === 0;
 
         // Update active preset button

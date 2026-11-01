@@ -89,10 +89,12 @@ describe('SceneManager', () => {
         expect(manager.simDate.getTime()).toBeGreaterThanOrEqual(initialDate.getTime());
     });
 
-    it('should initialize with realistic simulation speed (1 day/sec)', () => {
+    it('should initialize with real-time simulation speed (1:1) by default', () => {
         const manager = new SceneManager(container);
-        expect(manager.timeScale).toBeCloseTo(SceneManager.REALISTIC_TIME_SCALE, 5);
-        expect(SceneManager.timeScaleToDaysPerSecond(manager.timeScale)).toBeCloseTo(1.0, 3);
+        expect(manager.timeScale).toBeCloseTo(SceneManager.SPEED_PRESETS.realTime, 10);
+        expect(manager.timeScale).toBeCloseTo(SceneManager.DEFAULT_TIME_SCALE, 10);
+        expect(manager.getFormattedTimeSpeed()).toBe('Real-Time (1:1)');
+        expect(SceneManager.timeScaleToDaysPerSecond(manager.timeScale)).toBeCloseTo(1 / 86400, 8);
     });
 
     it('should correctly convert between timeScale and days per second', () => {
@@ -311,6 +313,147 @@ describe('SceneManager', () => {
                 expect(manager.measureLine?.visible).toBe(false);
                 expect(manager.measureLabel?.visible).toBe(false);
             }
+        });
+
+        it('computes accurate astronomical distances in non-realistic mode across planets, moons, comets, and spacecraft without enabling realisticDistances', () => {
+            const manager = new SceneManager(container);
+            expect(manager.realisticDistances).toBe(false);
+
+            // Configure Sun, Earth, Moon
+            const sun = manager.planets[0];
+            sun.data = { name: 'Sun', distance: 0, distanceAU: 0, eccentricity: 0 } as any;
+            sun.angle = 0;
+
+            const earth = manager.planets[1];
+            earth.data = { name: 'Earth', distance: 130, distanceAU: 1.0, eccentricity: 0.0167 } as any;
+            earth.angle = 0.85;
+            earth.mesh.position.set(130, 0, 0); // Compressed non-realistic visual position
+
+            const moon = {
+                data: { name: 'Moon', distance: 5, distanceAU: 0.00257, eccentricity: 0.0549 },
+                angle: 1.2,
+                moons: [],
+                mesh: new THREE.Mesh()
+            } as any;
+            moon.mesh.position.set(135, 0, 0); // Schematic 5-unit offset instead of 0.00257 * 130
+            earth.moons = [moon];
+
+            // Configure Apollo 11 orbiting Moon, ISS orbiting Earth, and Voyager 1 escaping heliocentrically
+            const apollo = manager.spacecrafts[0] as any;
+            apollo.data = {
+                name: 'Apollo 11',
+                targetBody: 'Moon',
+                distance: 1.1,
+                distanceAU: 0.000012,
+                eccentricity: 0,
+                inclination: 0
+            };
+            apollo.angle = 0.5;
+            apollo.mesh.position.set(136.1, 0, 0); // Compressed schematic position
+
+            const iss = manager.spacecrafts[1] as any;
+            iss.data = {
+                name: 'ISS (International Space Station)',
+                targetBody: 'Earth',
+                distance: 2.5,
+                distanceAU: 0.000045,
+                eccentricity: 0.0003,
+                inclination: 51.6
+            };
+            iss.angle = 1.1;
+            iss.mesh.position.set(132.5, 0, 0);
+
+            const voyager1 = manager.spacecrafts[2] as any;
+            voyager1.data = {
+                name: 'Voyager 1',
+                targetBody: 'Earth',
+                launchDate: '1977-09-05T12:56:00Z',
+                distance: 2.0,
+                distanceAU: 0.000045,
+                escaping: true,
+                speed: 1.5
+            };
+            // Simulate compressed non-realistic Voyager visual coordinates (~7.2 AU if divided by 130)
+            voyager1.mesh.position.set(600, 500, 480);
+
+            // Configure Halley's Comet with 3D inclination + argumentOfPeriapsis
+            const halley = manager.comets[0] as any;
+            halley.data = {
+                name: "Halley's Comet",
+                distanceAU: 17.834,
+                semiMajorAxis: 180,
+                eccentricity: 0.967,
+                inclination: 162.2,
+                argumentOfPeriapsis: 111.3
+            };
+            halley.e = 0.967;
+            halley.angle = Math.PI; // Aphelion: r = a * (1 + e) = 17.834 * 1.967 = 35.079478 AU
+            halley.orbitGroup.position.set(-354, 0, 0); // Compressed schematic visual coordinates
+
+            manager.simDate = new Date('2026-10-31T00:00:00Z');
+            manager.toggleMeasureMode(true);
+
+            // 1. Earth <-> Moon in non-realistic mode (~0.00257 AU, NOT schematic 5/130 = 0.0385 AU)
+            manager.setMeasureTarget('Earth');
+            manager.setMeasureTarget('Moon');
+            expect(manager.realisticDistances).toBe(false);
+            const earthMoonNonReal = manager.currentMeasureDistance!.distanceAUVal;
+            expect(earthMoonNonReal).toBeGreaterThan(0.0024);
+            expect(earthMoonNonReal).toBeLessThan(0.0028);
+            expect(manager.currentMeasureDistance!.distanceAU).not.toBe('0.0000');
+
+            // 2. Moon <-> Apollo 11 (~0.000012 AU = ~0.0018 Mkm, NOT schematic 1.1/130 AU)
+            manager.clearMeasureTargets();
+            manager.setMeasureTarget('Moon');
+            manager.setMeasureTarget('Apollo 11');
+            expect(manager.currentMeasureDistance!.distanceAUVal).toBeCloseTo(0.000012, 6);
+            expect(manager.currentMeasureDistance!.distanceAU).toBe('0.000012');
+            expect(manager.currentMeasureDistance!.distanceMkm).toBe('0.0018');
+
+            // 3. Earth <-> ISS with 51.6 deg inclination (~0.000045 AU = ~0.0067 Mkm)
+            manager.clearMeasureTargets();
+            manager.setMeasureTarget('Earth');
+            manager.setMeasureTarget('ISS (International Space Station)');
+            expect(manager.currentMeasureDistance!.distanceAUVal).toBeCloseTo(0.000045, 5);
+            expect(manager.currentMeasureDistance!.distanceMkm).toBe('0.0067');
+
+            // 4. Sun <-> Voyager 1 (~176.5 AU in Oct 2026, NOT compressed ~7.2 AU)
+            manager.clearMeasureTargets();
+            manager.setMeasureTarget('Sun');
+            manager.setMeasureTarget('Voyager 1');
+            const sunVoyagerAU = manager.currentMeasureDistance!.distanceAUVal;
+            expect(sunVoyagerAU).toBeGreaterThan(170);
+            expect(sunVoyagerAU).toBeLessThan(185);
+
+            // 5. Sun <-> Halley's Comet at aphelion (35.079 AU with exact 3D Euler orientation)
+            manager.clearMeasureTargets();
+            manager.setMeasureTarget('Sun');
+            manager.setMeasureTarget("Halley's Comet");
+            expect(manager.currentMeasureDistance!.distanceAUVal).toBeCloseTo(17.834 * 1.967, 3);
+
+            // Verify 3D comet vector matches Three.js baseGroup (rotation.y = argPeri, rotation.x = inc)
+            const cometPosAU = new THREE.Vector3();
+            manager.getAstronomicalPositionAU(halley, cometPosAU);
+            const expectedCometVec = new THREE.Vector3(-17.834 * 1.967, 0, 0).applyEuler(
+                new THREE.Euler(
+                    THREE.MathUtils.degToRad(162.2),
+                    THREE.MathUtils.degToRad(111.3),
+                    0,
+                    'XYZ'
+                )
+            );
+            expect(cometPosAU.distanceTo(expectedCometVec)).toBeLessThan(1e-6);
+
+            // 6. Verify realisticDistances = true produces identical astronomical distance to non-realistic mode
+            const nonRealHalleyEarth = (() => {
+                manager.clearMeasureTargets();
+                manager.setMeasureTarget('Earth');
+                manager.setMeasureTarget("Halley's Comet");
+                return manager.currentMeasureDistance!.distanceAUVal;
+            })();
+            manager.realisticDistances = true;
+            manager.updateMeasurement();
+            expect(manager.currentMeasureDistance!.distanceAUVal).toBeCloseTo(nonRealHalleyEarth, 8);
         });
     });
 });

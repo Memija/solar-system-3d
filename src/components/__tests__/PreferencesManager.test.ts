@@ -155,19 +155,15 @@ describe('PreferencesManager', () => {
         spy.mockRestore();
     });
 
-    it('upgrades untouched legacy v1 headerSlots once to include measureMode while respecting subsequent unpinning', () => {
+    it('always guarantees locked default headerSlots (cinematicTour and measureMode) across existing profiles', () => {
         localStorage.clear();
         localStorage.setItem('solar-system-3d', JSON.stringify({
-            headerSlots: ['cinematicTour', 'minimap', 'snapshot', 'audio', 'telemetry', 'shortcuts']
+            headerSlots: ['minimap', 'snapshot', 'audio', 'telemetry', 'shortcuts']
         }));
 
         const migratedManager = new PreferencesManagerClass('solar-system-3d');
-        expect(migratedManager.get('headerSlots')).toContain('measureMode');
-        expect(migratedManager.get('headerSlotsV2')).toBe(true);
-
-        // If user subsequently unpins measureMode, reloading preserves their choice
-        migratedManager.set('headerSlots', ['cinematicTour', 'minimap', 'snapshot', 'audio', 'telemetry', 'shortcuts']);
-        const reloadedManager = new PreferencesManagerClass('solar-system-3d');
-        expect(reloadedManager.get('headerSlots')).not.toContain('measureMode');
+        expect(migratedManager.get('headerSlots')[0]).toBe('cinematicTour');
+        expect(migratedManager.get('headerSlots')[1]).toBe('measureMode');
+        expect(migratedManager.get('realisticDistances')).toBe(false);
     });
 });

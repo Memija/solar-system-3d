@@ -107,7 +107,6 @@ export class SceneManager {
         unitMkm: string;
     } | null = null;
     onTimeScaleChange?: (newScale: number) => void;
-    onMeasureTargetsSet?: () => void;
     private unregisterI18n?: () => void;
 
     cameraTransition: {
@@ -150,6 +149,7 @@ export class SceneManager {
     };
 
     public static readonly REALISTIC_TIME_SCALE = SceneManager.SPEED_PRESETS.oneDay;
+    public static readonly DEFAULT_TIME_SCALE = SceneManager.SPEED_PRESETS.realTime;
 
     public static daysPerSecondToTimeScale(daysPerSec: number): number {
         return (daysPerSec * SceneManager.EARTH_YEAR_SIM_SECONDS) / SceneManager.DAYS_PER_YEAR;
@@ -206,7 +206,7 @@ export class SceneManager {
         this.planets = [];
         this.comets = [];
         this.spacecrafts = [];
-        this.timeScale = SceneManager.REALISTIC_TIME_SCALE;
+        this.timeScale = SceneManager.DEFAULT_TIME_SCALE;
         this.showOrbits = PreferencesManager.get('showOrbits');
         this.showMoons = PreferencesManager.get('showMoons');
         this.showComets = PreferencesManager.get('showComets');
@@ -464,6 +464,7 @@ export class SceneManager {
         this.measureLine.computeLineDistances();
         this.measureLine.visible = false;
         this.measureLine.frustumCulled = false;
+        this.measureLine.renderOrder = 999;
         this.scene.add(this.measureLine);
 
         const canvas = document.createElement('canvas');
@@ -474,6 +475,7 @@ export class SceneManager {
         this.measureLabel = new THREE.Sprite(spriteMaterial);
         this.measureLabel.scale.set(60, 15, 1);
         this.measureLabel.visible = false;
+        this.measureLabel.renderOrder = 1000;
         this.scene.add(this.measureLabel);
     }
 
@@ -1191,100 +1193,178 @@ export class SceneManager {
     public getAstronomicalPositionAU(target: any, outVec: THREE.Vector3): THREE.Vector3 {
         if (!target) return outVec.set(0, 0, 0);
 
-        if (this.realisticDistances) {
-            if (target.mesh) {
-                target.mesh.getWorldPosition(outVec);
-            } else if (target.orbitGroup) {
-                target.orbitGroup.getWorldPosition(outVec);
-            } else {
-                outVec.set(0, 0, 0);
-            }
-            return outVec.divideScalar(130);
-        }
-
         const rawName = target.data?.name || target.name || '';
         if (rawName === 'Sun') {
             return outVec.set(0, 0, 0);
         }
 
-        const planet = this.planets.find(p => p.data.name === rawName);
-        if (planet) {
-            const a = planet.data.distanceAU ?? (planet.data.distance / 130);
+        const planet = this.planets.find(p => p === target || (rawName !== '' && p.data?.name === rawName));
+        if (planet && planet.data) {
+            const a = planet.data.distanceAU ?? ((planet.data.distance ?? 0) / 130);
+            if (a === 0) {
+                return outVec.set(0, 0, 0);
+            }
             const e = planet.data.eccentricity ?? 0;
             const b = a * Math.sqrt(Math.max(0, 1 - e * e));
+            const angle = planet.angle ?? 0;
             if (e > 0) {
-                const E = solveKepler(planet.angle, e);
+                const E = solveKepler(angle, e);
                 return outVec.set(a * (Math.cos(E) - e), 0, b * Math.sin(E));
-            } else {
-                return outVec.set(Math.cos(planet.angle) * a, 0, Math.sin(planet.angle) * a);
             }
+            return outVec.set(Math.cos(angle) * a, 0, Math.sin(angle) * a);
         }
 
         for (const p of this.planets) {
-            const moon = p.moons.find(m => m.data.name === rawName);
-            if (moon) {
+            const moon = p.moons?.find(m => m === target || (rawName !== '' && m.data?.name === rawName));
+            if (moon && moon.data) {
                 this.getAstronomicalPositionAU(p, outVec);
                 const parentX = outVec.x;
+                const parentY = outVec.y;
                 const parentZ = outVec.z;
-                const a = moon.data.distanceAU ?? 0.00257;
+                const a = moon.data.distanceAU ?? ((moon.data.distance ?? 0) / 130);
                 const e = moon.data.eccentricity ?? 0;
                 const b = a * Math.sqrt(Math.max(0, 1 - e * e));
+                const angle = moon.angle ?? 0;
                 let moonRelX = 0;
                 let moonRelZ = 0;
                 if (e > 0) {
-                    const E = solveKepler(moon.angle, e);
+                    const E = solveKepler(angle, e);
                     moonRelX = a * (Math.cos(E) - e);
                     moonRelZ = b * Math.sin(E);
                 } else {
-                    moonRelX = Math.cos(moon.angle) * a;
-                    moonRelZ = Math.sin(moon.angle) * a;
+                    moonRelX = Math.cos(angle) * a;
+                    moonRelZ = Math.sin(angle) * a;
                 }
-                return outVec.set(parentX + moonRelX, 0, parentZ + moonRelZ);
+                return outVec.set(parentX + moonRelX, parentY, parentZ + moonRelZ);
             }
         }
 
-        const comet = this.comets.find(c => c.data.name === rawName);
-        if (comet) {
-            const a = comet.data.distanceAU ?? (comet.data.semiMajorAxis / 130);
+        const comet = this.comets.find(c => c === target || (rawName !== '' && c.data?.name === rawName));
+        if (comet && comet.data) {
+            const a = comet.data.distanceAU || (comet.data.semiMajorAxis / 13);
             const e = comet.e ?? comet.data.eccentricity ?? 0;
             const b = a * Math.sqrt(Math.max(0, 1 - e * e));
-            const E = solveKepler(comet.angle, e);
+            const E = solveKepler(comet.angle ?? 0, e);
             const x = a * (Math.cos(E) - e);
             const z = b * Math.sin(E);
-            const incRad = comet.data.inclination !== undefined ? THREE.MathUtils.degToRad(comet.data.inclination) : 0;
-            if (incRad) {
-                const y = -z * Math.sin(incRad);
-                const zPrime = z * Math.cos(incRad);
-                return outVec.set(x, y, zPrime);
+            const incRad = THREE.MathUtils.degToRad(comet.data.inclination ?? 0);
+            const argPeriRad = THREE.MathUtils.degToRad(comet.data.argumentOfPeriapsis ?? 0);
+            if (incRad !== 0 || argPeriRad !== 0) {
+                const cosY = Math.cos(argPeriRad);
+                const sinY = Math.sin(argPeriRad);
+                const x1 = x * cosY + z * sinY;
+                const z1 = -x * sinY + z * cosY;
+                const cosX = Math.cos(incRad);
+                const sinX = Math.sin(incRad);
+                return outVec.set(x1, -z1 * sinX, z1 * cosX);
             }
             return outVec.set(x, 0, z);
         }
 
-        const sc = this.spacecrafts.find(s => s.data.name === rawName);
-        if (sc) {
+        const sc = this.spacecrafts.find(s => s === target || (rawName !== '' && s.data?.name === rawName));
+        if (sc && sc.data) {
             if (sc.data.escaping) {
-                if (sc.mesh) {
-                    sc.mesh.getWorldPosition(outVec);
-                    return outVec.divideScalar(130);
+                const launchMs = sc.data.launchDate ? new Date(sc.data.launchDate).getTime() : NaN;
+                const scName = sc.data.name || '';
+                const isVoyager1 = scName.includes('Voyager 1');
+                const isVoyager2 = scName.includes('Voyager 2');
+
+                if (!Number.isNaN(launchMs) && this.simDate) {
+                    const yearsSinceLaunch = Math.max(0, (this.simDate.getTime() - launchMs) / (365.25 * 24 * 60 * 60 * 1000));
+                    if (isVoyager1 || isVoyager2) {
+                        const auPerYear = isVoyager1 ? 3.57 : 3.15;
+                        const radialDistAU = 1.0 + yearsSinceLaunch * auPerYear;
+                        const azimuth = isVoyager1 ? 0.68 : -1.15;
+                        const elevation = THREE.MathUtils.degToRad(isVoyager1 ? 35 : -48);
+                        const cosEl = Math.cos(elevation);
+                        outVec.set(
+                            radialDistAU * cosEl * Math.cos(azimuth),
+                            radialDistAU * Math.sin(elevation),
+                            radialDistAU * cosEl * Math.sin(azimuth)
+                        );
+                    } else {
+                        const speed = (sc.data.speed || 1) * 5;
+                        const effectiveSimTimePassed = yearsSinceLaunch * SceneManager.EARTH_YEAR_SIM_SECONDS;
+                        outVec.set(
+                            ((sc.data.distance ?? 0) + speed * effectiveSimTimePassed) / 130,
+                            0,
+                            ((speed * 0.5) * effectiveSimTimePassed) / 130
+                        );
+                    }
+                } else {
+                    const speed = (sc.data.speed || 1) * 5;
+                    const yearsSince2000 = (this.simDate.getTime() - this.baseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+                    const simTimePassed = yearsSince2000 * SceneManager.EARTH_YEAR_SIM_SECONDS;
+                    outVec.set(
+                        ((sc.data.distance ?? 0) + speed * simTimePassed) / 130,
+                        0,
+                        ((speed * 0.5) * simTimePassed) / 130
+                    );
                 }
+
+                if (sc.data.inclination) {
+                    const incRad = THREE.MathUtils.degToRad(sc.data.inclination);
+                    const cosX = Math.cos(incRad);
+                    const sinX = Math.sin(incRad);
+                    const vy = outVec.y;
+                    const vz = outVec.z;
+                    outVec.y = vy * cosX - vz * sinX;
+                    outVec.z = vy * sinX + vz * cosX;
+                }
+                return outVec;
             } else {
                 const targetBodyName = sc.data.targetBody || 'Earth';
-                const parentBody = this.planets.find(p => p.data.name === targetBodyName);
+                let parentBody: CelestialBody | undefined = this.planets.find(p => p.data?.name === targetBodyName);
+                if (!parentBody) {
+                    for (const p of this.planets) {
+                        const moon = p.moons?.find(m => m.data?.name === targetBodyName);
+                        if (moon) {
+                            parentBody = moon;
+                            break;
+                        }
+                    }
+                }
+
+                let parentX = 0;
+                let parentY = 0;
+                let parentZ = 0;
                 if (parentBody) {
                     this.getAstronomicalPositionAU(parentBody, outVec);
-                    const parentX = outVec.x;
-                    const parentZ = outVec.z;
-                    const scAU = sc.data.distanceAU ?? 0.000045;
-                    const scX = Math.cos(sc.angle) * scAU;
-                    const scZ = Math.sin(sc.angle) * scAU;
-                    return outVec.set(parentX + scX, 0, parentZ + scZ);
+                    parentX = outVec.x;
+                    parentY = outVec.y;
+                    parentZ = outVec.z;
                 }
+
+                const a = sc.data.distanceAU ?? ((sc.data.distance ?? 0) / 130);
+                const e = sc.data.eccentricity ?? 0;
+                const b = a * Math.sqrt(Math.max(0, 1 - e * e));
+                const angle = sc.angle ?? 0;
+                let localX = 0;
+                let localZ = 0;
+                if (e > 0) {
+                    const E = solveKepler(angle, e);
+                    localX = a * (Math.cos(E) - e);
+                    localZ = b * Math.sin(E);
+                } else {
+                    localX = Math.cos(angle) * a;
+                    localZ = Math.sin(angle) * a;
+                }
+
+                let localY = 0;
+                if (sc.data.inclination) {
+                    const incRad = THREE.MathUtils.degToRad(sc.data.inclination);
+                    localY = -localZ * Math.sin(incRad);
+                    localZ = localZ * Math.cos(incRad);
+                }
+                return outVec.set(parentX + localX, parentY + localY, parentZ + localZ);
             }
         }
 
         if (target.mesh) {
+            target.mesh.updateWorldMatrix?.(true, false);
             target.mesh.getWorldPosition(outVec);
         } else if (target.orbitGroup) {
+            target.orbitGroup.updateWorldMatrix?.(true, false);
             target.orbitGroup.getWorldPosition(outVec);
         } else {
             outVec.set(0, 0, 0);
@@ -1329,7 +1409,7 @@ export class SceneManager {
             const distanceScale = SceneManager._vPosA.distanceTo(SceneManager._vPosB);
             const dashMat = this.measureLine.material as THREE.LineDashedMaterial;
             if (dashMat) {
-                dashMat.dashSize = Math.max(0.4, distanceScale * 0.025);
+                dashMat.dashSize = Math.max(this.realisticDistances ? 0.0005 : 0.15, distanceScale * 0.025);
                 dashMat.gapSize = dashMat.dashSize * 0.5;
             }
             this.measureLine.computeLineDistances();
@@ -1348,8 +1428,8 @@ export class SceneManager {
             this.getAstronomicalPositionAU(this.measureTargetA, SceneManager._vAuA);
             this.getAstronomicalPositionAU(this.measureTargetB, SceneManager._vAuB);
             const distanceAUVal = SceneManager._vAuA.distanceTo(SceneManager._vAuB);
-            const auPrecision = distanceAUVal < 0.1 ? 4 : 3;
-            const mkmPrecision = 2;
+            const auPrecision = distanceAUVal < 0.001 ? 6 : distanceAUVal < 0.01 ? 5 : distanceAUVal < 0.1 ? 4 : 3;
+            const mkmPrecision = distanceAUVal < 0.001 ? 4 : distanceAUVal < 0.01 ? 3 : 2;
             const roundedAU = Number(distanceAUVal.toFixed(auPrecision));
             const distanceMkmVal = roundedAU * 149.6;
             const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });
@@ -1375,7 +1455,9 @@ export class SceneManager {
             };
 
             const camDist = this.camera.position.distanceTo(this.measureLabel.position);
-            const minLabelScale = this.realisticDistances ? 0.04 : 10;
+            const minLabelScale = this.realisticDistances
+                ? 0.0005
+                : Math.min(10, Math.max(0.35, distanceScale * 0.2));
             const scaleY = Math.max(camDist * 0.05, minLabelScale);
 
             const canvas = this.measureLabel.material.map?.image as HTMLCanvasElement;
@@ -1432,15 +1514,15 @@ export class SceneManager {
         let target: CelestialBody | Comet | Spacecraft | undefined;
 
         const findTarget = (body: CelestialBody) => {
-            if (body.data.name === name) {
+            if (body.data?.name === name) {
                 target = body;
             }
-            body.moons.forEach(findTarget);
+            body.moons?.forEach(findTarget);
         };
 
         this.planets.forEach(findTarget);
-        target = target || this.comets.find((c: Comet) => c.data.name === name);
-        target = target || this.spacecrafts.find((s: Spacecraft) => s.data.name === name);
+        target = target || this.comets.find((c: Comet) => c.data?.name === name);
+        target = target || this.spacecrafts.find((s: Spacecraft) => s.data?.name === name);
 
         if (target) {
             if (!this.measureTargetA) {
@@ -1457,9 +1539,6 @@ export class SceneManager {
                     (this.measureLabel as any).userData.lastText = null;
                 }
                 this.updateMeasurement();
-                if (this.onMeasureTargetsSet) {
-                    this.onMeasureTargetsSet();
-                }
             } else {
                 this.measureTargetA = target;
                 this.measureTargetB = null;

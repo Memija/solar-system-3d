@@ -17,7 +17,7 @@ describe('ControlCenter Component', () => {
         document.body.appendChild(container);
 
         mockSceneManager = {
-            timeScale: 0.0027,
+            timeScale: SceneManager.SPEED_PRESETS.realTime,
             simDate: new Date('2026-10-23T12:00:00Z'),
             setSimDate: vi.fn((d: Date) => { mockSceneManager.simDate = d; }),
             onTimeScaleChange: vi.fn(),
@@ -522,11 +522,16 @@ describe('ControlCenter Component', () => {
         i18n.setLanguage('en');
     });
 
-    it('should not render time speed slider in time panel and correctly activate speed presets', () => {
+    it('should not render time speed slider in time panel and correctly activate speed presets with Real-Time selected by default', () => {
         controlCenter.switchTab('time');
         const slider = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="time"] .speed-slider-wrap input[type="range"]');
         expect(slider).toBeNull();
         expect(controlCenter.drawerElement.querySelector('[data-i18n-key="controls.timeSpeed"]')).toBeNull();
+
+        // Real-Time (1:1) preset active by default
+        const realTimeBtn = controlCenter.drawerElement.querySelector('.preset-btn[data-preset-key="realTime"]') as HTMLButtonElement;
+        expect(realTimeBtn).toBeTruthy();
+        expect(realTimeBtn.classList.contains('active')).toBe(true);
 
         // 1 week / sec preset
         const weekBtn = controlCenter.drawerElement.querySelector('.preset-btn[data-preset-key="oneWeek"]') as HTMLButtonElement;

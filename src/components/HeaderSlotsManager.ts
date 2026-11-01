@@ -421,6 +421,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         labelKey: 'controls.measureTool',
         icon: svgIcon('measure'),
         domId: 'hudSlot_measureMode',
+        locked: true,
         getState: (ui) => !!ui.sceneManager?.measureMode,
         action: (ui) => {
             if (typeof ui.sceneManager?.toggleMeasureMode === 'function') {
@@ -584,8 +585,8 @@ export class HeaderSlotsManagerClass {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 def.action(ui, btn);
-                if (ui.controlCenter) ui.controlCenter.syncSwitches();
-                if (ui.audioManager) ui.audioManager.playTick();
+                if (ui.controlCenter) ui.controlCenter.syncSwitches?.();
+                if (ui.audioManager) ui.audioManager.playTick?.();
                 this.updateSlotStates(container, ui);
             };
 

@@ -302,10 +302,18 @@ describe('UIManager', () => {
         expect(uiManager.controlCenter?.isOpen).toBe(false);
     });
 
-    it('should display simulation speed badge in date panel', () => {
+    it('should display Real-Time (1:1) simulation speed badge, live indicator, and active preset by default', () => {
         const speedBadge = uiContainer.querySelector('.sim-speed-badge') as HTMLElement;
+        const liveIndicator = uiContainer.querySelector('.sim-live-indicator') as HTMLElement;
         expect(speedBadge).toBeDefined();
-        expect(speedBadge.textContent).toContain('1.0 day/s');
+        expect(speedBadge.textContent).toContain('Real-Time (1:1)');
+        expect(liveIndicator.style.display).toBe('inline-flex');
+
+        const realTimePresetBtn = uiManager.controlCenter!.drawerElement.querySelector(
+            '.preset-btn[data-preset-key="realTime"]'
+        ) as HTMLButtonElement;
+        expect(realTimePresetBtn).toBeTruthy();
+        expect(realTimePresetBtn.classList.contains('active')).toBe(true);
     });
 
     it('should pause and resume when speed badge is clicked', () => {

@@ -268,6 +268,7 @@ export const CometDataList: CometData[] = [
     {
         name: "Halley's Comet",
         radius: 0.1, displayRadius: 0.00086,
+        distanceAU: 17.834,
         semiMajorAxis: 180, // roughly scaled for visibility
         eccentricity: 0.967,
         period: 75.3,
@@ -284,6 +285,7 @@ export const CometDataList: CometData[] = [
     {
         name: "Hale-Bopp",
         radius: 0.3, displayRadius: 0.0047,
+        distanceAU: 186.0,
         semiMajorAxis: 300,
         eccentricity: 0.995,
         period: 2500,

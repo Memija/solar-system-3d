@@ -358,9 +358,11 @@ export class UIManager {
         speedBadge.className = 'sim-speed-badge';
         speedBadge.title = i18n.t('ui.speedPause');
         const isPaused = this.sceneManager?.timeScale === 0;
+        const initialScale = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
+        const isInitialRealTime = !isPaused && initialScale <= SceneManager.SPEED_PRESETS.realTime * 1.5;
         const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
             ? this.sceneManager.getFormattedTimeSpeed()
-            : '1.0 day/s';
+            : (i18n.t('controls.speedPresets.realTime') || 'Real-Time (1:1)');
         const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
         speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
         if (isPaused) speedBadge.classList.add('paused');
@@ -381,7 +383,7 @@ export class UIManager {
         liveTextEl.textContent = liveBadgeVal && liveBadgeVal !== 'ui.liveBadge' ? liveBadgeVal : 'LIVE 1:1';
         liveIndicator.appendChild(liveDotEl);
         liveIndicator.appendChild(liveTextEl);
-        liveIndicator.style.display = 'none';
+        liveIndicator.style.display = isInitialRealTime ? 'inline-flex' : 'none';
         mainRow.appendChild(liveIndicator);
         this.liveIndicator = liveIndicator;
         this.liveTextEl = liveTextEl;
@@ -474,12 +476,13 @@ export class UIManager {
         }
 
         const isPaused = this.sceneManager?.timeScale === 0;
-        const isRealTime = !isPaused && (this.sceneManager?.timeScale <= SceneManager.SPEED_PRESETS.realTime * 1.5);
+        const effectiveScale = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
+        const isRealTime = !isPaused && (effectiveScale <= SceneManager.SPEED_PRESETS.realTime * 1.5);
 
         if (this.speedBadge) {
             const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
                 ? this.sceneManager.getFormattedTimeSpeed()
-                : '1.0 day/s';
+                : (i18n.t('controls.speedPresets.realTime') || 'Real-Time (1:1)');
             const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
             const text = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
             if (this.speedBadge.textContent !== text) {
@@ -544,7 +547,7 @@ export class UIManager {
         if (this.sceneManager.timeScale === 0) {
             const restored = (this.previousTimeSpeed && this.previousTimeSpeed > 0)
                 ? this.previousTimeSpeed
-                : (SceneManager.REALISTIC_TIME_SCALE || 0.00273785);
+                : (SceneManager.DEFAULT_TIME_SCALE || SceneManager.SPEED_PRESETS?.realTime || 3.9817e-7);
             this.sceneManager.timeScale = restored;
             this.sceneManager.onTimeScaleChange?.(restored);
         } else {
@@ -1013,7 +1016,7 @@ export class UIManager {
                 const isPaused = this.sceneManager?.timeScale === 0;
                 const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
                     ? this.sceneManager.getFormattedTimeSpeed()
-                    : '1.0 day/s';
+                    : (i18n.t('controls.speedPresets.realTime') || 'Real-Time (1:1)');
                 const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
                 this.speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
             }
@@ -1208,8 +1211,8 @@ export class UIManager {
                     distanceAUVal = distScale / 130;
                 }
 
-                const auPrecision = distanceAUVal < 0.1 ? 4 : 3;
-                const mkmPrecision = 2;
+                const auPrecision = distanceAUVal < 0.001 ? 6 : distanceAUVal < 0.01 ? 5 : distanceAUVal < 0.1 ? 4 : 3;
+                const mkmPrecision = distanceAUVal < 0.001 ? 4 : distanceAUVal < 0.01 ? 3 : 2;
                 const roundedAU = Number(distanceAUVal.toFixed(auPrecision));
                 const distanceMkmVal = roundedAU * 149.6;
                 distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });

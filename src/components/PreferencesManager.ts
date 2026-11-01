@@ -29,23 +29,13 @@ export interface UserPreferences {
     realisticLighting: boolean;
     showAxes: boolean;
     headerSlots: string[];
-    headerSlotsV2?: boolean;
     [key: string]: any;
 }
 
-const LEGACY_V1_HEADER_SLOTS: readonly string[] = [
-    'cinematicTour',
-    'minimap',
-    'snapshot',
-    'audio',
-    'telemetry',
-    'shortcuts'
-];
-
 export const DEFAULT_HEADER_SLOTS: readonly string[] = [
     'cinematicTour',
-    'minimap',
     'measureMode',
+    'minimap',
     'snapshot',
     'audio',
     'telemetry',
@@ -74,8 +64,7 @@ export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     enableBloom: true,
     realisticLighting: true,
     showAxes: false,
-    headerSlots: [...DEFAULT_HEADER_SLOTS],
-    headerSlotsV2: true
+    headerSlots: [...DEFAULT_HEADER_SLOTS]
 };
 
 export type PreferenceChangeListener = <K extends keyof UserPreferences>(
@@ -145,21 +134,20 @@ export class PreferencesManagerClass {
             }
         }
 
-        // Ensure non-removable default slots (cinematicTour) are always present
-        if (Array.isArray(loaded.headerSlots) && !loaded.headerSlots.includes('cinematicTour')) {
-            loaded.headerSlots.unshift('cinematicTour');
-            migratedLegacy = true;
-        }
-
-        // One-time upgrade for untouched v1 default headerSlots so measureMode appears in header
-        if (Array.isArray(loaded.headerSlots) && !loaded.headerSlotsV2) {
-            const isLegacyDefault =
-                loaded.headerSlots.length === LEGACY_V1_HEADER_SLOTS.length &&
-                LEGACY_V1_HEADER_SLOTS.every((id, idx) => loaded.headerSlots![idx] === id);
-            if (isLegacyDefault) {
-                loaded.headerSlots = [...DEFAULT_HEADER_SLOTS];
+        // Ensure non-removable default slots (cinematicTour, measureMode) are always present
+        if (Array.isArray(loaded.headerSlots)) {
+            if (!loaded.headerSlots.includes('cinematicTour')) {
+                loaded.headerSlots.unshift('cinematicTour');
+                migratedLegacy = true;
             }
-            loaded.headerSlotsV2 = true;
+            if (!loaded.headerSlots.includes('measureMode')) {
+                const tourIdx = loaded.headerSlots.indexOf('cinematicTour');
+                loaded.headerSlots.splice(tourIdx >= 0 ? tourIdx + 1 : 0, 0, 'measureMode');
+                migratedLegacy = true;
+            }
+        }
+        if ('headerSlotsV2' in loaded) {
+            delete (loaded as Record<string, unknown>).headerSlotsV2;
             migratedLegacy = true;
         }
 

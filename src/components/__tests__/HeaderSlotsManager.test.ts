@@ -205,12 +205,39 @@ describe('HeaderSlotsManager', () => {
         expect(HeaderSlotsManager.isSlotActive('cinematicTour')).toBe(true);
     });
 
-    it('always preserves cinematicTour even if stored preferences in localStorage omitted it', () => {
+    it('always preserves cinematicTour and measureMode even if stored preferences in localStorage omitted them', () => {
         localStorage.setItem('solar-system-3d', JSON.stringify({
             headerSlots: ['minimap', 'snapshot']
         }));
         const activeIds = HeaderSlotsManager.getActiveSlotIds();
         expect(activeIds).toContain('cinematicTour');
+        expect(activeIds).toContain('measureMode');
+    });
+
+    it('has measureMode locked and ready in the header by default (off until clicked)', () => {
+        expect(HeaderSlotsManager.isSlotLocked('measureMode')).toBe(true);
+        expect(HeaderSlotsManager.isSlotRemovable('measureMode')).toBe(false);
+        expect(HeaderSlotsManager.removeSlot('measureMode')).toBe(false);
+        expect(HeaderSlotsManager.isSlotActive('measureMode')).toBe(true);
+
+        const container = document.createElement('div');
+        const toggleMeasureSpy = vi.fn();
+        const mockUi = {
+            minimap: { isVisible: true },
+            audioManager: { getAudioEnabled: () => false, playTick: vi.fn() },
+            performanceMonitor: { getVisible: () => false },
+            shortcutsModal: { isOpen: false },
+            sceneManager: { measureMode: false, toggleMeasureMode: toggleMeasureSpy }
+        };
+
+        HeaderSlotsManager.renderSlots(container, mockUi);
+        const measureBtn = container.querySelector('#hudSlot_measureMode') as HTMLButtonElement;
+        expect(measureBtn).not.toBeNull();
+        expect(measureBtn.dataset.locked).toBe('true');
+        expect(measureBtn.classList.contains('active')).toBe(false);
+
+        measureBtn.click();
+        expect(toggleMeasureSpy).toHaveBeenCalledWith(true);
     });
 
     it('renders cinematicTour with dataset.locked and vector icon in the header', () => {
