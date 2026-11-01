@@ -541,7 +541,14 @@ export class ControlCenter {
                 portalContainer: this.uiContainer,
                 displayId: 'controlCenterDatePicker',
                 ariaLabel: 'Select Simulation Date',
-                ariaLabelKey: 'datepicker.selectSimDateAria'
+                ariaLabelKey: 'datepicker.selectSimDateAria',
+                onSnapToLive: () => {
+                    if (this.sceneManager) {
+                        this.sceneManager.timeScale = SceneManager.SPEED_PRESETS.realTime;
+                        this.sceneManager.onTimeScaleChange?.(SceneManager.SPEED_PRESETS.realTime);
+                    }
+                    this.syncTimePanel();
+                }
             }
         );
 
@@ -656,6 +663,11 @@ export class ControlCenter {
         jumpBtn.onclick = () => {
             const now = new Date();
             this.applySelectedDate(now, false);
+            if (this.sceneManager) {
+                this.sceneManager.timeScale = SceneManager.SPEED_PRESETS.realTime;
+                this.sceneManager.onTimeScaleChange?.(SceneManager.SPEED_PRESETS.realTime);
+            }
+            this.syncTimePanel();
         };
         this.jumpTodayBtn = jumpBtn;
         actionsRow.appendChild(jumpBtn);

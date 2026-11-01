@@ -327,7 +327,7 @@ describe('SceneManager', () => {
             const earth = manager.planets[1];
             earth.data = { name: 'Earth', distance: 130, distanceAU: 1.0, eccentricity: 0.0167 } as any;
             earth.angle = 0.85;
-            earth.mesh.position.set(130, 0, 0); // Compressed non-realistic visual position
+            earth.mesh!.position.set(130, 0, 0); // Compressed non-realistic visual position
 
             const moon = {
                 data: { name: 'Moon', distance: 5, distanceAU: 0.00257, eccentricity: 0.0549 },

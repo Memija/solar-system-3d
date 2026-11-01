@@ -12,7 +12,7 @@ import { Spacecraft } from './Spacecraft';
 import { TextureGenerator } from './TextureGenerator';
 import { EventBus } from './EventBus';
 import { PreferencesManager } from './PreferencesManager';
-import { solveKepler } from './MathUtils';
+import { computeKeplerianState, KeplerianState, solveKepler } from './MathUtils';
 import { i18n } from '../i18n';
 import {
     buildAsteroidBelt,
@@ -136,6 +136,7 @@ export class SceneManager {
     private static readonly _vNorthTangent = new THREE.Vector3();
     private static readonly _vAuA = new THREE.Vector3();
     private static readonly _vAuB = new THREE.Vector3();
+    private static readonly _keplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
 
     public static readonly EARTH_YEAR_SIM_SECONDS = (2 * Math.PI) / 0.5;
     public static readonly DAYS_PER_YEAR = 365.25;
@@ -259,6 +260,26 @@ export class SceneManager {
 
     setSimDate(newDate: Date) {
         this.simDate = newDate;
+        this.syncEphemeris();
+    }
+
+    syncEphemeris() {
+        const yearsSince2000 = (this.simDate.getTime() - this.baseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        const simTimePassed = yearsSince2000 * SceneManager.EARTH_YEAR_SIM_SECONDS;
+
+        this.planets.forEach(planet => {
+            planet.update(0, simTimePassed, 0);
+        });
+        this.comets.forEach(comet => {
+            comet.update(0, simTimePassed, 0);
+        });
+        this.spacecrafts.forEach(sc => {
+            sc.update(0, simTimePassed, this.simDate, 0);
+        });
+        this.scene.updateMatrixWorld?.(true);
+        if (this.measureMode) {
+            this.updateMeasurement();
+        }
     }
 
     init() {
@@ -405,6 +426,7 @@ export class SceneManager {
 
         // Apply all persisted layer & rendering preferences on boot so 3D scene matches UI toggles
         this.applyBootPreferences();
+        this.syncEphemeris();
     }
 
     private setupSurfaceLookControls() {
@@ -678,11 +700,11 @@ export class SceneManager {
         }
 
         if (this.asteroidBelt && this.showAsteroids) {
-            this.asteroidBelt.rotation.y -= 0.05 * deltaTime;
+            this.asteroidBelt.rotation.y += 0.05 * deltaTime;
         }
 
         if (this.kuiperBelt && this.showKuiperBelt) {
-            this.kuiperBelt.rotation.y -= 0.01 * deltaTime;
+            this.kuiperBelt.rotation.y += 0.01 * deltaTime;
         }
 
         if (this.surfaceViewBody?.mesh) {
@@ -910,6 +932,8 @@ export class SceneManager {
             this.pointLight.shadow.camera.far = this.realisticDistances ? 10000 : 2000;
             this.pointLight.shadow.camera.updateProjectionMatrix();
         }
+
+        this.syncEphemeris();
 
         // Re-frame currently focused body smoothly if scale changed drastically
         if (this.focusedBody && 'data' in this.focusedBody && this.focusedBody.data?.name) {
@@ -1204,14 +1228,18 @@ export class SceneManager {
             if (a === 0) {
                 return outVec.set(0, 0, 0);
             }
-            const e = planet.data.eccentricity ?? 0;
-            const b = a * Math.sqrt(Math.max(0, 1 - e * e));
-            const angle = planet.angle ?? 0;
-            if (e > 0) {
-                const E = solveKepler(angle, e);
-                return outVec.set(a * (Math.cos(E) - e), 0, b * Math.sin(E));
-            }
-            return outVec.set(Math.cos(angle) * a, 0, Math.sin(angle) * a);
+            const st = computeKeplerianState(
+                planet.angle ?? 0,
+                a,
+                planet.data.eccentricity ?? 0,
+                false,
+                planet.data.inclination ?? 0,
+                planet.data.longitudeOfPerihelion ?? 0,
+                planet.data.longitudeOfAscendingNode ?? 0,
+                planet.data.retrograde ? -1 : 1,
+                SceneManager._keplerState
+            );
+            return outVec.set(st.x, st.y, st.z);
         }
 
         for (const p of this.planets) {
@@ -1222,20 +1250,18 @@ export class SceneManager {
                 const parentY = outVec.y;
                 const parentZ = outVec.z;
                 const a = moon.data.distanceAU ?? ((moon.data.distance ?? 0) / 130);
-                const e = moon.data.eccentricity ?? 0;
-                const b = a * Math.sqrt(Math.max(0, 1 - e * e));
-                const angle = moon.angle ?? 0;
-                let moonRelX = 0;
-                let moonRelZ = 0;
-                if (e > 0) {
-                    const E = solveKepler(angle, e);
-                    moonRelX = a * (Math.cos(E) - e);
-                    moonRelZ = b * Math.sin(E);
-                } else {
-                    moonRelX = Math.cos(angle) * a;
-                    moonRelZ = Math.sin(angle) * a;
-                }
-                return outVec.set(parentX + moonRelX, parentY, parentZ + moonRelZ);
+                const st = computeKeplerianState(
+                    moon.angle ?? 0,
+                    a,
+                    moon.data.eccentricity ?? 0,
+                    false,
+                    moon.data.inclination ?? 0,
+                    moon.data.longitudeOfPerihelion ?? 0,
+                    moon.data.longitudeOfAscendingNode ?? 0,
+                    moon.data.retrograde ? -1 : 1,
+                    SceneManager._keplerState
+                );
+                return outVec.set(parentX + st.x, parentY + st.y, parentZ + st.z);
             }
         }
 
@@ -1246,17 +1272,25 @@ export class SceneManager {
             const b = a * Math.sqrt(Math.max(0, 1 - e * e));
             const E = solveKepler(comet.angle ?? 0, e);
             const x = a * (Math.cos(E) - e);
-            const z = b * Math.sin(E);
+            const z = -b * Math.sin(E);
             const incRad = THREE.MathUtils.degToRad(comet.data.inclination ?? 0);
             const argPeriRad = THREE.MathUtils.degToRad(comet.data.argumentOfPeriapsis ?? 0);
-            if (incRad !== 0 || argPeriRad !== 0) {
+            const ascNodeRad = THREE.MathUtils.degToRad(comet.data.longitudeOfAscendingNode ?? 0);
+            if (incRad !== 0 || argPeriRad !== 0 || ascNodeRad !== 0) {
                 const cosY = Math.cos(argPeriRad);
                 const sinY = Math.sin(argPeriRad);
                 const x1 = x * cosY + z * sinY;
                 const z1 = -x * sinY + z * cosY;
                 const cosX = Math.cos(incRad);
                 const sinX = Math.sin(incRad);
-                return outVec.set(x1, -z1 * sinX, z1 * cosX);
+                const y2 = -z1 * sinX;
+                const z2 = z1 * cosX;
+                if (ascNodeRad !== 0) {
+                    const cosO = Math.cos(ascNodeRad);
+                    const sinO = Math.sin(ascNodeRad);
+                    return outVec.set(x1 * cosO + z2 * sinO, y2, -x1 * sinO + z2 * cosO);
+                }
+                return outVec.set(x1, y2, z2);
             }
             return outVec.set(x, 0, z);
         }
@@ -1272,10 +1306,10 @@ export class SceneManager {
                 if (!Number.isNaN(launchMs) && this.simDate) {
                     const yearsSinceLaunch = Math.max(0, (this.simDate.getTime() - launchMs) / (365.25 * 24 * 60 * 60 * 1000));
                     if (isVoyager1 || isVoyager2) {
-                        const auPerYear = isVoyager1 ? 3.57 : 3.15;
+                        const auPerYear = isVoyager1 ? 3.483 : 2.914;
                         const radialDistAU = 1.0 + yearsSinceLaunch * auPerYear;
-                        const azimuth = isVoyager1 ? 0.68 : -1.15;
-                        const elevation = THREE.MathUtils.degToRad(isVoyager1 ? 35 : -48);
+                        const azimuth = isVoyager1 ? 1.8059 : 1.2175;
+                        const elevation = THREE.MathUtils.degToRad(isVoyager1 ? 35.01 : -38.45);
                         const cosEl = Math.cos(elevation);
                         outVec.set(
                             radialDistAU * cosEl * Math.cos(azimuth),
@@ -1344,10 +1378,10 @@ export class SceneManager {
                 if (e > 0) {
                     const E = solveKepler(angle, e);
                     localX = a * (Math.cos(E) - e);
-                    localZ = b * Math.sin(E);
+                    localZ = -b * Math.sin(E);
                 } else {
                     localX = Math.cos(angle) * a;
-                    localZ = Math.sin(angle) * a;
+                    localZ = -Math.sin(angle) * a;
                 }
 
                 let localY = 0;

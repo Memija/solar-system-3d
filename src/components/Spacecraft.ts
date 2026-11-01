@@ -408,7 +408,7 @@ export class Spacecraft {
             const E = (i / segments) * Math.PI * 2;
             positions[i * 3] = a * (Math.cos(E) - e);
             positions[i * 3 + 1] = 0;
-            positions[i * 3 + 2] = b * Math.sin(E);
+            positions[i * 3 + 2] = -b * Math.sin(E);
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -474,14 +474,14 @@ export class Spacecraft {
 
                 if (isVoyager1 || isVoyager2) {
                     // Heliocentric interstellar escape trajectory departing 1 AU (130 units):
-                    // Voyager 1 climbs +35 deg north toward Ophiuchus (~3.57 AU/yr);
-                    // Voyager 2 dives -48 deg south toward Pavo (~3.15 AU/yr).
-                    const auPerYear = isVoyager1 ? 3.57 : 3.15;
+                    // Voyager 1 climbs +35.01 deg north toward Ophiuchus (~3.483 AU/yr, ecliptic lon 256.53 deg);
+                    // Voyager 2 dives -38.45 deg south toward Pavo (~2.914 AU/yr, ecliptic lon 290.24 deg).
+                    const auPerYear = isVoyager1 ? 3.483 : 2.914;
                     const radialDist = this.realisticDistances
                         ? (1.0 + yearsSinceLaunch * auPerYear) * 130
                         : 130 + yearsSinceLaunch * (isVoyager1 ? 16.5 : 14.2);
-                    const azimuth = isVoyager1 ? 0.68 : -1.15;
-                    const elevation = THREE.MathUtils.degToRad(isVoyager1 ? 35 : -48);
+                    const azimuth = isVoyager1 ? 1.8059 : 1.2175;
+                    const elevation = THREE.MathUtils.degToRad(isVoyager1 ? 35.01 : -38.45);
                     const cosEl = Math.cos(elevation);
 
                     this.orbitGroup.position.set(
@@ -517,13 +517,12 @@ export class Spacecraft {
                 const effectiveSimTimePassed = yearsSinceLaunch * earthYearInSimSeconds;
 
                 const baseAngle = this.data.baseLongitude || 0;
-                this.angle = (baseAngle + speed * effectiveSimTimePassed) % (Math.PI * 2);
+                this.angle = (((baseAngle + speed * effectiveSimTimePassed) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
             } else if (simTimePassed !== undefined) {
                 const baseAngle = this.data.baseLongitude || 0;
-                this.angle = (baseAngle + speed * simTimePassed) % (Math.PI * 2);
+                this.angle = (((baseAngle + speed * simTimePassed) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
             } else {
-                this.angle += speed * deltaTime;
-                this.angle = this.angle % (Math.PI * 2);
+                this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
             }
 
             const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
@@ -537,14 +536,14 @@ export class Spacecraft {
                 const M = this.angle;
                 const E = solveKepler(M, e);
                 x = a * (Math.cos(E) - e);
-                z = b * Math.sin(E);
+                z = -b * Math.sin(E);
             } else {
                 x = Math.cos(this.angle) * a;
-                z = Math.sin(this.angle) * a;
+                z = -Math.sin(this.angle) * a;
             }
 
             this.orbitGroup.position.set(x, 0, z);
-            this.mesh.rotation.y = -this.angle;
+            this.mesh.rotation.y = this.angle;
         }
     }
 

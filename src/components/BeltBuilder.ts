@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MajorStarsData } from './MajorStarsData';
+import { equatorialToEcliptic3D } from './MathUtils';
 
 export interface StarfieldHandle {
     skybox: THREE.Mesh;
@@ -302,18 +303,13 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
     const starMeshes: THREE.Object3D[] = [];
 
     MajorStarsData.forEach(star => {
-        const raRad = (star.ra / 24) * Math.PI * 2;
-        const decRad = (star.dec / 180) * Math.PI;
-
-        const x = majorStarRadius * Math.cos(decRad) * Math.cos(raRad);
-        const z = -majorStarRadius * Math.cos(decRad) * Math.sin(raRad);
-        const y = majorStarRadius * Math.sin(decRad);
+        const ecl = equatorialToEcliptic3D(star.ra, star.dec, majorStarRadius);
 
         const starMat = new THREE.MeshBasicMaterial({ color: star.color });
         majorMaterials.push(starMat);
 
         const starMesh = new THREE.Mesh(sharedMajorGeo, starMat);
-        starMesh.position.set(x, y, z);
+        starMesh.position.set(ecl.x, ecl.y, ecl.z);
         starMesh.userData = star;
         starMesh.matrixAutoUpdate = false;
         starMesh.updateMatrix();

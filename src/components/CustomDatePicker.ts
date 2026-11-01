@@ -83,6 +83,7 @@ export interface CustomDatePickerOptions {
     displayId?: string;
     ariaLabel?: string;
     ariaLabelKey?: string;
+    onSnapToLive?: (date: Date) => void;
 }
 
 export class CustomDatePicker {
@@ -134,6 +135,7 @@ export class CustomDatePicker {
 
     private onChange: (date: Date) => void;
     private onOpen?: () => void;
+    private onSnapToLive?: (date: Date) => void;
     private onClickOutsideBound: (e: MouseEvent) => void;
     private onResizeBound: () => void;
     private unregisterI18n: (() => void) | null = null;
@@ -311,6 +313,7 @@ export class CustomDatePicker {
         this.viewDate = new Date(initialDate.getTime());
         this.onChange = onChange;
         this.onOpen = onOpen;
+        this.onSnapToLive = options?.onSnapToLive;
         this.isPortaled = Boolean(options?.portalContainer);
         this.customAriaLabel = options?.ariaLabel;
         this.ariaLabelKey = options?.ariaLabelKey;
@@ -439,6 +442,7 @@ export class CustomDatePicker {
             const now = new Date();
             this.setDate(now);
             this.onChange(now);
+            this.onSnapToLive?.(now);
             this.closePopup();
         };
         heroActions.appendChild(livePill);

@@ -42,9 +42,17 @@ export class Comet {
     init() {
         this.parent.add(this.baseGroup);
 
-        // Apply orbital inclination and argument of periapsis to the base group
-        this.baseGroup.rotation.y = THREE.MathUtils.degToRad(this.data.argumentOfPeriapsis);
-        this.baseGroup.rotation.x = THREE.MathUtils.degToRad(this.data.inclination);
+        // Apply 3D orbital orientation M = R_y(Omega) * R_x(i) * R_y(omega)
+        const innerEuler = new THREE.Euler(
+            THREE.MathUtils.degToRad(this.data.inclination),
+            THREE.MathUtils.degToRad(this.data.argumentOfPeriapsis),
+            0,
+            'XYZ'
+        );
+        const qInner = new THREE.Quaternion().setFromEuler(innerEuler);
+        const ascNodeRad = THREE.MathUtils.degToRad(this.data.longitudeOfAscendingNode ?? 0);
+        const qNode = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ascNodeRad);
+        this.baseGroup.quaternion.multiplyQuaternions(qNode, qInner);
 
         this.baseGroup.add(this.orbitGroup);
 
@@ -229,7 +237,7 @@ export class Comet {
         for (let i = 0; i <= segments; i++) {
             const E = (i / segments) * Math.PI * 2;
             const x = this.a * (Math.cos(E) - this.e);
-            const z = this.b * Math.sin(E);
+            const z = -this.b * Math.sin(E);
             vertices.push(x, 0, z);
         }
 
@@ -241,22 +249,21 @@ export class Comet {
     }
 
     update(deltaTime: number, simTimePassed?: number, rawDelta?: number) {
-        const n = (Math.PI * 2) / this.data.period;
         const speedMultiplier = 0.5;
+        const speed = (1 / this.data.period) * speedMultiplier;
 
         if (simTimePassed !== undefined) {
             const baseAngle = this.data.baseLongitude || 0;
-            this.angle = (baseAngle + n * simTimePassed * speedMultiplier) % (Math.PI * 2);
+            this.angle = (((baseAngle + speed * simTimePassed) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         } else {
-            this.angle += n * deltaTime * speedMultiplier;
-            this.angle = this.angle % (Math.PI * 2);
+            this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         }
 
         const M = this.angle;
         const E = solveKepler(M, this.e);
 
         const x = this.a * (Math.cos(E) - this.e);
-        const z = this.b * Math.sin(E);
+        const z = -this.b * Math.sin(E);
 
         this.orbitGroup.position.set(x, 0, z);
 
@@ -275,7 +282,7 @@ export class Comet {
             material.uniforms.sunDirection.value.copy(Comet._tempDir);
 
             // Trailing orbital lateral vector (opposite instantaneous velocity tangent) for dust-tail curvature
-            Comet._tempLateral.set(this.a * Math.sin(E), 0, -this.b * Math.cos(E));
+            Comet._tempLateral.set(this.a * Math.sin(E), 0, this.b * Math.cos(E));
             if (Comet._tempLateral.lengthSq() > 1e-6) {
                 Comet._tempLateral.normalize();
             } else {

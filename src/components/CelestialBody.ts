@@ -2,7 +2,12 @@ import * as THREE from 'three';
 
 import { CelestialBodyData, MoonData } from './SolarSystemData';
 import { vertexShader as sunVertexShader, fragmentShader as sunFragmentShader } from './SunShader';
-import { solveKepler } from './MathUtils';
+import {
+    computeGMSTRadians,
+    computeKeplerianOrbitPoint,
+    computeKeplerianState,
+    KeplerianState
+} from './MathUtils';
 import { TextureGenerator } from './TextureGenerator';
 import { i18n } from '../i18n';
 
@@ -89,6 +94,7 @@ export class CelestialBody {
     velocityVectorGroup: THREE.Group | null = null;
     velocityPulseChevron: THREE.Mesh | null = null;
     private velocityPulseTimer: number = 0;
+    private cloudDriftOffset: number = 0;
     showMeteors: boolean;
 
     trailLine: THREE.Line | null;
@@ -107,6 +113,7 @@ export class CelestialBody {
     private static _tempMeteorDir = new THREE.Vector3();
     private static _tempTangent = new THREE.Vector3();
     private static _unitZ = new THREE.Vector3(0, 0, 1);
+    private static _tempKeplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
 
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D, isMoon: boolean = false) {
         this.data = data;
@@ -114,7 +121,9 @@ export class CelestialBody {
         this.isMoon = isMoon;
         this.mesh = null;
         this.orbitLine = null;
-        this.angle = THREE.MathUtils.seededRandom() * Math.PI * 2;
+        this.angle = ('baseLongitude' in data && typeof data.baseLongitude === 'number')
+            ? data.baseLongitude
+            : THREE.MathUtils.seededRandom() * Math.PI * 2;
         this.moons = [];
         this.orbitGroup = new THREE.Group(); // Initialize here to satisfy TS
         this.tiltGroup = new THREE.Group();
@@ -137,10 +146,10 @@ export class CelestialBody {
         this.orbitGroup = new THREE.Group();
         this.parent.add(this.orbitGroup);
 
-        // Group to handle axial tilt
+        // Group to handle axial tilt in J2000 Ecliptic frame (+X = Vernal Equinox, -Z = June Solstice direction)
         this.tiltGroup = new THREE.Group();
         if (this.data.axialTilt !== undefined) {
-            this.tiltGroup.rotation.z = THREE.MathUtils.degToRad(this.data.axialTilt); // Tilt on Z axis
+            this.tiltGroup.rotation.x = -THREE.MathUtils.degToRad(this.data.axialTilt);
         }
         this.orbitGroup.add(this.tiltGroup);
 
@@ -982,13 +991,14 @@ export class CelestialBody {
 
         const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
         const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
-        const b = a * Math.sqrt(1 - e * e);
+        const inc = this.data.inclination ?? 0;
+        const varpi = this.data.longitudeOfPerihelion ?? 0;
+        const bigOmega = this.data.longitudeOfAscendingNode ?? 0;
 
         for (let i = 0; i <= segments; i++) {
             const E = (i / segments) * Math.PI * 2;
-            const x = a * (Math.cos(E) - e);
-            const z = b * Math.sin(E);
-            vertices.push(x, 0, z);
+            const pt = computeKeplerianOrbitPoint(E, a, e, inc, varpi, bigOmega);
+            vertices.push(pt.x, pt.y, pt.z);
         }
 
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
@@ -1018,40 +1028,65 @@ export class CelestialBody {
             this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         }
 
-        let x = 0;
-        let z = 0;
+        const st = CelestialBody._tempKeplerState;
 
         if (this.data.distance !== 0) {
             const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
-            const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
-            const b = a * Math.sqrt(1 - e * e);
+            computeKeplerianState(
+                this.angle,
+                a,
+                this.data.eccentricity ?? 0,
+                !this.realisticDistances,
+                this.data.inclination ?? 0,
+                this.data.longitudeOfPerihelion ?? 0,
+                this.data.longitudeOfAscendingNode ?? 0,
+                dir,
+                st
+            );
+            this.orbitGroup.position.set(st.x, st.y, st.z);
+        } else {
+            st.x = 0;
+            st.y = 0;
+            st.z = 0;
+            st.tx = 0;
+            st.ty = 0;
+            st.tz = -1;
+            this.orbitGroup.position.set(0, 0, 0);
+        }
 
-            if (e > 0) {
-                let M = this.angle;
-                let E = solveKepler(M, e);
-                x = a * (Math.cos(E) - e);
-                z = b * Math.sin(E);
+        // Rotate planet or moon on its axis (around local Y axis, tilted via tiltGroup)
+        if (this.mesh) {
+            if ('tidallyLocked' in this.data && this.data.tidallyLocked && this.data.distance !== 0) {
+                // Keep local +X (u = 0.5 prime meridian / lunar near-side center) facing parent body at (0, 0, 0)
+                this.mesh.rotation.y = Math.atan2(st.z, -st.x);
+            } else if (simTimePassed !== undefined) {
+                const daysSinceJ2000 = (simTimePassed * 365.25) / (Math.PI * 4);
+                if (this.data.name === 'Earth') {
+                    this.mesh.rotation.y = computeGMSTRadians(daysSinceJ2000);
+                } else {
+                    const rotationDays = ('rotationPeriodDays' in this.data && this.data.rotationPeriodDays)
+                        ? this.data.rotationPeriodDays
+                        : (this.data.name === 'Haumea' ? 0.16314 : 1.0);
+                    const baseRot = ('baseRotation' in this.data && typeof this.data.baseRotation === 'number')
+                        ? this.data.baseRotation
+                        : 0;
+                    const turns = (((daysSinceJ2000 / rotationDays) % 1) + 1) % 1;
+                    this.mesh.rotation.y = (baseRot + turns * Math.PI * 2) % (Math.PI * 2);
+                }
             } else {
-                x = Math.cos(this.angle) * a;
-                z = Math.sin(this.angle) * a;
+                const rotationDays = ('rotationPeriodDays' in this.data && this.data.rotationPeriodDays)
+                    ? this.data.rotationPeriodDays
+                    : (this.data.name === 'Haumea' ? 0.16314 : 1.0);
+                const daysDelta = (deltaTime * 365.25) / (Math.PI * 4);
+                this.mesh.rotation.y = (this.mesh.rotation.y + (daysDelta / rotationDays) * Math.PI * 2) % (Math.PI * 2);
             }
         }
 
-        // Move the group
-        this.orbitGroup.position.set(x, 0, z);
-
-        // Rotate planet on its axis
-        if (this.mesh) {
-            // Rotate around local Y axis (which is tilted via tiltGroup)
-            // Haumea has an exceptionally rapid rotation period (~3.9 hours)
-            const rotationSpeed = this.data.name === 'Haumea' ? 2.5 : 0.5;
-            this.mesh.rotation.y += rotationSpeed * deltaTime;
-        }
-
-        // Rotate Clouds independently with real-time atmospheric circulation drift
+        // Rotate Clouds coupled to planetary surface spin plus subtle real-time atmospheric drift
         if (this.cloudMesh) {
-            const atmosphericDrift = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 0.045 : 0;
-            this.cloudMesh.rotation.y += 0.55 * deltaTime + atmosphericDrift;
+            const atmosphericDrift = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 0.004 : 0;
+            this.cloudDriftOffset = (this.cloudDriftOffset + atmosphericDrift + deltaTime * 0.6) % (Math.PI * 2);
+            this.cloudMesh.rotation.y = (this.mesh ? this.mesh.rotation.y : 0) + this.cloudDriftOffset;
         }
 
         // Update Shader Time
@@ -1066,8 +1101,8 @@ export class CelestialBody {
         }
 
         // Update Orbital Velocity Vector (zero per-frame heap allocations)
-        if (this.velocityVectorGroup && this.velocityVectorGroup.visible) {
-            const tangent = CelestialBody._tempTangent.set(-Math.sin(this.angle) * dir, 0, Math.cos(this.angle) * dir).normalize();
+        if (this.velocityVectorGroup && this.velocityVectorGroup.visible && this.data.distance !== 0) {
+            const tangent = CelestialBody._tempTangent.set(st.tx, st.ty, st.tz).normalize();
             const visualScale = this.tiltGroup ? this.tiltGroup.scale.x : 1.0;
             const r = this.data.radius;
             const bodyScale = this.getVelocityBodyScale();

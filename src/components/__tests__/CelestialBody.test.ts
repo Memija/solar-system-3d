@@ -51,8 +51,8 @@ describe('CelestialBody', () => {
         expect(body.orbitLine).toBeInstanceOf(THREE.LineLoop);
         expect(body.moons).toHaveLength(0);
 
-        // Check tilt logic (Tilt is on the Z axis)
-        expect(body.tiltGroup.rotation.z).toBeCloseTo((23.5 * Math.PI) / 180);
+        // Check astronomical obliquity tilt around Vernal Equinox X axis toward -Z June Solstice
+        expect(body.tiltGroup.rotation.x).toBeCloseTo(-(23.5 * Math.PI) / 180);
     });
 
     it('should update orbit correctly', () => {
@@ -67,18 +67,18 @@ describe('CelestialBody', () => {
     });
 
     it('should add moons correctly', () => {
-         const earth = new CelestialBody(mockPlanetData, parentGroup);
-         const moon = new CelestialBody(mockMoonData, earth.orbitGroup, true);
+        const earth = new CelestialBody(mockPlanetData, parentGroup);
+        const moon = new CelestialBody(mockMoonData, earth.orbitGroup, true);
 
-         earth.moons.push(moon);
+        earth.moons.push(moon);
 
-         expect(earth.moons).toHaveLength(1);
-         expect(moon.parent).toBe(earth.orbitGroup);
-         expect(earth.mesh?.castShadow).toBe(true);
-         expect(earth.mesh?.receiveShadow).toBe(true);
-         expect(earth.cloudMesh?.receiveShadow).toBe(true);
-         expect(moon.mesh?.castShadow).toBe(true);
-         expect(moon.mesh?.receiveShadow).toBe(true);
+        expect(earth.moons).toHaveLength(1);
+        expect(moon.parent).toBe(earth.orbitGroup);
+        expect(earth.mesh?.castShadow).toBe(true);
+        expect(earth.mesh?.receiveShadow).toBe(true);
+        expect(earth.cloudMesh?.receiveShadow).toBe(true);
+        expect(moon.mesh?.castShadow).toBe(true);
+        expect(moon.mesh?.receiveShadow).toBe(true);
     });
 
     it('should initialize Earth with polar auroras, velocity vector, and dynamic clouds', () => {
@@ -265,5 +265,41 @@ describe('CelestialBody', () => {
 
         // Orbital speed should match known speed (0.2 km/s)
         expect(charon.getOrbitalSpeed()).toBe(0.2);
+    });
+
+    it('orbits prograde planets counter-clockwise from North (+Y) and keeps tidally locked Moon near-side facing Earth', () => {
+        const earthData = SolarSystemData.find(b => b.name === 'Earth')!;
+        const earth = new CelestialBody(earthData, parentGroup);
+        const moon = earth.moons[0];
+        expect(moon).toBeDefined();
+        expect(moon.data.tidallyLocked).toBe(true);
+
+        // Advance Earth by 1/8 year (simTimePassed = 0 -> PI/2): counter-clockwise means (r0 x r1).y = z0 * x1 - x0 * z1 > 0
+        earth.update(0, 0, 0);
+        const p0 = earth.orbitGroup.position.clone();
+        earth.update(0, Math.PI * 0.5, 0);
+        const p1 = earth.orbitGroup.position.clone();
+        const crossY = p0.z * p1.x - p0.x * p1.z;
+        expect(crossY).toBeGreaterThan(0);
+
+        // Check tidally locked Moon across 4 orbital quadrants: local +X (u = 0.5 lunar near-side center) faces Earth
+        for (const frac of [0, 0.25, 0.5, 0.75]) {
+            earth.update(0, frac * 4 * Math.PI * moon.data.period, 0);
+            parentGroup.updateMatrixWorld(true);
+
+            const earthPos = new THREE.Vector3();
+            const moonPos = new THREE.Vector3();
+            earth.mesh!.getWorldPosition(earthPos);
+            moon.mesh!.getWorldPosition(moonPos);
+
+            const toEarth = earthPos.clone().sub(moonPos).normalize();
+            const moonNearSideNormal = new THREE.Vector3(1, 0, 0)
+                .transformDirection(moon.mesh!.matrixWorld)
+                .normalize();
+
+            // Accounting for Moon's 6.68 deg axial tilt & 5.145 deg inclination (optical libration),
+            // the near-side prime meridian always points toward Earth (dot > 0.97)
+            expect(moonNearSideNormal.dot(toEarth)).toBeGreaterThan(0.97);
+        }
     });
 });

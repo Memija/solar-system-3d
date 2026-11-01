@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MajorConstellations } from './ConstellationData';
+import { equatorialToEcliptic3D } from './MathUtils';
 
 export class ConstellationManager {
     scene: THREE.Scene;
@@ -35,16 +36,10 @@ export class ConstellationManager {
 
             const points: THREE.Vector3[] = [];
 
-            // Create Stars
+            // Create Stars (transform J2000 Equatorial RA/Dec into J2000 Ecliptic scene coordinates)
             constellation.stars.forEach(star => {
-                const raRad = (star.ra / 24) * Math.PI * 2;
-                const decRad = (star.dec / 180) * Math.PI;
-
-                const x = radius * Math.cos(decRad) * Math.cos(raRad);
-                const z = -radius * Math.cos(decRad) * Math.sin(raRad);
-                const y = radius * Math.sin(decRad);
-
-                const pos = new THREE.Vector3(x, y, z);
+                const ecl = equatorialToEcliptic3D(star.ra, star.dec, radius);
+                const pos = new THREE.Vector3(ecl.x, ecl.y, ecl.z);
                 points.push(pos);
 
                 const starMesh = new THREE.Mesh(this.sharedStarGeometry!, this.sharedStarMaterial!);

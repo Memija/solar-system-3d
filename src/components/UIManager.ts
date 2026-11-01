@@ -333,6 +333,13 @@ export class UIManager {
                 this.sceneManager.timeScale = 0;
                 this.sceneManager.onTimeScaleChange?.(0);
                 this.controlCenter?.syncTimePanel();
+            },
+            {
+                onSnapToLive: () => {
+                    this.sceneManager.timeScale = SceneManager.SPEED_PRESETS.realTime;
+                    this.sceneManager.onTimeScaleChange?.(SceneManager.SPEED_PRESETS.realTime);
+                    this.controlCenter?.syncTimePanel();
+                }
             }
         );
 
