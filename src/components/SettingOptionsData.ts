@@ -66,6 +66,15 @@ export const SETTING_OPTIONS_INFO: Record<string, SettingOptionInfo> = {
         fallbackCategory: 'Simulation Dynamics',
         summary: 'Calculate authentic planetary coordinates for any historical or future date across millennia.'
     },
+    ephemeris: {
+        id: 'ephemeris',
+        iconName: 'calendar',
+        titleKey: 'ui.ephemerisTag',
+        fallbackTitle: 'Ephemeris',
+        categoryKey: 'datepicker.chronometerTitle',
+        fallbackCategory: 'Astronavigation Chronometer',
+        summary: 'A reference table of calculated celestial coordinates used to determine exact positions of the Sun, Moon, planets, comets, and spacecraft at any historical or future date.'
+    },
     showOrbits: {
         id: 'showOrbits',
         iconName: 'orbits',
@@ -313,6 +322,7 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         speedPresets: 'Calibrated time-warp presets from 1:1 real-time up to 1 month per second.',
         timeSpeed: 'Adjust forward simulation speed smoothly in fine 0.005 day/s increments.',
         jumpToDate: 'Calculate authentic planetary coordinates for any historical or future date across millennia.',
+        ephemeris: 'A reference table of calculated celestial coordinates used to determine exact positions of the Sun, Moon, planets, comets, and spacecraft at any historical or future date.',
         showOrbits: 'Toggles elliptical Keplerian orbital trajectory paths for all celestial bodies.',
         showMoons: 'Displays 3D models and orbital positions for natural satellites orbiting host worlds.',
         showConstellations: 'Displays classical celestial constellations and stellar asterism lines on the night sky sphere.',
@@ -344,6 +354,7 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         speedPresets: 'Kalibrisane brzine protoka vremena od realnog vremena 1:1 do 1 mjeseca u sekundi.',
         timeSpeed: 'Glatko podešavanje brzine simulacije u finim koracima od 0.005 dana/sekundi.',
         jumpToDate: 'Izračunajte autentične koordinate planeta za bilo koji historijski ili budući datum.',
+        ephemeris: 'Referentna tabela izračunatih nebeskih koordinata koja određuje tačne položaje Sunca, Mjeseca, planeta, kometa i letjelica za bilo koji historijski ili budući datum.',
         showOrbits: 'Prikazuje eliptične Keplerove orbitalne putanje za sva nebeska tijela.',
         showMoons: 'Prikazuje 3D modele i orbitalne položaje prirodnih satelita oko matičnih planeta.',
         showConstellations: 'Prikazuje klasična zvjezdana sazviježđa i linije asterizama na nebeskoj sferi.',
@@ -375,6 +386,7 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         speedPresets: 'Калибрисане брзине протока времена од реалног времена 1:1 до 1 месеца у секунди.',
         timeSpeed: 'Глатко подешавање брзине симулације у финим корацима од 0.005 дана/секунди.',
         jumpToDate: 'Израчунајте аутентичне координате планета за било који историјски или будући датум.',
+        ephemeris: 'Референтна табела израчунатих небеских координата која одређује тачне положаје Сунца, Месеца, планета, комета и летелица за било који историјски или будући датум.',
         showOrbits: 'Приказује елиптичне Кеплерове орбиталне путање за сва небеска тела.',
         showMoons: 'Приказује 3D моделе и орбиталне положаје природних сателита око матичних планета.',
         showConstellations: 'Приказује класична сазвежђа и линије астеризама на небеској сфери.',
@@ -406,6 +418,7 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         speedPresets: 'Kalibrierte Zeitstufen von Echtzeit 1:1 bis zu 1 Monat pro Sekunde.',
         timeSpeed: 'Feinfühlige Geschwindigkeitsregelung in Schritten von 0,005 Tagen/Sekunde.',
         jumpToDate: 'Berechnet authentische Planetenkoordinaten für jedes historische oder zukünftige Datum.',
+        ephemeris: 'Eine Referenzkarte berechneter Himmelskoordinaten zur Bestimmung der exakten Positionen von Sonne, Mond, Planeten, Kometen und Raumsonden zu jedem historischen oder zukünftigen Datum.',
         showOrbits: 'Zeigt elliptische Kepler-Bahnen aller Himmelskörper im Raum an.',
         showMoons: 'Blendet 3D-Modelle und Umlaufbahnen natürlicher Monde um ihre Heimatwelten ein.',
         showConstellations: 'Blendet klassische Sternbilder und Verbindungslinien auf der Himmelskugel ein.',
@@ -437,6 +450,7 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         speedPresets: 'Preset laju waktu terkalibrasi dari waktu nyata 1:1 hingga 1 bulan per detik.',
         timeSpeed: 'Atur laju simulasi maju secara halus dalam kenaikan 0,005 hari/detik.',
         jumpToDate: 'Hitung koordinat planet autentik untuk tanggal historis maupun masa depan lintas milenium.',
+        ephemeris: 'Tabel referensi koordinat benda langit terhitung untuk menentukan posisi presisi Matahari, Bulan, planet, komet, dan wahana antariksa pada tanggal historis maupun masa depan.',
         showOrbits: 'Menampilkan garis lintasan orbit Kepler elips untuk semua benda langit.',
         showMoons: 'Menampilkan model 3D dan posisi orbit satelit alami yang mengitari planet induknya.',
         showConstellations: 'Menampilkan rasi bintang klasik dan garis asterisme di bola langit malam.',
@@ -468,6 +482,7 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         speedPresets: 'Skalibrowane prędkości czasu od rzeczywistego 1:1 do 1 miesiąca na sekundę.',
         timeSpeed: 'Płynna regulacja prędkości symulacji w precyzyjnych krokach co 0,005 dnia/s.',
         jumpToDate: 'Oblicza autentyczne pozycje planet dla dowolnej daty historycznej lub przyszłej.',
+        ephemeris: 'Tabela referencyjna obliczonych współrzędnych niebieskich służąca do wyznaczania dokładnych pozycji Słońca, Księżyca, planet, komet i sond w dowolnej dacie historycznej lub przyszłej.',
         showOrbits: 'Włącza eliptyczne trajektorie orbit keplerowskich dla wszystkich ciał niebieskich.',
         showMoons: 'Wyświetla modele 3D i orbity naturalnych satelitów krążących wokół planet.',
         showConstellations: 'Wyświetla klasyczne gwiazdozbiory i linie asteryzmów na sferze niebieskiej.',
@@ -494,6 +509,71 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         measureMode: 'Mierzy odległości astronomiczne w czasie rzeczywistym (w j.a. i mln km) między dwoma wybranymi ciałami niebieskimi.'
     }
 };
+
+export interface EphemerisTimeDetails {
+    jdBadge: string;
+    jdTitle: string;
+    jdDesc: string;
+    j2000Badge: string;
+    j2000Title: string;
+    j2000Desc: string;
+}
+
+export const EPHEMERIS_TIME_DETAILS: Record<SupportedLanguage, EphemerisTimeDetails> = {
+    en: {
+        jdBadge: 'JD',
+        jdTitle: 'Julian Date (JD)',
+        jdDesc: 'A continuous count of days elapsed since noon UTC on January 1, 4713 BC, allowing astronomers to compute exact time intervals across millennia without calendar or leap-year irregularities.',
+        j2000Badge: 'J2000',
+        j2000Title: 'J2000.0 Epoch Offset',
+        j2000Desc: 'The exact number of days before (-) or after (+) January 1, 2000 at 12:00 UTC (JD 2451545.0) — the standard NASA JPL reference baseline used to propagate all planetary orbits.'
+    },
+    bs: {
+        jdBadge: 'JD',
+        jdTitle: 'Julijanski datum (JD)',
+        jdDesc: 'Neprekidni broj dana proteklih od podneva (UTC) 1. januara 4713. p.n.e., što astronomima omogućava tačan izračun vremenskih razmaka kroz milenije bez kalendarskih nepravilnosti i prestupnih godina.',
+        j2000Badge: 'J2000',
+        j2000Title: 'Pomak od epohe J2000.0',
+        j2000Desc: 'Tačan broj dana prije (-) ili poslije (+) 1. januara 2000. u 12:00 UTC (JD 2451545.0) — standardne NASA JPL referentne tačke iz koje se izračunavaju sve orbitalne putanje.'
+    },
+    sr: {
+        jdBadge: 'ЈД',
+        jdTitle: 'Јулијански датум (ЈД)',
+        jdDesc: 'Непрекидни број дана протеклих од поднева (UTC) 1. јануара 4713. п.н.е., што астрономима омогућава тачан прорачун временских интервала кроз миленијуме без календарских неправилности и преступних година.',
+        j2000Badge: 'J2000',
+        j2000Title: 'Помак од епохе J2000.0',
+        j2000Desc: 'Тачан број дана пре (-) или после (+) 1. јануара 2000. у 12:00 UTC (ЈД 2451545.0) — стандардне NASA JPL референтне тачке из које се израчунавају све орбиталне путање.'
+    },
+    de: {
+        jdBadge: 'JD',
+        jdTitle: 'Julianisches Datum (JD)',
+        jdDesc: 'Eine fortlaufende Zählung der Tage seit dem 1. Januar 4713 v. Chr. um 12:00 Uhr UTC, mit der Astronomen exakte Zeitspannen über Jahrtausende ohne Schaltjahres- oder Kalenderabweichungen berechnen.',
+        j2000Badge: 'J2000',
+        j2000Title: 'J2000.0-Epochenabstand',
+        j2000Desc: 'Die genaue Anzahl der Tage vor (-) oder nach (+) dem 1. Januar 2000 um 12:00 Uhr UTC (JD 2451545,0) — der Standard-Referenzepoche der NASA JPL zur Berechnung aller Planetenbahnen.'
+    },
+    id: {
+        jdBadge: 'JD',
+        jdTitle: 'Tanggal Julian (JD)',
+        jdDesc: 'Hitungan hari berkelanjutan sejak tengah hari UTC pada 1 Januari 4713 SM, memungkinkan astronom menghitung selang waktu presisi lintas milenium tanpa kerumitan tahun kabisat atau kalender.',
+        j2000Badge: 'J2000',
+        j2000Title: 'Selisih Epos J2000.0',
+        j2000Desc: 'Jumlah hari presisi sebelum (-) atau sesudah (+) 1 Januari 2000 pukul 12:00 UTC (JD 2451545.0) — titik acuan standar NASA JPL untuk menghitung posisi orbit seluruh benda langit.'
+    },
+    pl: {
+        jdBadge: 'JD',
+        jdTitle: 'Data Juliańska (JD)',
+        jdDesc: 'Ciągła liczba dni, które upłynęły od południa UTC 1 stycznia 4713 r. p.n.e., pozwalająca astronomom obliczać dokładne odstępy czasu przez tysiąclecia bez nieregularności kalendarza i lat przestępnych.',
+        j2000Badge: 'J2000',
+        j2000Title: 'Przesunięcie epoki J2000.0',
+        j2000Desc: 'Dokładna liczba dni przed (-) lub po (+) 1 stycznia 2000 r. o 12:00 UTC (JD 2451545,0) — standardowym punkcie odniesienia NASA JPL służącym do obliczania wszystkich orbit planetarnych.'
+    }
+};
+
+export function getEphemerisTimeDetails(): EphemerisTimeDetails {
+    const currentLang = (i18n.currentLanguage || 'en') as SupportedLanguage;
+    return EPHEMERIS_TIME_DETAILS[currentLang] || EPHEMERIS_TIME_DETAILS.en;
+}
 
 export function getSettingOptionInfo(id: string): {
     id: string;

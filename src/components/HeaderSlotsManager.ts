@@ -422,10 +422,14 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         icon: svgIcon('measure'),
         domId: 'hudSlot_measureMode',
         locked: true,
-        getState: (ui) => !!ui.sceneManager?.measureMode,
+        getState: (ui) => Boolean(ui.sceneManager?.measureMode ?? PreferencesManager.get('measureMode')),
         action: (ui) => {
+            const current = Boolean(ui.sceneManager?.measureMode ?? PreferencesManager.get('measureMode'));
             if (typeof ui.sceneManager?.toggleMeasureMode === 'function') {
-                ui.sceneManager.toggleMeasureMode(!ui.sceneManager.measureMode);
+                ui.sceneManager.toggleMeasureMode(!current);
+            } else if (ui.sceneManager) {
+                ui.sceneManager.measureMode = !current;
+                PreferencesManager.set('measureMode', !current);
             }
         }
     },

@@ -1,6 +1,7 @@
 import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 import { svgIcon, SvgIconName } from './SvgIcons';
+import { getSettingOptionInfo, getEphemerisTimeDetails } from './SettingOptionsData';
 
 export interface HistoricalSpaceEvent {
     id: 'sputnik1' | 'apollo11' | 'voyager1' | 'hubble' | 'iss' | 'jwst';
@@ -103,6 +104,11 @@ export class CustomDatePicker {
     private heroReturnBtn: HTMLButtonElement | null = null;
     private hudStatusTitleEl: HTMLElement | null = null;
     private hudEpochTagEl: HTMLElement | null = null;
+    private ephemerisInfoBtn: HTMLButtonElement | null = null;
+    private jdInfoBtn: HTMLButtonElement | null = null;
+    private activeInfoTargetEl: HTMLElement | null = null;
+    private ephemerisTooltipEl: HTMLElement | null = null;
+    private portalContainer: HTMLElement | null = null;
     private closeBtn: HTMLButtonElement | null = null;
     private livePill: HTMLButtonElement | null = null;
     private livePillLabelEl: HTMLElement | null = null;
@@ -206,10 +212,28 @@ export class CustomDatePicker {
             );
         }
         if (this.hudStatusTitleEl) {
-            this.hudStatusTitleEl.textContent = this.tr('datepicker.chronometerTitle', 'ASTRONAVIGATION CHRONOMETER');
+            this.hudStatusTitleEl.textContent = this.tr('datepicker.chronometerTitle', 'Astronavigation Chronometer');
         }
         if (this.hudEpochTagEl) {
-            this.hudEpochTagEl.textContent = this.tr('ui.ephemerisTag', 'EPHEMERIS');
+            this.hudEpochTagEl.textContent = this.tr('ui.ephemerisTag', 'Ephemeris');
+            const info = getSettingOptionInfo('ephemeris');
+            if (info?.summary) {
+                this.hudEpochTagEl.title = info.summary;
+            }
+        }
+        if (this.ephemerisInfoBtn) {
+            const info = getSettingOptionInfo('ephemeris');
+            const infoWord = this.tr('ui.help', 'Information');
+            const titleText = info?.title || this.tr('ui.ephemerisTag', 'Ephemeris');
+            this.ephemerisInfoBtn.setAttribute('aria-label', `${infoWord}: ${titleText}`);
+            if (this.ephemerisTooltipEl?.classList.contains('visible')) {
+                this.showEphemerisTooltip(this.activeInfoTargetEl || this.ephemerisInfoBtn);
+            }
+        }
+        if (this.jdInfoBtn) {
+            const details = getEphemerisTimeDetails();
+            const infoWord = this.tr('ui.help', 'Information');
+            this.jdInfoBtn.setAttribute('aria-label', `${infoWord}: ${details.jdTitle} & ${details.j2000Title}`);
         }
         if (this.closeBtn) {
             this.closeBtn.setAttribute('aria-label', this.tr('datepicker.closeCalendarAria', 'Close Calendar'));
@@ -229,7 +253,7 @@ export class CustomDatePicker {
             this.livePill.title = this.tr('datepicker.snapToToday', 'Snap to Real-Time Today');
         }
         if (this.livePillLabelEl) {
-            this.livePillLabelEl.textContent = this.tr('datepicker.todayShort', 'TODAY');
+            this.livePillLabelEl.textContent = this.tr('datepicker.todayShort', 'Today');
         }
 
         const uDay = this.tr('datepicker.stepUnits.day', 'd');
@@ -286,7 +310,7 @@ export class CustomDatePicker {
         });
 
         if (this.milestoneHeaderTitleEl) {
-            this.milestoneHeaderTitleEl.textContent = this.tr('datepicker.spaceMilestones', 'SPACE FLIGHT MILESTONES');
+            this.milestoneHeaderTitleEl.textContent = this.tr('datepicker.spaceMilestones', 'Space Flight Milestones');
         }
         this.milestoneChipEls.forEach(({ evt, chip, labelEl }) => {
             const locName = getLocalizedEventName(evt);
@@ -314,6 +338,7 @@ export class CustomDatePicker {
         this.onChange = onChange;
         this.onOpen = onOpen;
         this.onSnapToLive = options?.onSnapToLive;
+        this.portalContainer = options?.portalContainer || null;
         this.isPortaled = Boolean(options?.portalContainer);
         this.customAriaLabel = options?.ariaLabel;
         this.ariaLabelKey = options?.ariaLabelKey;
@@ -372,10 +397,46 @@ export class CustomDatePicker {
         const hudRight = document.createElement('div');
         hudRight.className = 'datepicker-hud-right';
 
+        const epochWrap = document.createElement('div');
+        epochWrap.className = 'datepicker-epoch-wrap';
+
         const epochTag = document.createElement('span');
         epochTag.className = 'datepicker-epoch-tag';
         this.hudEpochTagEl = epochTag;
-        hudRight.appendChild(epochTag);
+        epochWrap.appendChild(epochTag);
+
+        const epochInfoBtn = document.createElement('button');
+        epochInfoBtn.type = 'button';
+        epochInfoBtn.className = 'ctrl-info-btn datepicker-ephemeris-info-btn';
+        epochInfoBtn.dataset.optionId = 'ephemeris';
+        epochInfoBtn.textContent = 'i';
+        epochInfoBtn.addEventListener('mouseenter', () => {
+            this.showEphemerisTooltip(epochInfoBtn);
+        });
+        epochInfoBtn.addEventListener('mouseleave', () => {
+            this.hideEphemerisTooltip();
+        });
+        epochInfoBtn.addEventListener('focus', () => {
+            this.showEphemerisTooltip(epochInfoBtn);
+        });
+        epochInfoBtn.addEventListener('blur', () => {
+            this.hideEphemerisTooltip();
+        });
+        epochInfoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showEphemerisTooltip(epochInfoBtn);
+        });
+        epochTag.addEventListener('mouseenter', () => {
+            this.showEphemerisTooltip(epochInfoBtn);
+        });
+        epochTag.addEventListener('mouseleave', () => {
+            this.hideEphemerisTooltip();
+        });
+        this.ephemerisInfoBtn = epochInfoBtn;
+        epochWrap.appendChild(epochInfoBtn);
+
+        hudRight.appendChild(epochWrap);
 
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
@@ -401,11 +462,47 @@ export class CustomDatePicker {
         this.ephemerisBannerDate = document.createElement('div');
         this.ephemerisBannerDate.className = 'hero-date-readout';
 
+        const jdRow = document.createElement('div');
+        jdRow.className = 'hero-jd-row';
+
         this.ephemerisBannerJd = document.createElement('div');
         this.ephemerisBannerJd.className = 'hero-jd-readout';
 
+        const jdInfoBtn = document.createElement('button');
+        jdInfoBtn.type = 'button';
+        jdInfoBtn.className = 'ctrl-info-btn datepicker-jd-info-btn';
+        jdInfoBtn.dataset.optionId = 'ephemeris';
+        jdInfoBtn.textContent = 'i';
+        jdInfoBtn.addEventListener('mouseenter', () => {
+            this.showEphemerisTooltip(jdInfoBtn);
+        });
+        jdInfoBtn.addEventListener('mouseleave', () => {
+            this.hideEphemerisTooltip();
+        });
+        jdInfoBtn.addEventListener('focus', () => {
+            this.showEphemerisTooltip(jdInfoBtn);
+        });
+        jdInfoBtn.addEventListener('blur', () => {
+            this.hideEphemerisTooltip();
+        });
+        jdInfoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showEphemerisTooltip(jdInfoBtn);
+        });
+        this.ephemerisBannerJd.addEventListener('mouseenter', () => {
+            this.showEphemerisTooltip(jdInfoBtn);
+        });
+        this.ephemerisBannerJd.addEventListener('mouseleave', () => {
+            this.hideEphemerisTooltip();
+        });
+        this.jdInfoBtn = jdInfoBtn;
+
+        jdRow.appendChild(this.ephemerisBannerJd);
+        jdRow.appendChild(jdInfoBtn);
+
         heroLeft.appendChild(this.ephemerisBannerDate);
-        heroLeft.appendChild(this.ephemerisBannerJd);
+        heroLeft.appendChild(jdRow);
         heroBanner.appendChild(heroLeft);
 
         const heroActions = document.createElement('div');
@@ -1113,6 +1210,66 @@ export class CustomDatePicker {
         }
     }
 
+    public showEphemerisTooltip(targetEl: HTMLElement): void {
+        const info = getSettingOptionInfo('ephemeris');
+        if (!info) return;
+        const details = getEphemerisTimeDetails();
+        this.activeInfoTargetEl = targetEl;
+
+        if (!this.ephemerisTooltipEl) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'ctrl-info-tooltip datepicker-ephemeris-tooltip';
+            tooltip.setAttribute('role', 'tooltip');
+            const host = this.portalContainer || document.getElementById('ui-container') || document.body;
+            host.appendChild(tooltip);
+            this.ephemerisTooltipEl = tooltip;
+        }
+
+        const tooltip = this.ephemerisTooltipEl;
+        tooltip.innerHTML = `
+            <div class="ctrl-info-tooltip-header">
+                <div class="ctrl-info-tooltip-title-wrap">
+                    <span class="ctrl-info-tooltip-icon">${info.icon}</span>
+                    <span class="ctrl-info-tooltip-title">${info.title}</span>
+                </div>
+            </div>
+            <p class="ctrl-info-tooltip-desc">${info.summary}</p>
+            <div class="ephemeris-detail-list">
+                <div class="ephemeris-detail-item">
+                    <div class="ephemeris-detail-head">
+                        <span class="ephemeris-detail-badge">${details.jdBadge}</span>
+                        <span class="ephemeris-detail-title">${details.jdTitle}</span>
+                    </div>
+                    <p class="ephemeris-detail-desc">${details.jdDesc}</p>
+                </div>
+                <div class="ephemeris-detail-item">
+                    <div class="ephemeris-detail-head">
+                        <span class="ephemeris-detail-badge">${details.j2000Badge}</span>
+                        <span class="ephemeris-detail-title">${details.j2000Title}</span>
+                    </div>
+                    <p class="ephemeris-detail-desc">${details.j2000Desc}</p>
+                </div>
+            </div>
+        `;
+
+        if (targetEl && typeof targetEl.getBoundingClientRect === 'function') {
+            const rect = targetEl.getBoundingClientRect();
+            const tooltipWidth = 330;
+            const left = Math.max(12, Math.min(rect.right - tooltipWidth, window.innerWidth - tooltipWidth - 12));
+            const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 240));
+            tooltip.style.left = `${Math.round(left)}px`;
+            tooltip.style.top = `${Math.round(top)}px`;
+        }
+
+        tooltip.classList.add('visible');
+    }
+
+    public hideEphemerisTooltip(): void {
+        if (this.ephemerisTooltipEl) {
+            this.ephemerisTooltipEl.classList.remove('visible');
+        }
+    }
+
     public closePopup() {
         this.isOpen = false;
         this.domElement.classList.remove('is-open');
@@ -1120,6 +1277,7 @@ export class CustomDatePicker {
         this.domElement.closest('.date-panel-hud')?.classList.remove('is-datepicker-open');
         this.domElement.closest('.observatory-header-bar, .selection-menu-container')?.classList.remove('has-datepicker-open');
         this.popupElement.style.display = 'none';
+        this.hideEphemerisTooltip();
         this.closeYearModal();
     }
 
@@ -1153,7 +1311,7 @@ export class CustomDatePicker {
             const mName = months[this.currentDate.getUTCMonth()] || '';
             const yName = this.formatYear(this.currentDate.getUTCFullYear());
             const dNum = this.currentDate.getUTCDate();
-            this.ephemerisBannerDate.textContent = `${dNum} ${mName.toUpperCase()} ${yName}`;
+            this.ephemerisBannerDate.textContent = `${dNum} ${mName} ${yName}`;
         }
 
         if (this.ephemerisBannerJd) {
@@ -1339,6 +1497,10 @@ export class CustomDatePicker {
         }
         if (this.onResizeBound) {
             window.removeEventListener('resize', this.onResizeBound);
+        }
+        if (this.ephemerisTooltipEl && this.ephemerisTooltipEl.parentElement) {
+            this.ephemerisTooltipEl.parentElement.removeChild(this.ephemerisTooltipEl);
+            this.ephemerisTooltipEl = null;
         }
         if (this.yearModalElement && this.yearModalElement.parentElement) {
             this.yearModalElement.parentElement.removeChild(this.yearModalElement);

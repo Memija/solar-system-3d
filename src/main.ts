@@ -29,7 +29,7 @@ function renderBootFallback(title: string, description: string): void {
   container.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;height:100vh;height:100dvh;background:#02050d;color:#f8fafc;font-family:'Inter',sans-serif;padding:24px;text-align:center;">
       <div style="max-width:500px;background:rgba(15,23,42,0.92);border:1px solid rgba(56,189,248,0.4);border-radius:14px;padding:32px;box-shadow:0 0 40px rgba(0,0,0,0.8);">
-        <h2 style="color:#38bdf8;font-family:'Exo 2',sans-serif;font-size:22px;margin-top:0;letter-spacing:1.2px;text-transform:uppercase;">${title}</h2>
+        <h2 style="color:#38bdf8;font-family:'Exo 2',sans-serif;font-size:22px;margin-top:0;letter-spacing:1.2px;">${title}</h2>
         <p style="color:#cbd5e1;line-height:1.6;font-size:15px;margin-bottom:0;">
           ${description}
         </p>

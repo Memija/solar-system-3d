@@ -23,6 +23,11 @@ describe('PreferencesManager', () => {
         expect(manager.get('realisticLighting')).toBe(true);
     });
 
+    it('has measureMode activated by default', () => {
+        expect(DEFAULT_PREFERENCES.measureMode).toBe(true);
+        expect(manager.get('measureMode')).toBe(true);
+    });
+
     it('uses the exact application name key for localStorage', () => {
         expect(APP_STORAGE_KEY).toBe('solar-system-3d');
     });

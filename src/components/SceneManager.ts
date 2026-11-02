@@ -247,7 +247,7 @@ export class SceneManager {
         this.tourTimer = 0;
         this.tourInterval = 12;
 
-        this.measureMode = false;
+        this.measureMode = PreferencesManager.get('measureMode');
         this.measureTargetA = null;
         this.measureTargetB = null;
         this.measureLine = null;
@@ -1512,6 +1512,7 @@ export class SceneManager {
 
     toggleMeasureMode(visible: boolean) {
         this.measureMode = visible;
+        PreferencesManager.set('measureMode', visible);
         if (!visible) {
             this.measureTargetA = null;
             this.measureTargetB = null;

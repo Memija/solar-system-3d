@@ -9,6 +9,7 @@ export const APP_STORAGE_KEY = 'solar-system-3d';
 
 export interface UserPreferences {
     telemetry: boolean;
+    measureMode: boolean;
     language: string;
     audioEnabled: boolean;
     minimap: boolean;
@@ -45,6 +46,8 @@ export const DEFAULT_HEADER_SLOTS: readonly string[] = [
 export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     // Performance telemetry activated by default
     telemetry: true,
+    // Distance measuring tool activated by default
+    measureMode: true,
     language: 'en',
     audioEnabled: false,
     minimap: true,

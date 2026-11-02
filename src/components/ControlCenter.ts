@@ -362,7 +362,7 @@ export class ControlCenter {
         leftWrap.style.alignItems = 'center';
         leftWrap.style.gap = '8px';
         const ephTag = i18n.t('ui.ephemerisTag');
-        const ephText = ephTag && ephTag !== 'ui.ephemerisTag' ? ephTag : 'EPHEMERIS';
+        const ephText = ephTag && ephTag !== 'ui.ephemerisTag' ? ephTag : 'Ephemeris';
         leftWrap.innerHTML = `<span data-i18n-key="controls.sections.celestialNav">${i18n.t('controls.sections.celestialNav') || 'Celestial Navigation'}</span><span class="group-tag" data-i18n-key="ui.ephemerisTag">${ephText}</span>`;
         groupTitle.appendChild(leftWrap);
         groupTitle.appendChild(this.createInfoButton('celestialNav', 'Celestial Navigation'));
@@ -659,7 +659,7 @@ export class ControlCenter {
         jumpBtn.type = 'button';
         jumpBtn.className = 'master-action-btn jump-date-action-btn';
         jumpBtn.title = stripLeadingEmoji(this.tr('datepicker.snapToToday', 'Snap to Real-Time Today'));
-        jumpBtn.innerHTML = `<span>${svgIcon('globe')} <span data-i18n-key="datepicker.todayShort">${stripLeadingEmoji(i18n.t('datepicker.todayShort') || 'TODAY')}</span></span>`;
+        jumpBtn.innerHTML = `<span>${svgIcon('globe')} <span data-i18n-key="datepicker.todayShort">${stripLeadingEmoji(i18n.t('datepicker.todayShort') || 'Today')}</span></span>`;
         jumpBtn.onclick = () => {
             const now = new Date();
             this.applySelectedDate(now, false);
@@ -1235,7 +1235,7 @@ export class ControlCenter {
         measureSwitch.className = 'sci-switch';
         const measureInput = document.createElement('input');
         measureInput.type = 'checkbox';
-        measureInput.checked = !!this.sceneManager?.measureMode;
+        measureInput.checked = Boolean(this.sceneManager?.measureMode ?? true);
         measureInput.onchange = () => {
             if (typeof this.sceneManager?.toggleMeasureMode === 'function') {
                 this.sceneManager.toggleMeasureMode(measureInput.checked);
@@ -1395,7 +1395,7 @@ export class ControlCenter {
         setChecked('tourMode', sm.tourMode);
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
         setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
-        setChecked('measureMode', !!sm.measureMode);
+        setChecked('measureMode', Boolean(sm.measureMode ?? true));
 
         // Sync camera mode segmented buttons
         const isSurface = !!sm.surfaceViewBody;

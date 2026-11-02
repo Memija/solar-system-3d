@@ -376,7 +376,6 @@
         font-weight: 700;
         letter-spacing: 0.11em;
         color: $neon-cyan;
-        text-transform: uppercase;
 
         .hud-status-title {
             overflow: hidden;
@@ -402,6 +401,12 @@
         flex-shrink: 0;
     }
 
+    .datepicker-epoch-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
     .datepicker-epoch-tag {
         font-family: $font-mono;
         font-size: 8.5px;
@@ -412,7 +417,13 @@
         border: 1px solid rgba(56, 189, 248, 0.22);
         border-radius: 5px;
         padding: 2px 6px;
-        text-transform: uppercase;
+    }
+
+    .datepicker-ephemeris-info-btn {
+        margin-left: 0;
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
     }
 
     .datepicker-close-x-btn {
@@ -477,6 +488,13 @@
         text-overflow: ellipsis;
     }
 
+    .hero-jd-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+    }
+
     .hero-jd-readout {
         font-family: $font-mono;
         font-variant-numeric: tabular-nums;
@@ -485,6 +503,13 @@
         color: #7dd3fc;
         letter-spacing: 0.02em;
         white-space: nowrap;
+    }
+
+    .datepicker-jd-info-btn {
+        margin-left: 0;
+        width: 15px;
+        height: 15px;
+        font-size: 9.5px;
     }
 
     .hero-actions-wrap {
@@ -790,7 +815,6 @@
     font-weight: 700;
     color: #64748b;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 // 6. Days Matrix Grid
@@ -904,7 +928,6 @@
         color: #94a3b8;
         letter-spacing: 0.1em;
         margin-bottom: 8px;
-        text-transform: uppercase;
 
         .milestone-title-icon {
             display: inline-flex;
@@ -1073,7 +1096,6 @@
     font-size: 8.5px;
     font-weight: 700;
     letter-spacing: 0.12em;
-    text-transform: uppercase;
     color: #7dd3fc;
 }
 
@@ -1168,5 +1190,62 @@
         color: #020617 !important;
         font-weight: 800;
         box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
+    }
+}
+
+.datepicker-ephemeris-tooltip {
+    width: 330px !important;
+    padding: 12px 14px !important;
+
+    .ephemeris-detail-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 9px;
+        padding-top: 9px;
+        border-top: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .ephemeris-detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 7px 9px;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid rgba(56, 189, 248, 0.16);
+    }
+
+    .ephemeris-detail-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ephemeris-detail-badge {
+        font-family: $font-mono;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #7dd3fc;
+        background: rgba(56, 189, 248, 0.14);
+        border: 1px solid rgba(56, 189, 248, 0.32);
+        border-radius: 4px;
+        padding: 1px 5px;
+    }
+
+    .ephemeris-detail-title {
+        font-family: $font-sans;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .ephemeris-detail-desc {
+        font-family: $font-sans;
+        font-size: 11px;
+        line-height: 1.42;
+        color: #cbd5e1;
+        margin: 0;
     }
 }

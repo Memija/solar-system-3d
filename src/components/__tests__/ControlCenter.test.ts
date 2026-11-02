@@ -40,7 +40,7 @@ describe('ControlCenter Component', () => {
             tourTimer: 0,
             tourIndex: 0,
             tourTargets: ['Mercury', 'Venus', 'Earth'],
-            measureMode: false,
+            measureMode: true,
             bloomPass: { enabled: true },
             focusOnBody: vi.fn(),
             setSurfaceView: vi.fn(),
@@ -761,19 +761,19 @@ describe('ControlCenter Component', () => {
         const checkboxes = systemPanel!.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
         expect(checkboxes.length).toBe(3); // minimap, telemetry, measureMode
         const measureInput = checkboxes[2];
-        expect(measureInput.checked).toBe(false);
-
-        measureInput.checked = true;
-        measureInput.dispatchEvent(new Event('change'));
-        expect(mockSceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
-
-        mockSceneManager.measureMode = true;
-        controlCenter.syncSwitches();
         expect(measureInput.checked).toBe(true);
+
+        measureInput.checked = false;
+        measureInput.dispatchEvent(new Event('change'));
+        expect(mockSceneManager.toggleMeasureMode).toHaveBeenCalledWith(false);
 
         mockSceneManager.measureMode = false;
         controlCenter.syncSwitches();
         expect(measureInput.checked).toBe(false);
+
+        mockSceneManager.measureMode = true;
+        controlCenter.syncSwitches();
+        expect(measureInput.checked).toBe(true);
 
         // Verify localized label & tooltip across all 6 languages
         const infoBtn = systemPanel?.querySelector('.ctrl-info-btn[data-option-id="measureMode"]') as HTMLButtonElement;

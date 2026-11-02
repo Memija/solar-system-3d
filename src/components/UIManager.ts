@@ -20,6 +20,7 @@ import { ScenePicker } from './ScenePicker';
 import { ShortcutController } from './ShortcutController';
 import { toggleShortcutsModal, openHeaderSlotsCustomizer } from './SecondaryModals';
 import { svgIcon, stripLeadingEmoji } from './SvgIcons';
+import { PreferencesManager } from './PreferencesManager';
 
 export class UIManager {
     sceneManager: SceneManager;
@@ -79,6 +80,9 @@ export class UIManager {
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
+        if (this.sceneManager && this.sceneManager.measureMode === undefined) {
+            this.sceneManager.measureMode = PreferencesManager.get('measureMode');
+        }
         this.scenePicker = new ScenePicker(this);
         this.raycaster = this.scenePicker.raycaster;
         this.mouse = this.scenePicker.mouse;
@@ -387,7 +391,7 @@ export class UIManager {
         const liveTextEl = document.createElement('span');
         liveTextEl.className = 'live-text';
         const liveBadgeVal = i18n.t('ui.liveBadge');
-        liveTextEl.textContent = liveBadgeVal && liveBadgeVal !== 'ui.liveBadge' ? liveBadgeVal : 'LIVE 1:1';
+        liveTextEl.textContent = liveBadgeVal && liveBadgeVal !== 'ui.liveBadge' ? liveBadgeVal : 'Live 1:1';
         liveIndicator.appendChild(liveDotEl);
         liveIndicator.appendChild(liveTextEl);
         liveIndicator.style.display = isInitialRealTime ? 'inline-flex' : 'none';
@@ -714,8 +718,9 @@ export class UIManager {
                 this.setTourMode(false, false);
             }
 
-            if (this.sceneManager.measureMode) {
+            if (this.sceneManager.measureMode && typeof this.sceneManager.setMeasureTarget === 'function') {
                 this.sceneManager.setMeasureTarget(selectedName);
+                this.updateMeasureHud();
                 return;
             }
 
@@ -880,7 +885,7 @@ export class UIManager {
         controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
         controlsBtn.setAttribute('aria-expanded', 'false');
         controlsBtn.setAttribute('aria-controls', 'unifiedControlCenter');
-        controlsBtn.innerHTML = `<span class="ctrl-icon">${svgIcon('controls-sliders')}</span> <span class="ctrl-label">${(i18n.t('ui.controls') || 'CONTROLS').toUpperCase()}</span>`;
+        controlsBtn.innerHTML = `<span class="ctrl-icon">${svgIcon('controls-sliders')}</span> <span class="ctrl-label">${i18n.t('ui.controls') || 'Controls'}</span>`;
         controlsBtn.onclick = (e) => {
             e.stopPropagation();
             this.controlCenter?.toggle();
@@ -998,7 +1003,7 @@ export class UIManager {
             controlsBtn.title = i18n.t('ui.controlsToggle');
             controlsBtn.setAttribute('aria-label', i18n.t('ui.controlsToggle'));
             const ctrlLabel = controlsBtn.querySelector('.ctrl-label');
-            if (ctrlLabel) ctrlLabel.textContent = (i18n.t('ui.controls') || 'CONTROLS').toUpperCase();
+            if (ctrlLabel) ctrlLabel.textContent = i18n.t('ui.controls') || 'Controls';
 
             if (this.targetPill) {
                 this.targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object — Click to Open Navigator';
@@ -1035,7 +1040,7 @@ export class UIManager {
             }
             if (this.liveTextEl) {
                 const liveBadgeVal = i18n.t('ui.liveBadge');
-                this.liveTextEl.textContent = liveBadgeVal && liveBadgeVal !== 'ui.liveBadge' ? liveBadgeVal : 'LIVE 1:1';
+                this.liveTextEl.textContent = liveBadgeVal && liveBadgeVal !== 'ui.liveBadge' ? liveBadgeVal : 'Live 1:1';
             }
             if (this.telemetryTicker && this.telemetryTicker.style.display !== 'none') {
                 const targetName = (this.sceneManager.focusedBody as any)?.data?.name || 'Earth';
@@ -1129,6 +1134,7 @@ export class UIManager {
                 this.sceneManager.toggleMeasureMode(false);
             } else {
                 this.sceneManager.measureMode = false;
+                PreferencesManager.set('measureMode', false);
             }
             this.controlCenter?.syncSwitches();
             if (this.headerSlotsContainer) {

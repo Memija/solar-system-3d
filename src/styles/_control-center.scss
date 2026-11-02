@@ -61,7 +61,6 @@
     font-weight: 800;
     letter-spacing: 0.12em;
     color: #f8fafc;
-    text-transform: uppercase;
     text-decoration: none;
     user-select: none;
     cursor: pointer;
@@ -208,7 +207,6 @@
         font-weight: 700;
         color: $neon-cyan;
         letter-spacing: 0.08em;
-        text-transform: uppercase;
         margin: 0 2px 0 0;
         cursor: pointer !important;
         user-select: none;
@@ -642,7 +640,6 @@
         font-weight: 700;
         letter-spacing: 0.1em;
         color: $neon-cyan;
-        text-transform: uppercase;
         display: flex;
         align-items: center;
         justify-content: space-between;

@@ -214,7 +214,7 @@ describe('HeaderSlotsManager', () => {
         expect(activeIds).toContain('measureMode');
     });
 
-    it('has measureMode locked and ready in the header by default (off until clicked)', () => {
+    it('has measureMode locked and active in the header by default', () => {
         expect(HeaderSlotsManager.isSlotLocked('measureMode')).toBe(true);
         expect(HeaderSlotsManager.isSlotRemovable('measureMode')).toBe(false);
         expect(HeaderSlotsManager.removeSlot('measureMode')).toBe(false);
@@ -227,17 +227,17 @@ describe('HeaderSlotsManager', () => {
             audioManager: { getAudioEnabled: () => false, playTick: vi.fn() },
             performanceMonitor: { getVisible: () => false },
             shortcutsModal: { isOpen: false },
-            sceneManager: { measureMode: false, toggleMeasureMode: toggleMeasureSpy }
+            sceneManager: { measureMode: true, toggleMeasureMode: toggleMeasureSpy }
         };
 
         HeaderSlotsManager.renderSlots(container, mockUi);
         const measureBtn = container.querySelector('#hudSlot_measureMode') as HTMLButtonElement;
         expect(measureBtn).not.toBeNull();
         expect(measureBtn.dataset.locked).toBe('true');
-        expect(measureBtn.classList.contains('active')).toBe(false);
+        expect(measureBtn.classList.contains('active')).toBe(true);
 
         measureBtn.click();
-        expect(toggleMeasureSpy).toHaveBeenCalledWith(true);
+        expect(toggleMeasureSpy).toHaveBeenCalledWith(false);
     });
 
     it('renders cinematicTour with dataset.locked and vector icon in the header', () => {

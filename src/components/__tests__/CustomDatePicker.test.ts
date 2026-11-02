@@ -119,12 +119,12 @@ describe('CustomDatePicker', () => {
         const returnBtn = datePicker.domElement.querySelector('.hero-return-btn') as HTMLButtonElement;
         const nextMonthBtn = datePicker.domElement.querySelector('.next-month') as HTMLButtonElement;
 
-        expect(heroDate.textContent).toBe('31 JANUARY 2026');
+        expect(heroDate.textContent).toBe('31 January 2026');
         expect(returnBtn.style.display).toBe('none');
 
         // Browse to February: hero banner must still show active date (not invalid "31 FEBRUARY 2026")
         nextMonthBtn.click();
-        expect(heroDate.textContent).toBe('31 JANUARY 2026');
+        expect(heroDate.textContent).toBe('31 January 2026');
         expect(returnBtn.style.display).toBe('inline-flex');
 
         // Return button snaps view back to active month
@@ -287,5 +287,73 @@ describe('CustomDatePicker', () => {
 
         i18n.setLanguage('en');
         picker.dispose();
+    });
+
+    it('renders Ephemeris and JD/J2000 info icons and displays detailed localized explanations for Ephemeris, Julian Date (JD), and J2000 Epoch across all 6 languages', async () => {
+        const { i18n, AVAILABLE_LOCALES } = await import('../../i18n');
+        await Promise.all(AVAILABLE_LOCALES.map(l => i18n.preloadLocale(l.code)));
+
+        datePicker.openPopup();
+
+        const epochWrap = datePicker.popupElement.querySelector('.datepicker-epoch-wrap') as HTMLElement;
+        const epochTag = datePicker.popupElement.querySelector('.datepicker-epoch-tag') as HTMLElement;
+        const infoBtn = datePicker.popupElement.querySelector('.datepicker-ephemeris-info-btn') as HTMLButtonElement;
+        const jdInfoBtn = datePicker.popupElement.querySelector('.datepicker-jd-info-btn') as HTMLButtonElement;
+
+        expect(epochWrap).not.toBeNull();
+        expect(epochTag).not.toBeNull();
+        expect(infoBtn).not.toBeNull();
+        expect(jdInfoBtn).not.toBeNull();
+        expect(infoBtn.textContent).toBe('i');
+        expect(jdInfoBtn.textContent).toBe('i');
+        expect(infoBtn.dataset.optionId).toBe('ephemeris');
+
+        // Hover / click shows the ephemeris & JD/J2000 explanation tooltip without closing the calendar popup
+        infoBtn.click();
+        expect(datePicker.isOpen).toBe(true);
+
+        const tooltip = document.body.querySelector('.datepicker-ephemeris-tooltip') as HTMLElement;
+        expect(tooltip).not.toBeNull();
+        expect(tooltip.classList.contains('visible')).toBe(true);
+        expect(tooltip.textContent).toContain('reference table of calculated celestial coordinates');
+        expect(tooltip.textContent).toContain('Julian Date (JD)');
+        expect(tooltip.textContent).toContain('4713 BC');
+        expect(tooltip.textContent).toContain('J2000.0 Epoch Offset');
+        expect(tooltip.textContent).toContain('2451545.0');
+
+        // Verify localization across all 6 languages while tooltip is open
+        i18n.setLanguage('bs');
+        expect(tooltip.textContent).toContain('Referentna tabela izračunatih nebeskih koordinata');
+        expect(tooltip.textContent).toContain('Julijanski datum (JD)');
+        expect(tooltip.textContent).toContain('Pomak od epohe J2000.0');
+
+        i18n.setLanguage('sr');
+        expect(tooltip.textContent).toContain('Референтна табела израчунатих небеских координата');
+        expect(tooltip.textContent).toContain('Јулијански датум (ЈД)');
+        expect(tooltip.textContent).toContain('Помак од епохе J2000.0');
+
+        i18n.setLanguage('de');
+        expect(tooltip.textContent).toContain('Referenzkarte berechneter Himmelskoordinaten');
+        expect(tooltip.textContent).toContain('Julianisches Datum (JD)');
+        expect(tooltip.textContent).toContain('J2000.0-Epochenabstand');
+
+        i18n.setLanguage('id');
+        expect(tooltip.textContent).toContain('Tabel referensi koordinat benda langit');
+        expect(tooltip.textContent).toContain('Tanggal Julian (JD)');
+        expect(tooltip.textContent).toContain('Selisih Epos J2000.0');
+
+        i18n.setLanguage('pl');
+        expect(tooltip.textContent).toContain('Tabela referencyjna obliczonych współrzędnych niebieskich');
+        expect(tooltip.textContent).toContain('Data Juliańska (JD)');
+        expect(tooltip.textContent).toContain('Przesunięcie epoki J2000.0');
+
+        // Mouseleave hides the tooltip, and clicking the JD info button re-opens it
+        infoBtn.dispatchEvent(new MouseEvent('mouseleave'));
+        expect(tooltip.classList.contains('visible')).toBe(false);
+
+        jdInfoBtn.click();
+        expect(tooltip.classList.contains('visible')).toBe(true);
+
+        i18n.setLanguage('en');
     });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { SceneManager } from '../SceneManager';
+import { PreferencesManager } from '../PreferencesManager';
 
 vi.mock('../CelestialBody', () => {
     return {
@@ -59,6 +60,7 @@ describe('SceneManager', () => {
     let container: HTMLElement;
 
     beforeEach(() => {
+        PreferencesManager.reset();
         container = document.createElement('div');
         vi.clearAllMocks();
     });
@@ -77,6 +79,7 @@ describe('SceneManager', () => {
 
         // Check date initialization
         expect(manager.simDate).toBeInstanceOf(Date);
+        expect(manager.measureMode).toBe(true);
     });
 
     it('should update simulation date correctly in update()', () => {

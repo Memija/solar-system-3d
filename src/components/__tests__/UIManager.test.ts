@@ -70,7 +70,8 @@ describe('UIManager', () => {
             detachCamera: vi.fn(),
             tourMode: false,
             tourTargets: [],
-            measureMode: false,
+            measureMode: true,
+            setMeasureTarget: vi.fn(),
             toggleMeasureMode: vi.fn(function(this: any, val: boolean) {
                 this.measureMode = val;
             }),
@@ -116,6 +117,7 @@ describe('UIManager', () => {
     });
 
     it('should automatically open the modal when a planet is selected from the dropdown', () => {
+        sceneManager.measureMode = false;
         const typeSelect = uiContainer.querySelector('#typeSelect') as HTMLSelectElement;
         const bodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
 
@@ -511,6 +513,7 @@ describe('UIManager', () => {
     });
 
     it('should stay in surface view mode when switching from one planet to another', () => {
+        sceneManager.measureMode = false;
         sceneManager.surfaceViewBody = { data: { name: 'Earth' }, mesh: {} };
         sceneManager.setSurfaceView = vi.fn().mockReturnValue(true);
 
@@ -523,6 +526,7 @@ describe('UIManager', () => {
     });
 
     it('should fall back to focusOnBody when switching to a target that does not support surface view', () => {
+        sceneManager.measureMode = false;
         sceneManager.surfaceViewBody = { data: { name: 'Earth' }, mesh: {} };
         sceneManager.setSurfaceView = vi.fn().mockImplementation(() => {
             sceneManager.surfaceViewBody = null;
@@ -538,6 +542,7 @@ describe('UIManager', () => {
     });
 
     it('should retain surface view when select-celestial-body event is dispatched', () => {
+        sceneManager.measureMode = false;
         sceneManager.surfaceViewBody = { data: { name: 'Earth' }, mesh: {} };
         sceneManager.setSurfaceView = vi.fn().mockReturnValue(true);
 
@@ -595,22 +600,22 @@ describe('UIManager', () => {
         expect(controlsBtn).not.toBeNull();
         expect(targetPill).not.toBeNull();
 
-        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('CONTROLS');
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('Controls');
         expect(targetPill.querySelector('.target-name')?.textContent).toBe('Earth');
 
         // Switch to Bosnian
         i18n.setLanguage('bs');
-        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('KONTROLE');
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('Kontrole');
         expect(targetPill.querySelector('.target-name')?.textContent).toBe('Zemlja');
 
         // Switch to German
         i18n.setLanguage('de');
-        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('STEUERUNG');
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('Steuerung');
         expect(targetPill.querySelector('.target-name')?.textContent).toBe('Erde');
 
         // Switch to Serbian
         i18n.setLanguage('sr');
-        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('КОНТРОЛЕ');
+        expect(controlsBtn.querySelector('.ctrl-label')?.textContent).toBe('Контроле');
         expect(targetPill.querySelector('.target-name')?.textContent).toBe('Земља');
     });
 
@@ -753,10 +758,10 @@ describe('UIManager', () => {
         expect(mkmEl?.textContent).toBe('(224.4 Mkm)');
     });
 
-    it('should keep Measure Mode HUD bar hidden by default until measureMode is activated', () => {
+    it('should display Measure Mode HUD bar by default when measureMode is activated by default', () => {
         const hud = document.getElementById('measureHudBar');
         expect(hud).not.toBeNull();
-        expect(hud?.style.display).toBe('none');
+        expect(hud?.style.display).toBe('flex');
     });
 
     it('should display Measure Mode HUD bar when measureMode is active and hide it on close button click', () => {
@@ -791,19 +796,19 @@ describe('UIManager', () => {
         sceneManager.focusedBody = { data: { name: 'Sun' } };
         uiManager.update();
 
-        expect(liveText.textContent).toBe('LIVE 1:1');
+        expect(liveText.textContent).toBe('Live 1:1');
         expect(tickerBody.textContent).toBe('Sun (Milky Way)');
         expect(tickerDist.textContent).toContain('Orbit: +');
 
         // Switch to Bosnian while real-time ticker is visible
         i18n.setLanguage('bs');
-        expect(liveText.textContent).toBe('UŽIVO 1:1');
+        expect(liveText.textContent).toBe('Uživo 1:1');
         expect(tickerBody.textContent).toBe('Sunce (Mliječni put)');
         expect(tickerDist.textContent).toContain('Orbita: +');
 
         // Switch to Serbian
         i18n.setLanguage('sr');
-        expect(liveText.textContent).toBe('УЖИВО 1:1');
+        expect(liveText.textContent).toBe('Уживо 1:1');
         expect(tickerBody.textContent).toBe('Сунце (Млечни пут)');
         expect(tickerDist.textContent).toContain('Орбита: +');
 
@@ -826,36 +831,36 @@ describe('UIManager', () => {
         i18n.setLanguage('en');
     });
 
-    it('should expose Distance Measuring Tool in header quick access and Control Center, keep them synced, and route body selection while active', () => {
+    it('should expose Distance Measuring Tool in header quick access and Control Center (active by default), keep them synced, and route body selection while active', () => {
         const headerMeasureBtn = uiContainer.querySelector('#hudSlot_measureMode') as HTMLButtonElement;
         expect(headerMeasureBtn).toBeTruthy();
-        expect(headerMeasureBtn.classList.contains('active')).toBe(false);
+        expect(headerMeasureBtn.classList.contains('active')).toBe(true);
 
         const systemCheckboxes = uiManager.controlCenter!.drawerElement.querySelectorAll<HTMLInputElement>(
             '.drawer-panel[data-panel="system"] input[type="checkbox"]'
         );
         const ccMeasureInput = systemCheckboxes[2];
         expect(ccMeasureInput).toBeTruthy();
-        expect(ccMeasureInput.checked).toBe(false);
-
-        // Toggle ON via header quick-access button
-        sceneManager.setMeasureTarget = vi.fn();
-        headerMeasureBtn.click();
-        expect(sceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
-        expect(sceneManager.measureMode).toBe(true);
-        expect(headerMeasureBtn.classList.contains('active')).toBe(true);
         expect(ccMeasureInput.checked).toBe(true);
 
         // Selecting a body via select-celestial-body (Quick Focus chip / number shortcut) routes to setMeasureTarget
+        sceneManager.setMeasureTarget = vi.fn();
         window.dispatchEvent(new CustomEvent('select-celestial-body', { detail: { name: 'Mars' } }));
         expect(sceneManager.setMeasureTarget).toHaveBeenCalledWith('Mars');
 
-        // Closing via Measure HUD close button syncs both header button and Control Center switch back to off
+        // Closing via Measure HUD close button syncs both header button and Control Center switch to off
         uiManager.updateMeasureHud();
         const hudCloseBtn = document.querySelector('#measureHudBar .measure-action-btn.close-btn') as HTMLButtonElement;
         hudCloseBtn.click();
         expect(sceneManager.measureMode).toBe(false);
         expect(headerMeasureBtn.classList.contains('active')).toBe(false);
         expect(ccMeasureInput.checked).toBe(false);
+
+        // Toggle back ON via header quick-access button
+        headerMeasureBtn.click();
+        expect(sceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
+        expect(sceneManager.measureMode).toBe(true);
+        expect(headerMeasureBtn.classList.contains('active')).toBe(true);
+        expect(ccMeasureInput.checked).toBe(true);
     });
 });
