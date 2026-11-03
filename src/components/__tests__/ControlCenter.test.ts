@@ -549,16 +549,17 @@ describe('ControlCenter Component', () => {
         expect(weekBtn.classList.contains('active')).toBe(false);
     });
 
-    it('should render premium CustomDatePicker, day steppers, milestone select, and date action buttons in time panel', () => {
+    it('should render premium CustomDatePicker, day steppers, and quick steppers without redundant milestone dropdown or date action buttons', () => {
         controlCenter.switchTab('time');
         const datePickerContainer = controlCenter.drawerElement.querySelector('.ctrl-date-picker-wrap .custom-datepicker-container') as HTMLElement;
         const datePickerDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
         const nativeDateInput = controlCenter.drawerElement.querySelector('input[type="date"]');
         const prevBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Previous Day"]') as HTMLButtonElement;
         const nextBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Next Day"]') as HTMLButtonElement;
-        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect') as HTMLSelectElement;
-        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
-        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
+        const quickBtns = controlCenter.drawerElement.querySelectorAll('.quick-step-btn');
+        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect');
+        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn');
+        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn');
 
         expect(nativeDateInput).toBeNull();
         expect(datePickerContainer).toBeTruthy();
@@ -568,10 +569,10 @@ describe('ControlCenter Component', () => {
         expect(controlCenter.customDatePicker?.popupElement.classList.contains('is-portaled')).toBe(true);
         expect(prevBtn).toBeTruthy();
         expect(nextBtn).toBeTruthy();
-        expect(milestoneSelect).toBeTruthy();
-        expect(milestoneSelect.options.length).toBeGreaterThan(5);
-        expect(jumpBtn).toBeTruthy();
-        expect(openCalBtn).toBeTruthy();
+        expect(quickBtns.length).toBe(4);
+        expect(milestoneSelect).toBeNull();
+        expect(jumpBtn).toBeNull();
+        expect(openCalBtn).toBeNull();
     });
 
     it('should update simulation date and sync header customDatePicker when selecting a date in premium CustomDatePicker', () => {
@@ -623,40 +624,6 @@ describe('ControlCenter Component', () => {
         expect(datePickerDisplay.textContent).toBe('2026-10-23');
     });
 
-    it('should jump to historical space milestone, pause simulation, and dispatch selection event', () => {
-        controlCenter.switchTab('time');
-        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect') as HTMLSelectElement;
-        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
-
-        // Select Apollo 11 (index 1)
-        milestoneSelect.value = '1';
-        milestoneSelect.dispatchEvent(new Event('change'));
-
-        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
-        const calledDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
-        expect(calledDate.getUTCFullYear()).toBe(1969);
-        expect(calledDate.getUTCMonth()).toBe(6); // July
-        expect(calledDate.getUTCDate()).toBe(20);
-        expect(mockSceneManager.timeScale).toBe(0);
-        expect(dispatchSpy).toHaveBeenCalled();
-    });
-
-    it('should trigger jump to real-time and toggle ControlCenter premium mission calendar popup', () => {
-        controlCenter.switchTab('time');
-        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
-        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
-
-        jumpBtn.click();
-        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
-        expect(mockUIManager.customDatePicker.setDate).toHaveBeenCalled();
-
-        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
-        openCalBtn.click();
-        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
-        openCalBtn.click();
-        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
-    });
-
     it('should dismiss premium date picker year modal and popup on Escape before closing drawer', () => {
         controlCenter.open('time');
         expect(controlCenter.isOpen).toBe(true);
@@ -693,9 +660,6 @@ describe('ControlCenter Component', () => {
         const nextBtn = stepperBtns[1];
         const quickBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.quick-step-btn');
         const dateDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
-        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect') as HTMLSelectElement;
-        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn') as HTMLButtonElement;
-        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn') as HTMLButtonElement;
 
         // Bosnian
         i18n.setLanguage('bs');
@@ -707,9 +671,6 @@ describe('ControlCenter Component', () => {
         expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1g', '-1mj', '+1mj', '+1g']);
         expect(quickBtns[0].title).toBe('Korak unazad za 1 godinu');
         expect(dateDisplay.getAttribute('aria-label')).toBe('Odaberite datum simulacije');
-        expect(milestoneSelect.getAttribute('aria-label')).toBe('Historijske prekretnice u svemiru');
-        expect(jumpBtn.title).toBe('Skoči na današnji datum u stvarnom vremenu');
-        expect(openCalBtn.title).toBe('Kliknite da otvorite hronometar leta i kalendar efemerida');
 
         // German
         i18n.setLanguage('de');

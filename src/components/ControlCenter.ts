@@ -4,7 +4,7 @@ import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 import { HeaderSlotsManager } from './HeaderSlotsManager';
 import { getSettingOptionInfo } from './SettingOptionsData';
-import { CustomDatePicker, HISTORICAL_SPACE_EVENTS, getLocalizedEventName, getLocalizedEventImpact } from './CustomDatePicker';
+import { CustomDatePicker } from './CustomDatePicker';
 import { svgIcon, stripLeadingEmoji, SvgIconName } from './SvgIcons';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
@@ -44,9 +44,6 @@ export class ControlCenter {
         tooltipKey: string;
         fallbackTooltip: string;
     }[] = [];
-    private milestoneSelect: HTMLSelectElement | null = null;
-    private jumpTodayBtn: HTMLButtonElement | null = null;
-    private openCalBtn: HTMLButtonElement | null = null;
 
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -603,89 +600,7 @@ export class ControlCenter {
 
         dateGroup.appendChild(quickSteppers);
 
-        // Historical Milestones Dropdown
-        const milestoneWrap = document.createElement('div');
-        milestoneWrap.className = 'ctrl-milestone-wrap';
-
-        const milestoneSelect = document.createElement('select');
-        milestoneSelect.className = 'ctrl-milestone-select';
-        milestoneSelect.id = 'controlCenterMilestoneSelect';
-        milestoneSelect.setAttribute('aria-label', this.tr('datepicker.historicalMilestonesAria', 'Historical Space Milestones'));
-
-        const defaultOpt = document.createElement('option');
-        defaultOpt.value = '';
-        defaultOpt.textContent = stripLeadingEmoji(i18n.t('datepicker.historicalEvents') || 'Historical Milestones...');
-        defaultOpt.disabled = true;
-        defaultOpt.selected = true;
-        milestoneSelect.appendChild(defaultOpt);
-
-        HISTORICAL_SPACE_EVENTS.forEach((evt, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx.toString();
-            const year = evt.date.getUTCFullYear();
-            opt.textContent = `${getLocalizedEventName(evt)} (${year})`;
-            milestoneSelect.appendChild(opt);
-        });
-
-        milestoneSelect.onchange = () => {
-            const idx = parseInt(milestoneSelect.value, 10);
-            if (!isNaN(idx) && HISTORICAL_SPACE_EVENTS[idx]) {
-                const evt = HISTORICAL_SPACE_EVENTS[idx];
-                this.applySelectedDate(evt.date, true);
-                if (evt.target) {
-                    EventBus.emit('select-celestial-body', {
-                        name: evt.target,
-                        eventId: evt.id,
-                        eventName: getLocalizedEventName(evt),
-                        eventImpact: getLocalizedEventImpact(evt)
-                    });
-                }
-                milestoneSelect.value = '';
-            }
-        };
-        this.milestoneSelect = milestoneSelect;
-        const milestoneChevron = document.createElement('span');
-        milestoneChevron.className = 'ctrl-select-chevron';
-        milestoneChevron.innerHTML = svgIcon('chevron-down');
-        milestoneWrap.appendChild(milestoneSelect);
-        milestoneWrap.appendChild(milestoneChevron);
-        dateGroup.appendChild(milestoneWrap);
-
-        // Actions Row: Jump to Today & Open Mission Calendar
-        const actionsRow = document.createElement('div');
-        actionsRow.className = 'ctrl-date-actions-row';
-
-        const jumpBtn = document.createElement('button');
-        jumpBtn.type = 'button';
-        jumpBtn.className = 'master-action-btn jump-date-action-btn';
-        jumpBtn.title = stripLeadingEmoji(this.tr('datepicker.snapToToday', 'Snap to Real-Time Today'));
-        jumpBtn.innerHTML = `<span>${svgIcon('globe')} <span data-i18n-key="datepicker.todayShort">${stripLeadingEmoji(i18n.t('datepicker.todayShort') || 'Today')}</span></span>`;
-        jumpBtn.onclick = () => {
-            const now = new Date();
-            this.applySelectedDate(now, false);
-            if (this.sceneManager) {
-                this.sceneManager.timeScale = SceneManager.SPEED_PRESETS.realTime;
-                this.sceneManager.onTimeScaleChange?.(SceneManager.SPEED_PRESETS.realTime);
-            }
-            this.syncTimePanel();
-        };
-        this.jumpTodayBtn = jumpBtn;
-        actionsRow.appendChild(jumpBtn);
-
-        const openCalBtn = document.createElement('button');
-        openCalBtn.type = 'button';
-        openCalBtn.className = 'master-action-btn open-cal-action-btn';
-        openCalBtn.title = stripLeadingEmoji(this.tr('datepicker.openCalendarTooltip', 'Click to open Flight Chronometer & Ephemeris Calendar'));
-        openCalBtn.innerHTML = `<span>${svgIcon('calendar')} <span data-i18n-key="datepicker.calendarTitle">${stripLeadingEmoji(i18n.t('datepicker.calendarTitle') || 'Mission Calendar')}</span></span>`;
-        openCalBtn.onclick = (e: MouseEvent) => {
-            e.stopPropagation();
-            this.customDatePicker?.togglePopup();
-        };
-        this.openCalBtn = openCalBtn;
-        actionsRow.appendChild(openCalBtn);
-
         this.updateDateControlsTranslations();
-        dateGroup.appendChild(actionsRow);
         panel.appendChild(dateGroup);
         return panel;
     }
@@ -1434,35 +1349,6 @@ export class ControlCenter {
             btn.textContent = `${sign}1${unit}`;
             btn.title = this.tr(tooltipKey, fallbackTooltip);
         });
-
-        if (this.milestoneSelect) {
-            this.milestoneSelect.setAttribute(
-                'aria-label',
-                this.tr('datepicker.historicalMilestonesAria', 'Historical Space Milestones')
-            );
-            if (this.milestoneSelect.options.length > 0) {
-                this.milestoneSelect.options[0].textContent = stripLeadingEmoji(
-                    this.tr('datepicker.historicalEvents', 'Historical Milestones...')
-                );
-                HISTORICAL_SPACE_EVENTS.forEach((evt, idx) => {
-                    const opt = this.milestoneSelect!.options[idx + 1];
-                    if (opt) {
-                        opt.textContent = `${getLocalizedEventName(evt)} (${evt.date.getUTCFullYear()})`;
-                    }
-                });
-            }
-        }
-
-        if (this.jumpTodayBtn) {
-            this.jumpTodayBtn.title = stripLeadingEmoji(
-                this.tr('datepicker.snapToToday', 'Snap to Real-Time Today')
-            );
-        }
-        if (this.openCalBtn) {
-            this.openCalBtn.title = stripLeadingEmoji(
-                this.tr('datepicker.openCalendarTooltip', 'Click to open Flight Chronometer & Ephemeris Calendar')
-            );
-        }
     }
 
     public updateTranslations() {

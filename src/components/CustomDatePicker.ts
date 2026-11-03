@@ -104,7 +104,6 @@ export class CustomDatePicker {
     private heroReturnBtn: HTMLButtonElement | null = null;
     private hudStatusTitleEl: HTMLElement | null = null;
     private hudEpochTagEl: HTMLElement | null = null;
-    private ephemerisInfoBtn: HTMLButtonElement | null = null;
     private jdInfoBtn: HTMLButtonElement | null = null;
     private activeInfoTargetEl: HTMLElement | null = null;
     private ephemerisTooltipEl: HTMLElement | null = null;
@@ -217,17 +216,11 @@ export class CustomDatePicker {
         if (this.hudEpochTagEl) {
             this.hudEpochTagEl.textContent = this.tr('ui.ephemerisTag', 'Ephemeris');
             const info = getSettingOptionInfo('ephemeris');
-            if (info?.summary) {
-                this.hudEpochTagEl.title = info.summary;
-            }
-        }
-        if (this.ephemerisInfoBtn) {
-            const info = getSettingOptionInfo('ephemeris');
             const infoWord = this.tr('ui.help', 'Information');
             const titleText = info?.title || this.tr('ui.ephemerisTag', 'Ephemeris');
-            this.ephemerisInfoBtn.setAttribute('aria-label', `${infoWord}: ${titleText}`);
+            this.hudEpochTagEl.setAttribute('aria-label', `${infoWord}: ${titleText}`);
             if (this.ephemerisTooltipEl?.classList.contains('visible')) {
-                this.showEphemerisTooltip(this.activeInfoTargetEl || this.ephemerisInfoBtn);
+                this.showEphemerisTooltip(this.activeInfoTargetEl || this.hudEpochTagEl);
             }
         }
         if (this.jdInfoBtn) {
@@ -402,39 +395,26 @@ export class CustomDatePicker {
 
         const epochTag = document.createElement('span');
         epochTag.className = 'datepicker-epoch-tag';
-        this.hudEpochTagEl = epochTag;
-        epochWrap.appendChild(epochTag);
-
-        const epochInfoBtn = document.createElement('button');
-        epochInfoBtn.type = 'button';
-        epochInfoBtn.className = 'ctrl-info-btn datepicker-ephemeris-info-btn';
-        epochInfoBtn.dataset.optionId = 'ephemeris';
-        epochInfoBtn.textContent = 'i';
-        epochInfoBtn.addEventListener('mouseenter', () => {
-            this.showEphemerisTooltip(epochInfoBtn);
-        });
-        epochInfoBtn.addEventListener('mouseleave', () => {
-            this.hideEphemerisTooltip();
-        });
-        epochInfoBtn.addEventListener('focus', () => {
-            this.showEphemerisTooltip(epochInfoBtn);
-        });
-        epochInfoBtn.addEventListener('blur', () => {
-            this.hideEphemerisTooltip();
-        });
-        epochInfoBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.showEphemerisTooltip(epochInfoBtn);
-        });
+        epochTag.dataset.optionId = 'ephemeris';
         epochTag.addEventListener('mouseenter', () => {
-            this.showEphemerisTooltip(epochInfoBtn);
+            this.showEphemerisTooltip(epochTag);
         });
         epochTag.addEventListener('mouseleave', () => {
             this.hideEphemerisTooltip();
         });
-        this.ephemerisInfoBtn = epochInfoBtn;
-        epochWrap.appendChild(epochInfoBtn);
+        epochTag.addEventListener('focus', () => {
+            this.showEphemerisTooltip(epochTag);
+        });
+        epochTag.addEventListener('blur', () => {
+            this.hideEphemerisTooltip();
+        });
+        epochTag.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showEphemerisTooltip(epochTag);
+        });
+        this.hudEpochTagEl = epochTag;
+        epochWrap.appendChild(epochTag);
 
         hudRight.appendChild(epochWrap);
 
@@ -862,7 +842,7 @@ export class CustomDatePicker {
             if (!target) return;
 
             // Ignore clicks on external trigger buttons
-            if (target.closest('.sim-date-label') || target.closest('.open-cal-action-btn')) {
+            if (target.closest('.sim-date-label')) {
                 return;
             }
 
