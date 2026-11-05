@@ -41,6 +41,8 @@ export class UIManager {
     menuContainer: HTMLElement | null = null;
     controlCenter: ControlCenter | null = null;
     targetPill: HTMLElement | null = null;
+    headerTypeSelect: HTMLSelectElement | null = null;
+    headerBodySelect: HTMLSelectElement | null = null;
     mouseDownPos: THREE.Vector2;
     mouseUpPos: THREE.Vector2;
     datePanel: HTMLElement;
@@ -594,6 +596,14 @@ export class UIManager {
 
         const typeSelect = document.createElement('select');
         typeSelect.id = 'typeSelect';
+
+        const headerTypeSelect = document.createElement('select');
+        headerTypeSelect.id = 'headerTypeSelect';
+        headerTypeSelect.className = 'obs-header-select obs-type-select';
+        headerTypeSelect.title = i18n.t('controls.sections.celestialNav') || 'Celestial Navigation';
+        headerTypeSelect.setAttribute('aria-label', headerTypeSelect.title);
+        this.headerTypeSelect = headerTypeSelect;
+
         const getTypes = () => [
             { value: 'Star', label: i18n.t('categories.star') },
             { value: 'Planet', label: i18n.t('categories.planet') },
@@ -604,60 +614,76 @@ export class UIManager {
         ];
 
         const populateTypeOptions = () => {
-            const currentVal = typeSelect.value || 'Planet';
+            const currentVal = typeSelect.value || headerTypeSelect.value || 'Planet';
             typeSelect.innerHTML = '';
+            headerTypeSelect.innerHTML = '';
             getTypes().forEach(t => {
+                const cleanLabel = stripLeadingEmoji(t.label);
                 const option = document.createElement('option');
                 option.value = t.value;
-                option.textContent = stripLeadingEmoji(t.label);
+                option.textContent = cleanLabel;
                 typeSelect.appendChild(option);
+
+                const headerOption = document.createElement('option');
+                headerOption.value = t.value;
+                headerOption.textContent = cleanLabel;
+                headerTypeSelect.appendChild(headerOption);
             });
             typeSelect.value = currentVal;
+            headerTypeSelect.value = currentVal;
         };
 
         const bodySelect = document.createElement('select');
         bodySelect.id = 'bodySelect';
 
+        const headerBodySelect = document.createElement('select');
+        headerBodySelect.id = 'headerBodySelect';
+        headerBodySelect.className = 'obs-header-select obs-body-select';
+        headerBodySelect.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object';
+        headerBodySelect.setAttribute('aria-label', headerBodySelect.title);
+        this.headerBodySelect = headerBodySelect;
+
         const updateBodyOptions = () => {
-            const currentVal = bodySelect.value;
+            const currentVal = bodySelect.value || headerBodySelect.value;
             bodySelect.innerHTML = '';
-            const selectedType = typeSelect.value;
+            headerBodySelect.innerHTML = '';
+            const selectedType = typeSelect.value || headerTypeSelect.value || 'Planet';
+
+            const addOption = (val: string, text: string) => {
+                const option = document.createElement('option');
+                option.value = val;
+                option.textContent = text;
+                bodySelect.appendChild(option);
+
+                const headerOption = document.createElement('option');
+                headerOption.value = val;
+                headerOption.textContent = text;
+                headerBodySelect.appendChild(headerOption);
+            };
 
             if (selectedType === 'Star') {
                 const sun = this.sceneManager.planets.find(p => p.data.name === 'Sun');
                 if (sun) {
-                    const option = document.createElement('option');
-                    option.value = 'Sun';
-                    option.textContent = i18n.getBodyName('Sun');
-                    bodySelect.appendChild(option);
+                    addOption('Sun', i18n.getBodyName('Sun'));
                 }
                 this.sceneManager.starMeshes.forEach(mesh => {
                     if (mesh.userData?.name) {
-                        const option = document.createElement('option');
-                        option.value = mesh.userData.name;
-                        option.textContent = i18n.getStarName(mesh.userData.name);
-                        bodySelect.appendChild(option);
+                        addOption(mesh.userData.name, i18n.getStarName(mesh.userData.name));
                     }
                 });
             } else if (selectedType === 'Planet') {
                 this.sceneManager.planets.forEach(planet => {
                     if (planet.data.name !== 'Sun') {
-                        const option = document.createElement('option');
-                        option.value = planet.data.name;
-                        option.textContent = i18n.getBodyName(planet.data.name);
-                        bodySelect.appendChild(option);
+                        addOption(planet.data.name, i18n.getBodyName(planet.data.name));
                     }
                 });
             } else if (selectedType === 'Moon') {
                 this.sceneManager.planets.forEach(planet => {
                     if (planet.moons && planet.moons.length > 0) {
                         planet.moons.forEach(moon => {
-                            const option = document.createElement('option');
-                            option.value = moon.data.name;
                             const moonName = i18n.getBodyName(moon.data.name);
                             const planetName = i18n.getBodyName(planet.data.name);
-                            option.textContent = `${moonName} ${i18n.t('ui.orbiting', { planet: planetName })}`;
-                            bodySelect.appendChild(option);
+                            addOption(moon.data.name, `${moonName} ${i18n.t('ui.orbiting', { planet: planetName })}`);
                         });
                     }
                 });
@@ -665,50 +691,53 @@ export class UIManager {
                 if (this.sceneManager.constellationManager) {
                     this.sceneManager.constellationManager.constellationMeshes.forEach(group => {
                         if (group.userData?.name) {
-                            const option = document.createElement('option');
-                            option.value = group.userData.name;
-                            option.textContent = i18n.getConstellationName(group.userData.name);
-                            bodySelect.appendChild(option);
+                            addOption(group.userData.name, i18n.getConstellationName(group.userData.name));
                         }
                     });
                 }
             } else if (selectedType === 'Comet') {
                 this.sceneManager.comets.forEach(comet => {
-                    const option = document.createElement('option');
-                    option.value = comet.data.name;
-                    option.textContent = i18n.getCometName(comet.data.name);
-                    bodySelect.appendChild(option);
+                    addOption(comet.data.name, i18n.getCometName(comet.data.name));
                 });
             } else if (selectedType === 'Spacecraft') {
                 this.sceneManager.spacecrafts.forEach(sc => {
-                    const option = document.createElement('option');
-                    option.value = sc.data.name;
-                    option.textContent = i18n.getSpacecraftName(sc.data.name);
-                    bodySelect.appendChild(option);
+                    addOption(sc.data.name, i18n.getSpacecraftName(sc.data.name));
                 });
             }
 
             if (currentVal && Array.from(bodySelect.options).some(opt => opt.value === currentVal)) {
                 bodySelect.value = currentVal;
+                headerBodySelect.value = currentVal;
             }
         };
 
         populateTypeOptions();
         typeSelect.value = 'Planet';
+        headerTypeSelect.value = 'Planet';
         updateBodyOptions();
         if (Array.from(bodySelect.options).some(opt => opt.value === this.cameraTarget)) {
             bodySelect.value = this.cameraTarget;
+            headerBodySelect.value = this.cameraTarget;
         }
 
         typeSelect.addEventListener('change', () => {
+            headerTypeSelect.value = typeSelect.value;
             updateBodyOptions();
             if (bodySelect.options.length > 0) {
                 bodySelect.selectedIndex = 0;
+                headerBodySelect.selectedIndex = 0;
                 bodySelect.dispatchEvent(new Event('change'));
             }
         });
 
+        headerTypeSelect.addEventListener('change', () => {
+            typeSelect.value = headerTypeSelect.value;
+            typeSelect.dispatchEvent(new Event('change'));
+        });
+
         bodySelect.addEventListener('change', () => {
+            headerBodySelect.value = bodySelect.value;
+            headerTypeSelect.value = typeSelect.value;
             if (this.ignoreNextBodyChange) return;
             const selectedName = bodySelect.value;
             this.cameraTarget = selectedName;
@@ -726,17 +755,7 @@ export class UIManager {
 
             this.hideInfo();
 
-            if (this.targetPill) {
-                const icon = this.getTargetIcon(selectedName, selectedType);
-                const localizedName =
-                    i18n.getBodyName(selectedName) ||
-                    i18n.getStarName(selectedName) ||
-                    i18n.getConstellationName(selectedName) ||
-                    i18n.getCometName(selectedName) ||
-                    i18n.getSpacecraftName(selectedName) ||
-                    selectedName;
-                this.targetPill.innerHTML = `<span class="target-icon">${icon}</span><span class="target-name">${localizedName}</span>`;
-            }
+            this.updateTargetPillDisplay(selectedName, selectedType);
             this.controlCenter?.updateActiveTargetChips(selectedName);
 
             if (selectedType === 'Star') {
@@ -795,6 +814,11 @@ export class UIManager {
             }
         });
 
+        headerBodySelect.addEventListener('change', () => {
+            bodySelect.value = headerBodySelect.value;
+            bodySelect.dispatchEvent(new Event('change'));
+        });
+
         // Initialize the Unified Control Center
         this.controlCenter = new ControlCenter(this, this.sceneManager, this.uiContainer);
         this.controlCenter.updateActiveTargetChips(this.cameraTarget);
@@ -820,13 +844,12 @@ export class UIManager {
         };
         menuContainer.appendChild(brand);
 
-        // Center Island: Current Target Pill
+        // Center Island: Inline Target Type + Body Navigator & Mission Clock
         const centerIsland = document.createElement('div');
         centerIsland.className = 'obs-header-center';
 
-        const targetPill = document.createElement('button');
-        targetPill.type = 'button';
-        targetPill.className = 'obs-target-pill';
+        const targetPill = document.createElement('div');
+        targetPill.className = 'obs-target-pill obs-header-target-nav';
         targetPill.id = 'obsTargetPill';
         const initialTargetName = this.cameraTarget || 'Earth';
         const initialLocalizedName =
@@ -836,11 +859,43 @@ export class UIManager {
             i18n.getSpacecraftName(initialTargetName) ||
             initialTargetName;
         const initialIcon = this.getTargetIcon(initialTargetName);
-        targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object — Click to Open Navigator';
-        targetPill.innerHTML = `<span class="target-icon">${initialIcon}</span><span class="target-name">${initialLocalizedName}</span>`;
-        targetPill.onclick = () => {
-            this.controlCenter?.open('target');
-        };
+        targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object';
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'target-icon';
+        iconSpan.innerHTML = initialIcon;
+        targetPill.appendChild(iconSpan);
+
+        const srNameSpan = document.createElement('span');
+        srNameSpan.className = 'target-name';
+        srNameSpan.style.display = 'none';
+        srNameSpan.textContent = initialLocalizedName;
+        targetPill.appendChild(srNameSpan);
+
+        const typeSelectWrap = document.createElement('div');
+        typeSelectWrap.className = 'obs-header-select-wrap obs-type-select-wrap';
+        const typeChevron = document.createElement('span');
+        typeChevron.className = 'obs-select-chevron';
+        typeChevron.innerHTML = svgIcon('chevron-down');
+        typeSelectWrap.appendChild(headerTypeSelect);
+        typeSelectWrap.appendChild(typeChevron);
+        targetPill.appendChild(typeSelectWrap);
+
+        const targetSep = document.createElement('span');
+        targetSep.className = 'obs-target-sep';
+        targetSep.setAttribute('aria-hidden', 'true');
+        targetSep.textContent = '/';
+        targetPill.appendChild(targetSep);
+
+        const bodySelectWrap = document.createElement('div');
+        bodySelectWrap.className = 'obs-header-select-wrap obs-body-select-wrap';
+        const bodyChevron = document.createElement('span');
+        bodyChevron.className = 'obs-select-chevron';
+        bodyChevron.innerHTML = svgIcon('chevron-down');
+        bodySelectWrap.appendChild(headerBodySelect);
+        bodySelectWrap.appendChild(bodyChevron);
+        targetPill.appendChild(bodySelectWrap);
+
         centerIsland.appendChild(targetPill);
         this.targetPill = targetPill;
 
@@ -1006,17 +1061,17 @@ export class UIManager {
             if (ctrlLabel) ctrlLabel.textContent = i18n.t('ui.controls') || 'Controls';
 
             if (this.targetPill) {
-                this.targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object — Click to Open Navigator';
+                this.targetPill.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object';
                 const curTarget = this.cameraTarget || 'Earth';
-                const localizedTarget =
-                    i18n.getBodyName(curTarget) ||
-                    i18n.getStarName(curTarget) ||
-                    i18n.getConstellationName(curTarget) ||
-                    i18n.getCometName(curTarget) ||
-                    i18n.getSpacecraftName(curTarget) ||
-                    curTarget;
-                const curIcon = this.getTargetIcon(curTarget);
-                this.targetPill.innerHTML = `<span class="target-icon">${curIcon}</span><span class="target-name">${localizedTarget}</span>`;
+                this.updateTargetPillDisplay(curTarget);
+            }
+            if (this.headerTypeSelect) {
+                this.headerTypeSelect.title = i18n.t('controls.sections.celestialNav') || 'Celestial Navigation';
+                this.headerTypeSelect.setAttribute('aria-label', this.headerTypeSelect.title);
+            }
+            if (this.headerBodySelect) {
+                this.headerBodySelect.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object';
+                this.headerBodySelect.setAttribute('aria-label', this.headerBodySelect.title);
             }
 
             if (this.headerSlotsModal?.isOpen) {
@@ -1276,10 +1331,28 @@ export class UIManager {
         return svgIcon('planet');
     }
 
+    private updateTargetPillDisplay(targetName: string, targetType?: string): void {
+        if (!this.targetPill) return;
+        const icon = this.getTargetIcon(targetName, targetType);
+        const localizedName =
+            i18n.getBodyName(targetName) ||
+            i18n.getStarName(targetName) ||
+            i18n.getConstellationName(targetName) ||
+            i18n.getCometName(targetName) ||
+            i18n.getSpacecraftName(targetName) ||
+            targetName;
+        const iconEl = this.targetPill.querySelector('.target-icon');
+        if (iconEl) iconEl.innerHTML = icon;
+        const nameEl = this.targetPill.querySelector('.target-name');
+        if (nameEl) nameEl.textContent = localizedName;
+    }
+
     syncDropdownSelection(targetName: string, targetType?: string): void {
         this.cameraTarget = targetName;
         const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
         const bodySelect = document.getElementById('bodySelect') as HTMLSelectElement;
+        const headerTypeSelect = document.getElementById('headerTypeSelect') as HTMLSelectElement | null;
+        const headerBodySelect = document.getElementById('headerBodySelect') as HTMLSelectElement | null;
 
         let determinedType = targetType;
         if (!determinedType) {
@@ -1308,22 +1381,14 @@ export class UIManager {
 
             if (typeSelect.value !== determinedType) {
                 typeSelect.value = determinedType;
+                if (headerTypeSelect) headerTypeSelect.value = determinedType;
                 typeSelect.dispatchEvent(new Event('change'));
             }
             bodySelect.value = targetName;
+            if (headerBodySelect) headerBodySelect.value = targetName;
         }
 
-        if (this.targetPill) {
-            const icon = this.getTargetIcon(targetName, determinedType);
-            const localizedName =
-                i18n.getBodyName(targetName) ||
-                i18n.getStarName(targetName) ||
-                i18n.getConstellationName(targetName) ||
-                i18n.getCometName(targetName) ||
-                i18n.getSpacecraftName(targetName) ||
-                targetName;
-            this.targetPill.innerHTML = `<span class="target-icon">${icon}</span><span class="target-name">${localizedName}</span>`;
-        }
+        this.updateTargetPillDisplay(targetName, determinedType);
         this.controlCenter?.updateActiveTargetChips(targetName);
     }
 

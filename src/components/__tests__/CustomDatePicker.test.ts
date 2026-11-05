@@ -289,7 +289,7 @@ describe('CustomDatePicker', () => {
         picker.dispose();
     });
 
-    it('renders Ephemeris tag (without redundant info icon) and JD/J2000 info icon and displays detailed localized explanations across all 6 languages', async () => {
+    it('renders Ephemeris tag and JD/J2000 readout (without redundant info icons) and displays detailed localized explanations across all 6 languages', async () => {
         const { i18n, AVAILABLE_LOCALES } = await import('../../i18n');
         await Promise.all(AVAILABLE_LOCALES.map(l => i18n.preloadLocale(l.code)));
 
@@ -298,14 +298,16 @@ describe('CustomDatePicker', () => {
         const epochWrap = datePicker.popupElement.querySelector('.datepicker-epoch-wrap') as HTMLElement;
         const epochTag = datePicker.popupElement.querySelector('.datepicker-epoch-tag') as HTMLElement;
         const infoBtn = datePicker.popupElement.querySelector('.datepicker-ephemeris-info-btn');
-        const jdInfoBtn = datePicker.popupElement.querySelector('.datepicker-jd-info-btn') as HTMLButtonElement;
+        const jdInfoBtn = datePicker.popupElement.querySelector('.datepicker-jd-info-btn');
+        const jdReadout = datePicker.popupElement.querySelector('.hero-jd-readout') as HTMLElement;
 
         expect(epochWrap).not.toBeNull();
         expect(epochTag).not.toBeNull();
+        expect(jdReadout).not.toBeNull();
         expect(infoBtn).toBeNull();
-        expect(jdInfoBtn).not.toBeNull();
-        expect(jdInfoBtn.textContent).toBe('i');
+        expect(jdInfoBtn).toBeNull();
         expect(epochTag.dataset.optionId).toBe('ephemeris');
+        expect(jdReadout.dataset.optionId).toBe('ephemeris');
 
         // Hover / click on the Ephemeris tag shows the ephemeris & JD/J2000 explanation tooltip without closing the calendar popup
         epochTag.dispatchEvent(new MouseEvent('mouseenter'));
@@ -346,11 +348,11 @@ describe('CustomDatePicker', () => {
         expect(tooltip.textContent).toContain('Data Juliańska (JD)');
         expect(tooltip.textContent).toContain('Przesunięcie epoki J2000.0');
 
-        // Mouseleave hides the tooltip, and clicking the JD info button re-opens it
+        // Mouseleave hides the tooltip, and hovering over the JD readout re-opens it
         epochTag.dispatchEvent(new MouseEvent('mouseleave'));
         expect(tooltip.classList.contains('visible')).toBe(false);
 
-        jdInfoBtn.click();
+        jdReadout.dispatchEvent(new MouseEvent('mouseenter'));
         expect(tooltip.classList.contains('visible')).toBe(true);
 
         i18n.setLanguage('en');

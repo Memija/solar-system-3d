@@ -104,7 +104,6 @@ export class CustomDatePicker {
     private heroReturnBtn: HTMLButtonElement | null = null;
     private hudStatusTitleEl: HTMLElement | null = null;
     private hudEpochTagEl: HTMLElement | null = null;
-    private jdInfoBtn: HTMLButtonElement | null = null;
     private activeInfoTargetEl: HTMLElement | null = null;
     private ephemerisTooltipEl: HTMLElement | null = null;
     private portalContainer: HTMLElement | null = null;
@@ -222,11 +221,6 @@ export class CustomDatePicker {
             if (this.ephemerisTooltipEl?.classList.contains('visible')) {
                 this.showEphemerisTooltip(this.activeInfoTargetEl || this.hudEpochTagEl);
             }
-        }
-        if (this.jdInfoBtn) {
-            const details = getEphemerisTimeDetails();
-            const infoWord = this.tr('ui.help', 'Information');
-            this.jdInfoBtn.setAttribute('aria-label', `${infoWord}: ${details.jdTitle} & ${details.j2000Title}`);
         }
         if (this.closeBtn) {
             this.closeBtn.setAttribute('aria-label', this.tr('datepicker.closeCalendarAria', 'Close Calendar'));
@@ -445,41 +439,29 @@ export class CustomDatePicker {
         const jdRow = document.createElement('div');
         jdRow.className = 'hero-jd-row';
 
-        this.ephemerisBannerJd = document.createElement('div');
-        this.ephemerisBannerJd.className = 'hero-jd-readout';
-
-        const jdInfoBtn = document.createElement('button');
-        jdInfoBtn.type = 'button';
-        jdInfoBtn.className = 'ctrl-info-btn datepicker-jd-info-btn';
-        jdInfoBtn.dataset.optionId = 'ephemeris';
-        jdInfoBtn.textContent = 'i';
-        jdInfoBtn.addEventListener('mouseenter', () => {
-            this.showEphemerisTooltip(jdInfoBtn);
+        const ephemerisBannerJd = document.createElement('div');
+        ephemerisBannerJd.className = 'hero-jd-readout';
+        ephemerisBannerJd.dataset.optionId = 'ephemeris';
+        ephemerisBannerJd.addEventListener('mouseenter', () => {
+            this.showEphemerisTooltip(ephemerisBannerJd);
         });
-        jdInfoBtn.addEventListener('mouseleave', () => {
+        ephemerisBannerJd.addEventListener('mouseleave', () => {
             this.hideEphemerisTooltip();
         });
-        jdInfoBtn.addEventListener('focus', () => {
-            this.showEphemerisTooltip(jdInfoBtn);
+        ephemerisBannerJd.addEventListener('focus', () => {
+            this.showEphemerisTooltip(ephemerisBannerJd);
         });
-        jdInfoBtn.addEventListener('blur', () => {
+        ephemerisBannerJd.addEventListener('blur', () => {
             this.hideEphemerisTooltip();
         });
-        jdInfoBtn.addEventListener('click', (e) => {
+        ephemerisBannerJd.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.showEphemerisTooltip(jdInfoBtn);
+            this.showEphemerisTooltip(ephemerisBannerJd);
         });
-        this.ephemerisBannerJd.addEventListener('mouseenter', () => {
-            this.showEphemerisTooltip(jdInfoBtn);
-        });
-        this.ephemerisBannerJd.addEventListener('mouseleave', () => {
-            this.hideEphemerisTooltip();
-        });
-        this.jdInfoBtn = jdInfoBtn;
+        this.ephemerisBannerJd = ephemerisBannerJd;
 
-        jdRow.appendChild(this.ephemerisBannerJd);
-        jdRow.appendChild(jdInfoBtn);
+        jdRow.appendChild(ephemerisBannerJd);
 
         heroLeft.appendChild(this.ephemerisBannerDate);
         heroLeft.appendChild(jdRow);

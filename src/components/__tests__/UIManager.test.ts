@@ -863,4 +863,53 @@ describe('UIManager', () => {
         expect(headerMeasureBtn.classList.contains('active')).toBe(true);
         expect(ccMeasureInput.checked).toBe(true);
     });
+
+    it('should provide synchronized Type and Body dropdowns in both the header and settings drawer', () => {
+        const headerTypeSelect = uiContainer.querySelector('#headerTypeSelect') as HTMLSelectElement;
+        const headerBodySelect = uiContainer.querySelector('#headerBodySelect') as HTMLSelectElement;
+        const settingsTypeSelect = uiContainer.querySelector('#typeSelect') as HTMLSelectElement;
+        const settingsBodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
+
+        expect(headerTypeSelect).not.toBeNull();
+        expect(headerBodySelect).not.toBeNull();
+        expect(settingsTypeSelect).not.toBeNull();
+        expect(settingsBodySelect).not.toBeNull();
+
+        // Disable measureMode so selection calls focusOnBody directly
+        sceneManager.measureMode = false;
+        sceneManager.planets.unshift({ data: { name: 'Sun', description: 'Star' }, moons: [] });
+        sceneManager.planets[1].moons = [{ data: { name: 'Phobos', description: 'Moon of Mars' } }];
+
+        // Change category in header -> updates settings category & body options and focuses first body
+        headerTypeSelect.value = 'Star';
+        headerTypeSelect.dispatchEvent(new Event('change'));
+        expect(settingsTypeSelect.value).toBe('Star');
+        expect(headerBodySelect.value).toBe('Sun');
+        expect(settingsBodySelect.value).toBe('Sun');
+        expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Sun');
+
+        // Change category in settings -> updates header category & body
+        settingsTypeSelect.value = 'Planet';
+        settingsTypeSelect.dispatchEvent(new Event('change'));
+        expect(headerTypeSelect.value).toBe('Planet');
+        expect(headerBodySelect.value).toBe(settingsBodySelect.value);
+
+        // Change body in header -> updates settings body and focuses target
+        headerBodySelect.value = 'Jupiter';
+        headerBodySelect.dispatchEvent(new Event('change'));
+        expect(settingsBodySelect.value).toBe('Jupiter');
+        expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Jupiter');
+
+        // Change body in settings -> updates header body
+        settingsBodySelect.value = 'Mars';
+        settingsBodySelect.dispatchEvent(new Event('change'));
+        expect(headerBodySelect.value).toBe('Mars');
+
+        // External selection via syncDropdownSelection keeps both header and settings synced (including category switch)
+        uiManager.syncDropdownSelection('Phobos');
+        expect(headerTypeSelect.value).toBe('Moon');
+        expect(settingsTypeSelect.value).toBe('Moon');
+        expect(headerBodySelect.value).toBe('Phobos');
+        expect(settingsBodySelect.value).toBe('Phobos');
+    });
 });

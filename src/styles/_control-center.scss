@@ -109,38 +109,118 @@
 .obs-target-pill {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    background: linear-gradient(135deg, rgba(16, 28, 56, 0.82) 0%, rgba(10, 18, 38, 0.9) 100%);
-    border: 1px solid rgba(56, 189, 248, 0.3);
+    gap: 5px;
+    background: linear-gradient(180deg, rgba(16, 28, 56, 0.72) 0%, rgba(10, 18, 38, 0.85) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.25);
     border-radius: 9999px;
-    padding: 4px 13px;
+    padding: 3px 6px 3px 10px;
     font-family: $font-display;
     font-size: 12.5px;
     font-weight: 600;
     color: #f8fafc;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.35);
-    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.35);
     transition: all 0.25s ease;
     white-space: nowrap;
     flex-shrink: 0;
 
-    &:hover {
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(129, 140, 248, 0.18) 100%);
-        border-color: $neon-cyan;
-        box-shadow: 0 0 14px rgba(56, 189, 248, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-        transform: translateY(-1px);
+    &:hover,
+    &:focus-within {
+        background: linear-gradient(135deg, rgba(22, 38, 74, 0.88) 0%, rgba(12, 22, 46, 0.94) 100%);
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 
     .target-icon {
         display: inline-flex;
         align-items: center;
-        font-size: 14px;
+        font-size: 13px;
         color: $neon-cyan;
+        flex-shrink: 0;
+        margin-right: 1px;
     }
 
     .target-name {
         color: $neon-cyan-bright;
         letter-spacing: 0.04em;
+    }
+
+    .obs-target-sep {
+        color: rgba(148, 163, 184, 0.45);
+        font-size: 11px;
+        font-weight: 500;
+        user-select: none;
+        flex-shrink: 0;
+    }
+
+    .obs-header-select-wrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+
+        .obs-select-chevron {
+            position: absolute;
+            right: 6px;
+            pointer-events: none;
+            color: rgba(56, 189, 248, 0.65);
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+
+        &:hover .obs-select-chevron {
+            color: $neon-cyan-bright;
+        }
+    }
+
+    .obs-header-select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(56, 189, 248, 0.18);
+        border-radius: 9999px;
+        color: #e2e8f0;
+        font-family: $font-display;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        height: 26px;
+        padding: 0 20px 0 9px;
+        outline: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+
+        &.obs-type-select {
+            color: #cbd5e1;
+            max-width: 130px;
+        }
+
+        &.obs-body-select {
+            color: $neon-cyan-bright;
+            background: rgba(56, 189, 248, 0.1);
+            border-color: rgba(56, 189, 248, 0.32);
+            max-width: 145px;
+        }
+
+        &:hover {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: $neon-cyan;
+            color: #ffffff;
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.22);
+        }
+
+        &:focus-visible {
+            border-color: $neon-cyan-bright;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
+        }
+
+        option {
+            background-color: #0b1329;
+            color: #f1f5f9;
+            padding: 6px 10px;
+        }
     }
 }
 
@@ -1261,6 +1341,14 @@
 // Responsive Tweaks
 @media (max-width: 1100px) {
     .observatory-header-bar {
+        .obs-target-pill {
+            .obs-header-select.obs-type-select {
+                max-width: 98px;
+            }
+            .obs-header-select.obs-body-select {
+                max-width: 112px;
+            }
+        }
         .date-panel-hud {
             .sim-date-label .date-label-text {
                 display: none;
@@ -1304,9 +1392,22 @@
             gap: 5px;
 
             .obs-target-pill {
-                padding: 3px 8px;
+                padding: 2px 5px 2px 7px;
                 font-size: 11px;
-                gap: 5px;
+                gap: 4px;
+
+                .obs-header-select {
+                    font-size: 10.5px;
+                    height: 24px;
+                    padding: 0 17px 0 7px;
+
+                    &.obs-type-select {
+                        max-width: 82px;
+                    }
+                    &.obs-body-select {
+                        max-width: 92px;
+                    }
+                }
             }
         }
 
@@ -1392,14 +1493,29 @@
         gap: 5px;
 
         .obs-target-pill {
-            padding: 2px 7px;
+            padding: 2px 4px 2px 6px;
             font-size: 10.5px;
-            gap: 5px;
+            gap: 3px;
 
-            .target-name {
-                max-width: 48px;
-                overflow: hidden;
-                text-overflow: ellipsis;
+            .target-icon {
+                display: none;
+            }
+
+            .obs-target-sep {
+                font-size: 9.5px;
+            }
+
+            .obs-header-select {
+                font-size: 10px;
+                height: 23px;
+                padding: 0 15px 0 6px;
+
+                &.obs-type-select {
+                    max-width: 64px;
+                }
+                &.obs-body-select {
+                    max-width: 72px;
+                }
             }
         }
 
