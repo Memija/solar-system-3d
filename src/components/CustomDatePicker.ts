@@ -144,6 +144,7 @@ export class CustomDatePicker {
     private onResizeBound: () => void;
     private unregisterI18n: (() => void) | null = null;
     private lastFormattedDate: string = '';
+    private lastUtcDayNumber: number = NaN;
 
     private formatYear(year: number): string {
         const bc = i18n.t('datepicker.bc') || 'BC';
@@ -856,6 +857,7 @@ export class CustomDatePicker {
         this.updateDisplay();
 
         this.unregisterI18n = i18n.onLanguageChange(() => {
+            this.lastUtcDayNumber = NaN;
             this.populateMonths();
             this.populateWeekdays();
             this.updateLocalizedLabels();
@@ -1100,8 +1102,13 @@ export class CustomDatePicker {
     }
 
     public setDate(date: Date) {
-        this.currentDate.setTime(date.getTime());
-        this.updateDisplay();
+        const time = date.getTime();
+        this.currentDate.setTime(time);
+        const utcDay = Math.floor(time / 86400000);
+        if (utcDay !== this.lastUtcDayNumber) {
+            this.lastUtcDayNumber = utcDay;
+            this.updateDisplay();
+        }
     }
 
     public togglePopup() {
@@ -1437,6 +1444,7 @@ export class CustomDatePicker {
     }
 
     private updateDisplay() {
+        this.lastUtcDayNumber = Math.floor(this.currentDate.getTime() / 86400000);
         const yyyy = this.formatYear(this.currentDate.getUTCFullYear());
         const mm = String(this.currentDate.getUTCMonth() + 1).padStart(2, '0');
         const dd = String(this.currentDate.getUTCDate()).padStart(2, '0');

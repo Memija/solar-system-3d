@@ -49,6 +49,8 @@ class I18nManager {
     private inflightLoads: Map<string, Promise<void>> = new Map();
     private listeners: Set<(lang: SupportedLanguage | string) => void> = new Set();
     private numberFormatCache: Map<string, Intl.NumberFormat> = new Map();
+    private pathCache: Map<string, Map<string, any>> = new Map();
+    private paramRegexCache: Map<string, RegExp> = new Map();
 
     constructor() {
         // Register built-in locale metadata; English is loaded synchronously, others lazy-load on demand
@@ -120,6 +122,7 @@ class I18nManager {
             .then(translations => {
                 const meta = entry?.meta || AVAILABLE_LOCALES.find(l => l.code === code) || AVAILABLE_LOCALES[0];
                 this.locales.set(code, { meta, translations, loaded: true });
+                this.pathCache.delete(code);
                 if (this.currentLang === code) {
                     this.notifyListeners(code);
                 }
@@ -137,6 +140,7 @@ class I18nManager {
 
     public registerLocale(code: string, meta: LocaleInfo, translations: TranslationSchema) {
         this.locales.set(code, { meta, translations, loaded: true });
+        this.pathCache.delete(code);
     }
 
     public get currentLanguage(): SupportedLanguage | string {
@@ -210,12 +214,28 @@ class I18nManager {
      */
     public t(path: string, params?: Record<string, string | number>): string {
         const currentEntry = this.locales.get(this.currentLang);
-        const currentTranslations = currentEntry?.loaded ? currentEntry.translations : undefined;
-        const fallbackTranslations = this.locales.get('en')?.translations;
+        const isCurrentLoaded = Boolean(currentEntry?.loaded);
+        let langMap = isCurrentLoaded ? this.pathCache.get(this.currentLang) : undefined;
+        let val: any;
 
-        let val: any = this.resolvePath(currentTranslations, path);
-        if (val === undefined) {
-            val = this.resolvePath(fallbackTranslations, path);
+        if (langMap && langMap.has(path)) {
+            val = langMap.get(path);
+        } else {
+            const currentTranslations = isCurrentLoaded ? currentEntry!.translations : undefined;
+            const fallbackTranslations = this.locales.get('en')?.translations;
+
+            val = this.resolvePath(currentTranslations, path);
+            if (val === undefined) {
+                val = this.resolvePath(fallbackTranslations, path);
+            }
+
+            if (isCurrentLoaded) {
+                if (!langMap) {
+                    langMap = new Map<string, any>();
+                    this.pathCache.set(this.currentLang, langMap);
+                }
+                langMap.set(path, val);
+            }
         }
 
         if (val === undefined) {
@@ -223,9 +243,18 @@ class I18nManager {
         }
 
         if (typeof val === 'string' && params) {
-            return Object.entries(params).reduce((acc, [key, replacement]) => {
-                return acc.replace(new RegExp(`\\{${key}\\}`, 'g'), String(replacement));
-            }, val);
+            let result = val;
+            for (const key in params) {
+                if (Object.prototype.hasOwnProperty.call(params, key)) {
+                    let regex = this.paramRegexCache.get(key);
+                    if (!regex) {
+                        regex = new RegExp(`\\{${key}\\}`, 'g');
+                        this.paramRegexCache.set(key, regex);
+                    }
+                    result = result.replace(regex, String(params[key]));
+                }
+            }
+            return result;
         }
 
         return String(val);

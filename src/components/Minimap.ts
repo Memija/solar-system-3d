@@ -13,11 +13,18 @@ export class Minimap {
     public isVisible: boolean = true;
     private static readonly _tempPos = new THREE.Vector3();
     private static readonly _camDir = new THREE.Vector3();
+    private static readonly _radarPt = { rx: 0, ry: 0 };
+    private static readonly _hexCache = new Map<number, { solid: string; glow: string }>();
     private onPointerDownBound: (e: PointerEvent) => void;
     private onResizeBound: () => void;
     private unregisterI18n: (() => void) | null = null;
     private lastDrawTime: number = -1;
     private reducedMotion: boolean = false;
+    private staticCanvas: HTMLCanvasElement | null = null;
+    private staticCtx: CanvasRenderingContext2D | null = null;
+    private staticCacheKey: string = '';
+    private cachedBeamGrad: CanvasGradient | null = null;
+    private cachedBeamGradKey: string = '';
 
     getEffectiveSize(): number {
         if (typeof window !== 'undefined' && window.innerWidth <= 768) {
@@ -141,6 +148,79 @@ export class Minimap {
         PreferencesManager.set('minimap', visible);
     }
 
+    private renderStaticBackdrop(targetCtx: CanvasRenderingContext2D, width: number, height: number, dpr: number) {
+        const cx = width / 2;
+        const cy = height / 2;
+
+        targetCtx.clearRect(0, 0, width, height);
+
+        // Holographic Radar Background Sector
+        const sweepGrad = targetCtx.createRadialGradient(cx, cy, 0, cx, cy, cx);
+        sweepGrad.addColorStop(0, 'rgba(56, 189, 248, 0.03)');
+        sweepGrad.addColorStop(0.7, 'rgba(56, 189, 248, 0.06)');
+        sweepGrad.addColorStop(1, 'rgba(129, 140, 248, 0.13)');
+        targetCtx.fillStyle = sweepGrad;
+        targetCtx.beginPath();
+        targetCtx.arc(cx, cy, cx - 2 * dpr, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        // Outer azimuth degree tick marks
+        targetCtx.save();
+        const outerR = cx - 3 * dpr;
+        for (let deg = 0; deg < 360; deg += 15) {
+            if (deg % 90 === 0) continue;
+            const rad = (deg * Math.PI) / 180;
+            const isMajor = deg % 45 === 0;
+            const tickLen = (isMajor ? 5 : 2.5) * dpr;
+            const cosR = Math.cos(rad);
+            const sinR = Math.sin(rad);
+            targetCtx.beginPath();
+            targetCtx.moveTo(cx + cosR * (outerR - tickLen), cy + sinR * (outerR - tickLen));
+            targetCtx.lineTo(cx + cosR * outerR, cy + sinR * outerR);
+            targetCtx.strokeStyle = isMajor ? 'rgba(125, 211, 252, 0.45)' : 'rgba(56, 189, 248, 0.22)';
+            targetCtx.lineWidth = (isMajor ? 1.2 : 0.8) * dpr;
+            targetCtx.stroke();
+        }
+        targetCtx.restore();
+
+        // Concentric range rings & localized high-contrast AU labels
+        const unitAU = i18n.t('measurement.unitAU') || 'AU';
+        const showRingText = this.size >= 160;
+        targetCtx.fillStyle = 'rgba(186, 230, 253, 0.78)';
+        targetCtx.font = `600 ${8.5 * dpr}px "JetBrains Mono", "Orbitron", monospace`;
+        targetCtx.textAlign = 'center';
+        for (let i = 1; i <= 4; i++) {
+            const r = (cx * i) / 4.2;
+            targetCtx.beginPath();
+            targetCtx.arc(cx, cy, r, 0, Math.PI * 2);
+            targetCtx.strokeStyle = i === 4 ? 'rgba(56, 189, 248, 0.4)' : 'rgba(56, 189, 248, 0.18)';
+            targetCtx.lineWidth = 1 * dpr;
+            targetCtx.stroke();
+
+            if (showRingText || i % 2 === 0) {
+                targetCtx.fillText(`${i * 10} ${unitAU}`, cx, cy - r + 10 * dpr);
+            }
+        }
+
+        // Reticle Crosshairs
+        targetCtx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
+        targetCtx.lineWidth = 1 * dpr;
+        targetCtx.beginPath();
+        targetCtx.moveTo(cx, 16 * dpr); targetCtx.lineTo(cx, height - 16 * dpr);
+        targetCtx.moveTo(16 * dpr, cy); targetCtx.lineTo(width - 16 * dpr, cy);
+        targetCtx.stroke();
+
+        // Localized Cardinal Ticks
+        targetCtx.fillStyle = 'rgba(224, 242, 254, 0.9)';
+        targetCtx.font = `bold ${8.5 * dpr}px "Exo 2", "Space Grotesk", sans-serif`;
+        targetCtx.textAlign = 'center';
+        targetCtx.textBaseline = 'middle';
+        targetCtx.fillText(i18n.t('ui.compassN') || 'N', cx, 9.5 * dpr);
+        targetCtx.fillText(i18n.t('ui.compassS') || 'S', cx, height - 9.5 * dpr);
+        targetCtx.fillText(i18n.t('ui.compassW') || 'W', 9.5 * dpr, cy);
+        targetCtx.fillText(i18n.t('ui.compassE') || 'E', width - 9.5 * dpr, cy);
+    }
+
     update() {
         if (!this.isVisible) return;
 
@@ -165,32 +245,26 @@ export class Minimap {
             this.sweepAngle = (this.sweepAngle + 0.055) % (Math.PI * 2);
         }
 
-        // Holographic Radar Background Sector
-        const sweepGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
-        sweepGrad.addColorStop(0, 'rgba(56, 189, 248, 0.03)');
-        sweepGrad.addColorStop(0.7, 'rgba(56, 189, 248, 0.06)');
-        sweepGrad.addColorStop(1, 'rgba(129, 140, 248, 0.13)');
-        ctx.fillStyle = sweepGrad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, cx - 2 * dpr, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Outer azimuth degree tick marks
-        ctx.save();
-        const outerR = cx - 3 * dpr;
-        for (let deg = 0; deg < 360; deg += 15) {
-            if (deg % 90 === 0) continue;
-            const rad = (deg * Math.PI) / 180;
-            const isMajor = deg % 45 === 0;
-            const tickLen = (isMajor ? 5 : 2.5) * dpr;
-            ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(rad) * (outerR - tickLen), cy + Math.sin(rad) * (outerR - tickLen));
-            ctx.lineTo(cx + Math.cos(rad) * outerR, cy + Math.sin(rad) * outerR);
-            ctx.strokeStyle = isMajor ? 'rgba(125, 211, 252, 0.45)' : 'rgba(56, 189, 248, 0.22)';
-            ctx.lineWidth = (isMajor ? 1.2 : 0.8) * dpr;
-            ctx.stroke();
+        const cacheKey = `${width}x${height}:${dpr}:${i18n.currentLanguage}`;
+        if (typeof ctx.drawImage === 'function' && typeof document !== 'undefined') {
+            if (!this.staticCanvas) {
+                this.staticCanvas = document.createElement('canvas');
+                this.staticCtx = this.staticCanvas.getContext('2d');
+            }
+            if (this.staticCtx) {
+                if (this.staticCacheKey !== cacheKey) {
+                    this.staticCanvas.width = width;
+                    this.staticCanvas.height = height;
+                    this.renderStaticBackdrop(this.staticCtx, width, height, dpr);
+                    this.staticCacheKey = cacheKey;
+                }
+                ctx.drawImage(this.staticCanvas, 0, 0);
+            } else {
+                this.renderStaticBackdrop(ctx, width, height, dpr);
+            }
+        } else {
+            this.renderStaticBackdrop(ctx, width, height, dpr);
         }
-        ctx.restore();
 
         // Trailing radar beam cone (suppressed under prefers-reduced-motion)
         if (!this.reducedMotion) {
@@ -199,11 +273,16 @@ export class Minimap {
             ctx.moveTo(cx, cy);
             ctx.arc(cx, cy, cx - 4 * dpr, this.sweepAngle - 0.5, this.sweepAngle);
             ctx.closePath();
-            const beamGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
-            beamGrad.addColorStop(0, 'rgba(56, 189, 248, 0.0)');
-            beamGrad.addColorStop(0.65, 'rgba(56, 189, 248, 0.12)');
-            beamGrad.addColorStop(1, 'rgba(125, 211, 252, 0.24)');
-            ctx.fillStyle = beamGrad;
+            const beamKey = `${cx}:${cy}`;
+            if (!this.cachedBeamGrad || this.cachedBeamGradKey !== beamKey) {
+                const beamGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
+                beamGrad.addColorStop(0, 'rgba(56, 189, 248, 0.0)');
+                beamGrad.addColorStop(0.65, 'rgba(56, 189, 248, 0.12)');
+                beamGrad.addColorStop(1, 'rgba(125, 211, 252, 0.24)');
+                this.cachedBeamGrad = beamGrad;
+                this.cachedBeamGradKey = beamKey;
+            }
+            ctx.fillStyle = this.cachedBeamGrad;
             ctx.fill();
 
             ctx.beginPath();
@@ -215,54 +294,20 @@ export class Minimap {
             ctx.restore();
         }
 
-        // Concentric range rings & localized high-contrast AU labels
-        const unitAU = i18n.t('measurement.unitAU') || 'AU';
-        const showRingText = this.size >= 160;
-        for (let i = 1; i <= 4; i++) {
-            const r = (cx * i) / 4.2;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = i === 4 ? 'rgba(56, 189, 248, 0.4)' : 'rgba(56, 189, 248, 0.18)';
-            ctx.lineWidth = 1 * dpr;
-            ctx.stroke();
-
-            if (showRingText || i % 2 === 0) {
-                ctx.fillStyle = 'rgba(186, 230, 253, 0.78)';
-                ctx.font = `600 ${8.5 * dpr}px "JetBrains Mono", "Orbitron", monospace`;
-                ctx.textAlign = 'center';
-                ctx.fillText(`${i * 10} ${unitAU}`, cx, cy - r + 10 * dpr);
-            }
-        }
-
-        // Reticle Crosshairs
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
-        ctx.lineWidth = 1 * dpr;
-        ctx.beginPath();
-        ctx.moveTo(cx, 16 * dpr); ctx.lineTo(cx, height - 16 * dpr);
-        ctx.moveTo(16 * dpr, cy); ctx.lineTo(width - 16 * dpr, cy);
-        ctx.stroke();
-
-        // Localized Cardinal Ticks
-        ctx.fillStyle = 'rgba(224, 242, 254, 0.9)';
-        ctx.font = `bold ${8.5 * dpr}px "Exo 2", "Space Grotesk", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(i18n.t('ui.compassN') || 'N', cx, 9.5 * dpr);
-        ctx.fillText(i18n.t('ui.compassS') || 'S', cx, height - 9.5 * dpr);
-        ctx.fillText(i18n.t('ui.compassW') || 'W', 9.5 * dpr, cy);
-        ctx.fillText(i18n.t('ui.compassE') || 'E', width - 9.5 * dpr, cy);
-
         const usableRadius = cx - 10 * dpr;
+        const radarScale = usableRadius / effectiveMax;
         const mapToRadar = (x3d: number, z3d: number) => {
-            const scale = usableRadius / effectiveMax;
-            let dx = x3d * scale;
-            let dy = z3d * scale;
-            const dist = Math.hypot(dx, dy);
-            if (dist > usableRadius) {
-                dx = (dx / dist) * usableRadius;
-                dy = (dy / dist) * usableRadius;
+            let dx = x3d * radarScale;
+            let dy = z3d * radarScale;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > usableRadius * usableRadius) {
+                const invDist = usableRadius / Math.sqrt(distSq);
+                dx *= invDist;
+                dy *= invDist;
             }
-            return { rx: cx + dx, ry: cy + dy };
+            Minimap._radarPt.rx = cx + dx;
+            Minimap._radarPt.ry = cy + dy;
+            return Minimap._radarPt;
         };
 
         // Draw planets and dwarf planets
@@ -270,14 +315,21 @@ export class Minimap {
             if (planet.data.isDwarfPlanet && !this.sceneManager.showDwarfPlanets) return;
 
             const pos = planet.orbitGroup.position;
-            const { rx, ry } = mapToRadar(pos.x, pos.z);
+            const pt = mapToRadar(pos.x, pos.z);
+            const rx = pt.rx;
+            const ry = pt.ry;
             const isSun = planet.data.name === 'Sun';
             const isFocused = this.sceneManager.focusedBody === planet;
-            const hexColor = '#' + planet.data.color.toString(16).padStart(6, '0');
+            let colorEntry = Minimap._hexCache.get(planet.data.color);
+            if (!colorEntry) {
+                const solid = '#' + planet.data.color.toString(16).padStart(6, '0');
+                colorEntry = { solid, glow: solid + '44' };
+                Minimap._hexCache.set(planet.data.color, colorEntry);
+            }
 
             ctx.beginPath();
             ctx.arc(rx, ry, (isSun ? 7.5 : isFocused ? 6 : 4.2) * dpr, 0, Math.PI * 2);
-            ctx.fillStyle = isSun ? 'rgba(251, 191, 36, 0.38)' : hexColor + '44';
+            ctx.fillStyle = isSun ? 'rgba(251, 191, 36, 0.38)' : colorEntry.glow;
             ctx.fill();
 
             if (isFocused && !isSun) {
@@ -290,7 +342,7 @@ export class Minimap {
 
             ctx.beginPath();
             ctx.arc(rx, ry, (isSun ? 4.5 : 2.6) * dpr, 0, Math.PI * 2);
-            ctx.fillStyle = hexColor;
+            ctx.fillStyle = colorEntry.solid;
             ctx.fill();
 
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
@@ -300,34 +352,36 @@ export class Minimap {
 
         // Draw comets using world position of orbitGroup (not local mesh.position which is always 0,0,0)
         if (this.sceneManager.showComets) {
+            ctx.fillStyle = '#67e8f9';
             this.sceneManager.comets.forEach(comet => {
                 comet.orbitGroup.getWorldPosition(Minimap._tempPos);
-                const { rx, ry } = mapToRadar(Minimap._tempPos.x, Minimap._tempPos.z);
+                const pt = mapToRadar(Minimap._tempPos.x, Minimap._tempPos.z);
 
                 ctx.beginPath();
-                ctx.arc(rx, ry, 2.1 * dpr, 0, Math.PI * 2);
-                ctx.fillStyle = '#67e8f9';
+                ctx.arc(pt.rx, pt.ry, 2.1 * dpr, 0, Math.PI * 2);
                 ctx.fill();
             });
         }
 
         // Draw spacecrafts
         if (this.sceneManager.showSpacecrafts) {
+            ctx.fillStyle = '#f59e0b';
             this.sceneManager.spacecrafts.forEach(sc => {
                 if (sc.baseGroup && !sc.baseGroup.visible) return;
                 sc.mesh.getWorldPosition(Minimap._tempPos);
-                const { rx, ry } = mapToRadar(Minimap._tempPos.x, Minimap._tempPos.z);
+                const pt = mapToRadar(Minimap._tempPos.x, Minimap._tempPos.z);
 
                 ctx.beginPath();
-                ctx.arc(rx, ry, 1.8 * dpr, 0, Math.PI * 2);
-                ctx.fillStyle = '#f59e0b';
+                ctx.arc(pt.rx, pt.ry, 1.8 * dpr, 0, Math.PI * 2);
                 ctx.fill();
             });
         }
 
         // Camera position and view field cone
         const camPos = this.sceneManager.camera.position;
-        const { rx: camX, ry: camY } = mapToRadar(camPos.x, camPos.z);
+        const camPt = mapToRadar(camPos.x, camPos.z);
+        const camX = camPt.rx;
+        const camY = camPt.ry;
 
         this.sceneManager.camera.getWorldDirection(Minimap._camDir);
         const angle = Math.atan2(Minimap._camDir.z, Minimap._camDir.x);

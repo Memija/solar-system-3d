@@ -36,6 +36,7 @@ export class ControlCenter {
 
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
     private unregisterI18n: (() => void) | null = null;
+    private lastSyncedTimeScale: number = NaN;
 
     constructor(uiManager: UIManager, sceneManager: SceneManager, uiContainer: HTMLElement) {
         this.uiManager = uiManager;
@@ -1088,6 +1089,8 @@ export class ControlCenter {
 
     public syncTimePanel() {
         const currentSpeed = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
+        if (currentSpeed === this.lastSyncedTimeScale) return;
+        this.lastSyncedTimeScale = currentSpeed;
         const isPaused = this.sceneManager?.timeScale === 0;
 
         // Update active preset button

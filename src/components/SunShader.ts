@@ -88,12 +88,16 @@ float snoise(vec3 v){
 void main() {
     // Normalize local sphere direction so noise frequency is scale-invariant
     vec3 dir = normalize(vPosition);
+    float viewDist = length(vViewPosition);
 
     // Multi-octave convective photosphere granulation & supergranulation
     float n1 = snoise(dir * 3.2 + vec3(time * 0.11, time * 0.08, -time * 0.05));
     float n2 = snoise(dir * 7.5 - vec3(time * 0.06, time * 0.16, time * 0.12));
     float n3 = snoise(dir * 16.0 + vec3(time * 0.22, -time * 0.09, time * 0.19));
-    float gran = snoise(dir * 34.0 - vec3(time * 0.28, time * 0.21, 0.0));
+    // Skip high-frequency granulation octave when Sun is viewed from afar (sub-pixel detail)
+    float gran = viewDist < 65.0
+        ? snoise(dir * 34.0 - vec3(time * 0.28, time * 0.21, 0.0)) * (1.0 - smoothstep(45.0, 65.0, viewDist))
+        : 0.0;
 
     float combinedNoise = n1 * 0.45 + n2 * 0.28 + n3 * 0.17 + gran * 0.10;
 
@@ -111,7 +115,7 @@ void main() {
     // At disk center (mu = 1), line of sight penetrates deeper, hotter photosphere layers;
     // near the limb (mu -> 0), higher, cooler, redder optical depth tau ~ 1 dominates.
     vec3 normal = normalize(vNormal);
-    vec3 viewDir = normalize(vViewPosition);
+    vec3 viewDir = vViewPosition / max(viewDist, 1e-5);
     float mu = clamp(dot(normal, viewDir), 0.0, 1.0);
     float limbDarkening = 0.42 + 0.58 * pow(mu, 0.62);
 

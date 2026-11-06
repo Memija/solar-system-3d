@@ -20,6 +20,7 @@ export class Spacecraft {
     private beaconMesh: THREE.Mesh | null = null;
     private beaconMaterial: THREE.MeshBasicMaterial | null = null;
     private beaconTimer: number = 0;
+    private subMeshes: THREE.Mesh[] = [];
 
     constructor(data: SpacecraftData, parent: THREE.Object3D) {
         this.data = data;
@@ -115,6 +116,8 @@ export class Spacecraft {
             this.mesh.add(mesh);
         }
 
+        this.mergeStaticSubMeshes();
+
         // Active telemetry beacon / navigation strobe indicator
         const beaconGeo = new THREE.SphereGeometry(0.04, 8, 8);
         this.beaconMaterial = new THREE.MeshBasicMaterial({
@@ -127,12 +130,134 @@ export class Spacecraft {
         this.beaconMesh.position.set(0, 0.25, 0);
         this.mesh.add(this.beaconMesh);
 
+        this.subMeshes = [];
         this.mesh.traverse((child) => {
             if (child instanceof THREE.Mesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
+                // Disable shadow cubemap casting by default on tiny (<0.5 unit) spacecraft parts;
+                // enabled dynamically when the camera focuses on this spacecraft.
+                child.castShadow = false;
+                child.receiveShadow = false;
+                this.subMeshes.push(child);
             }
         });
+    }
+
+    setShadowCasting(enabled: boolean) {
+        for (let i = 0; i < this.subMeshes.length; i++) {
+            const m = this.subMeshes[i];
+            if (m !== this.beaconMesh) {
+                m.castShadow = enabled;
+                m.receiveShadow = enabled;
+            }
+        }
+    }
+
+    private mergeStaticSubMeshes() {
+        const savedRot = this.mesh.rotation.clone();
+        const savedScale = this.mesh.scale.clone();
+        this.mesh.position.set(0, 0, 0);
+        this.mesh.rotation.set(0, 0, 0);
+        this.mesh.scale.set(1, 1, 1);
+        this.mesh.updateMatrixWorld(true);
+
+        const buckets = new Map<THREE.Material, THREE.Mesh[]>();
+        this.mesh.traverse((child) => {
+            if (child instanceof THREE.Mesh && child.material && !Array.isArray(child.material)) {
+                let list = buckets.get(child.material);
+                if (!list) {
+                    list = [];
+                    buckets.set(child.material, list);
+                }
+                list.push(child);
+            }
+        });
+
+        buckets.forEach((meshes, mat) => {
+            if (meshes.length <= 1) return;
+
+            let totalVerts = 0;
+            let totalIndices = 0;
+            const bakedGeoms: THREE.BufferGeometry[] = [];
+
+            for (let i = 0; i < meshes.length; i++) {
+                const m = meshes[i];
+                const g = m.geometry.clone();
+                g.applyMatrix4(m.matrixWorld);
+                bakedGeoms.push(g);
+                const pos = g.getAttribute('position');
+                if (!pos) continue;
+                totalVerts += pos.count;
+                const idx = g.getIndex();
+                totalIndices += idx ? idx.count : pos.count;
+            }
+
+            if (totalVerts === 0) return;
+
+            const mergedPos = new Float32Array(totalVerts * 3);
+            const mergedNorm = new Float32Array(totalVerts * 3);
+            const mergedIndices = new Uint32Array(totalIndices);
+
+            let vertOffset = 0;
+            let idxOffset = 0;
+
+            for (let i = 0; i < bakedGeoms.length; i++) {
+                const g = bakedGeoms[i];
+                const pos = g.getAttribute('position') as THREE.BufferAttribute | undefined;
+                if (!pos) continue;
+                const norm = g.getAttribute('normal') as THREE.BufferAttribute | undefined;
+
+                for (let v = 0; v < pos.count; v++) {
+                    const base = (vertOffset + v) * 3;
+                    mergedPos[base] = pos.getX(v);
+                    mergedPos[base + 1] = pos.getY(v);
+                    mergedPos[base + 2] = pos.getZ(v);
+                    if (norm) {
+                        mergedNorm[base] = norm.getX(v);
+                        mergedNorm[base + 1] = norm.getY(v);
+                        mergedNorm[base + 2] = norm.getZ(v);
+                    }
+                }
+
+                const idx = g.getIndex();
+                if (idx) {
+                    for (let k = 0; k < idx.count; k++) {
+                        mergedIndices[idxOffset + k] = idx.getX(k) + vertOffset;
+                    }
+                    idxOffset += idx.count;
+                } else {
+                    for (let k = 0; k < pos.count; k++) {
+                        mergedIndices[idxOffset + k] = vertOffset + k;
+                    }
+                    idxOffset += pos.count;
+                }
+
+                vertOffset += pos.count;
+                g.dispose();
+            }
+
+            for (let i = 0; i < meshes.length; i++) {
+                const m = meshes[i];
+                m.geometry.dispose();
+                if (m.parent) m.parent.remove(m);
+            }
+
+            const mergedGeo = new THREE.BufferGeometry();
+            mergedGeo.setAttribute('position', new THREE.BufferAttribute(mergedPos, 3));
+            mergedGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNorm, 3));
+            mergedGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+            this.mesh.add(new THREE.Mesh(mergedGeo, mat));
+        });
+
+        // Remove any now-empty pivot groups
+        for (let i = this.mesh.children.length - 1; i >= 0; i--) {
+            const child = this.mesh.children[i];
+            if (!(child as THREE.Mesh).isMesh && child.children.length === 0) {
+                this.mesh.remove(child);
+            }
+        }
+
+        this.mesh.rotation.copy(savedRot);
+        this.mesh.scale.copy(savedScale);
     }
 
     private createSputnikModel(silverFoil: THREE.MeshStandardMaterial) {
@@ -415,6 +540,8 @@ export class Spacecraft {
         const material = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
+        this.orbitLine.matrixAutoUpdate = false;
+        this.orbitLine.updateMatrix?.();
         this.baseGroup.add(this.orbitLine);
     }
 
@@ -445,21 +572,19 @@ export class Spacecraft {
             const currentlyActive = simDate.getTime() <= this.endTimestamp;
             if (this.isActive !== currentlyActive) {
                 this.isActive = currentlyActive;
-                this.mesh.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                        const mat = child.material;
-                        if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
-                            if (mat.userData.originalColor === undefined) {
-                                mat.userData.originalColor = mat.color.getHex();
-                            }
-                            if (!this.isActive) {
-                                mat.color.setHex(0xff8800);
-                            } else {
-                                mat.color.setHex(mat.userData.originalColor);
-                            }
+                for (let i = 0; i < this.materials.length; i++) {
+                    const mat = this.materials[i];
+                    if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                        if (mat.userData.originalColor === undefined) {
+                            mat.userData.originalColor = mat.color.getHex();
+                        }
+                        if (!this.isActive) {
+                            mat.color.setHex(0xff8800);
+                        } else {
+                            mat.color.setHex(mat.userData.originalColor);
                         }
                     }
-                });
+                }
             }
         }
 

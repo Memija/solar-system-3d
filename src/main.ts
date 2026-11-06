@@ -111,11 +111,30 @@ async function init() {
   (window as any).loadingScreen = loadingScreen;
 
   animate = () => {
-    if (!isAnimating) return;
+    if (!isAnimating || document.hidden) {
+      animationFrameId = null;
+      return;
+    }
     animationFrameId = requestAnimationFrame(animate);
     sceneManager.update();
     uiManager.update();
   };
+
+  const onVisibilityChange = () => {
+    if (document.hidden) {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+    } else if (isAnimating) {
+      // Flush accumulated clock delta while the tab was hidden to prevent a time jump
+      sceneManager.clock.getDelta();
+      if (animationFrameId === null) {
+        animate();
+      }
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
 
   animate();
 
@@ -129,6 +148,7 @@ async function init() {
   });
 
   window.addEventListener('beforeunload', () => {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     (window as any).stopSimulation?.();
     loadingScreen.dispose();
     uiManager.dispose();
@@ -137,6 +157,7 @@ async function init() {
 
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       (window as any).stopSimulation?.();
       loadingScreen.dispose();
       uiManager.dispose();

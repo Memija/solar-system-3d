@@ -25,6 +25,7 @@ export interface KeplerianState {
 }
 
 export function solveKepler(M: number, e: number): number {
+    if (e <= 1e-12) return M;
     let E = M + e * Math.sin(M) + 0.5 * e * e * Math.sin(2 * M);
     for (let i = 0; i < 50; i++) {
         const f = E - e * Math.sin(E) - M;
@@ -135,9 +136,10 @@ export function computeKeplerianOrbitPoint(
     eccentricity: number,
     inclinationDeg: number = 0,
     longitudeOfPerihelionDeg: number = 0,
-    longitudeOfAscendingNodeDeg: number = 0
+    longitudeOfAscendingNodeDeg: number = 0,
+    precomputedBasis?: OrbitalBasis
 ): { x: number; y: number; z: number } {
-    const basis = getOrbitalBasis(
+    const basis = precomputedBasis ?? getOrbitalBasis(
         inclinationDeg,
         longitudeOfPerihelionDeg,
         longitudeOfAscendingNodeDeg,
@@ -171,9 +173,10 @@ export function computeKeplerianState(
     longitudeOfPerihelionDeg: number = 0,
     longitudeOfAscendingNodeDeg: number = 0,
     dir: number = 1,
-    out: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 }
+    out: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 },
+    precomputedBasis?: OrbitalBasis
 ): KeplerianState {
-    const basis = getOrbitalBasis(
+    const basis = precomputedBasis ?? getOrbitalBasis(
         inclinationDeg,
         longitudeOfPerihelionDeg,
         longitudeOfAscendingNodeDeg,

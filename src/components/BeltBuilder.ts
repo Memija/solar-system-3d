@@ -160,6 +160,8 @@ export function buildHabitableZone(scene: THREE.Scene, visible: boolean): THREE.
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
     mesh.visible = visible;
     scene.add(mesh);
     return mesh;
@@ -174,6 +176,8 @@ export function buildEclipticGrid(scene: THREE.Scene, visible: boolean): THREE.P
     const color2 = new THREE.Color(0x0f2744);
 
     const grid = new THREE.PolarGridHelper(radius, radials, circles, divisions, color1, color2);
+    grid.matrixAutoUpdate = false;
+    grid.updateMatrix();
     grid.visible = visible;
 
     if (grid.material instanceof THREE.Material) {
@@ -296,26 +300,40 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
     starPoints.updateMatrix();
     scene.add(starPoints);
 
-    // Major navigable catalog stars (shared geometry, individually colored for spectral fidelity)
+    // Major navigable catalog stars: rendered in a single InstancedMesh (1 draw call)
+    // while keeping lightweight raycast/focus proxy meshes in starMeshes.
     const majorStarRadius = 48000;
     const sharedMajorGeo = new THREE.SphereGeometry(140, 12, 12);
-    const majorMaterials: THREE.Material[] = [];
-    const starMeshes: THREE.Object3D[] = [];
+    const sharedMajorMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const instancedMajorStars = new THREE.InstancedMesh(sharedMajorGeo, sharedMajorMat, MajorStarsData.length);
+    instancedMajorStars.frustumCulled = false;
+    instancedMajorStars.matrixAutoUpdate = false;
+    instancedMajorStars.updateMatrix();
 
-    MajorStarsData.forEach(star => {
+    const starMeshes: THREE.Object3D[] = [];
+    const tempColor = new THREE.Color();
+
+    MajorStarsData.forEach((star, idx) => {
         const ecl = equatorialToEcliptic3D(star.ra, star.dec, majorStarRadius);
 
-        const starMat = new THREE.MeshBasicMaterial({ color: star.color });
-        majorMaterials.push(starMat);
-
-        const starMesh = new THREE.Mesh(sharedMajorGeo, starMat);
+        const starMesh = new THREE.Mesh(sharedMajorGeo, sharedMajorMat);
         starMesh.position.set(ecl.x, ecl.y, ecl.z);
         starMesh.userData = star;
         starMesh.matrixAutoUpdate = false;
         starMesh.updateMatrix();
-        scene.add(starMesh);
+        starMesh.updateMatrixWorld(true);
         starMeshes.push(starMesh);
+
+        instancedMajorStars.setMatrixAt(idx, starMesh.matrix);
+        tempColor.setHex(star.color ?? 0xffffff);
+        instancedMajorStars.setColorAt(idx, tempColor);
     });
+
+    instancedMajorStars.instanceMatrix.needsUpdate = true;
+    if (instancedMajorStars.instanceColor) {
+        instancedMajorStars.instanceColor.needsUpdate = true;
+    }
+    scene.add(instancedMajorStars);
 
     return {
         skybox,
@@ -336,9 +354,10 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
             starGeometry.dispose();
             starMaterial.dispose();
 
-            starMeshes.forEach(m => scene.remove(m));
+            scene.remove(instancedMajorStars);
+            instancedMajorStars.dispose();
             sharedMajorGeo.dispose();
-            majorMaterials.forEach(mat => mat.dispose());
+            sharedMajorMat.dispose();
             starMeshes.length = 0;
         }
     };

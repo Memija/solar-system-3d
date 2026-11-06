@@ -155,23 +155,127 @@ export class TextureGenerator {
         return (Math.abs(h) % 2147483645) + 1;
     }
 
+    private static readonly IDB_NAME = 'solar-system-textures-v1';
+    private static readonly IDB_STORE = 'textures';
+    private static idbPromise: Promise<IDBDatabase | null> | null = null;
+
+    private static openTextureCacheDB(): Promise<IDBDatabase | null> {
+        if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+        if (this.idbPromise) return this.idbPromise;
+
+        this.idbPromise = new Promise<IDBDatabase | null>((resolve) => {
+            try {
+                const req = indexedDB.open(this.IDB_NAME, 1);
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    if (!db.objectStoreNames.contains(this.IDB_STORE)) {
+                        db.createObjectStore(this.IDB_STORE);
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+            } catch {
+                resolve(null);
+            }
+        });
+        return this.idbPromise;
+    }
+
+    private static async getCachedTextureBlob(key: string): Promise<Blob | null> {
+        const db = await this.openTextureCacheDB();
+        if (!db) return null;
+        return new Promise<Blob | null>((resolve) => {
+            try {
+                const tx = db.transaction(this.IDB_STORE, 'readonly');
+                const req = tx.objectStore(this.IDB_STORE).get(key);
+                req.onsuccess = () => resolve(req.result instanceof Blob ? req.result : null);
+                req.onerror = () => resolve(null);
+            } catch {
+                resolve(null);
+            }
+        });
+    }
+
+    private static persistCanvasToCache(key: string, canvas: HTMLCanvasElement): void {
+        if (typeof canvas.toBlob !== 'function' || typeof indexedDB === 'undefined') return;
+        const schedule = typeof requestIdleCallback === 'function'
+            ? requestIdleCallback
+            : (cb: () => void) => setTimeout(cb, 50);
+
+        schedule(() => {
+            try {
+                canvas.toBlob(async (blob) => {
+                    if (!blob) return;
+                    const db = await this.openTextureCacheDB();
+                    if (!db) return;
+                    try {
+                        const tx = db.transaction(this.IDB_STORE, 'readwrite');
+                        tx.objectStore(this.IDB_STORE).put(blob, key);
+                    } catch {
+                        // Ignore quota or private-browsing errors
+                    }
+                }, 'image/webp', 0.92);
+            } catch {
+                // Ignore in headless/test environments
+            }
+        });
+    }
+
     /**
      * Asynchronously prewarm procedural textures across animation frames so boot UI never freezes.
+     * Restores previously synthesized textures from IndexedDB when available.
      */
     static async prewarmTexturesAsync(
         names: string[],
         onProgress?: (done: number, total: number, name: string) => void
     ): Promise<void> {
         const total = names.length;
+        const getNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        let sliceStart = getNow();
+        const canUseBitmapCache = typeof indexedDB !== 'undefined' && typeof createImageBitmap === 'function';
+        const isMobile = typeof window !== 'undefined' && (
+            ('ontouchstart' in window) ||
+            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+            window.innerWidth <= 768
+        );
+        const resSuffix = isMobile ? '1024x512' : '2048x1024';
+
         for (let i = 0; i < total; i++) {
             const name = names[i];
-            this.getPlanetTexture(name);
+            if (!this.cache.has(name) && canUseBitmapCache) {
+                const blob = await this.getCachedTextureBlob(`${name}_${resSuffix}`);
+                if (blob) {
+                    try {
+                        const bitmap = await createImageBitmap(blob);
+                        const tex = new THREE.CanvasTexture(bitmap as unknown as HTMLCanvasElement);
+                        tex.wrapS = THREE.RepeatWrapping;
+                        tex.wrapT = THREE.ClampToEdgeWrapping;
+                        tex.colorSpace = THREE.SRGBColorSpace;
+                        tex.anisotropy = TextureGenerator.maxAnisotropy;
+                        tex.minFilter = THREE.LinearMipmapLinearFilter;
+                        tex.generateMipmaps = true;
+                        tex.needsUpdate = true;
+                        this.cache.set(name, tex);
+                    } catch {
+                        // Fall through to procedural synthesis
+                    }
+                }
+            }
+
+            const tex = this.getPlanetTexture(name);
+            if (canUseBitmapCache && tex.image instanceof HTMLCanvasElement) {
+                this.persistCanvasToCache(`${name}_${resSuffix}`, tex.image);
+            }
+
             if (this.BUMP_WORLDS.has(name)) {
                 this.getPlanetBumpMap(name);
             }
             onProgress?.(i + 1, total, name);
-            // Yield to browser paint loop between heavy 2048x1024 procedural syntheses
-            await new Promise<void>(resolve => setTimeout(resolve, 0));
+            // Yield to browser paint loop only when the frame budget (~10ms) is exceeded
+            if (getNow() - sliceStart >= 10) {
+                await new Promise<void>(resolve => setTimeout(resolve, 0));
+                sliceStart = getNow();
+            }
         }
     }
 
@@ -225,7 +329,13 @@ export class TextureGenerator {
             const imgData = ctx.getImageData(0, 0, width, height);
             if (!imgData || !imgData.data) return;
             const data = imgData.data;
-            for (let i = 0; i < width * height; i++) {
+            const total = width * height;
+            const u32 = this.getUint32View(data, total);
+            const OCEAN_ROUGH = (255 << 24) | (30 << 16) | (30 << 8) | 30;
+            const ICE_ROUGH = (255 << 24) | (120 << 16) | (120 << 8) | 120;
+            const LAND_ROUGH = (255 << 24) | (225 << 16) | (225 << 8) | 225;
+
+            for (let i = 0; i < total; i++) {
                 const p = i * 4;
                 const r = data[p];
                 const g = data[p + 1];
@@ -234,19 +344,15 @@ export class TextureGenerator {
                 const isOcean = b > 55 && r < 50 && g < 80;
                 const isIce = r > 190 && g > 190 && b > 190;
 
-                let roughness: number;
-                if (isOcean) {
-                    roughness = 30; // 0.12 roughness - specular sun glint for oceans
-                } else if (isIce) {
-                    roughness = 120; // 0.47 roughness for polar ice
+                if (u32) {
+                    u32[i] = isOcean ? OCEAN_ROUGH : isIce ? ICE_ROUGH : LAND_ROUGH;
                 } else {
-                    roughness = 225; // 0.88 roughness for dry landmass
+                    const roughness = isOcean ? 30 : isIce ? 120 : 225;
+                    data[p] = roughness;
+                    data[p + 1] = roughness;
+                    data[p + 2] = roughness;
+                    data[p + 3] = 255;
                 }
-
-                data[p] = roughness;
-                data[p + 1] = roughness;
-                data[p + 2] = roughness;
-                data[p + 3] = 255;
             }
             ctx.putImageData(imgData, 0, 0);
             texture.needsUpdate = true;
@@ -284,15 +390,21 @@ export class TextureGenerator {
                 const imgData = ctx.getImageData(0, 0, width, height);
                 if (imgData && imgData.data) {
                     const d = imgData.data;
-                    for (let i = 0; i < width * height; i++) {
+                    const total = width * height;
+                    const u32 = this.getUint32View(d, total);
+                    for (let i = 0; i < total; i++) {
                         const p = i * 4;
                         // Perceptual luminance boosted around midtones for crisp crater/ridge normal relief
                         const lum = 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2];
-                        const contrasted = Math.max(0, Math.min(255, Math.round((lum - 128) * 1.35 + 128)));
-                        d[p] = contrasted;
-                        d[p + 1] = contrasted;
-                        d[p + 2] = contrasted;
-                        d[p + 3] = 255;
+                        const contrasted = Math.max(0, Math.min(255, ((lum - 128) * 1.35 + 128.5) | 0));
+                        if (u32) {
+                            u32[i] = (255 << 24) | (contrasted << 16) | (contrasted << 8) | contrasted;
+                        } else {
+                            d[p] = contrasted;
+                            d[p + 1] = contrasted;
+                            d[p + 2] = contrasted;
+                            d[p + 3] = 255;
+                        }
                     }
                     ctx.putImageData(imgData, 0, 0);
                 }
@@ -345,6 +457,13 @@ export class TextureGenerator {
         return null;
     }
 
+    private static getUint32View(data: Uint8ClampedArray, length: number): Uint32Array | null {
+        if (data && data.buffer && data.buffer.byteLength >= length * 4) {
+            return new Uint32Array(data.buffer, data.byteOffset || 0, length);
+        }
+        return null;
+    }
+
     private static createNoise(w: number, h: number, octaves = 4, persistence = 0.5, seed = 1234567): Float32Array {
         const size = w * h;
         const result = new Float32Array(size);
@@ -352,13 +471,9 @@ export class TextureGenerator {
         // Deterministic per-seed Lehmer PRNG so every planet/layer gets unique geology & cloud structure
         const baseNoise = new Float32Array(size);
         let s = (Math.abs(Math.floor(seed)) % 2147483645) + 1;
-        const pseudoRand = () => {
-            s = (s * 16807) % 2147483647;
-            return (s - 1) / 2147483646;
-        };
-
         for (let i = 0; i < size; i++) {
-            baseNoise[i] = pseudoRand();
+            s = (s * 16807) % 2147483647;
+            baseNoise[i] = (s - 1) / 2147483646;
         }
 
         let maxVal = 0;
@@ -366,37 +481,47 @@ export class TextureGenerator {
 
         for (let o = 0; o < octaves; o++) {
             const step = Math.max(1, Math.floor(Math.pow(2, octaves - o)));
+            const invStep = 1 / step;
+            const sxLut = new Float32Array(step);
+            for (let f = 0; f < step; f++) {
+                const fx = f * invStep;
+                sxLut[f] = fx * fx * (3 - 2 * fx);
+            }
+
             for (let y = 0; y < h; y++) {
-                for (let x = 0; x < w; x++) {
-                    const x0 = Math.floor(x / step) * step;
+                const y0 = Math.floor(y * invStep) * step;
+                const y1 = Math.min(h - 1, y0 + step);
+                const fy = (y - y0) * invStep;
+                const sy = fy * fy * (3 - 2 * fy);
+                const row0 = y0 * w;
+                const row1 = y1 * w;
+                const outRow = y * w;
+
+                for (let x0 = 0; x0 < w; x0 += step) {
                     const x1 = (x0 + step) % w;
-                    const y0 = Math.floor(y / step) * step;
-                    const y1 = Math.min(h - 1, y0 + step);
+                    const v00 = baseNoise[row0 + x0];
+                    const v10 = baseNoise[row0 + x1];
+                    const v01 = baseNoise[row1 + x0];
+                    const v11 = baseNoise[row1 + x1];
 
-                    const fx = (x - x0) / step;
-                    const fy = (y - y0) / step;
+                    const c0 = (v00 + (v01 - v00) * sy) * amplitude;
+                    const c1 = (v10 + (v11 - v10) * sy) * amplitude;
+                    const dc = c1 - c0;
 
-                    const sx = fx * fx * (3 - 2 * fx);
-                    const sy = fy * fy * (3 - 2 * fy);
-
-                    const v00 = baseNoise[y0 * w + x0];
-                    const v10 = baseNoise[y0 * w + x1];
-                    const v01 = baseNoise[y1 * w + x0];
-                    const v11 = baseNoise[y1 * w + x1];
-
-                    const top = v00 + (v10 - v00) * sx;
-                    const bottom = v01 + (v11 - v01) * sx;
-                    const val = top + (bottom - top) * sy;
-
-                    result[y * w + x] += val * amplitude;
+                    const span = Math.min(step, w - x0);
+                    const baseIdx = outRow + x0;
+                    for (let f = 0; f < span; f++) {
+                        result[baseIdx + f] += c0 + dc * sxLut[f];
+                    }
                 }
             }
             maxVal += amplitude;
             amplitude *= persistence;
         }
 
+        const invMaxVal = maxVal > 0 ? 1 / maxVal : 1;
         for (let i = 0; i < size; i++) {
-            result[i] /= maxVal;
+            result[i] *= invMaxVal;
         }
 
         return result;
@@ -406,19 +531,24 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 6, 0.55, 10113);
 
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                const idx = (y * w + x);
-                const n = noise[idx];
+        if (u32) {
+            for (let idx = 0; idx < total; idx++) {
+                const base = (100 + noise[idx] * 110) | 0;
+                const r = base + 8 > 255 ? 255 : base + 8;
+                const g = base + 4 > 255 ? 255 : base + 4;
+                u32[idx] = (255 << 24) | (base << 16) | (g << 8) | r;
+            }
+        } else {
+            for (let idx = 0; idx < total; idx++) {
+                const base = (100 + noise[idx] * 110) | 0;
                 const p = idx * 4;
-
-                // Mercury cratered grey/brown terrain
-                const base = Math.floor(100 + n * 110);
-                data[p] = Math.min(255, base + 8);     // R
-                data[p + 1] = Math.min(255, base + 4); // G
-                data[p + 2] = base;                   // B
+                data[p] = Math.min(255, base + 8);
+                data[p + 1] = Math.min(255, base + 4);
+                data[p + 2] = base;
                 data[p + 3] = 255;
             }
         }
@@ -458,24 +588,34 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise1 = this.createNoise(w, h, 5, 0.5, 20229);
         const noise2 = this.createNoise(w, h, 3, 0.6, 20987);
 
         for (let y = 0; y < h; y++) {
             const lat = (y / h) * Math.PI;
             const latFlow = Math.sin(lat * 3) * 0.15;
+            const shiftOffset = (Math.floor(latFlow * w) + w) % w;
+            const rowBase = y * w;
 
             for (let x = 0; x < w; x++) {
-                const shiftX = (x + Math.floor(latFlow * w) + w) % w;
-                const idx = y * w + shiftX;
+                const shiftX = (x + shiftOffset) % w;
+                const idx = rowBase + shiftX;
                 const n = noise1[idx] * 0.6 + noise2[idx] * 0.4;
-                const p = (y * w + x) * 4;
+                const r = (220 + n * 35) | 0;
+                const g = (180 + n * 45) | 0;
+                const b = (110 + n * 40) | 0;
+                const outIdx = rowBase + x;
 
-                // Golden sulfuric acid clouds
-                data[p] = Math.floor(220 + n * 35);     // R (Gold)
-                data[p + 1] = Math.floor(180 + n * 45); // G
-                data[p + 2] = Math.floor(110 + n * 40); // B
-                data[p + 3] = 255;
+                if (u32) {
+                    u32[outIdx] = (255 << 24) | (b << 16) | (g << 8) | r;
+                } else {
+                    const p = outIdx * 4;
+                    data[p] = r;
+                    data[p + 1] = g;
+                    data[p + 2] = b;
+                    data[p + 3] = 255;
+                }
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -495,53 +635,56 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise = this.createNoise(w, h, 6, 0.55);
+
+        const COL_ICE = (255 << 24) | (255 << 16) | (248 << 8) | 240;
+        const COL_MTN = (255 << 24) | (120 << 16) | (145 << 8) | 165;
+        const COL_DESERT = (255 << 24) | (110 << 16) | (170 << 8) | 195;
+        const COL_FOREST = (255 << 24) | (45 << 16) | (115 << 8) | 45;
+        const COL_COAST = (255 << 24) | (150 << 16) | (95 << 8) | 25;
+        const COL_OCEAN = (255 << 24) | (105 << 16) | (40 << 8) | 10;
 
         for (let y = 0; y < h; y++) {
             const lat = (y / h); // 0 (North Pole) to 1 (South Pole)
             const isPolar = lat < 0.12 || lat > 0.88;
             const isSubPolar = lat < 0.18 || lat > 0.82;
+            const isDesertLat = lat > 0.35 && lat < 0.55;
+            const rowBase = y * w;
 
             for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
+                const idx = rowBase + x;
                 const n = noise[idx];
-                const p = idx * 4;
 
-                if (isPolar || (isSubPolar && n > 0.35)) {
-                    // Ice caps
-                    data[p] = 240;
-                    data[p + 1] = 248;
-                    data[p + 2] = 255;
-                } else if (n > 0.52) {
-                    // Landmass / Continents
-                    if (n > 0.68) {
-                        // Mountains / High elevation
-                        data[p] = 165;
-                        data[p + 1] = 145;
-                        data[p + 2] = 120;
-                    } else if (lat > 0.35 && lat < 0.55 && n > 0.58) {
-                        // Desert / Savanna
-                        data[p] = 195;
-                        data[p + 1] = 170;
-                        data[p + 2] = 110;
+                if (u32) {
+                    if (isPolar || (isSubPolar && n > 0.35)) {
+                        u32[idx] = COL_ICE;
+                    } else if (n > 0.52) {
+                        u32[idx] = n > 0.68 ? COL_MTN : (isDesertLat && n > 0.58) ? COL_DESERT : COL_FOREST;
+                    } else if (n > 0.49) {
+                        u32[idx] = COL_COAST;
                     } else {
-                        // Lush green forests & grasslands
-                        data[p] = 45;
-                        data[p + 1] = 115;
-                        data[p + 2] = 45;
+                        u32[idx] = COL_OCEAN;
                     }
-                } else if (n > 0.49) {
-                    // Coastlines & Shallow continental shelves
-                    data[p] = 25;
-                    data[p + 1] = 95;
-                    data[p + 2] = 150;
                 } else {
-                    // Deep Oceans
-                    data[p] = 10;
-                    data[p + 1] = 40;
-                    data[p + 2] = 105;
+                    const p = idx * 4;
+                    if (isPolar || (isSubPolar && n > 0.35)) {
+                        data[p] = 240; data[p + 1] = 248; data[p + 2] = 255;
+                    } else if (n > 0.52) {
+                        if (n > 0.68) {
+                            data[p] = 165; data[p + 1] = 145; data[p + 2] = 120;
+                        } else if (isDesertLat && n > 0.58) {
+                            data[p] = 195; data[p + 1] = 170; data[p + 2] = 110;
+                        } else {
+                            data[p] = 45; data[p + 1] = 115; data[p + 2] = 45;
+                        }
+                    } else if (n > 0.49) {
+                        data[p] = 25; data[p + 1] = 95; data[p + 2] = 150;
+                    } else {
+                        data[p] = 10; data[p + 1] = 40; data[p + 2] = 105;
+                    }
+                    data[p + 3] = 255;
                 }
-                data[p + 3] = 255;
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -551,9 +694,19 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise1 = this.createNoise(w, h, 6, 0.55, 31337);
         const noise2 = this.createNoise(w, h, 4, 0.65, 32993);
         const noise3 = this.createNoise(w, h, 2, 0.75, 34711);
+
+        // Precompute longitude trig tables so Math.sin is not called 2M times in the inner pixel loop
+        const sinLonLut = new Float32Array(w);
+        const cosLonLut = new Float32Array(w);
+        for (let x = 0; x < w; x++) {
+            const angle = (x / w) * Math.PI * 8;
+            sinLonLut[x] = Math.sin(angle);
+            cosLonLut[x] = Math.cos(angle);
+        }
 
         for (let y = 0; y < h; y++) {
             const lat = y / h; // 0 = North pole, 0.5 = Equator, 1 = South pole
@@ -572,36 +725,44 @@ export class TextureGenerator {
             const dryZoneSouth = Math.exp(-Math.pow((lat - 0.62) * 12, 2)) * 0.12;
             const dryZones = dryZoneNorth + dryZoneSouth;
 
-            for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
-                const lon = x / w;
+            const latBias = itcz + midLatBelts - dryZones;
+            const hasVorticity = midLatBelts > 0.05;
+            const sinLat14 = hasVorticity ? Math.sin(lat * 14) * 0.07 : 0;
+            const cosLat14 = hasVorticity ? Math.cos(lat * 14) * 0.07 : 0;
+            const rowBase = y * w;
 
-                // Cyclonic swirling vorticity along jet-stream waves
-                const cycloneVorticity = Math.sin(lon * Math.PI * 8 + lat * 14) * 0.07 * (midLatBelts > 0.05 ? 1.0 : 0.0);
+            for (let x = 0; x < w; x++) {
+                const idx = rowBase + x;
+                const cycloneVorticity = hasVorticity
+                    ? (sinLonLut[x] * cosLat14 + cosLonLut[x] * sinLat14)
+                    : 0;
 
                 // Multi-scale cloud noise synthesis
                 const rawN = (noise1[idx] * 0.52 + noise2[idx] * 0.33 + noise3[idx] * 0.15);
-                const n = rawN + itcz + midLatBelts - dryZones + cycloneVorticity;
-                const p = idx * 4;
+                const n = rawN + latBias + cycloneVorticity;
 
                 if (n > 0.53) {
-                    // Crisp, bright white cloud banks with soft feathered edges:
-                    // n in [0.53, 0.58] -> feathered fringes (alpha 60 to 200)
-                    // n > 0.58 -> thick storm cores (alpha 200 to 255)
                     let alpha: number;
                     if (n > 0.58) {
-                        alpha = Math.min(255, Math.floor(210 + (n - 0.58) * 450));
+                        alpha = Math.min(255, (210 + (n - 0.58) * 450) | 0);
                     } else {
-                        const t = (n - 0.53) / 0.05;
-                        alpha = Math.floor(60 + t * 150);
+                        const t = (n - 0.53) * 20;
+                        alpha = (60 + t * 150) | 0;
                     }
 
-                    // Pure brilliant white clouds
-                    data[p] = 255;
-                    data[p + 1] = 255;
-                    data[p + 2] = 255;
-                    data[p + 3] = alpha;
+                    if (u32) {
+                        u32[idx] = (alpha << 24) | 0x00ffffff;
+                    } else {
+                        const p = idx * 4;
+                        data[p] = 255;
+                        data[p + 1] = 255;
+                        data[p + 2] = 255;
+                        data[p + 3] = alpha;
+                    }
+                } else if (u32) {
+                    u32[idx] = 0x00ffffff;
                 } else {
+                    const p = idx * 4;
                     data[p] = 255;
                     data[p + 1] = 255;
                     data[p + 2] = 255;
@@ -616,17 +777,20 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise = this.createNoise(w, h, 6, 0.52, 41519);
         const fineNoise = this.createNoise(w, h, 3, 0.6, 42899);
+        const invW2Pi = (Math.PI * 2) / w;
 
         for (let y = 0; y < h; y++) {
             const lat = y / h; // 0 = North pole, 1 = South pole
+            const nearNorthPole = lat < 0.08;
+            const nearSouthPole = lat > 0.92;
+            const rowBase = y * w;
 
             for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
+                const idx = rowBase + x;
                 const n = noise[idx];
-                const fn = fineNoise[idx];
-                const p = idx * 4;
 
                 // Base Martian iron-oxide colors
                 let r: number;
@@ -635,53 +799,63 @@ export class TextureGenerator {
 
                 if (n > 0.58) {
                     // Dark volcanic basaltic provinces (Syrtis Major, Acidalia, etc.)
-                    r = Math.floor(135 + n * 45);
-                    g = Math.floor(55 + n * 25);
-                    b = Math.floor(35 + n * 18);
+                    r = (135 + n * 45) | 0;
+                    g = (55 + n * 25) | 0;
+                    b = (35 + n * 18) | 0;
                 } else {
                     // Rusty reddish-ochre desert regolith & sand seas
-                    r = Math.floor(190 + n * 45);
-                    g = Math.floor(82 + n * 30);
-                    b = Math.floor(45 + n * 20);
+                    r = (190 + n * 45) | 0;
+                    g = (82 + n * 30) | 0;
+                    b = (45 + n * 20) | 0;
                 }
 
                 // Natural organic polar ice caps with spiral pinwheel chasmata (Chasma Boreale)
-                // North polar cap (Planum Boreum)
-                const lon = (x / w) * Math.PI * 2;
-                const northSpiral = Math.sin(lon * 3 + (1.0 - lat * 15)) * 0.008;
-                const northCapEdge = 0.035 + (n * 0.015) + northSpiral;
+                if (nearNorthPole) {
+                    const lon = x * invW2Pi;
+                    const northSpiral = Math.sin(lon * 3 + (1.0 - lat * 15)) * 0.008;
+                    const northCapEdge = 0.035 + (n * 0.015) + northSpiral;
 
-                if (lat < northCapEdge + 0.02) {
-                    // Smooth transition factor
-                    const frostFactor = Math.min(1, Math.max(0, (northCapEdge + 0.02 - lat) / 0.025 * (0.6 + fn * 0.4)));
-                    const iceR = 230 + Math.floor(fn * 20);
-                    const iceG = 220 + Math.floor(fn * 20);
-                    const iceB = 210 + Math.floor(fn * 25);
+                    if (lat < northCapEdge + 0.02) {
+                        const fn = fineNoise[idx];
+                        const frostFactor = Math.min(1, Math.max(0, (northCapEdge + 0.02 - lat) / 0.025 * (0.6 + fn * 0.4)));
+                        const iceR = 230 + ((fn * 20) | 0);
+                        const iceG = 220 + ((fn * 20) | 0);
+                        const iceB = 210 + ((fn * 25) | 0);
 
-                    r = Math.floor(r * (1 - frostFactor) + iceR * frostFactor);
-                    g = Math.floor(g * (1 - frostFactor) + iceG * frostFactor);
-                    b = Math.floor(b * (1 - frostFactor) + iceB * frostFactor);
+                        r = (r * (1 - frostFactor) + iceR * frostFactor) | 0;
+                        g = (g * (1 - frostFactor) + iceG * frostFactor) | 0;
+                        b = (b * (1 - frostFactor) + iceB * frostFactor) | 0;
+                    }
+                } else if (nearSouthPole) {
+                    const lon = x * invW2Pi;
+                    const southSpiral = Math.sin(lon * 2 + (lat * 15)) * 0.006;
+                    const southCapEdge = 0.965 - (n * 0.012) + southSpiral;
+
+                    if (lat > southCapEdge - 0.02) {
+                        const fn = fineNoise[idx];
+                        const frostFactor = Math.min(1, Math.max(0, (lat - (southCapEdge - 0.02)) / 0.025 * (0.6 + fn * 0.4)));
+                        const iceR = 230 + ((fn * 20) | 0);
+                        const iceG = 220 + ((fn * 20) | 0);
+                        const iceB = 210 + ((fn * 25) | 0);
+
+                        r = (r * (1 - frostFactor) + iceR * frostFactor) | 0;
+                        g = (g * (1 - frostFactor) + iceG * frostFactor) | 0;
+                        b = (b * (1 - frostFactor) + iceB * frostFactor) | 0;
+                    }
                 }
 
-                // South polar cap (Planum Australe)
-                const southSpiral = Math.sin(lon * 2 + (lat * 15)) * 0.006;
-                const southCapEdge = 0.965 - (n * 0.012) + southSpiral;
-
-                if (lat > southCapEdge - 0.02) {
-                    const frostFactor = Math.min(1, Math.max(0, (lat - (southCapEdge - 0.02)) / 0.025 * (0.6 + fn * 0.4)));
-                    const iceR = 230 + Math.floor(fn * 20);
-                    const iceG = 220 + Math.floor(fn * 20);
-                    const iceB = 210 + Math.floor(fn * 25);
-
-                    r = Math.floor(r * (1 - frostFactor) + iceR * frostFactor);
-                    g = Math.floor(g * (1 - frostFactor) + iceG * frostFactor);
-                    b = Math.floor(b * (1 - frostFactor) + iceB * frostFactor);
+                const cr = r > 255 ? 255 : r;
+                const cg = g > 255 ? 255 : g;
+                const cb = b > 255 ? 255 : b;
+                if (u32) {
+                    u32[idx] = (255 << 24) | (cb << 16) | (cg << 8) | cr;
+                } else {
+                    const p = idx * 4;
+                    data[p] = cr;
+                    data[p + 1] = cg;
+                    data[p + 2] = cb;
+                    data[p + 3] = 255;
                 }
-
-                data[p] = Math.min(255, r);
-                data[p + 1] = Math.min(255, g);
-                data[p + 2] = Math.min(255, b);
-                data[p + 3] = 255;
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -719,37 +893,47 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise = this.createNoise(w, h, 5, 0.5);
 
         for (let y = 0; y < h; y++) {
             const lat = (y / h) * Math.PI;
             // Characteristic horizontal band turbulence
-            const bandFreq = Math.sin(lat * 16) * 0.5 + Math.sin(lat * 32) * 0.2;
+            const bandBase = (Math.sin(lat * 16) * 0.5 + Math.sin(lat * 32) * 0.2 + 0.7) * 0.5;
+            const rowBase = y * w;
 
             for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
+                const idx = rowBase + x;
                 const n = noise[idx];
-                const combined = (bandFreq + 0.7) * 0.5 + n * 0.3;
-                const p = idx * 4;
+                const combined = bandBase + n * 0.3;
+                let r: number;
+                let g: number;
+                let b: number;
 
                 // Belts and zones (russet, ochre, cream, and white)
                 if (combined > 0.65) {
-                    // Dark reddish brown belt
-                    data[p] = 185 + Math.floor(n * 35);
-                    data[p + 1] = 105 + Math.floor(n * 30);
-                    data[p + 2] = 65 + Math.floor(n * 20);
+                    r = 185 + ((n * 35) | 0);
+                    g = 105 + ((n * 30) | 0);
+                    b = 65 + ((n * 20) | 0);
                 } else if (combined > 0.45) {
-                    // Tan / Ochre zone
-                    data[p] = 215 + Math.floor(n * 30);
-                    data[p + 1] = 165 + Math.floor(n * 30);
-                    data[p + 2] = 120 + Math.floor(n * 25);
+                    r = 215 + ((n * 30) | 0);
+                    g = 165 + ((n * 30) | 0);
+                    b = 120 + ((n * 25) | 0);
                 } else {
-                    // Light cream zone
-                    data[p] = 240 + Math.floor(n * 15);
-                    data[p + 1] = 220 + Math.floor(n * 20);
-                    data[p + 2] = 190 + Math.floor(n * 25);
+                    r = 240 + ((n * 15) | 0);
+                    g = 220 + ((n * 20) | 0);
+                    b = 190 + ((n * 25) | 0);
                 }
-                data[p + 3] = 255;
+
+                if (u32) {
+                    u32[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+                } else {
+                    const p = idx * 4;
+                    data[p] = r;
+                    data[p + 1] = g;
+                    data[p + 2] = b;
+                    data[p + 3] = 255;
+                }
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -781,23 +965,30 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise = this.createNoise(w, h, 4, 0.45);
 
         for (let y = 0; y < h; y++) {
             const lat = (y / h) * Math.PI;
             const band = Math.sin(lat * 20) * 0.25 + Math.sin(lat * 8) * 0.4;
+            const rowBase = y * w;
 
             for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
-                const n = noise[idx];
-                const p = idx * 4;
+                const idx = rowBase + x;
+                const v = band + noise[idx] * 0.2;
+                const r = (220 + v * 30) | 0;
+                const g = (195 + v * 35) | 0;
+                const b = (145 + v * 30) | 0;
 
-                // Saturn's golden-tan pastel bands
-                const v = band + n * 0.2;
-                data[p] = Math.floor(220 + v * 30);     // R (Gold)
-                data[p + 1] = Math.floor(195 + v * 35); // G (Tan)
-                data[p + 2] = Math.floor(145 + v * 30); // B
-                data[p + 3] = 255;
+                if (u32) {
+                    u32[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+                } else {
+                    const p = idx * 4;
+                    data[p] = r;
+                    data[p + 1] = g;
+                    data[p + 2] = b;
+                    data[p + 3] = 255;
+                }
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -807,22 +998,32 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise = this.createNoise(w, h, 3, 0.4);
 
         for (let y = 0; y < h; y++) {
             const lat = (y / h) * Math.PI;
             const polarGlow = Math.cos(lat) * 0.15;
+            const baseR = 145 + polarGlow * 30;
+            const baseG = 215 + polarGlow * 20;
+            const rowBase = y * w;
 
             for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
+                const idx = rowBase + x;
                 const n = noise[idx] * 0.1;
-                const p = idx * 4;
+                const r = (baseR + n * 20) | 0;
+                const g = (baseG + n * 15) | 0;
+                const b = (235 + n * 15) | 0;
 
-                // Aquamarine / pale cyan
-                data[p] = Math.floor(145 + polarGlow * 30 + n * 20);
-                data[p + 1] = Math.floor(215 + polarGlow * 20 + n * 15);
-                data[p + 2] = Math.floor(235 + n * 15);
-                data[p + 3] = 255;
+                if (u32) {
+                    u32[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+                } else {
+                    const p = idx * 4;
+                    data[p] = r;
+                    data[p + 1] = g;
+                    data[p + 2] = b;
+                    data[p + 3] = 255;
+                }
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -832,22 +1033,31 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const u32 = this.getUint32View(data, w * h);
         const noise = this.createNoise(w, h, 4, 0.5);
 
         for (let y = 0; y < h; y++) {
             const lat = (y / h) * Math.PI;
             const band = Math.sin(lat * 14) * 0.2;
+            const rowBase = y * w;
 
             for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
+                const idx = rowBase + x;
                 const n = noise[idx];
-                const p = idx * 4;
+                const bn = band + n;
+                const r = (35 + bn * 30) | 0;
+                const g = (80 + bn * 45) | 0;
+                const b = (210 + n * 35) | 0;
 
-                // Deep vivid azure cobalt blue
-                data[p] = Math.floor(35 + (band + n) * 30);
-                data[p + 1] = Math.floor(80 + (band + n) * 45);
-                data[p + 2] = Math.floor(210 + n * 35);
-                data[p + 3] = 255;
+                if (u32) {
+                    u32[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+                } else {
+                    const p = idx * 4;
+                    data[p] = r;
+                    data[p + 1] = g;
+                    data[p + 2] = b;
+                    data[p + 3] = 255;
+                }
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -857,19 +1067,22 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 6, 0.55);
 
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
-                const n = noise[idx];
+        for (let idx = 0; idx < total; idx++) {
+            const base = 120 + noise[idx] * 80;
+            const r = (base + 35) | 0;
+            const g = (base * 0.75) | 0;
+            const b = (base * 0.6) | 0;
+            if (u32) {
+                u32[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+            } else {
                 const p = idx * 4;
-
-                // Reddish-brown tholin terrain & rocky highlands
-                const base = 120 + n * 80;
-                data[p] = Math.floor(base + 35);     // R (Reddish)
-                data[p + 1] = Math.floor(base * 0.75); // G
-                data[p + 2] = Math.floor(base * 0.6);  // B
+                data[p] = r;
+                data[p + 1] = g;
+                data[p + 2] = b;
                 data[p + 3] = 255;
             }
         }
@@ -880,16 +1093,21 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 6, 0.55);
 
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
+        if (u32) {
+            for (let idx = 0; idx < total; idx++) {
+                const n = noise[idx];
+                const base = (n < 0.45 ? 65 + n * 60 : 140 + n * 90) | 0;
+                u32[idx] = 0xFF000000 | (base << 16) | (base << 8) | base;
+            }
+        } else {
+            for (let idx = 0; idx < total; idx++) {
                 const n = noise[idx];
                 const p = idx * 4;
-
-                // Dark basaltic maria vs bright highlands
-                const base = n < 0.45 ? Math.floor(65 + n * 60) : Math.floor(140 + n * 90);
+                const base = (n < 0.45 ? 65 + n * 60 : 140 + n * 90) | 0;
                 data[p] = base;
                 data[p + 1] = base;
                 data[p + 2] = base;
@@ -933,16 +1151,27 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 4, 0.5);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            const b = 180 + n * 65;
-            data[p] = b;
-            data[p + 1] = b + 10;
-            data[p + 2] = b + 15;
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const r = (180 + noise[i] * 65) | 0;
+                const g = r + 10 > 255 ? 255 : r + 10;
+                const b = r + 15 > 255 ? 255 : r + 15;
+                u32[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                const b = 180 + n * 65;
+                data[p] = b;
+                data[p + 1] = b + 10;
+                data[p + 2] = b + 15;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
 
@@ -957,15 +1186,27 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 5, 0.5);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            data[p] = Math.floor(180 + n * 50);     // Reddish brown
-            data[p + 1] = Math.floor(100 + n * 40);
-            data[p + 2] = Math.floor(70 + n * 30);
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const r = (180 + n * 50) | 0;
+                const g = (100 + n * 40) | 0;
+                const b = (70 + n * 30) | 0;
+                u32[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                data[p] = (180 + n * 50) | 0;     // Reddish brown
+                data[p + 1] = (100 + n * 40) | 0;
+                data[p + 2] = (70 + n * 30) | 0;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
     }
@@ -974,15 +1215,27 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 5, 0.5);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            data[p] = Math.floor(220 + n * 35);     // Sulfur yellow & orange
-            data[p + 1] = Math.floor(190 + n * 40);
-            data[p + 2] = Math.floor(40 + n * 30);
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const r = (220 + n * 35) | 0;
+                const g = (190 + n * 40) | 0;
+                const b = (40 + n * 30) | 0;
+                u32[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                data[p] = (220 + n * 35) | 0;     // Sulfur yellow & orange
+                data[p + 1] = (190 + n * 40) | 0;
+                data[p + 2] = (40 + n * 30) | 0;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
 
@@ -999,16 +1252,26 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 4, 0.4);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            const b = 220 + n * 35;
-            data[p] = b;
-            data[p + 1] = b;
-            data[p + 2] = b + 5;
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const r = (220 + noise[i] * 35) | 0;
+                const b = r + 5 > 255 ? 255 : r + 5;
+                u32[i] = 0xFF000000 | (b << 16) | (r << 8) | r;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                const b = 220 + n * 35;
+                data[p] = b;
+                data[p + 1] = b;
+                data[p + 2] = b + 5;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
 
@@ -1031,16 +1294,25 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 5, 0.5);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            const b = 110 + n * 80;
-            data[p] = b + 10;
-            data[p + 1] = b + 5;
-            data[p + 2] = b;
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const b = (110 + noise[i] * 80) | 0;
+                u32[i] = 0xFF000000 | (b << 16) | ((b + 5) << 8) | (b + 10);
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                const b = 110 + n * 80;
+                data[p] = b + 10;
+                data[p + 1] = b + 5;
+                data[p + 2] = b;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
     }
@@ -1049,16 +1321,25 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 6, 0.55);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            const b = 70 + n * 65;
-            data[p] = b;
-            data[p + 1] = b;
-            data[p + 2] = b;
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const b = (70 + noise[i] * 65) | 0;
+                u32[i] = 0xFF000000 | (b << 16) | (b << 8) | b;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                const b = 70 + n * 65;
+                data[p] = b;
+                data[p + 1] = b;
+                data[p + 2] = b;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
     }
@@ -1067,15 +1348,27 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 3, 0.4);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            data[p] = Math.floor(220 + n * 25);     // Deep orange photochemical haze
-            data[p + 1] = Math.floor(140 + n * 30);
-            data[p + 2] = Math.floor(40 + n * 20);
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const r = (220 + n * 25) | 0;
+                const g = (140 + n * 30) | 0;
+                const b = (40 + n * 20) | 0;
+                u32[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                data[p] = (220 + n * 25) | 0;     // Deep orange photochemical haze
+                data[p + 1] = (140 + n * 30) | 0;
+                data[p + 2] = (40 + n * 20) | 0;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
     }
@@ -1084,16 +1377,26 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 4, 0.4);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            const b = 240 + n * 15;
-            data[p] = b;
-            data[p + 1] = b;
-            data[p + 2] = b;
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const b = (240 + noise[i] * 15) | 0;
+                const c = b > 255 ? 255 : b;
+                u32[i] = 0xFF000000 | (c << 16) | (c << 8) | c;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                const b = 240 + n * 15;
+                data[p] = b;
+                data[p + 1] = b;
+                data[p + 2] = b;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
 
@@ -1112,15 +1415,27 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 5, 0.5);
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            data[p] = Math.floor(205 + n * 35);     // Cantaloupe terrain & nitrogen frost
-            data[p + 1] = Math.floor(215 + n * 30);
-            data[p + 2] = Math.floor(220 + n * 30);
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const r = (205 + n * 35) | 0;
+                const g = (215 + n * 30) | 0;
+                const b = (220 + n * 30) | 0;
+                u32[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const n = noise[i];
+                const p = i * 4;
+                data[p] = (205 + n * 35) | 0;     // Cantaloupe terrain & nitrogen frost
+                data[p + 1] = (215 + n * 30) | 0;
+                data[p + 2] = (220 + n * 30) | 0;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
     }
@@ -1129,29 +1444,46 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
 
         const noiseFine = this.createNoise(w, h, 6, 0.55, 81817);
         const noiseBroad = this.createNoise(w, h, 4, 0.5, 82997);
 
+        // Precompute longitude cosine table once per width
+        const cosLonLut = new Float32Array(w);
+        const twoPiOverW = (Math.PI * 2) / w;
+        for (let x = 0; x < w; x++) {
+            cosLonLut[x] = Math.cos(x * twoPiOverW - Math.PI);
+        }
+
         for (let y = 0; y < h; y++) {
             const lat = (0.5 - y / h) * Math.PI; // -PI/2 (south) to PI/2 (north)
             const cosLat = Math.cos(lat);
-            const ny = Math.sin(lat);
-            const absNy = Math.abs(ny);
+            const absNy = Math.abs(Math.sin(lat));
+            const latFalloff = Math.max(0, 1.0 - Math.pow(absNy / 0.68, 2.2));
+            const cosLatFalloff = cosLat * latFalloff;
+            const polarBoost = absNy > 0.62 ? (absNy - 0.62) * 65 : 0;
 
+            const absLat = Math.abs(lat);
+            const hasRidge = absLat < 0.035;
+            let ridgeR = 0, ridgeG = 0, ridgeB = 0;
+            if (hasRidge) {
+                const ridgeProximity = 1.0 - absLat / 0.035;
+                const ridgeHighlight = ridgeProximity * ridgeProximity * 45;
+                ridgeR = (ridgeHighlight * 1.2) | 0;
+                ridgeG = ridgeR;
+                ridgeB = (ridgeHighlight * 1.3) | 0;
+            }
+
+            const rowOffset = y * w;
             for (let x = 0; x < w; x++) {
-                const lon = (x / w) * Math.PI * 2 - Math.PI; // -PI to PI
-                const nx = cosLat * Math.cos(lon);
-
-                const idx = y * w + x;
-                const p = idx * 4;
+                const idx = rowOffset + x;
                 const nf = noiseFine[idx];
                 const nb = noiseBroad[idx];
 
                 // Cassini Regio is centered on leading hemisphere (nx > 0) and equatorial latitudes
-                // Polar regions (absNy > 0.6) remain bright ice-white even on the leading side
-                const latFalloff = Math.max(0, 1.0 - Math.pow(absNy / 0.68, 2.2));
-                const leadingDot = nx * latFalloff;
+                const leadingDot = cosLatFalloff * cosLonLut[x];
 
                 // Organic fractal transition edge between dark and bright hemispheres
                 const edgeNoise = (nb - 0.5) * 0.45 + (nf - 0.5) * 0.18;
@@ -1161,51 +1493,50 @@ export class TextureGenerator {
 
                 if (terrainValue > 0.08) {
                     // Deep Cassini Regio: coal-dark, organic-rich carbonaceous tholin terrain
-                    // Albedo ~0.04. Very dark brownish-black/charcoal with subtle warmth
-                    const baseDark = 26 + nf * 22;
-                    r = Math.floor(baseDark + 8);
-                    g = Math.floor(baseDark + 4);
-                    b = Math.floor(baseDark);
+                    const baseDark = (26 + nf * 22) | 0;
+                    r = baseDark + 8;
+                    g = baseDark + 4;
+                    b = baseDark;
                 } else if (terrainValue < -0.08) {
                     // Roncevaux Terra / Saragossa Terra & Polar Caps: bright, reflective water ice
-                    // Albedo ~0.55. Brilliant white with subtle pale silvery-blue crater relief
-                    const baseIce = 210 + nf * 38;
-                    const polarBoost = absNy > 0.62 ? (absNy - 0.62) * 65 : 0;
-                    r = Math.min(255, Math.floor(baseIce + polarBoost));
-                    g = Math.min(255, Math.floor(baseIce + 4 + polarBoost));
-                    b = Math.min(255, Math.floor(baseIce + 10 + polarBoost));
+                    const baseIce = 210 + nf * 38 + polarBoost;
+                    r = Math.min(255, baseIce | 0);
+                    g = Math.min(255, (baseIce + 4) | 0);
+                    b = Math.min(255, (baseIce + 10) | 0);
                 } else {
-                    // High-contrast transition zone with thermal segregation:
-                    // Dark dust settles in warm crater floors, cold rims/peaks stay bright white frost
+                    // High-contrast transition zone with thermal segregation
                     const t = (terrainValue + 0.08) / 0.16;
                     const smoothT = t * t * (3 - 2 * t);
                     const frostMask = (nf * 0.7 + (1.0 - smoothT) * 0.6) > 0.55;
 
                     if (frostMask) {
-                        r = Math.min(255, Math.floor(215 + nf * 35));
-                        g = Math.min(255, Math.floor(218 + nf * 35));
-                        b = Math.min(255, Math.floor(225 + nf * 30));
+                        r = Math.min(255, (215 + nf * 35) | 0);
+                        g = Math.min(255, (218 + nf * 35) | 0);
+                        b = Math.min(255, (225 + nf * 30) | 0);
                     } else {
-                        const darkBase = 32 + nf * 20;
-                        r = Math.floor(darkBase + 6);
-                        g = Math.floor(darkBase + 3);
-                        b = Math.floor(darkBase);
+                        const darkBase = (32 + nf * 20) | 0;
+                        r = darkBase + 6;
+                        g = darkBase + 3;
+                        b = darkBase;
                     }
                 }
 
                 // Equatorial ridge highlight on texture
-                if (Math.abs(lat) < 0.035) {
-                    const ridgeProximity = 1.0 - Math.abs(lat) / 0.035;
-                    const ridgeHighlight = Math.pow(ridgeProximity, 2) * 45;
-                    r = Math.min(255, r + Math.floor(ridgeHighlight * 1.2));
-                    g = Math.min(255, g + Math.floor(ridgeHighlight * 1.2));
-                    b = Math.min(255, b + Math.floor(ridgeHighlight * 1.3));
+                if (hasRidge) {
+                    r = Math.min(255, r + ridgeR);
+                    g = Math.min(255, g + ridgeG);
+                    b = Math.min(255, b + ridgeB);
                 }
 
-                data[p] = r;
-                data[p + 1] = g;
-                data[p + 2] = b;
-                data[p + 3] = 255;
+                if (u32) {
+                    u32[idx] = 0xFF000000 | (b << 16) | (g << 8) | r;
+                } else {
+                    const p = idx * 4;
+                    data[p] = r;
+                    data[p + 1] = g;
+                    data[p + 2] = b;
+                    data[p + 3] = 255;
+                }
             }
         }
 
@@ -1268,14 +1599,19 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 6, 0.55);
 
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                const idx = y * w + x;
-                const n = noise[idx];
+        if (u32) {
+            for (let idx = 0; idx < total; idx++) {
+                const b = (140 + noise[idx] * 70) | 0;
+                u32[idx] = 0xFF000000 | ((b + 4) << 16) | (b << 8) | b;
+            }
+        } else {
+            for (let idx = 0; idx < total; idx++) {
                 const p = idx * 4;
-                const b = Math.floor(140 + n * 70);
+                const b = (140 + noise[idx] * 70) | 0;
                 data[p] = b;
                 data[p + 1] = b;
                 data[p + 2] = b + 4;
@@ -1343,16 +1679,24 @@ export class TextureGenerator {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;
         const data = imgData.data;
+        const total = w * h;
+        const u32 = this.getUint32View(data, total);
         const noise = this.createNoise(w, h, 4, 0.5, this.hashSeed(name));
 
-        for (let i = 0; i < w * h; i++) {
-            const n = noise[i];
-            const p = i * 4;
-            const b = Math.floor(120 + n * 80);
-            data[p] = b;
-            data[p + 1] = b;
-            data[p + 2] = b;
-            data[p + 3] = 255;
+        if (u32) {
+            for (let i = 0; i < total; i++) {
+                const b = (120 + noise[i] * 80) | 0;
+                u32[i] = 0xFF000000 | (b << 16) | (b << 8) | b;
+            }
+        } else {
+            for (let i = 0; i < total; i++) {
+                const p = i * 4;
+                const b = (120 + noise[i] * 80) | 0;
+                data[p] = b;
+                data[p + 1] = b;
+                data[p + 2] = b;
+                data[p + 3] = 255;
+            }
         }
         ctx.putImageData(imgData, 0, 0);
     }

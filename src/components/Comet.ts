@@ -53,6 +53,8 @@ export class Comet {
         const ascNodeRad = THREE.MathUtils.degToRad(this.data.longitudeOfAscendingNode ?? 0);
         const qNode = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ascNodeRad);
         this.baseGroup.quaternion.multiplyQuaternions(qNode, qInner);
+        this.baseGroup.matrixAutoUpdate = false;
+        this.baseGroup.updateMatrix?.();
 
         this.baseGroup.add(this.orbitGroup);
 
@@ -92,7 +94,6 @@ export class Comet {
 
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.renderOrder = 1;
-        this.mesh.frustumCulled = false;
         this.orbitGroup.add(this.mesh);
 
         // Create Dual Ion + Dust Comet Tail
@@ -130,6 +131,8 @@ export class Comet {
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
         geometry.setAttribute('tailKind', new THREE.BufferAttribute(tailKinds, 1));
+        // Enclose maximum shader displacement (92-unit ion tail + 22-unit lateral drift) for accurate frustum culling
+        geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 120);
 
         const material = new THREE.ShaderMaterial({
             uniforms: {
@@ -198,7 +201,6 @@ export class Comet {
 
         this.tailParticles = new THREE.Points(geometry, material);
         this.tailParticles.renderOrder = 1;
-        this.tailParticles.frustumCulled = false;
         this.orbitGroup.add(this.tailParticles);
     }
 
@@ -232,19 +234,22 @@ export class Comet {
     createOrbit() {
         const segments = 256;
         const geometry = new THREE.BufferGeometry();
-        const vertices = [];
+        const vertices = new Float32Array((segments + 1) * 3);
 
         for (let i = 0; i <= segments; i++) {
             const E = (i / segments) * Math.PI * 2;
-            const x = this.a * (Math.cos(E) - this.e);
-            const z = -this.b * Math.sin(E);
-            vertices.push(x, 0, z);
+            const idx = i * 3;
+            vertices[idx] = this.a * (Math.cos(E) - this.e);
+            vertices[idx + 1] = 0;
+            vertices[idx + 2] = -this.b * Math.sin(E);
         }
 
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
         const material = new THREE.LineBasicMaterial({ color: 0x88bbff, transparent: true, opacity: 0.3 });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
+        this.orbitLine.matrixAutoUpdate = false;
+        this.orbitLine.updateMatrix?.();
         this.baseGroup.add(this.orbitLine);
     }
 

@@ -108,6 +108,13 @@ export class SceneManager {
     } | null = null;
     onTimeScaleChange?: (newScale: number) => void;
     private unregisterI18n?: () => void;
+    private shadowFrameCounter: number = 0;
+    private shadowRenderedWhilePaused: boolean = false;
+    private lastUpdatedSimTime: number = NaN;
+    private lastUpdatedRealisticDistances: boolean = false;
+    private lastMeasureRoundedAU: number = NaN;
+    private lastMeasureTargetA: any = null;
+    private lastMeasureTargetB: any = null;
 
     cameraTransition: {
         startPos: THREE.Vector3;
@@ -277,6 +284,10 @@ export class SceneManager {
             sc.update(0, simTimePassed, this.simDate, 0);
         });
         this.scene.updateMatrixWorld?.(true);
+        this.shadowRenderedWhilePaused = false;
+        if (this.renderer?.shadowMap) {
+            this.renderer.shadowMap.needsUpdate = true;
+        }
         if (this.measureMode) {
             this.updateMeasurement();
         }
@@ -319,10 +330,12 @@ export class SceneManager {
         // Procedural PMREM space environment map for realistic metallic spacecraft specular reflections
         this.envMapHandle = applySpaceEnvironmentMap(this.scene, this.renderer);
 
-        // Post-processing pipeline: RenderPass -> UnrealBloomPass -> OutputPass (ACES tone mapping + sRGB)
+        // Post-processing pipeline: RenderPass -> UnrealBloomPass (half-res) -> OutputPass (ACES tone mapping + sRGB)
         const renderScene = new RenderPass(this.scene, this.camera);
+        const bloomWidth = Math.max(1, Math.floor(window.innerWidth / 2));
+        const bloomHeight = Math.max(1, Math.floor(window.innerHeight / 2));
         this.bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            new THREE.Vector2(bloomWidth, bloomHeight),
             0.78, // balanced cinematic HDR bloom strength
             0.52, // soft organic radius
             0.85  // HDR threshold
@@ -379,6 +392,8 @@ export class SceneManager {
 
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.autoUpdate = false;
+        this.renderer.shadowMap.needsUpdate = true;
 
         // Starfield & Major Catalog Stars
         this.starfieldHandle = buildStarfield(this.scene, this.renderer);
@@ -409,6 +424,7 @@ export class SceneManager {
         this.updateZoomLimits();
 
         this.unregisterI18n = i18n.onLanguageChange(() => {
+            this.lastMeasureRoundedAU = NaN;
             if (this.measureLabel) {
                 (this.measureLabel as any).userData.lastText = null;
             }
@@ -594,6 +610,15 @@ export class SceneManager {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.composer.setSize(window.innerWidth, window.innerHeight);
+        if (this.bloomPass?.resolution) {
+            this.bloomPass.resolution.set(
+                Math.max(1, Math.floor(window.innerWidth / 2)),
+                Math.max(1, Math.floor(window.innerHeight / 2))
+            );
+        }
+        if (this.renderer?.shadowMap) {
+            this.renderer.shadowMap.needsUpdate = true;
+        }
     }
 
     private updateSurfaceCamera(target: CelestialBody) {
@@ -677,34 +702,44 @@ export class SceneManager {
 
         this.starfieldHandle?.update(rawDelta);
 
-        this.planets.forEach(planet => {
-            planet.update(deltaTime, simTimePassed, effectiveRawDelta);
-        });
+        const shouldUpdateEphemeris =
+            this.timeScale !== 0 ||
+            simTimePassed !== this.lastUpdatedSimTime ||
+            this.realisticDistances !== this.lastUpdatedRealisticDistances;
 
-        if (this.habitableZoneMesh && this.showHabitableZone) {
-            if (this.habitableZoneMesh.material instanceof THREE.ShaderMaterial) {
-                this.habitableZoneMesh.material.uniforms.time.value += effectiveRawDelta * 0.3;
+        if (shouldUpdateEphemeris) {
+            this.lastUpdatedSimTime = simTimePassed;
+            this.lastUpdatedRealisticDistances = this.realisticDistances;
+
+            this.planets.forEach(planet => {
+                planet.update(deltaTime, simTimePassed, effectiveRawDelta);
+            });
+
+            if (this.habitableZoneMesh && this.showHabitableZone) {
+                if (this.habitableZoneMesh.material instanceof THREE.ShaderMaterial) {
+                    this.habitableZoneMesh.material.uniforms.time.value += effectiveRawDelta * 0.3;
+                }
             }
-        }
 
-        if (this.showComets) {
-            this.comets.forEach(comet => {
-                comet.update(deltaTime, simTimePassed, effectiveRawDelta);
-            });
-        }
+            if (this.showComets) {
+                this.comets.forEach(comet => {
+                    comet.update(deltaTime, simTimePassed, effectiveRawDelta);
+                });
+            }
 
-        if (this.showSpacecrafts) {
-            this.spacecrafts.forEach(sc => {
-                sc.update(deltaTime, simTimePassed, this.simDate, effectiveRawDelta);
-            });
-        }
+            if (this.showSpacecrafts) {
+                this.spacecrafts.forEach(sc => {
+                    sc.update(deltaTime, simTimePassed, this.simDate, effectiveRawDelta);
+                });
+            }
 
-        if (this.asteroidBelt && this.showAsteroids) {
-            this.asteroidBelt.rotation.y += 0.05 * deltaTime;
-        }
+            if (this.asteroidBelt && this.showAsteroids) {
+                this.asteroidBelt.rotation.y += 0.05 * deltaTime;
+            }
 
-        if (this.kuiperBelt && this.showKuiperBelt) {
-            this.kuiperBelt.rotation.y += 0.01 * deltaTime;
+            if (this.kuiperBelt && this.showKuiperBelt) {
+                this.kuiperBelt.rotation.y += 0.01 * deltaTime;
+            }
         }
 
         if (this.surfaceViewBody?.mesh) {
@@ -762,9 +797,43 @@ export class SceneManager {
 
         this.updateMeasurement();
 
-        // Reset renderer stats manually before EffectComposer so PerformanceMonitor captures full scene calls & triangles
+        // Update distance-based planet/moon LODs & secondary shell culling
+        const camPos = this.camera.position;
+        for (let i = 0; i < this.planets.length; i++) {
+            const planet = this.planets[i];
+            const isFocused = this.focusedBody === planet ||
+                this.surfaceViewBody === planet ||
+                (this.focusedBody !== null && Array.isArray(planet.moons) && planet.moons.includes(this.focusedBody as any));
+            planet.updateLOD?.(camPos, isFocused);
+        }
+
+        // Throttle 6-face PointLight shadow cubemap updates when paused or in wide/real-time views
+        if (this.renderer?.shadowMap) {
+            if (this.timeScale === 0) {
+                if (!this.shadowRenderedWhilePaused) {
+                    this.renderer.shadowMap.needsUpdate = true;
+                    this.shadowRenderedWhilePaused = true;
+                }
+            } else {
+                this.shadowRenderedWhilePaused = false;
+                this.shadowFrameCounter++;
+                const isCloseFocus = Boolean(this.focusedBody || this.surfaceViewBody);
+                const isRealTimeRate = this.timeScale <= SceneManager.SPEED_PRESETS.realTime * 2.0;
+                const shadowInterval = isCloseFocus ? (isRealTimeRate ? 3 : 1) : 4;
+                if (this.shadowFrameCounter >= shadowInterval) {
+                    this.shadowFrameCounter = 0;
+                    this.renderer.shadowMap.needsUpdate = true;
+                }
+            }
+        }
+
+        // Reset renderer stats manually before render so PerformanceMonitor captures full scene calls & triangles
         this.renderer.info?.reset?.();
-        this.composer.render();
+        if (this.bloomPass && !this.bloomPass.enabled) {
+            this.renderer.render(this.scene, this.camera);
+        } else {
+            this.composer.render();
+        }
     }
 
     toggleOrbits(visible: boolean) {
@@ -1024,6 +1093,11 @@ export class SceneManager {
             this.focusedStar = null;
             this.focusedConstellation = null;
             this.camera.up.set(0, 1, 0);
+
+            this.spacecrafts.forEach(sc => sc.setShadowCasting?.(sc === target));
+            if (this.renderer?.shadowMap) {
+                this.renderer.shadowMap.needsUpdate = true;
+            }
 
             this.previousBodyPosition = SceneManager._vPos.clone();
 
@@ -1466,27 +1540,44 @@ export class SceneManager {
             const mkmPrecision = distanceAUVal < 0.001 ? 4 : distanceAUVal < 0.01 ? 3 : 2;
             const roundedAU = Number(distanceAUVal.toFixed(auPrecision));
             const distanceMkmVal = roundedAU * 149.6;
-            const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });
-            const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: mkmPrecision, maximumFractionDigits: mkmPrecision });
-            const unitAU = i18n.t('measurement.unitAU') || 'AU';
-            const unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
-            const labelText = i18n.t('measurement.distLabel', {
-                au: distanceAU,
-                mkm: distanceMkm,
-                unitAU,
-                unitMkm
-            }) || `Dist: ${distanceAU} ${unitAU} / ${distanceMkm} ${unitMkm}`;
-            this.updateMeasureLabel(labelText);
 
-            this.currentMeasureDistance = {
-                distanceScale,
-                distanceAUVal,
-                distanceMkmVal,
-                distanceAU,
-                distanceMkm,
-                unitAU,
-                unitMkm
-            };
+            if (
+                roundedAU === this.lastMeasureRoundedAU &&
+                this.measureTargetA === this.lastMeasureTargetA &&
+                this.measureTargetB === this.lastMeasureTargetB &&
+                this.currentMeasureDistance &&
+                (this.measureLabel as any).userData?.lastText
+            ) {
+                this.currentMeasureDistance.distanceScale = distanceScale;
+                this.currentMeasureDistance.distanceAUVal = distanceAUVal;
+                this.currentMeasureDistance.distanceMkmVal = distanceMkmVal;
+            } else {
+                this.lastMeasureRoundedAU = roundedAU;
+                this.lastMeasureTargetA = this.measureTargetA;
+                this.lastMeasureTargetB = this.measureTargetB;
+
+                const distanceAU = i18n.formatNumber(distanceAUVal, { minimumFractionDigits: auPrecision, maximumFractionDigits: auPrecision });
+                const distanceMkm = i18n.formatNumber(distanceMkmVal, { minimumFractionDigits: mkmPrecision, maximumFractionDigits: mkmPrecision });
+                const unitAU = i18n.t('measurement.unitAU') || 'AU';
+                const unitMkm = i18n.t('measurement.unitMkm') || 'Mkm';
+                const labelText = i18n.t('measurement.distLabel', {
+                    au: distanceAU,
+                    mkm: distanceMkm,
+                    unitAU,
+                    unitMkm
+                }) || `Dist: ${distanceAU} ${unitAU} / ${distanceMkm} ${unitMkm}`;
+                this.updateMeasureLabel(labelText);
+
+                this.currentMeasureDistance = {
+                    distanceScale,
+                    distanceAUVal,
+                    distanceMkmVal,
+                    distanceAU,
+                    distanceMkm,
+                    unitAU,
+                    unitMkm
+                };
+            }
 
             const camDist = this.camera.position.distanceTo(this.measureLabel.position);
             const minLabelScale = this.realisticDistances
@@ -1602,6 +1693,7 @@ export class SceneManager {
         this.controls.enabled = true;
         this.controls.autoRotate = false;
         this.cameraTransition = null;
+        this.spacecrafts.forEach(sc => sc.setShadowCasting?.(false));
         this.updateZoomLimits();
     }
 

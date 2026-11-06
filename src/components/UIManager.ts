@@ -68,6 +68,9 @@ export class UIManager {
     private realtimeDistanceKm: number = 0;
     private lastRealtimeDateMs: number = 0;
     private lastFormattedTime: string = '';
+    private lastSyncedTimeScale: number = NaN;
+    private lastTickerTarget: string = '';
+    private lastTickerDistStep: number = NaN;
 
     private onTourFocusBound: ((e: Event) => void) | null = null;
     private onJumpToDateBound: ((e: Event) => void) | null = null;
@@ -80,6 +83,9 @@ export class UIManager {
     private unsubscribeMeasureTargets: (() => void) | null = null;
     closeLangDropdown: (() => void) | null = null;
     private measureHudBar: HTMLElement | null = null;
+    private measureHudTextEl: HTMLElement | null = null;
+    private measureHudClearBtn: HTMLElement | null = null;
+    private measureHudCloseBtn: HTMLElement | null = null;
     private static readonly _measurePosA = new THREE.Vector3();
     private static readonly _measurePosB = new THREE.Vector3();
 
@@ -147,6 +153,9 @@ export class UIManager {
         this.createSelectionMenu();
         this.sceneManager.onTimeScaleChange = () => {
             this.controlCenter?.syncTimePanel();
+            this.lastSyncedTimeScale = NaN;
+            this.lastTickerTarget = '';
+            this.lastTickerDistStep = NaN;
             this.syncTransportState();
         };
 
@@ -544,38 +553,55 @@ export class UIManager {
         const effectiveScale = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
         const isRealTime = !isPaused && (effectiveScale <= SceneManager.SPEED_PRESETS.realTime * 1.5);
 
-        this.syncTransportState();
+        if (effectiveScale !== this.lastSyncedTimeScale) {
+            this.lastSyncedTimeScale = NaN;
+            this.lastTickerTarget = '';
+            this.lastTickerDistStep = NaN;
+            this.syncTransportState();
+        }
 
         if (this.telemetryTicker) {
             if (isRealTime && this.sceneManager.simDate) {
-                this.telemetryTicker.style.display = 'flex';
+                if (this.telemetryTicker.style.display !== 'flex') {
+                    this.telemetryTicker.style.display = 'flex';
+                }
                 const currentSimMs = this.sceneManager.simDate.getTime();
+                const targetName = (this.sceneManager.focusedBody as any)?.data?.name || 'Earth';
+                const vel = this.getOrbitalVelocity(targetName);
                 if (this.lastRealtimeDateMs > 0 && currentSimMs > this.lastRealtimeDateMs) {
                     const elapsedSec = (currentSimMs - this.lastRealtimeDateMs) / 1000;
                     if (elapsedSec > 0 && elapsedSec < 5) {
-                        const targetName = (this.sceneManager.focusedBody as any)?.data?.name || 'Earth';
-                        const vel = this.getOrbitalVelocity(targetName);
                         this.realtimeDistanceKm += elapsedSec * vel.speedKmS;
                     }
                 }
                 this.lastRealtimeDateMs = currentSimMs;
 
-                const targetName = (this.sceneManager.focusedBody as any)?.data?.name || 'Earth';
-                const vel = this.getOrbitalVelocity(targetName);
-                const distFormatted = this.realtimeDistanceKm >= 1000
-                    ? `${i18n.formatNumber(Math.round(this.realtimeDistanceKm))} km`
-                    : `${i18n.formatNumber(this.realtimeDistanceKm, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+                const distStep = this.realtimeDistanceKm >= 1000
+                    ? Math.round(this.realtimeDistanceKm)
+                    : Math.round(this.realtimeDistanceKm * 10) / 10;
 
-                if (this.tickerBodyEl) this.tickerBodyEl.textContent = vel.label;
-                if (this.tickerSpeedEl) this.tickerSpeedEl.textContent = `${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s`;
-                if (this.tickerDistEl) {
-                    const orbitVal = i18n.t('ui.orbitTelemetry', { dist: distFormatted });
-                    this.tickerDistEl.textContent = orbitVal && orbitVal !== 'ui.orbitTelemetry'
-                        ? orbitVal
-                        : `Orbit: +${distFormatted}`;
+                if (targetName !== this.lastTickerTarget) {
+                    this.lastTickerTarget = targetName;
+                    if (this.tickerBodyEl) this.tickerBodyEl.textContent = vel.label;
+                    if (this.tickerSpeedEl) this.tickerSpeedEl.textContent = `${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s`;
+                }
+
+                if (distStep !== this.lastTickerDistStep || (this.tickerDistEl && !this.tickerDistEl.textContent)) {
+                    this.lastTickerDistStep = distStep;
+                    const distFormatted = this.realtimeDistanceKm >= 1000
+                        ? `${i18n.formatNumber(distStep)} km`
+                        : `${i18n.formatNumber(this.realtimeDistanceKm, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+                    if (this.tickerDistEl) {
+                        const orbitVal = i18n.t('ui.orbitTelemetry', { dist: distFormatted });
+                        this.tickerDistEl.textContent = orbitVal && orbitVal !== 'ui.orbitTelemetry'
+                            ? orbitVal
+                            : `Orbit: +${distFormatted}`;
+                    }
                 }
             } else {
-                this.telemetryTicker.style.display = 'none';
+                if (this.telemetryTicker.style.display !== 'none') {
+                    this.telemetryTicker.style.display = 'none';
+                }
                 if (this.sceneManager.simDate) {
                     this.lastRealtimeDateMs = this.sceneManager.simDate.getTime();
                 }
@@ -596,6 +622,7 @@ export class UIManager {
     public syncTransportState(): void {
         const isPaused = this.sceneManager?.timeScale === 0;
         const effectiveScale = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
+        this.lastSyncedTimeScale = effectiveScale;
         const isRealTime = !isPaused && (effectiveScale <= SceneManager.SPEED_PRESETS.realTime * 1.5);
 
         if (this.speedBadge) {
@@ -1166,6 +1193,9 @@ export class UIManager {
                 this.speedBadge.title = i18n.t('ui.speedPause');
                 this.speedBadge.setAttribute('aria-label', i18n.t('ui.speedPause'));
             }
+            this.lastSyncedTimeScale = NaN;
+            this.lastTickerTarget = '';
+            this.lastTickerDistStep = NaN;
             this.syncTransportState();
             if (this.timeBadge) {
                 this.timeBadge.title = i18n.t('ui.utcTime');
@@ -1282,6 +1312,9 @@ export class UIManager {
         hud.appendChild(actions);
 
         this.measureHudBar = hud;
+        this.measureHudTextEl = content;
+        this.measureHudClearBtn = clearBtn;
+        this.measureHudCloseBtn = closeBtn;
         this.uiContainer.appendChild(hud);
         return hud;
     }
@@ -1290,21 +1323,29 @@ export class UIManager {
         if (!this.measureHudBar) return;
 
         if (!this.sceneManager.measureMode) {
-            this.measureHudBar.style.display = 'none';
+            if (this.measureHudBar.style.display !== 'none') {
+                this.measureHudBar.style.display = 'none';
+            }
             return;
         }
 
-        this.measureHudBar.style.display = 'flex';
+        if (this.measureHudBar.style.display !== 'flex') {
+            this.measureHudBar.style.display = 'flex';
+        }
 
-        const content = this.measureHudBar.querySelector<HTMLElement>('.measure-hud-text');
-        const clearBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.clear-btn');
-        const closeBtn = this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.close-btn');
+        const content = this.measureHudTextEl ?? this.measureHudBar.querySelector<HTMLElement>('.measure-hud-text');
+        const clearBtn = this.measureHudClearBtn ?? this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.clear-btn');
+        const closeBtn = this.measureHudCloseBtn ?? this.measureHudBar.querySelector<HTMLElement>('.measure-action-btn.close-btn');
 
-        if (clearBtn) clearBtn.textContent = i18n.t('measurement.clear') || 'Clear';
+        const clearText = i18n.t('measurement.clear') || 'Clear';
+        if (clearBtn && clearBtn.textContent !== clearText) clearBtn.textContent = clearText;
         if (closeBtn) {
-            closeBtn.style.display = 'inline-flex';
-            closeBtn.title = i18n.t('measurement.close') || 'Exit Measurement';
-            closeBtn.setAttribute('aria-label', i18n.t('measurement.close') || 'Exit Measurement');
+            if (closeBtn.style.display !== 'inline-flex') closeBtn.style.display = 'inline-flex';
+            const closeTitle = i18n.t('measurement.close') || 'Exit Measurement';
+            if (closeBtn.title !== closeTitle) {
+                closeBtn.title = closeTitle;
+                closeBtn.setAttribute('aria-label', closeTitle);
+            }
         }
 
         if (!content) return;
@@ -1372,8 +1413,10 @@ export class UIManager {
             const resultEl = content.querySelector<HTMLElement>('.measure-hud-result');
 
             if (valEl && mkmEl && resultEl && resultEl.dataset.targetA === nameA && resultEl.dataset.targetB === nameB) {
-                valEl.textContent = `${distanceAU} ${unitAU}`;
-                mkmEl.textContent = `(${distanceMkm} ${unitMkm})`;
+                const nextVal = `${distanceAU} ${unitAU}`;
+                const nextMkm = `(${distanceMkm} ${unitMkm})`;
+                if (valEl.textContent !== nextVal) valEl.textContent = nextVal;
+                if (mkmEl.textContent !== nextMkm) mkmEl.textContent = nextMkm;
             } else {
                 content.innerHTML = `<span class="measure-hud-result" data-target-a="${nameA}" data-target-b="${nameB}"><span class="measure-body">${nameA}</span> ↔ <span class="measure-body">${nameB}</span>: <strong class="measure-val">${distanceAU} ${unitAU}</strong> <span class="measure-mkm">(${distanceMkm} ${unitMkm})</span></span>`;
             }

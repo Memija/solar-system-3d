@@ -21,11 +21,37 @@ export class ScenePicker {
     private readonly ui: UIManager;
     public readonly raycaster: THREE.Raycaster;
     public readonly mouse: THREE.Vector2;
+    private readonly targets: THREE.Object3D[] = [];
+    private readonly entryByObj = new WeakMap<THREE.Object3D, PickEntry>();
+    private static readonly DROPDOWN_TYPE_MAP: Record<PickKind, string> = {
+        planet: 'Planet',
+        moon: 'Moon',
+        comet: 'Comet',
+        spacecraft: 'Spacecraft',
+        star: 'Star',
+        constellation: 'Constellation'
+    };
 
     constructor(ui: UIManager) {
         this.ui = ui;
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
+    }
+
+    private registerTarget(
+        obj: THREE.Object3D | null | undefined,
+        kind: PickKind,
+        name: string,
+        data: any,
+        rootObj: THREE.Object3D | null
+    ): void {
+        if (!obj || obj.visible === false) return;
+        this.targets.push(obj);
+        let entry = this.entryByObj.get(obj);
+        if (!entry || entry.name !== name || entry.data !== data) {
+            entry = { kind, name, data, object: rootObj };
+            this.entryByObj.set(obj, entry);
+        }
     }
 
     public pick(clientX: number, clientY: number): void {
@@ -41,14 +67,8 @@ export class ScenePicker {
 
         this.raycaster.setFromCamera(this.mouse, sm.camera);
 
-        const targets: THREE.Object3D[] = [];
-        const entryByObj = new Map<THREE.Object3D, PickEntry>();
-
-        const registerObject = (obj: THREE.Object3D | null | undefined, entry: PickEntry) => {
-            if (!obj || obj.visible === false) return;
-            targets.push(obj);
-            entryByObj.set(obj, entry);
-        };
+        const targets = this.targets;
+        targets.length = 0;
 
         // 1. Sun, Planets, Dwarf Planets, and Moons
         (sm.planets || []).forEach(planet => {
@@ -57,34 +77,28 @@ export class ScenePicker {
             if (planet.orbitGroup && planet.orbitGroup.visible === false) return;
 
             const planetKind: PickKind = planet.data?.name === 'Sun' ? 'star' : 'planet';
-            const planetEntry: PickEntry = {
-                kind: planetKind,
-                name: planet.data.name,
-                data: planet.data,
-                object: planet.mesh
-            };
+            const pName = planet.data.name;
+            const pData = planet.data;
+            const pMesh = planet.mesh;
 
-            registerObject(planet.mesh, planetEntry);
-            registerObject(planet.cloudMesh, planetEntry);
+            this.registerTarget(pMesh, planetKind, pName, pData, pMesh);
+            this.registerTarget(planet.cloudMesh, planetKind, pName, pData, pMesh);
             if (planet.labelSprite && planet.labelSprite.visible) {
-                registerObject(planet.labelSprite, planetEntry);
+                this.registerTarget(planet.labelSprite, planetKind, pName, pData, pMesh);
             }
             if (Array.isArray(planet.ringMeshes)) {
-                planet.ringMeshes.forEach(ring => registerObject(ring, planetEntry));
+                planet.ringMeshes.forEach(ring => this.registerTarget(ring, planetKind, pName, pData, pMesh));
             }
 
             if (sm.showMoons !== false && Array.isArray(planet.moons)) {
                 planet.moons.forEach(moon => {
                     if (!moon || (moon.orbitGroup && moon.orbitGroup.visible === false)) return;
-                    const moonEntry: PickEntry = {
-                        kind: 'moon',
-                        name: moon.data.name,
-                        data: moon.data,
-                        object: moon.mesh
-                    };
-                    registerObject(moon.mesh, moonEntry);
+                    const mName = moon.data.name;
+                    const mData = moon.data;
+                    const mMesh = moon.mesh;
+                    this.registerTarget(mMesh, 'moon', mName, mData, mMesh);
                     if (moon.labelSprite && moon.labelSprite.visible) {
-                        registerObject(moon.labelSprite, moonEntry);
+                        this.registerTarget(moon.labelSprite, 'moon', mName, mData, mMesh);
                     }
                 });
             }
@@ -94,12 +108,7 @@ export class ScenePicker {
         if (sm.showComets !== false && Array.isArray(sm.comets)) {
             sm.comets.forEach(comet => {
                 if (!comet?.mesh || comet.mesh.visible === false) return;
-                registerObject(comet.mesh, {
-                    kind: 'comet',
-                    name: comet.data.name,
-                    data: comet.data,
-                    object: comet.mesh
-                });
+                this.registerTarget(comet.mesh, 'comet', comet.data.name, comet.data, comet.mesh);
             });
         }
 
@@ -107,12 +116,7 @@ export class ScenePicker {
         if (sm.showSpacecrafts !== false && Array.isArray(sm.spacecrafts)) {
             sm.spacecrafts.forEach(sc => {
                 if (!sc?.mesh || sc.mesh.visible === false) return;
-                registerObject(sc.mesh, {
-                    kind: 'spacecraft',
-                    name: sc.data.name,
-                    data: sc.data,
-                    object: sc.mesh
-                });
+                this.registerTarget(sc.mesh, 'spacecraft', sc.data.name, sc.data, sc.mesh);
             });
         }
 
@@ -120,12 +124,7 @@ export class ScenePicker {
         if (Array.isArray(sm.starMeshes)) {
             sm.starMeshes.forEach(starMesh => {
                 if (!starMesh || starMesh.visible === false || !starMesh.userData?.name) return;
-                registerObject(starMesh, {
-                    kind: 'star',
-                    name: starMesh.userData.name,
-                    data: starMesh.userData,
-                    object: starMesh
-                });
+                this.registerTarget(starMesh, 'star', starMesh.userData.name, starMesh.userData, starMesh);
             });
         }
 
@@ -137,12 +136,7 @@ export class ScenePicker {
                 : [];
             interactables.forEach(cObj => {
                 if (!cObj || cObj.visible === false || !cObj.userData?.name) return;
-                registerObject(cObj, {
-                    kind: 'constellation',
-                    name: cObj.userData.name,
-                    data: cObj.userData,
-                    object: cObj
-                });
+                this.registerTarget(cObj, 'constellation', cObj.userData.name, cObj.userData, cObj);
             });
         }
 
@@ -156,7 +150,7 @@ export class ScenePicker {
         for (const hit of intersects) {
             let curr: THREE.Object3D | null = hit.object;
             while (curr) {
-                const found = entryByObj.get(curr);
+                const found = this.entryByObj.get(curr);
                 if (found) {
                     matched = found;
                     break;
@@ -197,16 +191,7 @@ export class ScenePicker {
         ui.selectedBody = matched.data;
         ui.audioManager?.playTick?.();
 
-        const dropdownTypeMap: Record<PickKind, string> = {
-            planet: 'Planet',
-            moon: 'Moon',
-            comet: 'Comet',
-            spacecraft: 'Spacecraft',
-            star: 'Star',
-            constellation: 'Constellation'
-        };
-
-        ui.syncDropdownSelection(matched.name, dropdownTypeMap[matched.kind]);
+        ui.syncDropdownSelection(matched.name, ScenePicker.DROPDOWN_TYPE_MAP[matched.kind]);
 
         if (matched.kind === 'constellation') {
             sm.focusOnConstellation?.(matched.name);
