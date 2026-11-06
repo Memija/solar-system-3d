@@ -11,6 +11,7 @@ import {
     OrbitalBasis
 } from './MathUtils';
 import { TextureGenerator } from './TextureGenerator';
+import { markLineBatchable } from './LineBatcher';
 import { i18n } from '../i18n';
 
 
@@ -95,7 +96,6 @@ export class CelestialBody {
     auroraMaterial: THREE.ShaderMaterial | null = null;
     velocityVectorGroup: THREE.Group | null = null;
     velocityPulseChevron: THREE.Mesh | null = null;
-    private velocityPulseTimer: number = 0;
     private cloudDriftOffset: number = 0;
     showMeteors: boolean;
 
@@ -121,6 +121,22 @@ export class CelestialBody {
     private static _sharedVelPulseGeo: THREE.ConeGeometry | null = null;
     private static _sharedVelShaftMat: THREE.MeshBasicMaterial | null = null;
     private static _sharedVelHeadMat: THREE.MeshBasicMaterial | null = null;
+    private static _sharedVelPulseMat: THREE.MeshBasicMaterial | null = null;
+    private static _velocityPulseTimer = 0;
+    private static _velocityPulseCycle = 0;
+
+    /**
+     * Advance the shared velocity-arrow pulse animation. Call once per frame (not per body) with the
+     * real-time delta; paused simulations pass 0 so the chevrons freeze like before.
+     */
+    static advanceVelocityPulse(rawDelta: number): void {
+        if (!(rawDelta > 0)) return;
+        CelestialBody._velocityPulseTimer += rawDelta * 2.5;
+        CelestialBody._velocityPulseCycle = CelestialBody._velocityPulseTimer % 1.0;
+        if (CelestialBody._sharedVelPulseMat) {
+            CelestialBody._sharedVelPulseMat.opacity = Math.sin(CelestialBody._velocityPulseCycle * Math.PI) * 0.9;
+        }
+    }
 
     private orbitalBasis: OrbitalBasis;
 
@@ -257,18 +273,28 @@ export class CelestialBody {
                 color: 0xffffff
             });
         } else {
-            // Apply 2:1 equirectangular seamless texture + bump relief on rocky/icy cratered worlds
-            const texture = TextureGenerator.getPlanetTexture(this.data.name);
-            const bumpMap = TextureGenerator.getPlanetBumpMap(this.data.name);
+            // Apply 2:1 equirectangular seamless texture + bump relief on rocky/icy cratered worlds.
+            // Non-boot moons & outer dwarf planets use a lightweight placeholder during SceneManager
+            // construction and swap in their full resolution maps asynchronously after boot.
             const isGasOrCloud = ['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Venus', 'Titan'].includes(this.data.name);
-
-            material = new THREE.MeshStandardMaterial({
+            const metalness = ['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name) ? 0.0 : 0.05;
+            const roughness = isGasOrCloud ? 0.95 : 0.82;
+            const buildMaterial = (texture: THREE.Texture, bumpMap: THREE.Texture | null) => new THREE.MeshStandardMaterial({
                 map: texture,
                 ...(bumpMap ? { bumpMap, bumpScale: 0.02 } : {}),
-                roughness: isGasOrCloud ? 0.95 : 0.82,
-                metalness: ['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name) ? 0.0 : 0.05,
+                roughness,
+                metalness,
                 color: 0xffffff
             });
+
+            if (typeof TextureGenerator.getOrDeferPlanetSurface === 'function') {
+                material = TextureGenerator.getOrDeferPlanetSurface(this.data.name, this.data.color, buildMaterial);
+            } else {
+                material = buildMaterial(
+                    TextureGenerator.getPlanetTexture(this.data.name),
+                    TextureGenerator.getPlanetBumpMap(this.data.name)
+                );
+            }
         }
 
         this.mesh = new THREE.Mesh(geometry, material);
@@ -870,13 +896,17 @@ export class CelestialBody {
         headMesh.position.z = shaftLength + headHeight * 0.5;
         this.velocityVectorGroup.add(headMesh);
 
-        // Forward-pulsing chevron
-        const pulseMat = new THREE.MeshBasicMaterial({
-            color: 0x7dd3fc,
-            transparent: true,
-            opacity: 0.85
-        });
-        this.velocityPulseChevron = new THREE.Mesh(CelestialBody._sharedVelPulseGeo, pulseMat);
+        // Forward-pulsing chevron: one material shared by every body (driven by a common clock, see
+        // advanceVelocityPulse) so the arrows don't each force a separate material/uniform upload
+        if (!CelestialBody._sharedVelPulseMat) {
+            CelestialBody._sharedVelPulseMat = new THREE.MeshBasicMaterial({
+                color: 0x7dd3fc,
+                transparent: true,
+                opacity: 0.85
+            });
+            CelestialBody._sharedVelPulseMat.userData.shared = true;
+        }
+        this.velocityPulseChevron = new THREE.Mesh(CelestialBody._sharedVelPulseGeo, CelestialBody._sharedVelPulseMat);
         this.velocityPulseChevron.scale.setScalar(bodyScale);
         this.velocityPulseChevron.position.z = shaftLength * 0.5;
         this.velocityVectorGroup.add(this.velocityPulseChevron);
@@ -939,6 +969,7 @@ export class CelestialBody {
         // Do not add to orbitGroup as it's local space, add to parent so it traces global/parent path
         this.trailLine.visible = this.showTrails;
         this.trailLine.frustumCulled = false;
+        markLineBatchable(this.trailLine);
         this.parent.add(this.trailLine);
     }
 
@@ -947,12 +978,8 @@ export class CelestialBody {
 
         const maxTrailLength = 100;
 
-        // Get the global position to accurately draw trails for moons and nested objects
-        this.orbitGroup.getWorldPosition(CelestialBody._tempWorldPos);
-
-        // Transform the global position into the parent's local space
-        CelestialBody._tempLocalPos.copy(CelestialBody._tempWorldPos);
-        this.parent.worldToLocal(CelestialBody._tempLocalPos);
+        // orbitGroup is a direct child of this.parent, so its local position in parent space is orbitGroup.position
+        CelestialBody._tempLocalPos.copy(this.orbitGroup.position);
 
         // Only add a point if we've moved a certain distance to avoid too many points when slow
         const minStep = this.realisticDistances ? 0.002 : 0.01;
@@ -1049,6 +1076,7 @@ export class CelestialBody {
         this.orbitLine = new THREE.LineLoop(geometry, material);
         this.orbitLine.matrixAutoUpdate = false;
         this.orbitLine.updateMatrix?.();
+        markLineBatchable(this.orbitLine);
 
         this.parent.add(this.orbitLine);
     }
@@ -1151,11 +1179,8 @@ export class CelestialBody {
             this.velocityVectorGroup.position.copy(tangent).multiplyScalar(offsetDist);
             this.velocityVectorGroup.quaternion.setFromUnitVectors(CelestialBody._unitZ, tangent);
 
-            if (this.velocityPulseChevron && rawDelta !== undefined && rawDelta > 0) {
-                this.velocityPulseTimer += rawDelta * 2.5;
-                const cycle = (this.velocityPulseTimer % 1.0);
-                this.velocityPulseChevron.position.z = (0.2 + cycle * 0.9) * bodyScale;
-                (this.velocityPulseChevron.material as THREE.MeshBasicMaterial).opacity = Math.sin(cycle * Math.PI) * 0.9;
+            if (this.velocityPulseChevron) {
+                this.velocityPulseChevron.position.z = (0.2 + CelestialBody._velocityPulseCycle * 0.9) * bodyScale;
             }
         }
 
@@ -1192,10 +1217,18 @@ export class CelestialBody {
 
         const moonShadowMaxDist = Math.max(220, effectiveRadius * 95);
         const enableMoonShadows = isFocused || distSq <= moonShadowMaxDist * moonShadowMaxDist;
+        const detailTexMaxDist = Math.max(60, effectiveRadius * 18);
+        const loadDetailTextures = isFocused || distSq <= detailTexMaxDist * detailTexMaxDist;
+        if (loadDetailTextures) {
+            TextureGenerator.ensureDeferredLoaded?.(this.data.name);
+        }
         for (let i = 0; i < this.moons.length; i++) {
             const moon = this.moons[i];
             if (moon.mesh) {
                 moon.mesh.castShadow = enableMoonShadows;
+            }
+            if (loadDetailTextures) {
+                TextureGenerator.ensureDeferredLoaded?.(moon.data.name);
             }
         }
     }

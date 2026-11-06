@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SpacecraftData } from './SolarSystemData';
 import { solveKepler } from './MathUtils';
+import { markLineBatchable } from './LineBatcher';
 
 
 export class Spacecraft {
@@ -542,6 +543,7 @@ export class Spacecraft {
         this.orbitLine = new THREE.LineLoop(geometry, material);
         this.orbitLine.matrixAutoUpdate = false;
         this.orbitLine.updateMatrix?.();
+        markLineBatchable(this.orbitLine);
         this.baseGroup.add(this.orbitLine);
     }
 

@@ -23,10 +23,49 @@ import {
     StarfieldHandle
 } from './BeltBuilder';
 import { applySpaceEnvironmentMap, EnvironmentMapHandle } from './EnvironmentMapGenerator';
-import { exportObservatoryScreenshot } from './ScreenshotExporter';
+import { LineBatcher } from './LineBatcher';
+
+/** WebGL2 canvas/context pair acquired during boot capability probing, adopted by the renderer. */
+export interface BootWebGLContext {
+    canvas: HTMLCanvasElement;
+    context: WebGL2RenderingContext;
+}
+
+let pointLightReversedDepthPatched = false;
+
+/**
+ * Three.js r181 flips `texture2DCompare` and clears shadow maps to 0 when `reversedDepthBuffer`
+ * is active, but `MeshDistanceMaterial` (`distanceRGBA_frag`) and `getPointShadow` still encode
+ * linear distance as `0 = near, 1 = far`. Inverting `dist` and `dp` under `#ifdef USE_REVERSED_DEPTH_BUFFER`
+ * keeps `PointLightShadow` working identically under both reversed-Z and standard/logarithmic depth.
+ */
+function patchPointLightReversedDepthShader(): void {
+    if (pointLightReversedDepthPatched) return;
+    pointLightReversedDepthPatched = true;
+    const chunk = (THREE as any).ShaderChunk;
+    const lib = (THREE as any).ShaderLib;
+    if (chunk && typeof chunk.distanceRGBA_frag === 'string' && !chunk.distanceRGBA_frag.includes('USE_REVERSED_DEPTH_BUFFER')) {
+        const patched = chunk.distanceRGBA_frag.replace(
+            'dist = saturate( dist );',
+            'dist = saturate( dist );\n\t#ifdef USE_REVERSED_DEPTH_BUFFER\n\tdist = 1.0 - dist;\n\t#endif'
+        );
+        chunk.distanceRGBA_frag = patched;
+        if (lib?.distanceRGBA) {
+            lib.distanceRGBA.fragmentShader = patched;
+        }
+    }
+    if (chunk && typeof chunk.shadowmap_pars_fragment === 'string' && !chunk.shadowmap_pars_fragment.includes('dp = 1.0 - dp;')) {
+        chunk.shadowmap_pars_fragment = chunk.shadowmap_pars_fragment.replace(
+            'dp += shadowBias;',
+            'dp += shadowBias;\n\t\t\t#ifdef USE_REVERSED_DEPTH_BUFFER\n\t\t\tdp = 1.0 - dp;\n\t\t\t#endif'
+        );
+    }
+}
 
 export class SceneManager {
     container: HTMLElement;
+    private bootWebGL: BootWebGLContext | null = null;
+    lineBatcher: LineBatcher | null = null;
     scene: THREE.Scene;
     camera!: THREE.PerspectiveCamera;
     renderer!: THREE.WebGLRenderer;
@@ -115,6 +154,17 @@ export class SceneManager {
     private lastMeasureRoundedAU: number = NaN;
     private lastMeasureTargetA: any = null;
     private lastMeasureTargetB: any = null;
+    maxFps: number = 0;
+    adaptiveResolution: boolean = true;
+    private basePixelRatio: number = 1;
+    private currentPixelRatio: number = 1;
+    private isMobileDevice: boolean = false;
+    private smoothedFrameMs: number = 16.67;
+    private adaptiveSampleCount: number = 0;
+    private renderDirty: boolean = true;
+    private idleAccumulatedTime: number = 0;
+    private lastRenderedCamPos = new THREE.Vector3(Infinity, Infinity, Infinity);
+    private lastRenderedCamQuat = new THREE.Quaternion(Infinity, Infinity, Infinity, Infinity);
 
     cameraTransition: {
         startPos: THREE.Vector3;
@@ -207,8 +257,9 @@ export class SceneManager {
         return `${fmt(monthsPerSec)} ${unit}`;
     }
 
-    constructor(container: HTMLElement) {
+    constructor(container: HTMLElement, bootWebGL: BootWebGLContext | null = null) {
         this.container = container;
+        this.bootWebGL = bootWebGL;
         this.scene = new THREE.Scene();
         this.clock = new THREE.Clock();
         this.planets = [];
@@ -255,6 +306,8 @@ export class SceneManager {
         this.tourInterval = 12;
 
         this.measureMode = PreferencesManager.get('measureMode');
+        this.maxFps = Number(PreferencesManager.get('maxFps')) || 0;
+        this.adaptiveResolution = PreferencesManager.get('adaptiveResolution') ?? true;
         this.measureTargetA = null;
         this.measureTargetB = null;
         this.measureLine = null;
@@ -263,6 +316,20 @@ export class SceneManager {
         this.constellationManager = new ConstellationManager(this.scene);
 
         this.init();
+    }
+
+    setMaxFps(fps: number) {
+        const clamped = Math.max(0, Math.floor(Number(fps) || 0));
+        this.maxFps = clamped;
+        PreferencesManager.set('maxFps', clamped);
+    }
+
+    setAdaptiveResolution(enabled: boolean) {
+        this.adaptiveResolution = Boolean(enabled);
+        PreferencesManager.set('adaptiveResolution', this.adaptiveResolution);
+        if (!this.adaptiveResolution && this.currentPixelRatio !== this.basePixelRatio) {
+            this.applyPixelRatio(this.basePixelRatio);
+        }
     }
 
     setSimDate(newDate: Date) {
@@ -285,6 +352,7 @@ export class SceneManager {
         });
         this.scene.updateMatrixWorld?.(true);
         this.shadowRenderedWhilePaused = false;
+        this.renderDirty = true;
         if (this.renderer?.shadowMap) {
             this.renderer.shadowMap.needsUpdate = true;
         }
@@ -296,8 +364,10 @@ export class SceneManager {
     init() {
         this.scene.background = new THREE.Color(0x02050d);
 
-        // Logarithmic depth buffer + 1e-4 near plane allows seamless zoom from 50,000-unit skybox
-        // right down to 0.0055-unit realistic-scale planets and spacecraft without clipping or Z-fighting.
+        // Reversed-Z (EXT_clip_control) or logarithmic depth buffer + 1e-4 near plane allows seamless zoom
+        // from 50,000-unit skybox right down to 0.0055-unit realistic-scale planets and spacecraft without
+        // clipping or Z-fighting. Prefer reversed-Z when supported so fragment shaders do not write gl_FragDepth
+        // and hardware early-Z remains enabled.
         this.camera = new THREE.PerspectiveCamera(
             60,
             window.innerWidth / window.innerHeight,
@@ -307,14 +377,40 @@ export class SceneManager {
         this.camera.position.set(0, 100, 400);
 
         const isMobile = ('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) || window.innerWidth <= 768;
+        this.isMobileDevice = isMobile;
         const maxDPR = isMobile ? 1.75 : 2;
         const dpr = Math.min(window.devicePixelRatio || 1, maxDPR);
+        this.basePixelRatio = dpr;
+        this.currentPixelRatio = dpr;
 
+        const glCtx = this.bootWebGL?.context;
+        const dbgExt = glCtx?.getExtension?.('WEBGL_debug_renderer_info');
+        const unmaskedRenderer = (dbgExt && glCtx?.getParameter?.(dbgExt.UNMASKED_RENDERER_WEBGL)) || '';
+        const isIntelD3D11 = /Intel/i.test(String(unmaskedRenderer)) && /D3D11/i.test(String(unmaskedRenderer));
+        // On Intel D3D11 GPUs, clearDepth(0.0) under EXT_clip_control bypasses hardware Hi-Z fast depth clear
+        // on the 8192x4096 PointLightShadow atlas and 4x MSAA target (~3 ms/frame slower than logarithmicDepthBuffer).
+        const supportsReversedDepth = !isIntelD3D11 && Boolean(glCtx?.getExtension?.('EXT_clip_control'));
+        if (supportsReversedDepth) {
+            patchPointLightReversedDepthShader();
+        }
+
+        // Canvas-level MSAA is disabled: every frame is drawn through the EffectComposer, whose
+        // multisampled HalfFloat render target performs the anti-aliasing. A multisampled default
+        // framebuffer would only add memory and resolve bandwidth for the final fullscreen quad.
+        // Adopt the context created by the boot WebGL probe (if any) instead of creating a second one.
         this.renderer = new THREE.WebGLRenderer({
-            antialias: true,
+            canvas: this.bootWebGL?.canvas,
+            context: this.bootWebGL?.context,
+            antialias: false,
             powerPreference: 'high-performance',
-            logarithmicDepthBuffer: true
-        });
+            reversedDepthBuffer: supportsReversedDepth,
+            logarithmicDepthBuffer: !supportsReversedDepth
+        } as THREE.WebGLRendererParameters);
+        this.bootWebGL = null;
+        // Avoid synchronous program/shader info-log round-trips to the GPU process in production builds
+        if (import.meta.env.PROD && this.renderer.debug) {
+            this.renderer.debug.checkShaderErrors = false;
+        }
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(dpr);
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -330,7 +426,7 @@ export class SceneManager {
         // Procedural PMREM space environment map for realistic metallic spacecraft specular reflections
         this.envMapHandle = applySpaceEnvironmentMap(this.scene, this.renderer);
 
-        // Post-processing pipeline: RenderPass -> UnrealBloomPass (half-res) -> OutputPass (ACES tone mapping + sRGB)
+        // Post-processing pipeline: RenderPass -> UnrealBloomPass -> OutputPass (ACES tone mapping + sRGB)
         const renderScene = new RenderPass(this.scene, this.camera);
         const bloomWidth = Math.max(1, Math.floor(window.innerWidth / 2));
         const bloomHeight = Math.max(1, Math.floor(window.innerHeight / 2));
@@ -340,6 +436,29 @@ export class SceneManager {
             0.52, // soft organic radius
             0.85  // HDR threshold
         );
+        // 2D bloom & output passes never need depth testing or depth renderbuffers
+        const anyBloom = this.bloomPass as any;
+        if (anyBloom.renderTargetBright) anyBloom.renderTargetBright.depthBuffer = false;
+        anyBloom.renderTargetsHorizontal?.forEach((rt: THREE.WebGLRenderTarget) => { rt.depthBuffer = false; });
+        anyBloom.renderTargetsVertical?.forEach((rt: THREE.WebGLRenderTarget) => { rt.depthBuffer = false; });
+        if (anyBloom.materialHighPassFilter) {
+            anyBloom.materialHighPassFilter.depthTest = false;
+            anyBloom.materialHighPassFilter.depthWrite = false;
+        }
+        anyBloom.separableBlurMaterials?.forEach((m: THREE.Material) => {
+            m.depthTest = false;
+            m.depthWrite = false;
+        });
+        if (anyBloom.compositeMaterial) {
+            anyBloom.compositeMaterial.depthTest = false;
+            anyBloom.compositeMaterial.depthWrite = false;
+        }
+
+        const outputPass = new OutputPass();
+        if ((outputPass as any).material) {
+            (outputPass as any).material.depthTest = false;
+            (outputPass as any).material.depthWrite = false;
+        }
 
         const rtWidth = Math.max(1, Math.floor(window.innerWidth * dpr));
         const rtHeight = Math.max(1, Math.floor(window.innerHeight * dpr));
@@ -351,8 +470,9 @@ export class SceneManager {
         this.composer = new EffectComposer(this.renderer, renderTarget);
         this.composer.addPass(renderScene);
         this.composer.addPass(this.bloomPass);
-        this.composer.addPass(new OutputPass());
+        this.composer.addPass(outputPass);
         this.bloomPass.enabled = PreferencesManager.get('enableBloom');
+        this.syncBloomResolution();
 
         // Controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -368,7 +488,11 @@ export class SceneManager {
         };
         this.controls.addEventListener('start', () => {
             this.cameraTransition = null;
+            this.renderDirty = true;
             this.updateZoomLimits();
+        });
+        this.controls.addEventListener?.('change', () => {
+            this.renderDirty = true;
         });
 
         // Surface View interactive horizon look-around listeners
@@ -381,7 +505,10 @@ export class SceneManager {
         this.pointLight = new THREE.PointLight(0xfffcf5, this.realisticLighting ? 2.8 : 2.1, 0, 0);
         this.pointLight.castShadow = true;
 
-        const shadowMapSize = isMobile ? 2048 : 4096;
+        // Point-light shadows are packed into a 4x2 atlas of cube faces, so the backing texture is
+        // (4 * mapSize) x (2 * mapSize) plus an equally sized depth buffer. 4096 per face meant a
+        // 16384x8192 atlas (~1 GB of VRAM) on GPUs that allow it; 2048 keeps it at 8192x4096.
+        const shadowMapSize = isMobile ? 1024 : 2048;
         this.pointLight.shadow.mapSize.width = shadowMapSize;
         this.pointLight.shadow.mapSize.height = shadowMapSize;
         this.pointLight.shadow.camera.near = 10;
@@ -411,6 +538,11 @@ export class SceneManager {
         this.createSpacecrafts();
         this.habitableZoneMesh = buildHabitableZone(this.scene, this.showHabitableZone);
         this.eclipticGridMesh = buildEclipticGrid(this.scene, this.showEclipticGrid);
+
+        // Merge orbit paths and motion trails into a handful of draw calls; world matrices are
+        // refreshed manually once per frame in update() so the batcher sees current transforms.
+        this.lineBatcher = new LineBatcher(this.scene);
+        this.scene.matrixWorldAutoUpdate = false;
 
         // Resize and orientation handling
         this.onResizeBound = () => this.onWindowResize();
@@ -463,6 +595,7 @@ export class SceneManager {
             this.surfaceLastY = e.clientY;
             this.surfaceYaw -= dx * 0.004;
             this.surfacePitch = THREE.MathUtils.clamp(this.surfacePitch + dy * 0.003, -0.35, 1.35);
+            this.renderDirty = true;
         };
         this.onSurfacePointerUpBound = () => {
             this.isSurfaceDragging = false;
@@ -605,17 +738,102 @@ export class SceneManager {
         });
     }
 
-    onWindowResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.composer.setSize(window.innerWidth, window.innerHeight);
-        if (this.bloomPass?.resolution) {
+    /**
+     * Compile all scene shader programs ahead of the first frame using the renderer's
+     * non-blocking `compileAsync` (backed by KHR_parallel_shader_compile where available).
+     * Without this, ~30 programs are linked synchronously during the first render, freezing
+     * the main thread for several seconds on integrated GPUs.
+     */
+    async precompileShaders(): Promise<void> {
+        const renderer = this.renderer as THREE.WebGLRenderer | undefined;
+        if (!renderer || typeof renderer.compileAsync !== 'function') return;
+        try {
+            // Sync the line batcher first so merged LineSegments meshes are present on layer 0
+            // and individual source orbit/trail lines are already moved to layer 31.
+            this.scene.updateMatrixWorld?.();
+            if (this.lineBatcher) {
+                const rebaseDistance = Math.max(1e-4, this.camera.position.distanceTo(this.controls.target) * 0.25);
+                this.lineBatcher.sync(this.camera.position, rebaseDistance);
+            }
+            // Program variants depend on the active render target (tone mapping and output colour
+            // space differ for offscreen targets), so compile against the composer's scene target.
+            const previousTarget = renderer.getRenderTarget();
+            renderer.setRenderTarget(this.composer?.readBuffer ?? null);
+            const pending = renderer.compileAsync(this.scene, this.camera);
+            renderer.setRenderTarget(previousTarget);
+            await pending;
+        } catch {
+            // Programs will compile lazily on first render instead
+        }
+    }
+
+    /**
+     * On high-DPI displays (`currentPixelRatio > 1`), size the UnrealBloomPass mip chain using
+     * CSS pixel dimensions rather than physical pixels (`EffectComposer.addPass` and `setSize`
+     * otherwise scale every pass to `width * dpr`). On 1x displays (`currentPixelRatio <= 1`),
+     * keep the default full-resolution bloom pyramid.
+     */
+    private syncBloomResolution() {
+        if (!this.bloomPass) return;
+        const w = Math.max(1, window.innerWidth);
+        const h = Math.max(1, window.innerHeight);
+        if (this.currentPixelRatio > 1) {
+            this.bloomPass.setSize?.(w, h);
+        }
+        if (this.bloomPass.resolution) {
             this.bloomPass.resolution.set(
-                Math.max(1, Math.floor(window.innerWidth / 2)),
-                Math.max(1, Math.floor(window.innerHeight / 2))
+                Math.max(1, Math.floor(w / 2)),
+                Math.max(1, Math.floor(h / 2))
             );
         }
+    }
+
+    private applyPixelRatio(nextDpr: number) {
+        const clamped = Math.max(0.75, Math.min(this.basePixelRatio, nextDpr));
+        if (Math.abs(clamped - this.currentPixelRatio) < 0.01) return;
+        this.currentPixelRatio = clamped;
+        this.renderer.setPixelRatio(clamped);
+        if (typeof (this.composer as any)?.setPixelRatio === 'function') {
+            (this.composer as any).setPixelRatio(clamped);
+        } else {
+            this.composer?.setSize(window.innerWidth, window.innerHeight);
+        }
+        this.syncBloomResolution();
+        this.renderDirty = true;
+    }
+
+    private updateAdaptiveResolution(frameMs: number) {
+        this.smoothedFrameMs = this.smoothedFrameMs * 0.9 + frameMs * 0.1;
+        this.adaptiveSampleCount++;
+        if (this.adaptiveSampleCount < 60) return;
+        this.adaptiveSampleCount = 0;
+
+        // Step down on high-DPI displays when below ~40 FPS (>25 ms), or below ~30 FPS (>33.3 ms) on 1x displays
+        const minRatio = this.isMobileDevice ? 0.75 : 0.85;
+        const stepDownThreshold = this.currentPixelRatio > 1.0 ? 25.0 : 33.3;
+        if (this.smoothedFrameMs > stepDownThreshold && this.currentPixelRatio > minRatio) {
+            const next = Math.max(minRatio, Math.round((this.currentPixelRatio - 0.25) * 100) / 100);
+            this.applyPixelRatio(next);
+        } else if (this.smoothedFrameMs < 17.2 && this.currentPixelRatio < this.basePixelRatio) {
+            const next = Math.min(this.basePixelRatio, Math.round((this.currentPixelRatio + 0.25) * 100) / 100);
+            this.applyPixelRatio(next);
+        }
+    }
+
+    onWindowResize() {
+        const isMobile = ('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) || window.innerWidth <= 768;
+        this.isMobileDevice = isMobile;
+        const maxDPR = isMobile ? 1.75 : 2;
+        this.basePixelRatio = Math.min(window.devicePixelRatio || 1, maxDPR);
+        this.currentPixelRatio = this.basePixelRatio;
+
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setPixelRatio(this.currentPixelRatio);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+        this.syncBloomResolution();
+        this.renderDirty = true;
         if (this.renderer?.shadowMap) {
             this.renderer.shadowMap.needsUpdate = true;
         }
@@ -711,6 +929,7 @@ export class SceneManager {
             this.lastUpdatedSimTime = simTimePassed;
             this.lastUpdatedRealisticDistances = this.realisticDistances;
 
+            CelestialBody.advanceVelocityPulse?.(effectiveRawDelta);
             this.planets.forEach(planet => {
                 planet.update(deltaTime, simTimePassed, effectiveRawDelta);
             });
@@ -795,6 +1014,36 @@ export class SceneManager {
             this.controls.update();
         }
 
+        const cameraMoved =
+            this.camera.position.distanceToSquared(this.lastRenderedCamPos) > 1e-12 ||
+            (1 - Math.abs(this.camera.quaternion.dot(this.lastRenderedCamQuat))) > 1e-12;
+        const isActiveOrDirty =
+            this.timeScale !== 0 ||
+            this.cameraTransition !== null ||
+            this.tourMode ||
+            shouldUpdateEphemeris ||
+            cameraMoved ||
+            this.renderDirty;
+
+        if (!isActiveOrDirty) {
+            // When paused with a stationary camera and no dirty scene state, throttle keep-alive
+            // redraws (for subtle background starfield twinkle) to ~4 Hz instead of 60-240 Hz.
+            this.idleAccumulatedTime += rawDelta;
+            if (this.idleAccumulatedTime < 0.25) {
+                return;
+            }
+            this.idleAccumulatedTime = 0;
+        } else {
+            this.idleAccumulatedTime = 0;
+        }
+        this.renderDirty = false;
+        this.lastRenderedCamPos.copy(this.camera.position);
+        this.lastRenderedCamQuat.copy(this.camera.quaternion);
+
+        if (isActiveOrDirty && this.adaptiveResolution && rawDelta > 0) {
+            this.updateAdaptiveResolution(rawDelta * 1000);
+        }
+
         this.updateMeasurement();
 
         // Update distance-based planet/moon LODs & secondary shell culling
@@ -829,15 +1078,22 @@ export class SceneManager {
 
         // Reset renderer stats manually before render so PerformanceMonitor captures full scene calls & triangles
         this.renderer.info?.reset?.();
-        if (this.bloomPass && !this.bloomPass.enabled) {
-            this.renderer.render(this.scene, this.camera);
-        } else {
-            this.composer.render();
+        // World matrices are updated once here (scene.matrixWorldAutoUpdate is off) so the line batcher
+        // sees this frame's transforms before mirroring orbit paths & trails into merged draw calls.
+        this.scene.updateMatrixWorld?.();
+        if (this.lineBatcher) {
+            const rebaseDistance = Math.max(1e-4, this.camera.position.distanceTo(this.controls.target) * 0.25);
+            this.lineBatcher.sync(this.camera.position, rebaseDistance);
         }
+        // Always render through the composer (a disabled bloom pass is simply skipped). Rendering
+        // directly to the canvas would require a second set of shader program variants (tone mapping
+        // + sRGB output baked in), causing a multi-second compile stall whenever bloom is toggled.
+        this.composer.render();
     }
 
     toggleOrbits(visible: boolean) {
         this.showOrbits = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showOrbits', visible);
         this.planets.forEach(planet => {
             if (planet.data?.isDwarfPlanet) {
@@ -852,6 +1108,7 @@ export class SceneManager {
 
     toggleComets(visible: boolean) {
         this.showComets = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showComets', visible);
         this.comets.forEach(comet => {
             if (comet.mesh) comet.mesh.visible = visible;
@@ -862,24 +1119,28 @@ export class SceneManager {
 
     toggleMoons(visible: boolean) {
         this.showMoons = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showMoons', visible);
         this.planets.forEach(planet => planet.toggleMoons?.(visible));
     }
 
     toggleMeteors(visible: boolean) {
         this.showMeteors = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showMeteors', visible);
         this.planets.forEach(planet => planet.toggleMeteors?.(visible));
     }
 
     toggleTrails(visible: boolean) {
         this.showTrails = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showTrails', visible);
         this.planets.forEach(planet => planet.toggleTrails?.(visible));
     }
 
     toggleSpacecrafts(visible: boolean) {
         this.showSpacecrafts = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showSpacecraft', visible);
         this.spacecrafts.forEach(sc => {
             if (sc.mesh) sc.mesh.visible = visible;
@@ -889,6 +1150,7 @@ export class SceneManager {
 
     toggleAsteroids(visible: boolean) {
         this.showAsteroids = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showAsteroids', visible);
         if (this.asteroidBelt) {
             this.asteroidBelt.visible = visible;
@@ -897,6 +1159,7 @@ export class SceneManager {
 
     toggleKuiperBelt(visible: boolean) {
         this.showKuiperBelt = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showKuiperBelt', visible);
         if (this.kuiperBelt) {
             this.kuiperBelt.visible = visible;
@@ -905,6 +1168,7 @@ export class SceneManager {
 
     toggleDwarfPlanets(visible: boolean) {
         this.showDwarfPlanets = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showDwarfPlanets', visible);
         this.planets.forEach(planet => {
             if (planet.data?.isDwarfPlanet) {
@@ -917,6 +1181,7 @@ export class SceneManager {
     toggleConstellations(visible?: boolean): boolean {
         const next = this.constellationManager.toggleVisibility(visible);
         this.showConstellations = next;
+        this.renderDirty = true;
         PreferencesManager.set('showConstellations', next);
         return next;
     }
@@ -926,12 +1191,14 @@ export class SceneManager {
         if (this.bloomPass) {
             this.bloomPass.enabled = next;
         }
+        this.renderDirty = true;
         PreferencesManager.set('enableBloom', next);
         return next;
     }
 
     toggleHabitableZone(visible: boolean) {
         this.showHabitableZone = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showHabitableZone', visible);
         if (this.habitableZoneMesh) {
             this.habitableZoneMesh.visible = visible;
@@ -940,6 +1207,7 @@ export class SceneManager {
 
     toggleEclipticGrid(visible: boolean) {
         this.showEclipticGrid = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showEclipticGrid', visible);
         if (this.eclipticGridMesh) {
             this.eclipticGridMesh.visible = visible;
@@ -948,6 +1216,7 @@ export class SceneManager {
 
     toggleRealisticLighting(visible: boolean) {
         this.realisticLighting = visible;
+        this.renderDirty = true;
         PreferencesManager.set('realisticLighting', visible);
         if (this.ambientLight) {
             this.ambientLight.intensity = visible ? 0.05 : 0.36;
@@ -959,6 +1228,7 @@ export class SceneManager {
 
     toggleAxes(visible: boolean) {
         this.showAxes = visible;
+        this.renderDirty = true;
         PreferencesManager.set('showAxes', visible);
         this.planets.forEach(planet => planet.toggleAxes?.(visible));
     }
@@ -1013,6 +1283,7 @@ export class SceneManager {
     }
 
     focusOnBody(name: string, smooth: boolean = true) {
+        this.renderDirty = true;
         let target: CelestialBody | Comet | Spacecraft | undefined;
 
         const findTarget = (body: CelestialBody) => {
@@ -1027,6 +1298,18 @@ export class SceneManager {
         target = target || this.spacecrafts.find((s: Spacecraft) => s.data.name === name);
 
         if (target && target.mesh) {
+            if ('data' in target && target.data?.name) {
+                TextureGenerator.ensureDeferredLoaded?.(target.data.name, () => {
+                    this.renderDirty = true;
+                });
+            }
+            if ('moons' in target && Array.isArray((target as CelestialBody).moons)) {
+                (target as CelestialBody).moons.forEach(m => {
+                    TextureGenerator.ensureDeferredLoaded?.(m.data.name, () => {
+                        this.renderDirty = true;
+                    });
+                });
+            }
             target.mesh.updateWorldMatrix?.(true, false);
             target.mesh.getWorldPosition(SceneManager._vPos);
 
@@ -1109,6 +1392,7 @@ export class SceneManager {
     }
 
     focusOnStar(starMesh: THREE.Object3D, smooth: boolean = true) {
+        this.renderDirty = true;
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.previousBodyPosition = null;
@@ -1143,6 +1427,7 @@ export class SceneManager {
     focusOnConstellation(name: string, smooth: boolean = true) {
         const group = this.constellationManager.constellationMeshes.find(g => g.userData.name === name);
         if (!group) return;
+        this.renderDirty = true;
 
         if (!this.constellationManager.isVisible) {
             this.toggleConstellations(true);
@@ -1603,6 +1888,7 @@ export class SceneManager {
 
     toggleMeasureMode(visible: boolean) {
         this.measureMode = visible;
+        this.renderDirty = true;
         PreferencesManager.set('measureMode', visible);
         if (!visible) {
             this.measureTargetA = null;
@@ -1625,6 +1911,7 @@ export class SceneManager {
         this.measureTargetA = null;
         this.measureTargetB = null;
         this.currentMeasureDistance = null;
+        this.renderDirty = true;
         if (this.measureLine) this.measureLine.visible = false;
         if (this.measureLabel) {
             this.measureLabel.visible = false;
@@ -1637,6 +1924,7 @@ export class SceneManager {
     }
 
     setMeasureTarget(name: string) {
+        this.renderDirty = true;
         let target: CelestialBody | Comet | Spacecraft | undefined;
 
         const findTarget = (body: CelestialBody) => {
@@ -1693,11 +1981,13 @@ export class SceneManager {
         this.controls.enabled = true;
         this.controls.autoRotate = false;
         this.cameraTransition = null;
+        this.renderDirty = true;
         this.spacecrafts.forEach(sc => sc.setShadowCasting?.(false));
         this.updateZoomLimits();
     }
 
     setSurfaceView(name: string): boolean {
+        this.renderDirty = true;
         // Disallow surface landing on the Sun's gaseous photosphere
         if (!name || name === 'Sun') {
             this.surfaceViewBody = null;
@@ -1717,6 +2007,9 @@ export class SceneManager {
         this.planets.forEach(findTarget);
 
         if (target && target.mesh) {
+            TextureGenerator.ensureDeferredLoaded?.(target.data.name, () => {
+                this.renderDirty = true;
+            });
             this.surfaceViewBody = target;
             this.surfaceYaw = 0;
             this.surfacePitch = 0.22;
@@ -1739,7 +2032,9 @@ export class SceneManager {
 
     captureScreenshot(targetName?: string): void {
         const rawTarget = targetName || (this.focusedBody as any)?.data?.name || 'Solar System';
-        exportObservatoryScreenshot(this.renderer, this.composer, rawTarget, this.simDate);
+        void import('./ScreenshotExporter').then(({ exportObservatoryScreenshot }) => {
+            exportObservatoryScreenshot(this.renderer, this.composer, rawTarget, this.simDate);
+        });
     }
 
     dispose() {
@@ -1771,6 +2066,11 @@ export class SceneManager {
         if (this.envMapHandle) {
             this.envMapHandle.dispose();
             this.envMapHandle = null;
+        }
+
+        if (this.lineBatcher) {
+            this.lineBatcher.dispose();
+            this.lineBatcher = null;
         }
 
         const disposeMesh = (obj: THREE.Object3D | null) => {

@@ -19,10 +19,26 @@ export class TextureGenerator {
      * Clear and dispose all cached textures to free GPU memory and canvas pixel buffers
      */
     static dispose(): void {
+        this.deferredQueue.forEach(item => {
+            if (!this.cache.has(item.name)) {
+                item.placeholderMap.dispose();
+                item.placeholderBump?.dispose();
+            }
+        });
+        this.deferredQueue = [];
+        this.loadingDeferred.clear();
         this.cache.forEach(texture => {
             texture.dispose();
         });
         this.cache.clear();
+    }
+
+    static hasCachedTexture(name: string): boolean {
+        return this.cache.has(name);
+    }
+
+    static hasBumpMap(name: string): boolean {
+        return this.BUMP_WORLDS.has(name);
     }
 
     /**
@@ -196,6 +212,31 @@ export class TextureGenerator {
         });
     }
 
+    private static cacheWorker: Worker | null | undefined = undefined;
+
+    /**
+     * Lazily spawn the WebP encoder worker. Returns null where module workers, OffscreenCanvas
+     * or ImageBitmap are unavailable so callers fall back to main-thread `toBlob`.
+     */
+    private static getCacheWorker(): Worker | null {
+        if (this.cacheWorker !== undefined) return this.cacheWorker;
+        this.cacheWorker = null;
+        if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap !== 'function') {
+            return null;
+        }
+        try {
+            const worker = new Worker(new URL('./TextureCacheWorker.ts', import.meta.url), { type: 'module' });
+            worker.onerror = () => {
+                worker.terminate();
+                if (this.cacheWorker === worker) this.cacheWorker = null;
+            };
+            this.cacheWorker = worker;
+        } catch {
+            this.cacheWorker = null;
+        }
+        return this.cacheWorker;
+    }
+
     private static persistCanvasToCache(key: string, canvas: HTMLCanvasElement): void {
         if (typeof canvas.toBlob !== 'function' || typeof indexedDB === 'undefined') return;
         const schedule = typeof requestIdleCallback === 'function'
@@ -203,6 +244,21 @@ export class TextureGenerator {
             : (cb: () => void) => setTimeout(cb, 50);
 
         schedule(() => {
+            // Preferred path: snapshot the canvas and let a worker do the ~35 ms WebP encode + IDB write,
+            // so first-visit cache population never janks the render loop.
+            const worker = this.getCacheWorker();
+            if (worker) {
+                createImageBitmap(canvas).then(bitmap => {
+                    worker.postMessage(
+                        { key, bitmap, dbName: this.IDB_NAME, storeName: this.IDB_STORE, quality: 0.92 },
+                        [bitmap]
+                    );
+                }).catch(() => {
+                    // Snapshot failed; skip caching this texture
+                });
+                return;
+            }
+
             try {
                 canvas.toBlob(async (blob) => {
                     if (!blob) return;
@@ -221,9 +277,207 @@ export class TextureGenerator {
         });
     }
 
+    private static deferredQueue: Array<{
+        name: string;
+        material: THREE.MeshStandardMaterial;
+        placeholderMap: THREE.CanvasTexture;
+        placeholderBump: THREE.CanvasTexture | null;
+    }> = [];
+    private static loadingDeferred: Set<string> = new Set();
+
+    /**
+     * Trigger background loading of a deferred moon or dwarf planet surface map on demand
+     * (e.g. when the camera approaches its planetary system or focuses on the body).
+     */
+    static ensureDeferredLoaded(name: string, onLoaded?: (name: string) => void): void {
+        if (this.cache.has(name) || this.loadingDeferred.has(name)) return;
+        const matching = this.deferredQueue.filter(it => it.name === name);
+        if (matching.length === 0) return;
+        this.deferredQueue = this.deferredQueue.filter(it => it.name !== name);
+        this.loadingDeferred.add(name);
+
+        const isMobile = typeof window !== 'undefined' && (
+            ('ontouchstart' in window) ||
+            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+            window.innerWidth <= 768
+        );
+
+        void this.loadPrebakedTextureAsync(name, isMobile).then(prebaked => {
+            const fullMap = prebaked ?? this.getPlanetTexture(name);
+            const fullBump = this.BUMP_WORLDS.has(name) ? this.getPlanetBumpMap(name) : null;
+            for (const item of matching) {
+                item.material.map = fullMap;
+                if (fullBump) {
+                    item.material.bumpMap = fullBump;
+                }
+                item.placeholderMap.dispose();
+                item.placeholderBump?.dispose();
+            }
+            this.loadingDeferred.delete(name);
+            onLoaded?.(name);
+        });
+    }
+
+    /**
+     * Fetch a pre-baked static `.webp` surface map from `public/textures/planets/<Name>.webp`,
+     * decode it off the main thread via `createImageBitmap`, and draw it into a 2D canvas.
+     * Returns `null` if unavailable (e.g. unit tests or offline custom world), allowing callers
+     * to fall back to IndexedDB or procedural synthesis.
+     */
+    private static async loadPrebakedTextureAsync(name: string, isMobile: boolean): Promise<THREE.CanvasTexture | null> {
+        if (typeof fetch !== 'function' || typeof createImageBitmap !== 'function') {
+            return null;
+        }
+        try {
+            const baseUrl = (import.meta as any).env?.BASE_URL || '/';
+            const url = `${baseUrl}textures/planets/${encodeURIComponent(name)}.webp`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const contentType = res.headers?.get?.('content-type') || '';
+            if (contentType && !contentType.includes('image')) return null;
+
+            const blob = await res.blob();
+            const bitmap = await createImageBitmap(blob);
+            const targetW = isMobile ? Math.min(1024, bitmap.width) : bitmap.width;
+            const targetH = isMobile ? Math.min(512, bitmap.height) : bitmap.height;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                bitmap.close?.();
+                return null;
+            }
+            ctx.drawImage(bitmap, 0, 0, targetW, targetH);
+            bitmap.close?.();
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.anisotropy = TextureGenerator.maxAnisotropy;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.generateMipmaps = true;
+            tex.needsUpdate = true;
+            this.cache.set(name, tex);
+            return tex;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Create a tiny 64x32 placeholder surface texture (plus 16x8 neutral bump map if applicable)
+     * for non-boot moons & outer dwarf planets, and queue the material for background loading
+     * after the main scene finishes booting. In test environments without `createImageBitmap`,
+     * falls back synchronously to `getPlanetTexture`.
+     */
+    static getOrDeferPlanetSurface(
+        name: string,
+        baseColorHex: number,
+        onCreateMaterial: (map: THREE.CanvasTexture, bumpMap: THREE.CanvasTexture | null) => THREE.MeshStandardMaterial
+    ): THREE.MeshStandardMaterial {
+        if (this.cache.has(name) || typeof createImageBitmap !== 'function') {
+            const map = this.getPlanetTexture(name);
+            const bumpMap = this.getPlanetBumpMap(name);
+            return onCreateMaterial(map, bumpMap);
+        }
+
+        const c = new THREE.Color(baseColorHex || 0x888888);
+        const r = Math.round(c.r * 255);
+        const g = Math.round(c.g * 255);
+        const b = Math.round(c.b * 255);
+
+        const mapCanvas = document.createElement('canvas');
+        mapCanvas.width = 64;
+        mapCanvas.height = 32;
+        const ctx = mapCanvas.getContext('2d');
+        if (ctx) {
+            const grad = ctx.createLinearGradient(0, 0, 0, 32);
+            grad.addColorStop(0, `rgb(${Math.min(255, r + 18)}, ${Math.min(255, g + 18)}, ${Math.min(255, b + 18)})`);
+            grad.addColorStop(0.5, `rgb(${r}, ${g}, ${b})`);
+            grad.addColorStop(1, `rgb(${Math.max(0, r - 18)}, ${Math.max(0, g - 18)}, ${Math.max(0, b - 18)})`);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 64, 32);
+        }
+        const placeholderMap = new THREE.CanvasTexture(mapCanvas);
+        placeholderMap.wrapS = THREE.RepeatWrapping;
+        placeholderMap.wrapT = THREE.ClampToEdgeWrapping;
+        placeholderMap.colorSpace = THREE.SRGBColorSpace;
+        placeholderMap.needsUpdate = true;
+
+        let placeholderBump: THREE.CanvasTexture | null = null;
+        if (this.BUMP_WORLDS.has(name)) {
+            const bumpCanvas = document.createElement('canvas');
+            bumpCanvas.width = 16;
+            bumpCanvas.height = 8;
+            const bctx = bumpCanvas.getContext('2d');
+            if (bctx) {
+                bctx.fillStyle = '#808080';
+                bctx.fillRect(0, 0, 16, 8);
+            }
+            placeholderBump = new THREE.CanvasTexture(bumpCanvas);
+            placeholderBump.wrapS = THREE.RepeatWrapping;
+            placeholderBump.wrapT = THREE.ClampToEdgeWrapping;
+            placeholderBump.needsUpdate = true;
+        }
+
+        const material = onCreateMaterial(placeholderMap, placeholderBump);
+        this.deferredQueue.push({ name, material, placeholderMap, placeholderBump });
+        return material;
+    }
+
+    /**
+     * Asynchronously load all deferred moon/dwarf textures in the background after boot and swap
+     * them onto their materials without triggering shader recompilation.
+     */
+    static async loadDeferredTexturesAsync(onEachLoaded?: (name: string) => void): Promise<void> {
+        if (this.deferredQueue.length === 0) return;
+        const items = this.deferredQueue.slice();
+        this.deferredQueue = [];
+
+        const isMobile = typeof window !== 'undefined' && (
+            ('ontouchstart' in window) ||
+            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+            window.innerWidth <= 768
+        );
+
+        const uniqueNames = Array.from(new Set(items.map(it => it.name)));
+        const fetchMap = new Map<string, Promise<THREE.CanvasTexture | null>>();
+        for (const name of uniqueNames) {
+            if (!this.cache.has(name)) {
+                fetchMap.set(name, this.loadPrebakedTextureAsync(name, isMobile));
+            }
+        }
+
+        for (const item of items) {
+            let fullMap = this.cache.get(item.name) ?? null;
+            if (!fullMap) {
+                fullMap = (await fetchMap.get(item.name)) ?? null;
+            }
+            if (!fullMap) {
+                fullMap = this.getPlanetTexture(item.name);
+            }
+            const fullBump = this.BUMP_WORLDS.has(item.name) ? this.getPlanetBumpMap(item.name) : null;
+
+            item.material.map = fullMap;
+            if (fullBump) {
+                item.material.bumpMap = fullBump;
+            }
+            item.placeholderMap.dispose();
+            item.placeholderBump?.dispose();
+            onEachLoaded?.(item.name);
+
+            // Yield between background texture swaps so steady-state frame pacing stays smooth
+            await new Promise<void>(resolve => setTimeout(resolve, 16));
+        }
+    }
+
     /**
      * Asynchronously prewarm procedural textures across animation frames so boot UI never freezes.
-     * Restores previously synthesized textures from IndexedDB when available.
+     * Prefers pre-baked WebP assets under `public/textures/planets/`, falling back to IndexedDB
+     * or procedural synthesis when unavailable.
      */
     static async prewarmTexturesAsync(
         names: string[],
@@ -240,22 +494,45 @@ export class TextureGenerator {
         );
         const resSuffix = isMobile ? '1024x512' : '2048x1024';
 
+        // Pipeline pre-baked WebP fetches + off-thread ImageBitmap decodes in parallel
+        const prebakedPromises = names.map(name =>
+            this.cache.has(name) ? Promise.resolve(this.cache.get(name)!) : this.loadPrebakedTextureAsync(name, isMobile)
+        );
+
         for (let i = 0; i < total; i++) {
             const name = names[i];
-            if (!this.cache.has(name) && canUseBitmapCache) {
+            const wasCached = this.cache.has(name);
+            let restored = false;
+
+            const prebaked = await prebakedPromises[i];
+            if (prebaked) {
+                restored = true;
+            } else if (!wasCached && canUseBitmapCache) {
                 const blob = await this.getCachedTextureBlob(`${name}_${resSuffix}`);
                 if (blob) {
                     try {
+                        // Decode off-thread, then blit into a canvas: WebGL ignores flipY for ImageBitmap
+                        // sources (which rendered restored maps upside-down), and bump-map derivation
+                        // needs a canvas source.
                         const bitmap = await createImageBitmap(blob);
-                        const tex = new THREE.CanvasTexture(bitmap as unknown as HTMLCanvasElement);
-                        tex.wrapS = THREE.RepeatWrapping;
-                        tex.wrapT = THREE.ClampToEdgeWrapping;
-                        tex.colorSpace = THREE.SRGBColorSpace;
-                        tex.anisotropy = TextureGenerator.maxAnisotropy;
-                        tex.minFilter = THREE.LinearMipmapLinearFilter;
-                        tex.generateMipmaps = true;
-                        tex.needsUpdate = true;
-                        this.cache.set(name, tex);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = bitmap.width;
+                        canvas.height = bitmap.height;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                            ctx.drawImage(bitmap, 0, 0);
+                            const tex = new THREE.CanvasTexture(canvas);
+                            tex.wrapS = THREE.RepeatWrapping;
+                            tex.wrapT = THREE.ClampToEdgeWrapping;
+                            tex.colorSpace = THREE.SRGBColorSpace;
+                            tex.anisotropy = TextureGenerator.maxAnisotropy;
+                            tex.minFilter = THREE.LinearMipmapLinearFilter;
+                            tex.generateMipmaps = true;
+                            tex.needsUpdate = true;
+                            this.cache.set(name, tex);
+                            restored = true;
+                        }
+                        bitmap.close?.();
                     } catch {
                         // Fall through to procedural synthesis
                     }
@@ -263,7 +540,8 @@ export class TextureGenerator {
             }
 
             const tex = this.getPlanetTexture(name);
-            if (canUseBitmapCache && tex.image instanceof HTMLCanvasElement) {
+            // Only persist freshly synthesized maps; re-encoding pre-baked or restored ones would waste ~35 ms each
+            if (!wasCached && !restored && canUseBitmapCache && tex.image instanceof HTMLCanvasElement) {
                 this.persistCanvasToCache(`${name}_${resSuffix}`, tex.image);
             }
 
@@ -361,6 +639,18 @@ export class TextureGenerator {
         }
     }
 
+    private static canvasFilterSupported: boolean | null = null;
+
+    /** Whether CanvasRenderingContext2D.filter is implemented (Chromium, Firefox; not older Safari). */
+    private static supportsCanvasFilter(ctx: CanvasRenderingContext2D): boolean {
+        if (this.canvasFilterSupported === null) {
+            this.canvasFilterSupported = typeof CanvasRenderingContext2D !== 'undefined' &&
+                'filter' in CanvasRenderingContext2D.prototype &&
+                ctx instanceof CanvasRenderingContext2D;
+        }
+        return this.canvasFilterSupported;
+    }
+
     /**
      * Derive a grayscale relief bump map for rocky and icy cratered worlds so craters, ridges,
      * and canyons cast realistic 3D relief along the solar terminator.
@@ -385,8 +675,17 @@ export class TextureGenerator {
         if (!ctx) return null;
 
         try {
-            ctx.drawImage(srcCanvas, 0, 0, width, height);
-            if (typeof ctx.getImageData === 'function') {
+            const useCanvasFilter = this.supportsCanvasFilter(ctx);
+            if (useCanvasFilter) {
+                // GPU path: luminance + midtone contrast applied by the canvas filter pipeline,
+                // avoiding a synchronous GPU->CPU getImageData readback per bump map.
+                ctx.filter = 'grayscale(1) contrast(1.35)';
+                ctx.drawImage(srcCanvas, 0, 0, width, height);
+                ctx.filter = 'none';
+            } else {
+                ctx.drawImage(srcCanvas, 0, 0, width, height);
+            }
+            if (!useCanvasFilter && typeof ctx.getImageData === 'function') {
                 const imgData = ctx.getImageData(0, 0, width, height);
                 if (imgData && imgData.data) {
                     const d = imgData.data;
@@ -472,7 +771,11 @@ export class TextureGenerator {
         const baseNoise = new Float32Array(size);
         let s = (Math.abs(Math.floor(seed)) % 2147483645) + 1;
         for (let i = 0; i < size; i++) {
-            s = (s * 16807) % 2147483647;
+            // Schrage's method: bit-identical to (s * 16807) % 2147483647, but stays in int32
+            // arithmetic instead of a floating-point modulo (~2.4x faster for 2M-texel maps)
+            const hi = (s / 127773) | 0;
+            s = 16807 * (s - hi * 127773) - 2836 * hi;
+            if (s <= 0) s += 2147483647;
             baseNoise[i] = (s - 1) / 2147483646;
         }
 

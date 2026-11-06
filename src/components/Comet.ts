@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CometData } from './SolarSystemData';
 import { solveKepler } from './MathUtils';
+import { markLineBatchable } from './LineBatcher';
 
 
 export class Comet {
@@ -250,6 +251,7 @@ export class Comet {
         this.orbitLine = new THREE.LineLoop(geometry, material);
         this.orbitLine.matrixAutoUpdate = false;
         this.orbitLine.updateMatrix?.();
+        markLineBatchable(this.orbitLine);
         this.baseGroup.add(this.orbitLine);
     }
 

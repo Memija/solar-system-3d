@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "test": "vitest run --pool=threads"
+    "test": "vitest run --pool=threads",
+    "perf": "node scripts/perf.mjs",
+    "generate:textures": "node scripts/generate-textures.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

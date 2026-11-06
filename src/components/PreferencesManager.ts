@@ -29,6 +29,8 @@ export interface UserPreferences {
     enableBloom: boolean;
     realisticLighting: boolean;
     showAxes: boolean;
+    maxFps: number;
+    adaptiveResolution: boolean;
     headerSlots: string[];
     [key: string]: any;
 }
@@ -67,6 +69,8 @@ export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     enableBloom: true,
     realisticLighting: true,
     showAxes: false,
+    maxFps: 0,
+    adaptiveResolution: true,
     headerSlots: [...DEFAULT_HEADER_SLOTS]
 };
 

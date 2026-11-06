@@ -1,6 +1,5 @@
 import './style.scss';
-import { SceneManager } from './components/SceneManager';
-import { UIManager } from './components/UIManager';
+import { SceneManager, type BootWebGLContext } from './components/SceneManager';
 import { LoadingScreen } from './components/LoadingScreen';
 import { TextureGenerator } from './components/TextureGenerator';
 import { i18n } from './i18n';
@@ -10,15 +9,30 @@ if (!container) {
   throw new Error('App container not found');
 }
 
-function isWebGLAvailable(): boolean {
+/**
+ * Probe WebGL2 support (required by three.js r163+) and keep the resulting context so the
+ * renderer can adopt it. Creating a throwaway probe context and then a second one for the
+ * renderer costs hundreds of milliseconds of GPU-process initialisation on boot and leaves
+ * an orphaned context alive until garbage collection.
+ * Attributes mirror what SceneManager would otherwise request from THREE.WebGLRenderer.
+ */
+function acquireWebGLContext(): BootWebGLContext | null {
   try {
+    if (typeof window.WebGL2RenderingContext === 'undefined') return null;
     const canvas = document.createElement('canvas');
-    return Boolean(
-      window.WebGLRenderingContext &&
-      (canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
-    );
+    const context = canvas.getContext('webgl2', {
+      alpha: false,
+      depth: true,
+      stencil: false,
+      antialias: false, // MSAA is resolved inside the EffectComposer render target
+      premultipliedAlpha: true,
+      preserveDrawingBuffer: false,
+      powerPreference: 'high-performance',
+      failIfMajorPerformanceCaveat: false
+    });
+    return context ? { canvas, context } : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -38,7 +52,9 @@ function renderBootFallback(title: string, description: string): void {
   `;
 }
 
-if (!isWebGLAvailable()) {
+const bootWebGL = acquireWebGLContext();
+
+if (!bootWebGL) {
   if (i18n.currentLanguage !== 'en') {
     void i18n.preloadLocale(i18n.currentLanguage).then(() => {
       renderBootFallback(
@@ -70,14 +86,7 @@ const PREWARM_WORLD_TEXTURES = [
   'Uranus',
   'Neptune',
   'Pluto',
-  'Ceres',
-  'Io',
-  'Europa',
-  'Ganymede',
-  'Callisto',
-  'Titan',
-  'Enceladus',
-  'Triton'
+  'Ceres'
 ];
 
 async function init() {
@@ -87,6 +96,8 @@ async function init() {
 
   const loadingScreen = new LoadingScreen();
   loadingScreen.setProgress(24, i18n.t('loading.core'), i18n.t('loading.tagBoot'));
+  // Begin fetching the code-split UI chunk in parallel while textures & shaders warm up
+  const uiModulePromise = import('./components/UIManager');
   await yieldFrame(16);
 
   loadingScreen.setProgress(32, i18n.t('loading.surfaces'), i18n.t('loading.tagSynthesizing'));
@@ -98,10 +109,16 @@ async function init() {
   loadingScreen.setProgress(74, i18n.t('loading.ephemerides'), i18n.t('loading.tagCalibrating'));
   await yieldFrame(16);
 
-  const sceneManager = new SceneManager(container as HTMLElement);
+  const sceneManager = new SceneManager(container as HTMLElement, bootWebGL);
   await yieldFrame(16);
 
+  // Compile every material's shader program in parallel (KHR_parallel_shader_compile) while the
+  // loading screen is still animating, instead of stalling the main thread on the first frame.
+  loadingScreen.setProgress(82, i18n.t('loading.calibrating'), i18n.t('loading.tagCalibrating'));
+  await sceneManager.precompileShaders();
+
   loadingScreen.setProgress(90, i18n.t('loading.controls'), i18n.t('loading.tagConfiguring'));
+  const { UIManager } = await uiModulePromise;
   const uiManager = new UIManager(sceneManager);
   await yieldFrame(16);
 
@@ -110,12 +127,22 @@ async function init() {
   (window as any).uiManager = uiManager;
   (window as any).loadingScreen = loadingScreen;
 
+  let lastFrameTime = 0;
   animate = () => {
     if (!isAnimating || document.hidden) {
       animationFrameId = null;
       return;
     }
     animationFrameId = requestAnimationFrame(animate);
+    if (sceneManager.maxFps > 0) {
+      const now = performance.now();
+      const minInterval = 1000 / sceneManager.maxFps;
+      const elapsed = now - lastFrameTime;
+      if (elapsed < minInterval - 0.5) {
+        return;
+      }
+      lastFrameTime = now - (elapsed % minInterval);
+    }
     sceneManager.update();
     uiManager.update();
   };
