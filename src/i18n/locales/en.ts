@@ -19,6 +19,8 @@ export const en: TranslationSchema = {
         astrophotography: 'Astrophotography Snapshot (K)',
         astrophotographyAria: 'Capture high-resolution screenshot',
         speedPause: 'Click to Pause / Resume (Space)',
+        speedSlowDown: 'Slow Down Simulation ([ / -)',
+        speedSpeedUp: 'Speed Up Simulation (] / +)',
         utcTime: 'Universal Time (UTC)',
         liveRealTime: 'Physical Real-Time Active (1:1)',
         controls: 'Controls',

@@ -40,7 +40,7 @@ describe('ControlCenter Component', () => {
             tourTimer: 0,
             tourIndex: 0,
             tourTargets: ['Mercury', 'Venus', 'Earth'],
-            measureMode: true,
+            measureMode: false,
             bloomPass: { enabled: true },
             focusOnBody: vi.fn(),
             setSurfaceView: vi.fn(),
@@ -333,10 +333,11 @@ describe('ControlCenter Component', () => {
 
         // Verify specific option info buttons exist
         const optionIds = Array.from(infoBtns).map(btn => btn.dataset.optionId);
+        expect(optionIds).not.toContain('celestialNav');
         expect(optionIds).not.toContain('pauseResume');
         expect(optionIds).not.toContain('timeSpeed');
+        expect(optionIds).not.toContain('jumpToDate');
         expect(optionIds).toContain('speedPresets');
-        expect(optionIds).toContain('jumpToDate');
         expect(optionIds).toContain('showOrbits');
         expect(optionIds).toContain('showMoons');
         expect(optionIds).toContain('showAsteroids');
@@ -549,163 +550,22 @@ describe('ControlCenter Component', () => {
         expect(weekBtn.classList.contains('active')).toBe(false);
     });
 
-    it('should render premium CustomDatePicker, day steppers, and quick steppers without redundant milestone dropdown or date action buttons', () => {
+    it('should not render Celestial Navigation or Sim Date in settings drawer because they are present in the header', () => {
+        controlCenter.switchTab('target');
+        const targetPanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="target"]');
+        expect(targetPanel).toBeTruthy();
+        expect(targetPanel?.querySelector('[data-i18n-key="controls.sections.celestialNav"]')).toBeNull();
+        expect(targetPanel?.querySelector('#unifiedTargetSelectRow')).toBeNull();
+        expect(targetPanel?.querySelector('.target-select-row')).toBeNull();
+
         controlCenter.switchTab('time');
-        const datePickerContainer = controlCenter.drawerElement.querySelector('.ctrl-date-picker-wrap .custom-datepicker-container') as HTMLElement;
-        const datePickerDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
-        const nativeDateInput = controlCenter.drawerElement.querySelector('input[type="date"]');
-        const prevBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Previous Day"]') as HTMLButtonElement;
-        const nextBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Next Day"]') as HTMLButtonElement;
-        const quickBtns = controlCenter.drawerElement.querySelectorAll('.quick-step-btn');
-        const milestoneSelect = controlCenter.drawerElement.querySelector('#controlCenterMilestoneSelect');
-        const jumpBtn = controlCenter.drawerElement.querySelector('.jump-date-action-btn');
-        const openCalBtn = controlCenter.drawerElement.querySelector('.open-cal-action-btn');
-
-        expect(nativeDateInput).toBeNull();
-        expect(datePickerContainer).toBeTruthy();
-        expect(datePickerDisplay).toBeTruthy();
-        expect(datePickerDisplay.textContent).toBe('2026-10-23');
-        expect(controlCenter.customDatePicker?.popupElement.parentElement).toBe(container);
-        expect(controlCenter.customDatePicker?.popupElement.classList.contains('is-portaled')).toBe(true);
-        expect(prevBtn).toBeTruthy();
-        expect(nextBtn).toBeTruthy();
-        expect(quickBtns.length).toBe(4);
-        expect(milestoneSelect).toBeNull();
-        expect(jumpBtn).toBeNull();
-        expect(openCalBtn).toBeNull();
-    });
-
-    it('should update simulation date and sync header customDatePicker when selecting a date in premium CustomDatePicker', () => {
-        controlCenter.switchTab('time');
-        const datePickerDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
-        expect(datePickerDisplay).toBeTruthy();
-
-        // Open the premium CustomDatePicker popup
-        datePickerDisplay.click();
-        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
-
-        // Select Day 15 from the portaled popup calendar grid
-        const dayCells = controlCenter.customDatePicker!.popupElement.querySelectorAll('.datepicker-day-cell');
-        expect(dayCells.length).toBeGreaterThanOrEqual(15);
-        (dayCells[14] as HTMLElement).click();
-
-        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
-        const calledDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
-        expect(calledDate.getUTCFullYear()).toBe(2026);
-        expect(calledDate.getUTCMonth()).toBe(9); // October is index 9
-        expect(calledDate.getUTCDate()).toBe(15);
-        expect(datePickerDisplay.textContent).toBe('2026-10-15');
-        expect(mockUIManager.customDatePicker.setDate).toHaveBeenCalledWith(calledDate);
-        expect(mockSceneManager.timeScale).toBe(0);
-        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
-    });
-
-    it('should step date backward and forward with stepper buttons and update premium date picker display', () => {
-        controlCenter.switchTab('time');
-        const prevBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Previous Day"]') as HTMLButtonElement;
-        const nextBtn = controlCenter.drawerElement.querySelector('.date-stepper-btn[aria-label="Next Day"]') as HTMLButtonElement;
-        const datePickerDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
-
-        mockSceneManager.simDate = new Date('2026-10-23T12:00:00Z');
-        controlCenter.syncTimePanel();
-
-        // Step -1 day
-        prevBtn.click();
-        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
-        let lastDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
-        expect(lastDate.getUTCDate()).toBe(22);
-        expect(datePickerDisplay.textContent).toBe('2026-10-22');
-
-        // Step +1 day
-        nextBtn.click();
-        expect(mockSceneManager.setSimDate).toHaveBeenCalled();
-        lastDate = mockSceneManager.setSimDate.mock.calls[mockSceneManager.setSimDate.mock.calls.length - 1][0];
-        expect(lastDate.getUTCDate()).toBe(23);
-        expect(datePickerDisplay.textContent).toBe('2026-10-23');
-    });
-
-    it('should dismiss premium date picker year modal and popup on Escape before closing drawer', () => {
-        controlCenter.open('time');
-        expect(controlCenter.isOpen).toBe(true);
-
-        controlCenter.customDatePicker?.openPopup();
-        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
-
-        const yearInput = controlCenter.customDatePicker!.popupElement.querySelector('.custom-datepicker-input') as HTMLInputElement;
-        yearInput.click();
-        expect(controlCenter.customDatePicker?.isYearModalActive()).toBe(true);
-
-        // 1st Escape dismisses Year Modal
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        expect(controlCenter.customDatePicker?.isYearModalActive()).toBe(false);
-        expect(controlCenter.customDatePicker?.isOpen).toBe(true);
-        expect(controlCenter.isOpen).toBe(true);
-
-        // 2nd Escape dismisses Date Picker popup
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        expect(controlCenter.customDatePicker?.isOpen).toBe(false);
-        expect(controlCenter.isOpen).toBe(true);
-
-        // 3rd Escape closes Control Center drawer
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        expect(controlCenter.isOpen).toBe(false);
-    });
-
-    it('should localize all simulation date controls in Time panel when switching languages', async () => {
-        await Promise.all(['en', 'bs', 'de', 'id', 'pl', 'sr'].map(code => i18n.preloadLocale(code)));
-        controlCenter.switchTab('time');
-
-        const stepperBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.date-stepper-btn');
-        const prevBtn = stepperBtns[0];
-        const nextBtn = stepperBtns[1];
-        const quickBtns = controlCenter.drawerElement.querySelectorAll<HTMLButtonElement>('.quick-step-btn');
-        const dateDisplay = controlCenter.drawerElement.querySelector('#controlCenterDatePicker') as HTMLElement;
-
-        // Bosnian
-        i18n.setLanguage('bs');
-        controlCenter.updateTranslations();
-        expect(prevBtn.getAttribute('aria-label')).toBe('Prethodni dan');
-        expect(prevBtn.title).toBe('Prethodni dan (-1d)');
-        expect(nextBtn.getAttribute('aria-label')).toBe('Sljedeći dan');
-        expect(nextBtn.title).toBe('Sljedeći dan (+1d)');
-        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1g', '-1mj', '+1mj', '+1g']);
-        expect(quickBtns[0].title).toBe('Korak unazad za 1 godinu');
-        expect(dateDisplay.getAttribute('aria-label')).toBe('Odaberite datum simulacije');
-
-        // German
-        i18n.setLanguage('de');
-        controlCenter.updateTranslations();
-        expect(prevBtn.getAttribute('aria-label')).toBe('Vorheriger Tag');
-        expect(prevBtn.title).toBe('Vorheriger Tag (-1T)');
-        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1J', '-1M', '+1M', '+1J']);
-        expect(quickBtns[1].title).toBe('1 Monat zurückspringen');
-        expect(dateDisplay.getAttribute('aria-label')).toBe('Simulationsdatum auswählen');
-
-        // Indonesian
-        i18n.setLanguage('id');
-        controlCenter.updateTranslations();
-        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1th', '-1bl', '+1bl', '+1th']);
-        expect(prevBtn.title).toBe('Hari Sebelumnya (-1hr)');
-
-        // Polish
-        i18n.setLanguage('pl');
-        controlCenter.updateTranslations();
-        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1r', '-1m', '+1m', '+1r']);
-        expect(prevBtn.getAttribute('aria-label')).toBe('Poprzedni dzień');
-
-        // Serbian
-        i18n.setLanguage('sr');
-        controlCenter.updateTranslations();
-        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1г', '-1м', '+1м', '+1г']);
-        expect(prevBtn.getAttribute('aria-label')).toBe('Претходни дан');
-        expect(dateDisplay.getAttribute('aria-label')).toBe('Изаберите датум симулације');
-
-        // Restore English
-        i18n.setLanguage('en');
-        controlCenter.updateTranslations();
-        expect(prevBtn.getAttribute('aria-label')).toBe('Previous Day');
-        expect(nextBtn.getAttribute('aria-label')).toBe('Next Day');
-        expect(Array.from(quickBtns).map(b => b.textContent)).toEqual(['-1y', '-1m', '+1m', '+1y']);
+        const timePanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="time"]');
+        expect(timePanel).toBeTruthy();
+        expect(timePanel?.querySelector('[data-i18n-key="ui.simDate"]')).toBeNull();
+        expect(timePanel?.querySelector('.ctrl-date-picker-wrap')).toBeNull();
+        expect(timePanel?.querySelector('#controlCenterDatePicker')).toBeNull();
+        expect(timePanel?.querySelector('.date-stepper-btn')).toBeNull();
+        expect(timePanel?.querySelector('.quick-step-btn')).toBeNull();
     });
 
     it('should render Distance Measuring Tool toggle in System (Observatory Instruments) panel and localize across all 6 languages', async () => {
@@ -722,19 +582,19 @@ describe('ControlCenter Component', () => {
         const checkboxes = systemPanel!.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
         expect(checkboxes.length).toBe(3); // minimap, telemetry, measureMode
         const measureInput = checkboxes[2];
-        expect(measureInput.checked).toBe(true);
-
-        measureInput.checked = false;
-        measureInput.dispatchEvent(new Event('change'));
-        expect(mockSceneManager.toggleMeasureMode).toHaveBeenCalledWith(false);
-
-        mockSceneManager.measureMode = false;
-        controlCenter.syncSwitches();
         expect(measureInput.checked).toBe(false);
+
+        measureInput.checked = true;
+        measureInput.dispatchEvent(new Event('change'));
+        expect(mockSceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
 
         mockSceneManager.measureMode = true;
         controlCenter.syncSwitches();
         expect(measureInput.checked).toBe(true);
+
+        mockSceneManager.measureMode = false;
+        controlCenter.syncSwitches();
+        expect(measureInput.checked).toBe(false);
 
         // Verify localized label & tooltip across all 6 languages
         const infoBtn = systemPanel?.querySelector('.ctrl-info-btn[data-option-id="measureMode"]') as HTMLButtonElement;

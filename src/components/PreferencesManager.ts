@@ -46,8 +46,8 @@ export const DEFAULT_HEADER_SLOTS: readonly string[] = [
 export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = {
     // Performance telemetry activated by default
     telemetry: true,
-    // Distance measuring tool activated by default
-    measureMode: true,
+    // Distance measuring tool deactivated by default
+    measureMode: false,
     language: 'en',
     audioEnabled: false,
     minimap: true,
@@ -151,6 +151,10 @@ export class PreferencesManagerClass {
         }
         if ('headerSlotsV2' in loaded) {
             delete (loaded as Record<string, unknown>).headerSlotsV2;
+            migratedLegacy = true;
+        }
+        if (loaded.measureMode === true) {
+            loaded.measureMode = false;
             migratedLegacy = true;
         }
 

@@ -45,16 +45,12 @@ export class ShortcutController {
             ui.controlCenter.hideOptionTooltip();
             return;
         }
-        if (ui.controlCenter?.customDatePicker?.isYearModalActive?.()) {
-            ui.controlCenter.customDatePicker.dismissYearModal();
+        if (ui.performanceMonitor?.isTooltipVisible?.()) {
+            ui.performanceMonitor.hideTelemetryTooltip();
             return;
         }
         if (ui.customDatePicker?.isYearModalActive?.()) {
             ui.customDatePicker.dismissYearModal();
-            return;
-        }
-        if (ui.controlCenter?.customDatePicker?.isOpen) {
-            ui.controlCenter.customDatePicker.closePopup();
             return;
         }
         if (ui.customDatePicker?.isOpen) {
@@ -141,19 +137,9 @@ export class ShortcutController {
                 EventBus.emit('select-celestial-body', { name: targetBody });
             }
         } else if (event.key === '[' || event.key === '-') {
-            const current = sm.timeScale;
-            const next = Math.max(0, Math.round((current - 0.005) * 10000) / 10000);
-            sm.timeScale = next;
-            sm.onTimeScaleChange?.(next);
-            ui.controlCenter?.syncTimePanel();
-            ui.audioManager?.playTick?.();
+            ui.slowDown();
         } else if (event.key === ']' || event.key === '=' || event.key === '+') {
-            const current = sm.timeScale;
-            const next = Math.round((current + 0.005) * 10000) / 10000;
-            sm.timeScale = next;
-            sm.onTimeScaleChange?.(next);
-            ui.controlCenter?.syncTimePanel();
-            ui.audioManager?.playTick?.();
+            ui.speedUp();
         } else if (event.key === 's' || event.key === 'S') {
             const enabled = ui.audioManager.toggle();
             const soundBtn = document.getElementById('hudSoundBtn');

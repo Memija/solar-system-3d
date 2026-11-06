@@ -78,7 +78,7 @@ body {
     pointer-events: none;
     z-index: $z-ui;
 
-    > * {
+    > *:not(.ctrl-info-tooltip) {
         pointer-events: auto;
     }
 }

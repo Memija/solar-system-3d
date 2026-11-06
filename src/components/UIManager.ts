@@ -53,6 +53,9 @@ export class UIManager {
     ignoreNextBodyChange: boolean = false;
     dateLabel: HTMLElement | null = null;
     speedBadge: HTMLElement | null = null;
+    slowDownBtn: HTMLButtonElement | null = null;
+    speedUpBtn: HTMLButtonElement | null = null;
+    transportDeck: HTMLElement | null = null;
     timeBadge: HTMLElement | null = null;
     private timeNumsEl: HTMLElement | null = null;
     liveIndicator: HTMLElement | null = null;
@@ -79,6 +82,15 @@ export class UIManager {
     private measureHudBar: HTMLElement | null = null;
     private static readonly _measurePosA = new THREE.Vector3();
     private static readonly _measurePosB = new THREE.Vector3();
+
+    public static readonly SPEED_TIERS: readonly number[] = [
+        0,
+        SceneManager.SPEED_PRESETS.realTime,
+        SceneManager.SPEED_PRESETS.oneHour,
+        SceneManager.SPEED_PRESETS.oneDay,
+        SceneManager.SPEED_PRESETS.oneWeek,
+        SceneManager.SPEED_PRESETS.oneMonth
+    ];
 
     constructor(sceneManager: SceneManager) {
         this.sceneManager = sceneManager;
@@ -135,6 +147,7 @@ export class UIManager {
         this.createSelectionMenu();
         this.sceneManager.onTimeScaleChange = () => {
             this.controlCenter?.syncTimePanel();
+            this.syncTransportState();
         };
 
         this.initInteraction();
@@ -335,7 +348,6 @@ export class UIManager {
                 this.controlCenter?.syncTimePanel();
             },
             () => {
-                this.controlCenter?.customDatePicker?.closePopup();
                 this.sceneManager.timeScale = 0;
                 this.sceneManager.onTimeScaleChange?.(0);
                 this.controlCenter?.syncTimePanel();
@@ -366,16 +378,38 @@ export class UIManager {
         this.timeBadge = timeBadge;
         this.timeNumsEl = timeNumsEl;
 
+        const transportDeck = document.createElement('div');
+        transportDeck.className = 'sim-transport-deck';
+        transportDeck.setAttribute('role', 'group');
+        transportDeck.setAttribute('aria-label', i18n.t('controls.sections.simulationSpeed') || 'Simulation Speed');
+        this.transportDeck = transportDeck;
+
+        const slowDownBtn = document.createElement('button');
+        slowDownBtn.type = 'button';
+        slowDownBtn.id = 'simSlowDownBtn';
+        slowDownBtn.className = 'sim-transport-btn sim-speed-down-btn';
+        const slowDownTitle = i18n.t('ui.speedSlowDown') || 'Slow Down Simulation ([ / -)';
+        slowDownBtn.title = slowDownTitle;
+        slowDownBtn.setAttribute('aria-label', slowDownTitle);
+        slowDownBtn.innerHTML = svgIcon('rewind', 'obs-svg-icon transport-svg-icon');
+        slowDownBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            this.slowDown();
+        };
+        this.slowDownBtn = slowDownBtn;
+        transportDeck.appendChild(slowDownBtn);
+
         const speedBadge = document.createElement('button');
         speedBadge.type = 'button';
         speedBadge.className = 'sim-speed-badge';
         speedBadge.title = i18n.t('ui.speedPause');
+        speedBadge.setAttribute('aria-label', i18n.t('ui.speedPause'));
         const isPaused = this.sceneManager?.timeScale === 0;
         const initialScale = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
         const isInitialRealTime = !isPaused && initialScale <= SceneManager.SPEED_PRESETS.realTime * 1.5;
         const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
             ? this.sceneManager.getFormattedTimeSpeed()
-            : (i18n.t('controls.speedPresets.realTime') || 'Real-Time (1:1)');
+            : SceneManager.prototype.getFormattedTimeSpeed.call(this.sceneManager, initialScale);
         const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
         speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
         if (isPaused) speedBadge.classList.add('paused');
@@ -383,7 +417,25 @@ export class UIManager {
             this.togglePause();
         };
         this.speedBadge = speedBadge;
-        mainRow.appendChild(speedBadge);
+        transportDeck.appendChild(speedBadge);
+
+        const speedUpBtn = document.createElement('button');
+        speedUpBtn.type = 'button';
+        speedUpBtn.id = 'simSpeedUpBtn';
+        speedUpBtn.className = 'sim-transport-btn sim-speed-up-btn';
+        const speedUpTitle = i18n.t('ui.speedSpeedUp') || 'Speed Up Simulation (] / +)';
+        speedUpBtn.title = speedUpTitle;
+        speedUpBtn.setAttribute('aria-label', speedUpTitle);
+        speedUpBtn.innerHTML = svgIcon('fast-forward', 'obs-svg-icon transport-svg-icon');
+        speedUpBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            this.speedUp();
+        };
+        this.speedUpBtn = speedUpBtn;
+        transportDeck.appendChild(speedUpBtn);
+
+        mainRow.appendChild(transportDeck);
+        this.syncTransportState();
 
         const liveIndicator = document.createElement('div');
         liveIndicator.className = 'sim-live-indicator';
@@ -492,21 +544,7 @@ export class UIManager {
         const effectiveScale = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
         const isRealTime = !isPaused && (effectiveScale <= SceneManager.SPEED_PRESETS.realTime * 1.5);
 
-        if (this.speedBadge) {
-            const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
-                ? this.sceneManager.getFormattedTimeSpeed()
-                : (i18n.t('controls.speedPresets.realTime') || 'Real-Time (1:1)');
-            const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
-            const text = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
-            if (this.speedBadge.textContent !== text) {
-                this.speedBadge.textContent = text;
-                this.speedBadge.classList.toggle('paused', isPaused);
-            }
-        }
-
-        if (this.liveIndicator) {
-            this.liveIndicator.style.display = isRealTime ? 'inline-flex' : 'none';
-        }
+        this.syncTransportState();
 
         if (this.telemetryTicker) {
             if (isRealTime && this.sceneManager.simDate) {
@@ -555,6 +593,83 @@ export class UIManager {
         }
     }
 
+    public syncTransportState(): void {
+        const isPaused = this.sceneManager?.timeScale === 0;
+        const effectiveScale = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
+        const isRealTime = !isPaused && (effectiveScale <= SceneManager.SPEED_PRESETS.realTime * 1.5);
+
+        if (this.speedBadge) {
+            const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
+                ? this.sceneManager.getFormattedTimeSpeed()
+                : SceneManager.prototype.getFormattedTimeSpeed.call(this.sceneManager, effectiveScale);
+            const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
+            const text = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
+            if (this.speedBadge.textContent !== text) {
+                this.speedBadge.textContent = text;
+            }
+            this.speedBadge.classList.toggle('paused', isPaused);
+        }
+
+        if (this.slowDownBtn) {
+            const atMin = isPaused;
+            this.slowDownBtn.disabled = atMin;
+            this.slowDownBtn.classList.toggle('is-limit', atMin);
+        }
+
+        if (this.speedUpBtn) {
+            const maxSpeed = UIManager.SPEED_TIERS[UIManager.SPEED_TIERS.length - 1];
+            const atMax = !isPaused && effectiveScale >= maxSpeed * 0.95;
+            this.speedUpBtn.disabled = atMax;
+            this.speedUpBtn.classList.toggle('is-limit', atMax);
+        }
+
+        if (this.liveIndicator) {
+            this.liveIndicator.style.display = isRealTime ? 'inline-flex' : 'none';
+        }
+    }
+
+    public slowDown(): void {
+        if (!this.sceneManager) return;
+        const current = this.sceneManager.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
+        const tiers = UIManager.SPEED_TIERS;
+        let nextSpeed = 0;
+        for (let i = tiers.length - 1; i >= 0; i--) {
+            if (tiers[i] < current * 0.95) {
+                nextSpeed = tiers[i];
+                break;
+            }
+        }
+        this.applyTimeSpeed(nextSpeed);
+    }
+
+    public speedUp(): void {
+        if (!this.sceneManager) return;
+        const current = this.sceneManager.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
+        const tiers = UIManager.SPEED_TIERS;
+        let nextSpeed = tiers[tiers.length - 1];
+        for (let i = 1; i < tiers.length; i++) {
+            if (current <= 0 || tiers[i] > current * 1.05) {
+                nextSpeed = tiers[i];
+                break;
+            }
+        }
+        this.applyTimeSpeed(nextSpeed);
+    }
+
+    private applyTimeSpeed(nextSpeed: number): void {
+        if (!this.sceneManager) return;
+        if (nextSpeed === 0 && (this.sceneManager.timeScale ?? 0) > 0) {
+            this.previousTimeSpeed = this.sceneManager.timeScale;
+        } else if (nextSpeed > 0) {
+            this.previousTimeSpeed = nextSpeed;
+        }
+        this.sceneManager.timeScale = nextSpeed;
+        this.sceneManager.onTimeScaleChange?.(nextSpeed);
+        this.controlCenter?.syncTimePanel();
+        this.audioManager?.playTick?.();
+        this.syncTransportState();
+    }
+
     public togglePause(): void {
         if (!this.sceneManager) return;
         if (this.sceneManager.timeScale === 0) {
@@ -569,6 +684,7 @@ export class UIManager {
             this.sceneManager.onTimeScaleChange?.(0);
         }
         this.controlCenter?.syncTimePanel();
+        this.syncTransportState();
     }
 
     public toggleMinimap(): boolean {
@@ -596,13 +712,10 @@ export class UIManager {
 
         const typeSelect = document.createElement('select');
         typeSelect.id = 'typeSelect';
-
-        const headerTypeSelect = document.createElement('select');
-        headerTypeSelect.id = 'headerTypeSelect';
-        headerTypeSelect.className = 'obs-header-select obs-type-select';
-        headerTypeSelect.title = i18n.t('controls.sections.celestialNav') || 'Celestial Navigation';
-        headerTypeSelect.setAttribute('aria-label', headerTypeSelect.title);
-        this.headerTypeSelect = headerTypeSelect;
+        typeSelect.className = 'obs-header-select obs-type-select';
+        typeSelect.title = i18n.t('controls.sections.celestialNav') || 'Celestial Navigation';
+        typeSelect.setAttribute('aria-label', typeSelect.title);
+        this.headerTypeSelect = typeSelect;
 
         const getTypes = () => [
             { value: 'Star', label: i18n.t('categories.star') },
@@ -614,51 +727,35 @@ export class UIManager {
         ];
 
         const populateTypeOptions = () => {
-            const currentVal = typeSelect.value || headerTypeSelect.value || 'Planet';
+            const currentVal = typeSelect.value || 'Planet';
             typeSelect.innerHTML = '';
-            headerTypeSelect.innerHTML = '';
             getTypes().forEach(t => {
                 const cleanLabel = stripLeadingEmoji(t.label);
                 const option = document.createElement('option');
                 option.value = t.value;
                 option.textContent = cleanLabel;
                 typeSelect.appendChild(option);
-
-                const headerOption = document.createElement('option');
-                headerOption.value = t.value;
-                headerOption.textContent = cleanLabel;
-                headerTypeSelect.appendChild(headerOption);
             });
             typeSelect.value = currentVal;
-            headerTypeSelect.value = currentVal;
         };
 
         const bodySelect = document.createElement('select');
         bodySelect.id = 'bodySelect';
-
-        const headerBodySelect = document.createElement('select');
-        headerBodySelect.id = 'headerBodySelect';
-        headerBodySelect.className = 'obs-header-select obs-body-select';
-        headerBodySelect.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object';
-        headerBodySelect.setAttribute('aria-label', headerBodySelect.title);
-        this.headerBodySelect = headerBodySelect;
+        bodySelect.className = 'obs-header-select obs-body-select';
+        bodySelect.title = i18n.t('ui.targetPillTitle') || 'Focused Celestial Object';
+        bodySelect.setAttribute('aria-label', bodySelect.title);
+        this.headerBodySelect = bodySelect;
 
         const updateBodyOptions = () => {
-            const currentVal = bodySelect.value || headerBodySelect.value;
+            const currentVal = bodySelect.value;
             bodySelect.innerHTML = '';
-            headerBodySelect.innerHTML = '';
-            const selectedType = typeSelect.value || headerTypeSelect.value || 'Planet';
+            const selectedType = typeSelect.value || 'Planet';
 
             const addOption = (val: string, text: string) => {
                 const option = document.createElement('option');
                 option.value = val;
                 option.textContent = text;
                 bodySelect.appendChild(option);
-
-                const headerOption = document.createElement('option');
-                headerOption.value = val;
-                headerOption.textContent = text;
-                headerBodySelect.appendChild(headerOption);
             };
 
             if (selectedType === 'Star') {
@@ -707,37 +804,25 @@ export class UIManager {
 
             if (currentVal && Array.from(bodySelect.options).some(opt => opt.value === currentVal)) {
                 bodySelect.value = currentVal;
-                headerBodySelect.value = currentVal;
             }
         };
 
         populateTypeOptions();
         typeSelect.value = 'Planet';
-        headerTypeSelect.value = 'Planet';
         updateBodyOptions();
         if (Array.from(bodySelect.options).some(opt => opt.value === this.cameraTarget)) {
             bodySelect.value = this.cameraTarget;
-            headerBodySelect.value = this.cameraTarget;
         }
 
         typeSelect.addEventListener('change', () => {
-            headerTypeSelect.value = typeSelect.value;
             updateBodyOptions();
             if (bodySelect.options.length > 0) {
                 bodySelect.selectedIndex = 0;
-                headerBodySelect.selectedIndex = 0;
                 bodySelect.dispatchEvent(new Event('change'));
             }
         });
 
-        headerTypeSelect.addEventListener('change', () => {
-            typeSelect.value = headerTypeSelect.value;
-            typeSelect.dispatchEvent(new Event('change'));
-        });
-
         bodySelect.addEventListener('change', () => {
-            headerBodySelect.value = bodySelect.value;
-            headerTypeSelect.value = typeSelect.value;
             if (this.ignoreNextBodyChange) return;
             const selectedName = bodySelect.value;
             this.cameraTarget = selectedName;
@@ -814,23 +899,9 @@ export class UIManager {
             }
         });
 
-        headerBodySelect.addEventListener('change', () => {
-            bodySelect.value = headerBodySelect.value;
-            bodySelect.dispatchEvent(new Event('change'));
-        });
-
         // Initialize the Unified Control Center
         this.controlCenter = new ControlCenter(this, this.sceneManager, this.uiContainer);
         this.controlCenter.updateActiveTargetChips(this.cameraTarget);
-
-        const targetSelectRow = this.controlCenter.drawerElement.querySelector('#unifiedTargetSelectRow');
-        if (targetSelectRow) {
-            targetSelectRow.appendChild(typeSelect);
-            targetSelectRow.appendChild(bodySelect);
-        } else {
-            menuContainer.appendChild(typeSelect);
-            menuContainer.appendChild(bodySelect);
-        }
 
         // Left Brand element
         const brand = document.createElement('div');
@@ -877,7 +948,7 @@ export class UIManager {
         const typeChevron = document.createElement('span');
         typeChevron.className = 'obs-select-chevron';
         typeChevron.innerHTML = svgIcon('chevron-down');
-        typeSelectWrap.appendChild(headerTypeSelect);
+        typeSelectWrap.appendChild(typeSelect);
         typeSelectWrap.appendChild(typeChevron);
         targetPill.appendChild(typeSelectWrap);
 
@@ -892,7 +963,7 @@ export class UIManager {
         const bodyChevron = document.createElement('span');
         bodyChevron.className = 'obs-select-chevron';
         bodyChevron.innerHTML = svgIcon('chevron-down');
-        bodySelectWrap.appendChild(headerBodySelect);
+        bodySelectWrap.appendChild(bodySelect);
         bodySelectWrap.appendChild(bodyChevron);
         targetPill.appendChild(bodySelectWrap);
 
@@ -1078,15 +1149,24 @@ export class UIManager {
                 this.openHeaderSlotsCustomizer();
             }
 
+            if (this.transportDeck) {
+                this.transportDeck.setAttribute('aria-label', i18n.t('controls.sections.simulationSpeed') || 'Simulation Speed');
+            }
+            if (this.slowDownBtn) {
+                const slowDownTitle = i18n.t('ui.speedSlowDown') || 'Slow Down Simulation ([ / -)';
+                this.slowDownBtn.title = slowDownTitle;
+                this.slowDownBtn.setAttribute('aria-label', slowDownTitle);
+            }
+            if (this.speedUpBtn) {
+                const speedUpTitle = i18n.t('ui.speedSpeedUp') || 'Speed Up Simulation (] / +)';
+                this.speedUpBtn.title = speedUpTitle;
+                this.speedUpBtn.setAttribute('aria-label', speedUpTitle);
+            }
             if (this.speedBadge) {
                 this.speedBadge.title = i18n.t('ui.speedPause');
-                const isPaused = this.sceneManager?.timeScale === 0;
-                const speedText = typeof this.sceneManager?.getFormattedTimeSpeed === 'function'
-                    ? this.sceneManager.getFormattedTimeSpeed()
-                    : (i18n.t('controls.speedPresets.realTime') || 'Real-Time (1:1)');
-                const pausedLabel = i18n.t('controls.speedPresets.paused') || 'Paused';
-                this.speedBadge.textContent = isPaused ? `⏸ ${pausedLabel}` : `▶ ${speedText}`;
+                this.speedBadge.setAttribute('aria-label', i18n.t('ui.speedPause'));
             }
+            this.syncTransportState();
             if (this.timeBadge) {
                 this.timeBadge.title = i18n.t('ui.utcTime');
             }
@@ -1351,8 +1431,6 @@ export class UIManager {
         this.cameraTarget = targetName;
         const typeSelect = document.getElementById('typeSelect') as HTMLSelectElement;
         const bodySelect = document.getElementById('bodySelect') as HTMLSelectElement;
-        const headerTypeSelect = document.getElementById('headerTypeSelect') as HTMLSelectElement | null;
-        const headerBodySelect = document.getElementById('headerBodySelect') as HTMLSelectElement | null;
 
         let determinedType = targetType;
         if (!determinedType) {
@@ -1381,11 +1459,9 @@ export class UIManager {
 
             if (typeSelect.value !== determinedType) {
                 typeSelect.value = determinedType;
-                if (headerTypeSelect) headerTypeSelect.value = determinedType;
                 typeSelect.dispatchEvent(new Event('change'));
             }
             bodySelect.value = targetName;
-            if (headerBodySelect) headerBodySelect.value = targetName;
         }
 
         this.updateTargetPillDisplay(targetName, determinedType);

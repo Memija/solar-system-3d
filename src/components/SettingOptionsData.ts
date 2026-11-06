@@ -575,6 +575,281 @@ export function getEphemerisTimeDetails(): EphemerisTimeDetails {
     return EPHEMERIS_TIME_DETAILS[currentLang] || EPHEMERIS_TIME_DETAILS.en;
 }
 
+export type TelemetryMetricKey = 'fps' | 'ms' | 'calls' | 'tris' | 'tex' | 'mem';
+
+export interface TelemetryMetricDetailItem {
+    key: TelemetryMetricKey;
+    badge: string;
+    title: string;
+    desc: string;
+}
+
+export interface TelemetryMetricDetails {
+    fps: TelemetryMetricDetailItem;
+    ms: TelemetryMetricDetailItem;
+    calls: TelemetryMetricDetailItem;
+    tris: TelemetryMetricDetailItem;
+    tex: TelemetryMetricDetailItem;
+    mem: TelemetryMetricDetailItem;
+}
+
+export const TELEMETRY_METRIC_DETAILS: Record<SupportedLanguage, TelemetryMetricDetails> = {
+    en: {
+        fps: {
+            key: 'fps',
+            badge: 'FPS',
+            title: 'Frames Per Second',
+            desc: 'Images rendered per second (≥50 smooth, 30–49 moderate, <30 heavy load).'
+        },
+        ms: {
+            key: 'ms',
+            badge: 'ms',
+            title: 'Frame Time',
+            desc: 'Milliseconds needed to compute and draw one frame (16.6 ms equals 60 FPS).'
+        },
+        calls: {
+            key: 'calls',
+            badge: 'Calls',
+            title: 'Draw Calls',
+            desc: 'WebGL render batches sent from the processor to the graphics card each frame.'
+        },
+        tris: {
+            key: 'tris',
+            badge: 'Tris',
+            title: '3D Triangles',
+            desc: 'Total polygon triangles forming planets, moons, rings, and spacecraft.'
+        },
+        tex: {
+            key: 'tex',
+            badge: 'Tex',
+            title: '3D Textures',
+            desc: 'Active surface, cloud, ring, and starfield maps loaded in graphics memory.'
+        },
+        mem: {
+            key: 'mem',
+            badge: 'Mem',
+            title: 'Memory Usage',
+            desc: 'Current browser memory allocated for orbital mechanics and simulation state.'
+        }
+    },
+    bs: {
+        fps: {
+            key: 'fps',
+            badge: 'FPS',
+            title: 'Sličica u sekundi',
+            desc: 'Broj 3D slika u sekundi (≥50 glatko, 30–49 umjereno, <30 veliko opterećenje).'
+        },
+        ms: {
+            key: 'ms',
+            badge: 'ms',
+            title: 'Vrijeme sličice',
+            desc: 'Vrijeme u milisekundama za iscrtavanje jedne sličice (16,6 ms odgovara 60 FPS).'
+        },
+        calls: {
+            key: 'calls',
+            badge: 'Calls',
+            title: 'Pozivi iscrtavanja',
+            desc: 'Broj WebGL komandi za crtanje koje procesor šalje grafičkoj kartici po sličici.'
+        },
+        tris: {
+            key: 'tris',
+            badge: 'Tris',
+            title: '3D trouglovi',
+            desc: 'Ukupan broj poligonalnih trouglova koji grade planete, mjesece i letjelice.'
+        },
+        tex: {
+            key: 'tex',
+            badge: 'Tex',
+            title: '3D teksture',
+            desc: 'Aktivne mape površina planeta, oblaka i prstenova u grafičkoj memoriji.'
+        },
+        mem: {
+            key: 'mem',
+            badge: 'Mem',
+            title: 'Radna memorija',
+            desc: 'Trenutna potrošnja radne memorije preglednika za fiziku i putanje.'
+        }
+    },
+    sr: {
+        fps: {
+            key: 'fps',
+            badge: 'FPS',
+            title: 'Сличица у секунди',
+            desc: 'Број 3D слика у секунди (≥50 глатко, 30–49 умерено, <30 велико оптерећење).'
+        },
+        ms: {
+            key: 'ms',
+            badge: 'ms',
+            title: 'Време сличице',
+            desc: 'Време у милисекундама за исцртавање једне сличице (16,6 ms одговара 60 FPS).'
+        },
+        calls: {
+            key: 'calls',
+            badge: 'Calls',
+            title: 'Позиви исцртавања',
+            desc: 'Број WebGL команди за цртање које процесор шаље графичкој картици по сличици.'
+        },
+        tris: {
+            key: 'tris',
+            badge: 'Tris',
+            title: '3D троуглови',
+            desc: 'Укупан број полигоналних троуглова који граде планете, месеце и летелице.'
+        },
+        tex: {
+            key: 'tex',
+            badge: 'Tex',
+            title: '3D текстуре',
+            desc: 'Активне мапе површина планета, облака и прстенова у графичкој меморији.'
+        },
+        mem: {
+            key: 'mem',
+            badge: 'Mem',
+            title: 'Радна меморија',
+            desc: 'Тренутна потрошња радне меморије прегледача за физику и путање.'
+        }
+    },
+    de: {
+        fps: {
+            key: 'fps',
+            badge: 'FPS',
+            title: 'Bilder pro Sekunde',
+            desc: 'Gerenderte 3D-Bilder pro Sekunde (≥50 flüssig, 30–49 moderat, <30 hohe Last).'
+        },
+        ms: {
+            key: 'ms',
+            badge: 'ms',
+            title: 'Bildzeit',
+            desc: 'Berechnungszeit in Millisekunden für ein einzelnes Bild (16,6 ms = 60 FPS).'
+        },
+        calls: {
+            key: 'calls',
+            badge: 'Calls',
+            title: 'Zeichenbefehle',
+            desc: 'Anzahl der WebGL-Renderbefehle, die pro Bild an die Grafikkarte gesendet werden.'
+        },
+        tris: {
+            key: 'tris',
+            badge: 'Tris',
+            title: '3D-Dreiecke',
+            desc: 'Gesamtzahl der Polygondreiecke für Planeten, Monde, Ringe und Raumsonden.'
+        },
+        tex: {
+            key: 'tex',
+            badge: 'Tex',
+            title: '3D-Texturen',
+            desc: 'Aktive Oberflächen-, Wolken- und Ringtexturen im Grafikspeicher.'
+        },
+        mem: {
+            key: 'mem',
+            badge: 'Mem',
+            title: 'Arbeitsspeicher',
+            desc: 'Aktueller Speicherbedarf des Browsers für Simulationsdaten und Ephemeriden.'
+        }
+    },
+    id: {
+        fps: {
+            key: 'fps',
+            badge: 'FPS',
+            title: 'Frame per Detik',
+            desc: 'Jumlah gambar 3D per detik (≥50 mulus, 30–49 sedang, <30 beban berat).'
+        },
+        ms: {
+            key: 'ms',
+            badge: 'ms',
+            title: 'Waktu Frame',
+            desc: 'Waktu dalam milidetik untuk merender satu frame (16,6 ms setara 60 FPS).'
+        },
+        calls: {
+            key: 'calls',
+            badge: 'Calls',
+            title: 'Perintah Gambar',
+            desc: 'Jumlah instruksi render WebGL yang dikirim ke kartu grafis setiap frame.'
+        },
+        tris: {
+            key: 'tris',
+            badge: 'Tris',
+            title: 'Segitiga 3D',
+            desc: 'Total poligon segitiga pembentuk geometri planet, bulan, cincin, dan wahana.'
+        },
+        tex: {
+            key: 'tex',
+            badge: 'Tex',
+            title: 'Tekstur 3D',
+            desc: 'Peta permukaan planet, awan, dan cincin yang aktif di memori kartu grafis.'
+        },
+        mem: {
+            key: 'mem',
+            badge: 'Mem',
+            title: 'Penggunaan Memori',
+            desc: 'Pemakaian memori peramban saat ini untuk perhitungan orbit dan simulasi.'
+        }
+    },
+    pl: {
+        fps: {
+            key: 'fps',
+            badge: 'FPS',
+            title: 'Klatki na sekundę',
+            desc: 'Liczba obrazów 3D na sekundę (≥50 płynnie, 30–49 średnio, <30 duże obciążenie).'
+        },
+        ms: {
+            key: 'ms',
+            badge: 'ms',
+            title: 'Czas klatki',
+            desc: 'Czas w milisekundach potrzebny na wyrenderowanie jednej klatki (16,6 ms = 60 FPS).'
+        },
+        calls: {
+            key: 'calls',
+            badge: 'Calls',
+            title: 'Wywołania rysowania',
+            desc: 'Liczba poleceń renderowania WebGL wysyłanych do karty graficznej na klatkę.'
+        },
+        tris: {
+            key: 'tris',
+            badge: 'Tris',
+            title: 'Trójkąty 3D',
+            desc: 'Łączna liczba trójkątów siatki 3D tworzących planety, księżyce i sondy.'
+        },
+        tex: {
+            key: 'tex',
+            badge: 'Tex',
+            title: 'Tekstury 3D',
+            desc: 'Aktywne tekstury powierzchni, chmur i pierścieni w pamięci karty graficznej.'
+        },
+        mem: {
+            key: 'mem',
+            badge: 'Mem',
+            title: 'Pamięć podręczna',
+            desc: 'Bieżące zużycie pamięci przeglądarki przez dane symulacji i trajektorii.'
+        }
+    }
+};
+
+export function getTelemetryMetricDetails(): TelemetryMetricDetails {
+    const currentLang = (i18n.currentLanguage || 'en') as SupportedLanguage;
+    return TELEMETRY_METRIC_DETAILS[currentLang] || TELEMETRY_METRIC_DETAILS.en;
+}
+
+export function buildTelemetryDetailListHtml(): string {
+    const details = getTelemetryMetricDetails();
+    const items = [details.fps, details.ms, details.calls, details.tris, details.tex, details.mem];
+    return `
+        <div class="ephemeris-detail-list telemetry-detail-list">
+            ${items
+                .map(
+                    item => `
+                <div class="ephemeris-detail-item telemetry-detail-item" data-metric="${item.key}">
+                    <div class="ephemeris-detail-head">
+                        <span class="ephemeris-detail-badge" data-metric="${item.key}">${item.badge}</span>
+                        <span class="ephemeris-detail-title">${item.title}</span>
+                    </div>
+                    <p class="ephemeris-detail-desc">${item.desc}</p>
+                </div>`
+                )
+                .join('')}
+        </div>
+    `;
+}
+
 export function getSettingOptionInfo(id: string): {
     id: string;
     icon: string;

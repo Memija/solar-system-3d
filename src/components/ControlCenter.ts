@@ -3,8 +3,7 @@ import { UIManager } from './UIManager';
 import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
 import { HeaderSlotsManager } from './HeaderSlotsManager';
-import { getSettingOptionInfo } from './SettingOptionsData';
-import { CustomDatePicker } from './CustomDatePicker';
+import { getSettingOptionInfo, buildTelemetryDetailListHtml } from './SettingOptionsData';
 import { svgIcon, stripLeadingEmoji, SvgIconName } from './SvgIcons';
 
 export type ControlCenterTab = 'target' | 'time' | 'layers' | 'camera' | 'optics' | 'system';
@@ -34,16 +33,6 @@ export class ControlCenter {
     private mainTitleEl: HTMLElement | null = null;
     private subTitleEl: HTMLElement | null = null;
     private closeBtnEl: HTMLElement | null = null;
-    public customDatePicker: CustomDatePicker | null = null;
-    private prevDayBtn: HTMLButtonElement | null = null;
-    private nextDayBtn: HTMLButtonElement | null = null;
-    private quickStepItems: {
-        btn: HTMLButtonElement;
-        sign: '-' | '+';
-        unitKey: 'month' | 'year';
-        tooltipKey: string;
-        fallbackTooltip: string;
-    }[] = [];
 
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -67,14 +56,6 @@ export class ControlCenter {
         const backdrop = document.createElement('div');
         backdrop.className = 'drawer-backdrop';
         backdrop.onclick = () => {
-            if (this.customDatePicker?.isYearModalActive()) {
-                this.customDatePicker.dismissYearModal();
-                return;
-            }
-            if (this.customDatePicker?.isOpen) {
-                this.customDatePicker.closePopup();
-                return;
-            }
             this.close();
         };
         return backdrop;
@@ -195,11 +176,9 @@ export class ControlCenter {
 
         drawer.addEventListener('scroll', () => {
             this.hideOptionTooltip();
-            this.customDatePicker?.updatePopupPosition(true);
         }, { passive: true });
         body.addEventListener('scroll', () => {
             this.hideOptionTooltip();
-            this.customDatePicker?.updatePopupPosition(true);
         }, { passive: true });
 
         drawer.appendChild(body);
@@ -264,8 +243,12 @@ export class ControlCenter {
         }
 
         const tooltip = this.tooltipElement;
+        const isTelemetry = optionId === 'telemetry';
+        tooltip.classList.toggle('datepicker-ephemeris-tooltip', isTelemetry);
+        tooltip.classList.toggle('perf-telemetry-tooltip', isTelemetry);
         const kbdHtml = info.kbd ? `<kbd class="ctrl-kbd-badge">${info.kbd}</kbd>` : '';
         const summaryText = info.summary;
+        const extraDetailsHtml = isTelemetry ? buildTelemetryDetailListHtml() : '';
 
         tooltip.innerHTML = `
             <div class="ctrl-info-tooltip-header">
@@ -276,11 +259,12 @@ export class ControlCenter {
                 ${kbdHtml}
             </div>
             <p class="ctrl-info-tooltip-desc">${summaryText}</p>
+            ${extraDetailsHtml}
         `;
 
         if (targetEl && typeof targetEl.getBoundingClientRect === 'function') {
             const rect = targetEl.getBoundingClientRect();
-            const tooltipWidth = 280;
+            const tooltipWidth = isTelemetry ? 330 : 280;
             let left = rect.left - tooltipWidth - 12;
 
             if (left < 12) {
@@ -292,7 +276,7 @@ export class ControlCenter {
             }
 
             let top = rect.top + (rect.height / 2) - 24;
-            const maxTop = window.innerHeight - 120;
+            const maxTop = window.innerHeight - (isTelemetry ? 340 : 120);
             top = Math.max(12, Math.min(top, maxTop));
 
             tooltip.style.left = `${Math.round(left)}px`;
@@ -347,31 +331,6 @@ export class ControlCenter {
     private createTargetPanel(): HTMLElement {
         const panel = document.createElement('div');
         this.configureTabPanel(panel, 'target');
-
-        // Category & Body Selection Group
-        const selectGroup = document.createElement('div');
-        selectGroup.className = 'ctrl-group';
-
-        const groupTitle = document.createElement('h4');
-        groupTitle.className = 'ctrl-group-title';
-        const leftWrap = document.createElement('span');
-        leftWrap.style.display = 'inline-flex';
-        leftWrap.style.alignItems = 'center';
-        leftWrap.style.gap = '8px';
-        const ephTag = i18n.t('ui.ephemerisTag');
-        const ephText = ephTag && ephTag !== 'ui.ephemerisTag' ? ephTag : 'Ephemeris';
-        leftWrap.innerHTML = `<span data-i18n-key="controls.sections.celestialNav">${i18n.t('controls.sections.celestialNav') || 'Celestial Navigation'}</span><span class="group-tag" data-i18n-key="ui.ephemerisTag">${ephText}</span>`;
-        groupTitle.appendChild(leftWrap);
-        groupTitle.appendChild(this.createInfoButton('celestialNav', 'Celestial Navigation'));
-        selectGroup.appendChild(groupTitle);
-
-        const selectRow = document.createElement('div');
-        selectRow.className = 'target-select-row';
-        selectRow.id = 'unifiedTargetSelectRow';
-        // Note: typeSelect and bodySelect will be moved into this container by UIManager
-        selectGroup.appendChild(selectRow);
-
-        panel.appendChild(selectGroup);
 
         // Quick Jump Chips Group
         const quickGroup = document.createElement('div');
@@ -493,115 +452,6 @@ export class ControlCenter {
         presetGroup.appendChild(presetGrid);
         panel.appendChild(presetGroup);
 
-        // Date Controls & Ephemeris
-        const dateGroup = document.createElement('div');
-        dateGroup.className = 'ctrl-group';
-
-        const dateTitle = document.createElement('h4');
-        dateTitle.className = 'ctrl-group-title';
-        dateTitle.innerHTML = `<span data-i18n-key="ui.simDate">${stripLeadingEmoji(i18n.t('ui.simDate') || 'Observation Date')}</span>`;
-        dateTitle.appendChild(this.createInfoButton('jumpToDate', 'Observation Date'));
-        dateGroup.appendChild(dateTitle);
-
-        // Premium Flight Chronometer Date Picker with Stepper Buttons
-        const pickerWrap = document.createElement('div');
-        pickerWrap.className = 'ctrl-date-picker-wrap';
-
-        const prevDayBtn = document.createElement('button');
-        prevDayBtn.type = 'button';
-        prevDayBtn.className = 'date-stepper-btn';
-        prevDayBtn.setAttribute('aria-label', 'Previous Day');
-        prevDayBtn.title = 'Previous Day (-1d)';
-        prevDayBtn.innerHTML = svgIcon('chevron-left');
-        prevDayBtn.onclick = () => {
-            const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
-            curr.setUTCDate(curr.getUTCDate() - 1);
-            this.applySelectedDate(curr, true);
-        };
-        this.prevDayBtn = prevDayBtn;
-
-        const initialDate = this.sceneManager?.simDate || new Date();
-        this.customDatePicker = new CustomDatePicker(
-            initialDate,
-            (newDate: Date) => {
-                this.applySelectedDate(newDate, true);
-            },
-            () => {
-                this.uiManager?.customDatePicker?.closePopup?.();
-                if (this.sceneManager) {
-                    this.sceneManager.timeScale = 0;
-                    this.sceneManager.onTimeScaleChange?.(0);
-                }
-                this.syncTimePanel();
-            },
-            {
-                portalContainer: this.uiContainer,
-                displayId: 'controlCenterDatePicker',
-                ariaLabel: 'Select Simulation Date',
-                ariaLabelKey: 'datepicker.selectSimDateAria',
-                onSnapToLive: () => {
-                    if (this.sceneManager) {
-                        this.sceneManager.timeScale = SceneManager.SPEED_PRESETS.realTime;
-                        this.sceneManager.onTimeScaleChange?.(SceneManager.SPEED_PRESETS.realTime);
-                    }
-                    this.syncTimePanel();
-                }
-            }
-        );
-
-        const nextDayBtn = document.createElement('button');
-        nextDayBtn.type = 'button';
-        nextDayBtn.className = 'date-stepper-btn';
-        nextDayBtn.setAttribute('aria-label', 'Next Day');
-        nextDayBtn.title = 'Next Day (+1d)';
-        nextDayBtn.innerHTML = svgIcon('chevron-right');
-        nextDayBtn.onclick = () => {
-            const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
-            curr.setUTCDate(curr.getUTCDate() + 1);
-            this.applySelectedDate(curr, true);
-        };
-        this.nextDayBtn = nextDayBtn;
-
-        pickerWrap.appendChild(prevDayBtn);
-        pickerWrap.appendChild(this.customDatePicker.domElement);
-        pickerWrap.appendChild(nextDayBtn);
-        dateGroup.appendChild(pickerWrap);
-
-        // Quick Jump Steppers
-        const quickSteppers = document.createElement('div');
-        quickSteppers.className = 'date-quick-steppers';
-        this.quickStepItems = [];
-
-        const createStepBtn = (
-            sign: '-' | '+',
-            unitKey: 'month' | 'year',
-            tooltipKey: string,
-            fallbackTooltip: string,
-            modifier: (d: Date) => void
-        ) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'quick-step-btn';
-            btn.textContent = `${sign}1${unitKey === 'month' ? 'm' : 'y'}`;
-            btn.title = fallbackTooltip;
-            btn.onclick = () => {
-                const curr = this.sceneManager.simDate ? new Date(this.sceneManager.simDate.getTime()) : new Date();
-                modifier(curr);
-                this.applySelectedDate(curr, true);
-            };
-            this.quickStepItems.push({ btn, sign, unitKey, tooltipKey, fallbackTooltip });
-            return btn;
-        };
-
-        quickSteppers.appendChild(createStepBtn('-', 'year', 'datepicker.stepBackwardYear', 'Step backward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() - 1)));
-        quickSteppers.appendChild(createStepBtn('-', 'month', 'datepicker.stepBackwardMonth', 'Step backward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() - 1)));
-        quickSteppers.appendChild(createStepBtn('+', 'month', 'datepicker.stepForwardMonth', 'Step forward 1 month', (d) => d.setUTCMonth(d.getUTCMonth() + 1)));
-        quickSteppers.appendChild(createStepBtn('+', 'year', 'datepicker.stepForwardYear', 'Step forward 1 year', (d) => d.setUTCFullYear(d.getUTCFullYear() + 1)));
-
-        dateGroup.appendChild(quickSteppers);
-
-        this.updateDateControlsTranslations();
-        panel.appendChild(dateGroup);
         return panel;
     }
 
@@ -1150,7 +1000,7 @@ export class ControlCenter {
         measureSwitch.className = 'sci-switch';
         const measureInput = document.createElement('input');
         measureInput.type = 'checkbox';
-        measureInput.checked = Boolean(this.sceneManager?.measureMode ?? true);
+        measureInput.checked = Boolean(this.sceneManager?.measureMode ?? false);
         measureInput.onchange = () => {
             if (typeof this.sceneManager?.toggleMeasureMode === 'function') {
                 this.sceneManager.toggleMeasureMode(measureInput.checked);
@@ -1194,7 +1044,6 @@ export class ControlCenter {
             this.syncTimePanel();
             this.syncSwitches();
         } else {
-            this.customDatePicker?.closePopup();
             this.drawerElement.classList.add('closed');
             this.backdropElement.classList.remove('open');
         }
@@ -1213,14 +1062,10 @@ export class ControlCenter {
 
     public close() {
         this.hideOptionTooltip();
-        this.customDatePicker?.closePopup();
         this.toggle(false);
     }
 
     public switchTab(tab: ControlCenterTab) {
-        if (tab !== 'time') {
-            this.customDatePicker?.closePopup();
-        }
         this.activeTab = tab;
 
         this.tabButtons.forEach((btn, id) => {
@@ -1241,23 +1086,6 @@ export class ControlCenter {
         });
     }
 
-    public applySelectedDate(date: Date, pauseSim: boolean = true) {
-        if (this.sceneManager?.setSimDate) {
-            this.sceneManager.setSimDate(date);
-        }
-        this.customDatePicker?.setDate(date);
-        if (this.uiManager?.customDatePicker) {
-            this.uiManager.customDatePicker.setDate(date);
-        }
-        if (pauseSim && this.sceneManager) {
-            this.sceneManager.timeScale = 0;
-            if (this.sceneManager.onTimeScaleChange) {
-                this.sceneManager.onTimeScaleChange(0);
-            }
-        }
-        this.syncTimePanel();
-    }
-
     public syncTimePanel() {
         const currentSpeed = this.sceneManager?.timeScale ?? SceneManager.DEFAULT_TIME_SCALE;
         const isPaused = this.sceneManager?.timeScale === 0;
@@ -1275,11 +1103,6 @@ export class ControlCenter {
         this.presetButtons.forEach((btn, key) => {
             btn.classList.toggle('active', key === matchedKey);
         });
-
-        // Sync premium date picker with current simulation date when popup is closed
-        if (this.customDatePicker && !this.customDatePicker.isOpen && this.sceneManager?.simDate) {
-            this.customDatePicker.setDate(this.sceneManager.simDate);
-        }
     }
 
     public syncSwitches() {
@@ -1310,7 +1133,7 @@ export class ControlCenter {
         setChecked('tourMode', sm.tourMode);
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
         setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
-        setChecked('measureMode', Boolean(sm.measureMode ?? true));
+        setChecked('measureMode', Boolean(sm.measureMode ?? false));
 
         // Sync camera mode segmented buttons
         const isSurface = !!sm.surfaceViewBody;
@@ -1326,29 +1149,6 @@ export class ControlCenter {
         if (this.uiManager?.headerSlotsContainer) {
             HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
         }
-    }
-
-    private updateDateControlsTranslations(): void {
-        const uDay = this.tr('datepicker.stepUnits.day', 'd');
-        const uMonth = this.tr('datepicker.stepUnits.month', 'm');
-        const uYear = this.tr('datepicker.stepUnits.year', 'y');
-
-        if (this.prevDayBtn) {
-            const prevDay = this.tr('datepicker.prevDay', 'Previous Day');
-            this.prevDayBtn.setAttribute('aria-label', prevDay);
-            this.prevDayBtn.title = `${prevDay} (-1${uDay})`;
-        }
-        if (this.nextDayBtn) {
-            const nextDay = this.tr('datepicker.nextDay', 'Next Day');
-            this.nextDayBtn.setAttribute('aria-label', nextDay);
-            this.nextDayBtn.title = `${nextDay} (+1${uDay})`;
-        }
-
-        this.quickStepItems.forEach(({ btn, sign, unitKey, tooltipKey, fallbackTooltip }) => {
-            const unit = unitKey === 'month' ? uMonth : uYear;
-            btn.textContent = `${sign}1${unit}`;
-            btn.title = this.tr(tooltipKey, fallbackTooltip);
-        });
     }
 
     public updateTranslations() {
@@ -1412,8 +1212,6 @@ export class ControlCenter {
             this.tourSpeedDisplay.textContent = this.formatTourSpeedText(interval);
         }
 
-        this.updateDateControlsTranslations();
-
         if (this.drawerElement) {
             this.drawerElement.querySelectorAll<HTMLButtonElement>('.ctrl-info-btn').forEach(btn => {
                 const optionId = btn.dataset.optionId;
@@ -1437,16 +1235,6 @@ export class ControlCenter {
             if (e.key === 'Escape') {
                 if (this.tooltipElement?.classList.contains('visible')) {
                     this.hideOptionTooltip();
-                    e.stopImmediatePropagation();
-                    return;
-                }
-                if (this.customDatePicker?.isYearModalActive()) {
-                    this.customDatePicker.dismissYearModal();
-                    e.stopImmediatePropagation();
-                    return;
-                }
-                if (this.customDatePicker?.isOpen) {
-                    this.customDatePicker.closePopup();
                     e.stopImmediatePropagation();
                     return;
                 }
@@ -1476,10 +1264,6 @@ export class ControlCenter {
 
     public dispose() {
         this.closeOptionInfoModal();
-        if (this.customDatePicker) {
-            this.customDatePicker.dispose();
-            this.customDatePicker = null;
-        }
         if (this.tooltipElement?.parentElement) {
             this.tooltipElement.parentElement.removeChild(this.tooltipElement);
             this.tooltipElement = null;

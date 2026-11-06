@@ -33,6 +33,8 @@ export interface TranslationSchema {
         astrophotography: string;
         astrophotographyAria: string;
         speedPause: string;
+        speedSlowDown?: string;
+        speedSpeedUp?: string;
         utcTime: string;
         liveRealTime: string;
         controls?: string;

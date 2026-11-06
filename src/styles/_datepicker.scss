@@ -34,6 +34,96 @@
         letter-spacing: 0.8px;
     }
 
+    .sim-transport-deck {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 2px;
+        background: linear-gradient(180deg, rgba(6, 11, 23, 0.92) 0%, rgba(12, 20, 38, 0.88) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.32);
+        border-radius: 9px;
+        box-shadow:
+            inset 0 1px 3px rgba(0, 0, 0, 0.75),
+            0 1px 0 rgba(255, 255, 255, 0.07);
+    }
+
+    .sim-transport-btn {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        background: linear-gradient(180deg, rgba(30, 48, 82, 0.78) 0%, rgba(14, 24, 46, 0.92) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        color: #7dd3fc;
+        cursor: pointer;
+        outline: none;
+        user-select: none;
+        flex-shrink: 0;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.14),
+            0 1px 2px rgba(0, 0, 0, 0.5);
+        transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+
+        &.sim-speed-down-btn {
+            border-radius: 6px 3px 3px 6px;
+        }
+
+        &.sim-speed-up-btn {
+            border-radius: 3px 6px 6px 3px;
+        }
+
+        .transport-svg-icon {
+            width: 12px;
+            height: 12px;
+            stroke-width: 1.6;
+            transition: transform 0.15s ease, filter 0.15s ease;
+        }
+
+        &:hover:not(:disabled) {
+            color: #ffffff;
+            background: linear-gradient(180deg, rgba(56, 189, 248, 0.32) 0%, rgba(20, 42, 78, 0.95) 100%);
+            border-color: #38bdf8;
+            box-shadow:
+                0 0 10px rgba(56, 189, 248, 0.38),
+                inset 0 1px 0 rgba(255, 255, 255, 0.24);
+
+            .transport-svg-icon {
+                filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.7));
+            }
+        }
+
+        &.sim-speed-down-btn:hover:not(:disabled) .transport-svg-icon {
+            transform: translateX(-0.5px);
+        }
+
+        &.sim-speed-up-btn:hover:not(:disabled) .transport-svg-icon {
+            transform: translateX(0.5px);
+        }
+
+        &:active:not(:disabled) {
+            transform: translateY(1px);
+            background: linear-gradient(180deg, rgba(12, 22, 42, 0.95) 0%, rgba(22, 38, 68, 0.88) 100%);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        &:focus-visible {
+            border-color: $neon-cyan-bright;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.38);
+        }
+
+        &:disabled,
+        &.is-limit {
+            opacity: 0.35;
+            cursor: not-allowed;
+            color: rgba(148, 163, 184, 0.55);
+            border-color: rgba(148, 163, 184, 0.15);
+            box-shadow: none;
+        }
+    }
+
     .sim-speed-badge {
         font-family: $font-mono;
         font-variant-numeric: tabular-nums;
@@ -42,8 +132,8 @@
         color: #38bdf8;
         background: rgba(56, 189, 248, 0.12);
         border: 1px solid rgba(56, 189, 248, 0.35);
-        border-radius: 8px;
-        padding: 4px 10px;
+        border-radius: 4px;
+        padding: 3px 9px;
         white-space: nowrap;
         user-select: none;
         letter-spacing: 0.4px;
@@ -58,11 +148,10 @@
             background: rgba(56, 189, 248, 0.22);
             border-color: #38bdf8;
             box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-            transform: translateY(-1px);
         }
 
         &:active {
-            transform: translateY(0);
+            transform: translateY(1px);
             box-shadow: 0 0 6px rgba(56, 189, 248, 0.25);
         }
 
@@ -1220,6 +1309,8 @@
         border: 1px solid rgba(56, 189, 248, 0.32);
         border-radius: 4px;
         padding: 1px 5px;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
     .ephemeris-detail-title {
@@ -1227,6 +1318,7 @@
         font-size: 11.5px;
         font-weight: 700;
         color: #f8fafc;
+        line-height: 1.25;
     }
 
     .ephemeris-detail-desc {
@@ -1235,5 +1327,73 @@
         line-height: 1.42;
         color: #cbd5e1;
         margin: 0;
+    }
+
+    &.perf-telemetry-tooltip {
+        width: min(440px, calc(100vw - 24px)) !important;
+
+        .telemetry-detail-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+
+            @media (max-width: 480px) {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .telemetry-detail-item {
+            &[data-metric="fps"] {
+                border-color: rgba(56, 189, 248, 0.28);
+            }
+            &[data-metric="ms"] {
+                border-color: rgba(52, 211, 153, 0.28);
+            }
+            &[data-metric="calls"] {
+                border-color: rgba(167, 139, 250, 0.28);
+            }
+            &[data-metric="tris"] {
+                border-color: rgba(45, 212, 191, 0.28);
+            }
+            &[data-metric="tex"] {
+                border-color: rgba(251, 191, 36, 0.28);
+            }
+            &[data-metric="mem"] {
+                border-color: rgba(244, 114, 182, 0.28);
+            }
+        }
+
+        .ephemeris-detail-badge {
+            &[data-metric="fps"] {
+                color: #38bdf8;
+                background: rgba(56, 189, 248, 0.14);
+                border-color: rgba(56, 189, 248, 0.38);
+            }
+            &[data-metric="ms"] {
+                color: #34d399;
+                background: rgba(52, 211, 153, 0.14);
+                border-color: rgba(52, 211, 153, 0.38);
+            }
+            &[data-metric="calls"] {
+                color: #a78bfa;
+                background: rgba(167, 139, 250, 0.14);
+                border-color: rgba(167, 139, 250, 0.38);
+            }
+            &[data-metric="tris"] {
+                color: #2dd4bf;
+                background: rgba(45, 212, 191, 0.14);
+                border-color: rgba(45, 212, 191, 0.38);
+            }
+            &[data-metric="tex"] {
+                color: #fbbf24;
+                background: rgba(251, 191, 36, 0.14);
+                border-color: rgba(251, 191, 36, 0.38);
+            }
+            &[data-metric="mem"] {
+                color: #f472b6;
+                background: rgba(244, 114, 182, 0.14);
+                border-color: rgba(244, 114, 182, 0.38);
+            }
+        }
     }
 }

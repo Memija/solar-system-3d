@@ -70,7 +70,7 @@ describe('UIManager', () => {
             detachCamera: vi.fn(),
             tourMode: false,
             tourTargets: [],
-            measureMode: true,
+            measureMode: false,
             setMeasureTarget: vi.fn(),
             toggleMeasureMode: vi.fn(function(this: any, val: boolean) {
                 this.measureMode = val;
@@ -758,10 +758,10 @@ describe('UIManager', () => {
         expect(mkmEl?.textContent).toBe('(224.4 Mkm)');
     });
 
-    it('should display Measure Mode HUD bar by default when measureMode is activated by default', () => {
+    it('should hide Measure Mode HUD bar by default when measureMode is deactivated by default', () => {
         const hud = document.getElementById('measureHudBar');
         expect(hud).not.toBeNull();
-        expect(hud?.style.display).toBe('flex');
+        expect(hud?.style.display).toBe('none');
     });
 
     it('should display Measure Mode HUD bar when measureMode is active and hide it on close button click', () => {
@@ -831,16 +831,23 @@ describe('UIManager', () => {
         i18n.setLanguage('en');
     });
 
-    it('should expose Distance Measuring Tool in header quick access and Control Center (active by default), keep them synced, and route body selection while active', () => {
+    it('should expose Distance Measuring Tool in header quick access and Control Center (deactivated by default), keep them synced, and route body selection while active', () => {
         const headerMeasureBtn = uiContainer.querySelector('#hudSlot_measureMode') as HTMLButtonElement;
         expect(headerMeasureBtn).toBeTruthy();
-        expect(headerMeasureBtn.classList.contains('active')).toBe(true);
+        expect(headerMeasureBtn.classList.contains('active')).toBe(false);
 
         const systemCheckboxes = uiManager.controlCenter!.drawerElement.querySelectorAll<HTMLInputElement>(
             '.drawer-panel[data-panel="system"] input[type="checkbox"]'
         );
         const ccMeasureInput = systemCheckboxes[2];
         expect(ccMeasureInput).toBeTruthy();
+        expect(ccMeasureInput.checked).toBe(false);
+
+        // Toggle ON via header quick-access button
+        headerMeasureBtn.click();
+        expect(sceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
+        expect(sceneManager.measureMode).toBe(true);
+        expect(headerMeasureBtn.classList.contains('active')).toBe(true);
         expect(ccMeasureInput.checked).toBe(true);
 
         // Selecting a body via select-celestial-body (Quick Focus chip / number shortcut) routes to setMeasureTarget
@@ -855,61 +862,105 @@ describe('UIManager', () => {
         expect(sceneManager.measureMode).toBe(false);
         expect(headerMeasureBtn.classList.contains('active')).toBe(false);
         expect(ccMeasureInput.checked).toBe(false);
-
-        // Toggle back ON via header quick-access button
-        headerMeasureBtn.click();
-        expect(sceneManager.toggleMeasureMode).toHaveBeenCalledWith(true);
-        expect(sceneManager.measureMode).toBe(true);
-        expect(headerMeasureBtn.classList.contains('active')).toBe(true);
-        expect(ccMeasureInput.checked).toBe(true);
     });
 
-    it('should provide synchronized Type and Body dropdowns in both the header and settings drawer', () => {
-        const headerTypeSelect = uiContainer.querySelector('#headerTypeSelect') as HTMLSelectElement;
-        const headerBodySelect = uiContainer.querySelector('#headerBodySelect') as HTMLSelectElement;
-        const settingsTypeSelect = uiContainer.querySelector('#typeSelect') as HTMLSelectElement;
-        const settingsBodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
+    it('should provide Type and Body dropdowns exclusively in the header without duplicating them in settings', () => {
+        const headerTypeSelect = uiContainer.querySelector('#obsTargetPill #typeSelect') as HTMLSelectElement;
+        const headerBodySelect = uiContainer.querySelector('#obsTargetPill #bodySelect') as HTMLSelectElement;
+        const drawerSelects = uiManager.controlCenter!.drawerElement.querySelectorAll('select');
 
         expect(headerTypeSelect).not.toBeNull();
         expect(headerBodySelect).not.toBeNull();
-        expect(settingsTypeSelect).not.toBeNull();
-        expect(settingsBodySelect).not.toBeNull();
+        expect(drawerSelects.length).toBe(0);
 
         // Disable measureMode so selection calls focusOnBody directly
         sceneManager.measureMode = false;
         sceneManager.planets.unshift({ data: { name: 'Sun', description: 'Star' }, moons: [] });
         sceneManager.planets[1].moons = [{ data: { name: 'Phobos', description: 'Moon of Mars' } }];
 
-        // Change category in header -> updates settings category & body options and focuses first body
+        // Change category in header -> updates body options and focuses first body
         headerTypeSelect.value = 'Star';
         headerTypeSelect.dispatchEvent(new Event('change'));
-        expect(settingsTypeSelect.value).toBe('Star');
         expect(headerBodySelect.value).toBe('Sun');
-        expect(settingsBodySelect.value).toBe('Sun');
         expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Sun');
 
-        // Change category in settings -> updates header category & body
-        settingsTypeSelect.value = 'Planet';
-        settingsTypeSelect.dispatchEvent(new Event('change'));
-        expect(headerTypeSelect.value).toBe('Planet');
-        expect(headerBodySelect.value).toBe(settingsBodySelect.value);
-
-        // Change body in header -> updates settings body and focuses target
+        // Change category back to Planet and select Jupiter
+        headerTypeSelect.value = 'Planet';
+        headerTypeSelect.dispatchEvent(new Event('change'));
         headerBodySelect.value = 'Jupiter';
         headerBodySelect.dispatchEvent(new Event('change'));
-        expect(settingsBodySelect.value).toBe('Jupiter');
         expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Jupiter');
 
-        // Change body in settings -> updates header body
-        settingsBodySelect.value = 'Mars';
-        settingsBodySelect.dispatchEvent(new Event('change'));
-        expect(headerBodySelect.value).toBe('Mars');
-
-        // External selection via syncDropdownSelection keeps both header and settings synced (including category switch)
+        // External selection via syncDropdownSelection updates header category & body
         uiManager.syncDropdownSelection('Phobos');
         expect(headerTypeSelect.value).toBe('Moon');
-        expect(settingsTypeSelect.value).toBe('Moon');
         expect(headerBodySelect.value).toBe('Phobos');
-        expect(settingsBodySelect.value).toBe('Phobos');
+    });
+
+    it('should render record-player transport buttons in the header to speed up and slow down the simulation', async () => {
+        await Promise.all(['en', 'bs', 'de'].map(code => i18n.preloadLocale(code)));
+
+        const transportDeck = uiContainer.querySelector('.sim-transport-deck') as HTMLElement;
+        const slowDownBtn = uiContainer.querySelector('#simSlowDownBtn') as HTMLButtonElement;
+        const speedUpBtn = uiContainer.querySelector('#simSpeedUpBtn') as HTMLButtonElement;
+        const speedBadge = uiContainer.querySelector('.sim-speed-badge') as HTMLButtonElement;
+
+        expect(transportDeck).not.toBeNull();
+        expect(slowDownBtn).not.toBeNull();
+        expect(speedUpBtn).not.toBeNull();
+        expect(slowDownBtn.querySelector('svg[data-icon="rewind"]')).not.toBeNull();
+        expect(speedUpBtn.querySelector('svg[data-icon="fast-forward"]')).not.toBeNull();
+
+        // Starts at Real-Time (1:1) — both buttons enabled
+        expect(speedBadge.textContent).toBe('▶ Real-Time (1:1)');
+        expect(slowDownBtn.disabled).toBe(false);
+        expect(speedUpBtn.disabled).toBe(false);
+
+        // Step up through presets: Real-Time -> 1 hr/s -> 1 day/s -> 1 wk/s -> 1 mo/s
+        speedUpBtn.click();
+        expect(speedBadge.textContent).toBe('▶ 1.0 hr/s');
+
+        speedUpBtn.click();
+        expect(speedBadge.textContent).toBe('▶ 1.0 day/s');
+
+        speedUpBtn.click();
+        expect(speedBadge.textContent).toBe('▶ 1.0 wk/s');
+
+        speedUpBtn.click();
+        expect(speedBadge.textContent).toBe('▶ 1.0 mo/s');
+        expect(speedUpBtn.disabled).toBe(true);
+        expect(speedUpBtn.classList.contains('is-limit')).toBe(true);
+
+        // Step down via slowDownBtn and keyboard shortcut '['
+        slowDownBtn.click();
+        expect(speedBadge.textContent).toBe('▶ 1.0 wk/s');
+        expect(speedUpBtn.disabled).toBe(false);
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: '[' }));
+        expect(speedBadge.textContent).toBe('▶ 1.0 day/s');
+
+        slowDownBtn.click();
+        expect(speedBadge.textContent).toBe('▶ 1.0 hr/s');
+
+        slowDownBtn.click();
+        expect(speedBadge.textContent).toBe('▶ Real-Time (1:1)');
+
+        // Stepping down from Real-Time pauses the simulation and disables slowDownBtn
+        slowDownBtn.click();
+        expect(sceneManager.timeScale).toBe(0);
+        expect(speedBadge.textContent).toBe('⏸ Paused');
+        expect(slowDownBtn.disabled).toBe(true);
+        expect(slowDownBtn.classList.contains('is-limit')).toBe(true);
+
+        // Stepping up from Paused resumes at Real-Time (1:1)
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: ']' }));
+        expect(speedBadge.textContent).toBe('▶ Real-Time (1:1)');
+        expect(slowDownBtn.disabled).toBe(false);
+
+        // Localizes transport button tooltips on language switch
+        i18n.setLanguage('de');
+        expect(slowDownBtn.title).toContain('Simulation verlangsamen');
+        expect(speedUpBtn.title).toContain('Simulation beschleunigen');
+        i18n.setLanguage('en');
     });
 });

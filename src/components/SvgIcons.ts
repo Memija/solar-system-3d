@@ -46,6 +46,8 @@ export type SvgIconName =
     | 'clock'
     | 'play'
     | 'pause'
+    | 'rewind'
+    | 'fast-forward'
     | 'globe'
     | 'sun'
     | 'earth'
@@ -104,6 +106,8 @@ const ICON_PATHS: Record<SvgIconName, string> = {
     'clock': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     'play': '<path d="M7 5.5l11 6.5-11 6.5V5.5z" fill="currentColor"/>',
     'pause': '<rect x="6.5" y="5.5" width="3.5" height="13" rx="0.8" fill="currentColor"/><rect x="14" y="5.5" width="3.5" height="13" rx="0.8" fill="currentColor"/>',
+    'rewind': '<path d="M11 6.5L3 12l8 5.5V6.5zM20 6.5L12 12l8 5.5V6.5z" fill="currentColor"/>',
+    'fast-forward': '<path d="M4 6.5l8 5.5-8 5.5V6.5zM13 6.5l8 5.5-8 5.5V6.5z" fill="currentColor"/>',
     'globe': '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
     'sun': '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/>',
     'earth': '<circle cx="12" cy="12" r="9"/><path d="M4.5 9.5c2.5 0 3.5-2 6-2s2.5 2.5 1.5 4.5-2.5 2-2 4.5M16 5.5c-1 2 0 3.5 1.8 4.5s2.5 1 2.7 2.5"/>',

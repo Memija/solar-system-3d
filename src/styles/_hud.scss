@@ -293,9 +293,17 @@ canvas.minimap-radar {
     font-size: 11px;
     color: #cbd5e1;
     z-index: 1000;
-    pointer-events: none;
+    pointer-events: auto !important;
+    cursor: help;
     user-select: none;
-    transition: opacity 0.25s ease;
+    outline: none;
+    transition: opacity 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+        border-color: rgba(56, 189, 248, 0.6);
+        box-shadow: 0 14px 38px rgba(0, 0, 0, 0.8), 0 0 22px rgba(56, 189, 248, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
 
     .perf-row {
         display: flex;
@@ -321,7 +329,18 @@ canvas.minimap-radar {
 
             .ms-metric {
                 color: $color-text-muted;
-                font-weight: 500;
+                font-weight: 600;
+
+                .perf-val {
+                    color: #34d399;
+                    font-size: 14px;
+                    font-weight: 700;
+                }
+
+                .perf-unit {
+                    font-size: 11px;
+                    font-weight: 600;
+                }
             }
         }
 
@@ -333,7 +352,23 @@ canvas.minimap-radar {
 
             strong {
                 color: #f1f5f9;
-                font-weight: 600;
+                font-weight: 700;
+            }
+
+            #perfCalls {
+                color: #a78bfa;
+            }
+
+            #perfTris {
+                color: #2dd4bf;
+            }
+
+            #perfTex {
+                color: #fbbf24;
+            }
+
+            #perfMem {
+                color: #f472b6;
             }
         }
     }

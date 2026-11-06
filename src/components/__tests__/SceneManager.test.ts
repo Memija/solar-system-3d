@@ -79,7 +79,7 @@ describe('SceneManager', () => {
 
         // Check date initialization
         expect(manager.simDate).toBeInstanceOf(Date);
-        expect(manager.measureMode).toBe(true);
+        expect(manager.measureMode).toBe(false);
     });
 
     it('should update simulation date correctly in update()', () => {
