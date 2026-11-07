@@ -15,13 +15,16 @@ export function buildAsteroidBelt(scene: THREE.Scene, visible: boolean): THREE.I
     const minDistance = 200;
     const maxDistance = 250;
 
-    const geometry = new THREE.DodecahedronGeometry(0.5, 0);
+    // OctahedronGeometry(0.5, 0) uses 8 triangles/rock instead of 36 (DodecahedronGeometry),
+    // saving 56,000 triangles per frame across 2,000 sub-pixel belt rocks.
+    const geometry = new THREE.OctahedronGeometry(0.5, 0);
     const material = new THREE.MeshStandardMaterial({
         roughness: 0.85,
         metalness: 0.15
     });
 
     const asteroidBelt = new THREE.InstancedMesh(geometry, material, numAsteroids);
+    asteroidBelt.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 260);
 
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
@@ -69,13 +72,16 @@ export function buildKuiperBelt(scene: THREE.Scene, visible: boolean): THREE.Ins
     const minDistance = 670;
     const maxDistance = 850;
 
-    const geometry = new THREE.DodecahedronGeometry(0.8, 0);
+    // OctahedronGeometry(0.8, 0) uses 8 triangles/rock instead of 36 (DodecahedronGeometry),
+    // saving 70,000 triangles per frame across 2,500 sub-pixel Kuiper belt bodies.
+    const geometry = new THREE.OctahedronGeometry(0.8, 0);
     const material = new THREE.MeshStandardMaterial({
         roughness: 0.7,
         metalness: 0.1
     });
 
     const kuiperBelt = new THREE.InstancedMesh(geometry, material, numObjects);
+    kuiperBelt.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 860);
 
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
@@ -197,8 +203,9 @@ export function buildEclipticGrid(scene: THREE.Scene, visible: boolean): THREE.P
 }
 
 export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer): StarfieldHandle {
-    // Opaque Milky Way WebP skybox (eliminates full-screen alpha blending overdraw)
-    const skyGeometry = new THREE.SphereGeometry(50000, 64, 64);
+    // Opaque Milky Way WebP skybox (eliminates full-screen alpha blending overdraw).
+    // 28x20 segments (1,120 tris vs 8,192 for 64x64) is curvature-free from the interior at r=50,000.
+    const skyGeometry = new THREE.SphereGeometry(50000, 28, 20);
     const textureLoader = new THREE.TextureLoader();
     const textureUrl = `${import.meta.env.BASE_URL}textures/milky_way.webp`;
     const skyTexture = textureLoader.load(textureUrl);
@@ -303,7 +310,7 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
     // Major navigable catalog stars: rendered in a single InstancedMesh (1 draw call)
     // while keeping lightweight raycast/focus proxy meshes in starMeshes.
     const majorStarRadius = 48000;
-    const sharedMajorGeo = new THREE.SphereGeometry(140, 12, 12);
+    const sharedMajorGeo = new THREE.SphereGeometry(140, 8, 6);
     const sharedMajorMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const instancedMajorStars = new THREE.InstancedMesh(sharedMajorGeo, sharedMajorMat, MajorStarsData.length);
     instancedMajorStars.frustumCulled = false;

@@ -34,7 +34,7 @@ export class ConstellationManager {
 
     createConstellations() {
         const radius = 49000;
-        this.sharedStarGeometry = new THREE.SphereGeometry(80, 8, 8);
+        this.sharedStarGeometry = new THREE.SphereGeometry(80, 6, 4);
         this.sharedStarMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const basePosAttr = this.sharedStarGeometry.getAttribute('position') as THREE.BufferAttribute;
         const baseNormAttr = this.sharedStarGeometry.getAttribute('normal') as THREE.BufferAttribute | undefined;

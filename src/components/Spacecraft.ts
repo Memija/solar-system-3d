@@ -21,7 +21,10 @@ export class Spacecraft {
     private beaconMesh: THREE.Mesh | null = null;
     private beaconMaterial: THREE.MeshBasicMaterial | null = null;
     private beaconTimer: number = 0;
+    private beaconInLodRange: boolean = true;
     private subMeshes: THREE.Mesh[] = [];
+    private static _sharedBeaconGeo: THREE.SphereGeometry | null = null;
+    private static readonly _tempWorldPos = new THREE.Vector3();
 
     constructor(data: SpacecraftData, parent: THREE.Object3D) {
         this.data = data;
@@ -120,14 +123,17 @@ export class Spacecraft {
         this.mergeStaticSubMeshes();
 
         // Active telemetry beacon / navigation strobe indicator
-        const beaconGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        if (!Spacecraft._sharedBeaconGeo) {
+            Spacecraft._sharedBeaconGeo = new THREE.SphereGeometry(0.04, 8, 8);
+            Spacecraft._sharedBeaconGeo.userData.shared = true;
+        }
         this.beaconMaterial = new THREE.MeshBasicMaterial({
             color: 0x38bdf8,
             transparent: true,
             opacity: 0.8
         });
         this.materials.push(this.beaconMaterial);
-        this.beaconMesh = new THREE.Mesh(beaconGeo, this.beaconMaterial);
+        this.beaconMesh = new THREE.Mesh(Spacecraft._sharedBeaconGeo, this.beaconMaterial);
         this.beaconMesh.position.set(0, 0.25, 0);
         this.mesh.add(this.beaconMesh);
 
@@ -161,30 +167,27 @@ export class Spacecraft {
         this.mesh.scale.set(1, 1, 1);
         this.mesh.updateMatrixWorld(true);
 
-        const buckets = new Map<THREE.Material, THREE.Mesh[]>();
+        const meshes: THREE.Mesh[] = [];
         this.mesh.traverse((child) => {
             if (child instanceof THREE.Mesh && child.material && !Array.isArray(child.material)) {
-                let list = buckets.get(child.material);
-                if (!list) {
-                    list = [];
-                    buckets.set(child.material, list);
-                }
-                list.push(child);
+                meshes.push(child);
             }
         });
 
-        buckets.forEach((meshes, mat) => {
-            if (meshes.length <= 1) return;
-
+        if (meshes.length > 0) {
             let totalVerts = 0;
             let totalIndices = 0;
-            const bakedGeoms: THREE.BufferGeometry[] = [];
+            const bakedGeoms: { g: THREE.BufferGeometry; r: number; gr: number; b: number }[] = [];
 
             for (let i = 0; i < meshes.length; i++) {
                 const m = meshes[i];
                 const g = m.geometry.clone();
                 g.applyMatrix4(m.matrixWorld);
-                bakedGeoms.push(g);
+                const matColor = (m.material as THREE.MeshStandardMaterial)?.color;
+                const r = matColor ? matColor.r : 1;
+                const gr = matColor ? matColor.g : 1;
+                const b = matColor ? matColor.b : 1;
+                bakedGeoms.push({ g, r, gr, b });
                 const pos = g.getAttribute('position');
                 if (!pos) continue;
                 totalVerts += pos.count;
@@ -192,62 +195,80 @@ export class Spacecraft {
                 totalIndices += idx ? idx.count : pos.count;
             }
 
-            if (totalVerts === 0) return;
+            if (totalVerts > 0) {
+                const mergedPos = new Float32Array(totalVerts * 3);
+                const mergedNorm = new Float32Array(totalVerts * 3);
+                const mergedColors = new Float32Array(totalVerts * 3);
+                const mergedIndices = new Uint32Array(totalIndices);
 
-            const mergedPos = new Float32Array(totalVerts * 3);
-            const mergedNorm = new Float32Array(totalVerts * 3);
-            const mergedIndices = new Uint32Array(totalIndices);
+                let vertOffset = 0;
+                let idxOffset = 0;
 
-            let vertOffset = 0;
-            let idxOffset = 0;
+                for (let i = 0; i < bakedGeoms.length; i++) {
+                    const { g, r, gr, b } = bakedGeoms[i];
+                    const pos = g.getAttribute('position') as THREE.BufferAttribute | undefined;
+                    if (!pos) continue;
+                    const norm = g.getAttribute('normal') as THREE.BufferAttribute | undefined;
 
-            for (let i = 0; i < bakedGeoms.length; i++) {
-                const g = bakedGeoms[i];
-                const pos = g.getAttribute('position') as THREE.BufferAttribute | undefined;
-                if (!pos) continue;
-                const norm = g.getAttribute('normal') as THREE.BufferAttribute | undefined;
-
-                for (let v = 0; v < pos.count; v++) {
-                    const base = (vertOffset + v) * 3;
-                    mergedPos[base] = pos.getX(v);
-                    mergedPos[base + 1] = pos.getY(v);
-                    mergedPos[base + 2] = pos.getZ(v);
-                    if (norm) {
-                        mergedNorm[base] = norm.getX(v);
-                        mergedNorm[base + 1] = norm.getY(v);
-                        mergedNorm[base + 2] = norm.getZ(v);
+                    for (let v = 0; v < pos.count; v++) {
+                        const base = (vertOffset + v) * 3;
+                        mergedPos[base] = pos.getX(v);
+                        mergedPos[base + 1] = pos.getY(v);
+                        mergedPos[base + 2] = pos.getZ(v);
+                        if (norm) {
+                            mergedNorm[base] = norm.getX(v);
+                            mergedNorm[base + 1] = norm.getY(v);
+                            mergedNorm[base + 2] = norm.getZ(v);
+                        }
+                        mergedColors[base] = r;
+                        mergedColors[base + 1] = gr;
+                        mergedColors[base + 2] = b;
                     }
+
+                    const idx = g.getIndex();
+                    if (idx) {
+                        for (let k = 0; k < idx.count; k++) {
+                            mergedIndices[idxOffset + k] = idx.getX(k) + vertOffset;
+                        }
+                        idxOffset += idx.count;
+                    } else {
+                        for (let k = 0; k < pos.count; k++) {
+                            mergedIndices[idxOffset + k] = vertOffset + k;
+                        }
+                        idxOffset += pos.count;
+                    }
+
+                    vertOffset += pos.count;
+                    g.dispose();
                 }
 
-                const idx = g.getIndex();
-                if (idx) {
-                    for (let k = 0; k < idx.count; k++) {
-                        mergedIndices[idxOffset + k] = idx.getX(k) + vertOffset;
-                    }
-                    idxOffset += idx.count;
-                } else {
-                    for (let k = 0; k < pos.count; k++) {
-                        mergedIndices[idxOffset + k] = vertOffset + k;
-                    }
-                    idxOffset += pos.count;
+                for (let i = 0; i < meshes.length; i++) {
+                    const m = meshes[i];
+                    m.geometry.dispose();
+                    if (m.parent) m.parent.remove(m);
                 }
 
-                vertOffset += pos.count;
-                g.dispose();
-            }
+                // Dispose temporary per-part materials and replace with a single vertex-colored material
+                this.materials.forEach(mat => mat.dispose());
+                this.materials = [];
 
-            for (let i = 0; i < meshes.length; i++) {
-                const m = meshes[i];
-                m.geometry.dispose();
-                if (m.parent) m.parent.remove(m);
-            }
+                const bodyMat = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    vertexColors: true,
+                    roughness: 0.3,
+                    metalness: 0.88,
+                    side: THREE.DoubleSide
+                });
+                this.materials.push(bodyMat);
 
-            const mergedGeo = new THREE.BufferGeometry();
-            mergedGeo.setAttribute('position', new THREE.BufferAttribute(mergedPos, 3));
-            mergedGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNorm, 3));
-            mergedGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
-            this.mesh.add(new THREE.Mesh(mergedGeo, mat));
-        });
+                const mergedGeo = new THREE.BufferGeometry();
+                mergedGeo.setAttribute('position', new THREE.BufferAttribute(mergedPos, 3));
+                mergedGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNorm, 3));
+                mergedGeo.setAttribute('color', new THREE.BufferAttribute(mergedColors, 3));
+                mergedGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+                this.mesh.add(new THREE.Mesh(mergedGeo, bodyMat));
+            }
+        }
 
         // Remove any now-empty pivot groups
         for (let i = this.mesh.children.length - 1; i >= 0; i--) {
@@ -549,7 +570,7 @@ export class Spacecraft {
 
     update(deltaTime: number, simTimePassed?: number, simDate?: Date, rawDelta?: number) {
         if (this.beaconMesh && this.beaconMaterial) {
-            if (this.isActive && (deltaTime > 0 || (rawDelta !== undefined && rawDelta > 0))) {
+            if (this.isActive && this.beaconInLodRange && (deltaTime > 0 || (rawDelta !== undefined && rawDelta > 0))) {
                 const step = (rawDelta !== undefined && rawDelta > 0) ? rawDelta : deltaTime;
                 this.beaconTimer += step * 4;
                 const flash = (Math.sin(this.beaconTimer) > 0.3) ? 0.95 : 0.15;
@@ -674,6 +695,20 @@ export class Spacecraft {
         }
     }
 
+    updateLOD(cameraWorldPos: THREE.Vector3, isFocused: boolean = false) {
+        if (!this.baseGroup.visible) {
+            this.beaconInLodRange = false;
+            if (this.beaconMesh) this.beaconMesh.visible = false;
+            return;
+        }
+        this.orbitGroup.getWorldPosition(Spacecraft._tempWorldPos);
+        const distSq = cameraWorldPos.distanceToSquared(Spacecraft._tempWorldPos);
+        this.beaconInLodRange = isFocused || distSq <= 90 * 90;
+        if (!this.beaconInLodRange && this.beaconMesh) {
+            this.beaconMesh.visible = false;
+        }
+    }
+
     toggleOrbit(visible: boolean) {
         if (this.orbitLine) {
             this.orbitLine.visible = visible;
@@ -684,7 +719,9 @@ export class Spacecraft {
         this.mesh.traverse((child) => {
             if ((child as THREE.Mesh).isMesh) {
                 const mesh = child as THREE.Mesh;
-                mesh.geometry?.dispose();
+                if (mesh.geometry && !mesh.geometry.userData?.shared) {
+                    mesh.geometry.dispose();
+                }
                 if (Array.isArray(mesh.material)) {
                     mesh.material.forEach(m => m.dispose());
                 } else {

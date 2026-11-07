@@ -20,6 +20,10 @@ export class Comet {
     b: number; // Semi-minor axis
     realisticDistances: boolean = false;
     maxTailParticles: number = 0;
+    private baseVisualRadius: number = 0.6;
+    private lastComputedAngle: number = NaN;
+    private lastComputedRealistic: boolean = false;
+    private static _sharedComaGeo: THREE.SphereGeometry | null = null;
     private static readonly _tempDir = new THREE.Vector3();
     private static readonly _tempLateral = new THREE.Vector3();
     private static readonly _tempWorldPos = new THREE.Vector3();
@@ -61,9 +65,14 @@ export class Comet {
 
         this.baseGroup.add(this.orbitGroup);
 
-        // Create Comet Body (Coma)
+        // Create Comet Body (Coma) using shared 16x12 unit sphere geometry
         const visualRadius = Math.max(this.data.radius * 3.0, 0.6);
-        const geometry = new THREE.SphereGeometry(visualRadius, 32, 32);
+        this.baseVisualRadius = visualRadius;
+        if (!Comet._sharedComaGeo) {
+            Comet._sharedComaGeo = new THREE.SphereGeometry(1, 16, 12);
+            Comet._sharedComaGeo.userData.shared = true;
+        }
+        const geometry = Comet._sharedComaGeo;
 
         const material = new THREE.ShaderMaterial({
             uniforms: {
@@ -96,6 +105,7 @@ export class Comet {
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
+        this.mesh.scale.setScalar(this.baseVisualRadius);
         this.mesh.renderOrder = 1;
         this.orbitGroup.add(this.mesh);
 
@@ -210,6 +220,7 @@ export class Comet {
 
     rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
+        this.lastComputedAngle = NaN;
 
         const displayRadius = this.data.displayRadius ?? this.data.radius;
         const realisticRadius = displayRadius * 0.005536 * sizeRatio;
@@ -217,7 +228,7 @@ export class Comet {
         // so preserve a physically reasonable coma/tail visibility floor in realistic scale.
         const comaScale = realistic ? Math.max(realisticRadius / this.data.radius, 0.12 * sizeRatio) : 1.0;
         const tailScale = realistic ? Math.max(comaScale, 0.35 * sizeRatio) : 1.0;
-        this.mesh.scale.setScalar(comaScale);
+        this.mesh.scale.setScalar(this.baseVisualRadius * comaScale);
         if (this.tailParticles) this.tailParticles.scale.setScalar(tailScale);
 
         if (this.orbitLine) {
@@ -269,42 +280,55 @@ export class Comet {
             this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         }
 
-        const M = this.angle;
-        const E = solveKepler(M, this.e);
+        const needsKeplerUpdate =
+            this.realisticDistances !== this.lastComputedRealistic ||
+            !(Math.abs(this.angle - this.lastComputedAngle) < 1e-7);
 
-        const x = this.a * (Math.cos(E) - this.e);
-        const z = -this.b * Math.sin(E);
+        if (needsKeplerUpdate) {
+            this.lastComputedAngle = this.angle;
+            this.lastComputedRealistic = this.realisticDistances;
 
-        this.orbitGroup.position.set(x, 0, z);
+            const M = this.angle;
+            const E = solveKepler(M, this.e);
+
+            const x = this.a * (Math.cos(E) - this.e);
+            const z = -this.b * Math.sin(E);
+
+            this.orbitGroup.position.set(x, 0, z);
+
+            if (this.tailParticles) {
+                const material = this.tailParticles.material as THREE.ShaderMaterial;
+
+                // Anti-sunward vector in baseGroup orbital plane
+                const dist = Math.sqrt((x * x) + (z * z));
+                if (dist > 1e-5) {
+                    Comet._tempDir.set(x / dist, 0, z / dist);
+                } else {
+                    Comet._tempDir.set(1, 0, 0);
+                }
+                material.uniforms.sunDirection.value.copy(Comet._tempDir);
+
+                // Trailing orbital lateral vector (opposite instantaneous velocity tangent) for dust-tail curvature
+                Comet._tempLateral.set(this.a * Math.sin(E), 0, this.b * Math.cos(E));
+                if (Comet._tempLateral.lengthSq() > 1e-6) {
+                    Comet._tempLateral.normalize();
+                } else {
+                    Comet._tempLateral.set(0, 0, 1);
+                }
+                if (material.uniforms.orbitLateral) {
+                    material.uniforms.orbitLateral.value.copy(Comet._tempLateral);
+                }
+
+                const perihelion = this.a * (1 - this.e);
+                const tailVisibility = Math.max(0.15, 1 - ((dist - perihelion) / (this.a * 2.5)));
+                material.uniforms.tailVisibility.value = tailVisibility;
+            }
+        }
 
         if (this.tailParticles) {
             const material = this.tailParticles.material as THREE.ShaderMaterial;
             const flowDelta = (rawDelta !== undefined && rawDelta > 0) ? rawDelta * 1.15 : deltaTime;
             material.uniforms.time.value += flowDelta;
-
-            // Anti-sunward vector in baseGroup orbital plane
-            const dist = Math.sqrt((x * x) + (z * z));
-            if (dist > 1e-5) {
-                Comet._tempDir.set(x / dist, 0, z / dist);
-            } else {
-                Comet._tempDir.set(1, 0, 0);
-            }
-            material.uniforms.sunDirection.value.copy(Comet._tempDir);
-
-            // Trailing orbital lateral vector (opposite instantaneous velocity tangent) for dust-tail curvature
-            Comet._tempLateral.set(this.a * Math.sin(E), 0, this.b * Math.cos(E));
-            if (Comet._tempLateral.lengthSq() > 1e-6) {
-                Comet._tempLateral.normalize();
-            } else {
-                Comet._tempLateral.set(0, 0, 1);
-            }
-            if (material.uniforms.orbitLateral) {
-                material.uniforms.orbitLateral.value.copy(Comet._tempLateral);
-            }
-
-            const perihelion = this.a * (1 - this.e);
-            const tailVisibility = Math.max(0.15, 1 - ((dist - perihelion) / (this.a * 2.5)));
-            material.uniforms.tailVisibility.value = tailVisibility;
         }
     }
 
@@ -334,7 +358,9 @@ export class Comet {
 
     dispose() {
         if (this.mesh) {
-            this.mesh.geometry?.dispose();
+            if (!this.mesh.geometry?.userData?.shared) {
+                this.mesh.geometry?.dispose();
+            }
             if (Array.isArray(this.mesh.material)) {
                 this.mesh.material.forEach(m => m.dispose());
             } else {

@@ -95,6 +95,7 @@ export class CelestialBody {
     auroraMeshSouth: THREE.Mesh | null = null;
     auroraMaterial: THREE.ShaderMaterial | null = null;
     velocityVectorGroup: THREE.Group | null = null;
+    velocityArrowMesh: THREE.Mesh | null = null;
     velocityPulseChevron: THREE.Mesh | null = null;
     velocityLabelSprite: THREE.Sprite | null = null;
     private velocityLabelRendered: boolean = false;
@@ -102,6 +103,10 @@ export class CelestialBody {
     private highGeometry: THREE.BufferGeometry | null = null;
     private lowGeometry: THREE.BufferGeometry | null = null;
     private cloudDriftOffset: number = 0;
+    private lastComputedAngle: number = NaN;
+    private lastComputedRealistic: boolean = false;
+    private cachedKeplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
+    private hasInitializedVelocityTransform: boolean = false;
     showMeteors: boolean;
 
     trailLine: THREE.Line | null;
@@ -120,7 +125,6 @@ export class CelestialBody {
     private static _tempMeteorDir = new THREE.Vector3();
     private static _tempTangent = new THREE.Vector3();
     private static _unitZ = new THREE.Vector3(0, 0, 1);
-    private static _tempKeplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
     private static _sharedVelArrowGeo: THREE.BufferGeometry | null = null;
     private static _sharedVelPulseGeo: THREE.ConeGeometry | null = null;
     private static _sharedVelHeadMat: THREE.MeshBasicMaterial | null = null;
@@ -249,8 +253,8 @@ export class CelestialBody {
         this.orbitGroup.add(this.tiltGroup);
 
         // Geometry - Start with low-poly LOD geometry at boot and lazily build high-res geometry only when approached
-        const canLodGeometry = this.data.name !== 'Iapetus' && this.data.name !== 'Sun';
-        const initSegments = canLodGeometry ? (this.isMoon ? 14 : 20) : 64;
+        const canLodGeometry = this.data.name !== 'Iapetus';
+        const initSegments = canLodGeometry ? (this.data.name === 'Sun' ? 32 : (this.isMoon ? 14 : 20)) : 64;
         const geometry = new THREE.SphereGeometry(this.data.radius, initSegments, initSegments);
         if (canLodGeometry) {
             this.lowGeometry = geometry;
@@ -401,8 +405,10 @@ export class CelestialBody {
             this.cloudMesh.receiveShadow = true;
             this.tiltGroup.add(this.cloudMesh);
 
-            // Meteor Shower
-            this.createMeteors();
+            // Meteor Shower (lazily created when enabled)
+            if (this.showMeteors) {
+                this.createMeteors();
+            }
 
             // Polar Auroras (Northern and Southern Lights)
             this.createEarthAuroras();
@@ -416,16 +422,20 @@ export class CelestialBody {
         // Create Orbit Line
         this.createOrbit();
 
-        // Create Trail
-        this.createTrail();
+        // Create Trail (lazily created when enabled)
+        if (this.showTrails) {
+            this.createTrail();
+        }
 
         // Create Rings
         if ('rings' in this.data && this.data.rings) {
             this.createRings();
         }
 
-        // Create Axis
-        this.createAxis();
+        // Create Axis (lazily created when enabled)
+        if (this.showAxes) {
+            this.createAxis();
+        }
 
         // Create Labels
         this.createLabel();
@@ -443,7 +453,7 @@ export class CelestialBody {
 
 
     createSolarCorona() {
-        const coronaGeo = new THREE.SphereGeometry(this.data.radius * 1.28, 32, 32);
+        const coronaGeo = new THREE.SphereGeometry(this.data.radius * 1.28, 24, 24);
         const coronaMat = new THREE.ShaderMaterial({
             uniforms: {
                 glowColor: { value: new THREE.Color(1.0, 0.58, 0.14) },
@@ -674,9 +684,13 @@ export class CelestialBody {
         const maxOuter = Math.max(...this.data.rings.map(r => r.outerRadius));
         const totalSpan = Math.max(0.0001, maxOuter - minInner);
         const ringTexture = TextureGenerator.getRingTexture(this.data.name);
+        const segments = 96;
+
+        const bandGeoms: THREE.BufferGeometry[] = [];
+        let totalVerts = 0;
+        let totalIndices = 0;
 
         this.data.rings.forEach(ringData => {
-            const segments = 128;
             const geometry = new THREE.RingGeometry(ringData.innerRadius, ringData.outerRadius, segments);
 
             // Compute normalized radial UV coordinate u across [minInner, maxOuter]
@@ -691,32 +705,88 @@ export class CelestialBody {
             }
             uvs.needsUpdate = true;
 
-            const material = new THREE.MeshStandardMaterial({
-                map: ringTexture,
-                side: THREE.DoubleSide,
-                transparent: true,
-                alphaTest: 0.04,
-                roughness: 0.78,
-                metalness: 0.0,
-                depthWrite: false
-            });
-            const ringMesh = new THREE.Mesh(geometry, material);
-
-            // Planet casts spherical shadow onto rings; ring plane must not self-shadow in PointLight cubemap
-            ringMesh.castShadow = false;
-            ringMesh.receiveShadow = true;
-
-            // Rings are aligned with the planet's equator in the XZ plane
-            ringMesh.rotation.x = Math.PI / 2;
-
-            // Attach to tiltGroup so rings inherit planet's axial tilt
-            if (this.mesh) {
-                this.tiltGroup.add(ringMesh);
-            } else {
-                this.orbitGroup.add(ringMesh);
-            }
-            this.ringMeshes.push(ringMesh);
+            bandGeoms.push(geometry);
+            totalVerts += pos.count;
+            const idx = geometry.getIndex();
+            totalIndices += idx ? idx.count : pos.count;
         });
+
+        let finalGeo: THREE.BufferGeometry;
+        if (bandGeoms.length === 1) {
+            finalGeo = bandGeoms[0];
+        } else {
+            const mergedPos = new Float32Array(totalVerts * 3);
+            const mergedNorm = new Float32Array(totalVerts * 3);
+            const mergedUvs = new Float32Array(totalVerts * 2);
+            const mergedIndices = new Uint32Array(totalIndices);
+            let vertOffset = 0;
+            let idxOffset = 0;
+
+            for (let b = 0; b < bandGeoms.length; b++) {
+                const g = bandGeoms[b];
+                const pos = g.getAttribute('position') as THREE.BufferAttribute;
+                const norm = g.getAttribute('normal') as THREE.BufferAttribute;
+                const uv = g.getAttribute('uv') as THREE.BufferAttribute;
+                for (let v = 0; v < pos.count; v++) {
+                    const pBase = (vertOffset + v) * 3;
+                    mergedPos[pBase] = pos.getX(v);
+                    mergedPos[pBase + 1] = pos.getY(v);
+                    mergedPos[pBase + 2] = pos.getZ(v);
+                    mergedNorm[pBase] = norm.getX(v);
+                    mergedNorm[pBase + 1] = norm.getY(v);
+                    mergedNorm[pBase + 2] = norm.getZ(v);
+                    const uBase = (vertOffset + v) * 2;
+                    mergedUvs[uBase] = uv.getX(v);
+                    mergedUvs[uBase + 1] = uv.getY(v);
+                }
+                const idx = g.getIndex();
+                if (idx) {
+                    for (let k = 0; k < idx.count; k++) {
+                        mergedIndices[idxOffset + k] = idx.getX(k) + vertOffset;
+                    }
+                    idxOffset += idx.count;
+                } else {
+                    for (let k = 0; k < pos.count; k++) {
+                        mergedIndices[idxOffset + k] = vertOffset + k;
+                    }
+                    idxOffset += pos.count;
+                }
+                vertOffset += pos.count;
+                g.dispose();
+            }
+
+            finalGeo = new THREE.BufferGeometry();
+            finalGeo.setAttribute('position', new THREE.BufferAttribute(mergedPos, 3));
+            finalGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNorm, 3));
+            finalGeo.setAttribute('uv', new THREE.BufferAttribute(mergedUvs, 2));
+            finalGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+        }
+
+        const material = new THREE.MeshStandardMaterial({
+            map: ringTexture,
+            side: THREE.DoubleSide,
+            transparent: true,
+            alphaTest: 0.04,
+            roughness: 0.78,
+            metalness: 0.0,
+            depthWrite: false
+        });
+        const ringMesh = new THREE.Mesh(finalGeo, material);
+
+        // Planet casts spherical shadow onto rings; ring plane must not self-shadow in PointLight cubemap
+        ringMesh.castShadow = false;
+        ringMesh.receiveShadow = true;
+
+        // Rings are aligned with the planet's equator in the XZ plane
+        ringMesh.rotation.x = Math.PI / 2;
+
+        // Attach to tiltGroup so rings inherit planet's axial tilt
+        if (this.mesh) {
+            this.tiltGroup.add(ringMesh);
+        } else {
+            this.orbitGroup.add(ringMesh);
+        }
+        this.ringMeshes.push(ringMesh);
     }
 
     createMeteors() {
@@ -945,6 +1015,7 @@ export class CelestialBody {
         const shaftLength = 1.1 * bodyScale;
         const arrowMesh = new THREE.Mesh(CelestialBody.getSharedVelArrowGeo(), CelestialBody._sharedVelHeadMat);
         arrowMesh.scale.setScalar(bodyScale);
+        this.velocityArrowMesh = arrowMesh;
         this.velocityVectorGroup.add(arrowMesh);
 
         // Forward-pulsing chevron: one material shared by every body (driven by a common clock, see
@@ -1066,6 +1137,8 @@ export class CelestialBody {
 
     rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
+        this.lastComputedAngle = NaN;
+        this.hasInitializedVelocityTransform = false;
 
         const displayRadius = this.data.displayRadius ?? this.data.radius;
         // 1 displayRadius (Earth) = 6371 km. 1 AU = 149597870 km. 1 AU in scene = 130 units.
@@ -1154,38 +1227,48 @@ export class CelestialBody {
             this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         }
 
-        const st = CelestialBody._tempKeplerState;
+        const st = this.cachedKeplerState;
+        const needsKeplerUpdate =
+            this.realisticDistances !== this.lastComputedRealistic ||
+            !(Math.abs(this.angle - this.lastComputedAngle) < 1e-7);
 
-        if (this.data.distance !== 0) {
-            const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
-            computeKeplerianState(
-                this.angle,
-                a,
-                this.data.eccentricity ?? 0,
-                !this.realisticDistances,
-                this.data.inclination ?? 0,
-                this.data.longitudeOfPerihelion ?? 0,
-                this.data.longitudeOfAscendingNode ?? 0,
-                dir,
-                st,
-                this.orbitalBasis
-            );
-            this.orbitGroup.position.set(st.x, st.y, st.z);
-        } else {
-            st.x = 0;
-            st.y = 0;
-            st.z = 0;
-            st.tx = 0;
-            st.ty = 0;
-            st.tz = -1;
-            this.orbitGroup.position.set(0, 0, 0);
+        if (needsKeplerUpdate) {
+            this.lastComputedAngle = this.angle;
+            this.lastComputedRealistic = this.realisticDistances;
+
+            if (this.data.distance !== 0) {
+                const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
+                computeKeplerianState(
+                    this.angle,
+                    a,
+                    this.data.eccentricity ?? 0,
+                    !this.realisticDistances,
+                    this.data.inclination ?? 0,
+                    this.data.longitudeOfPerihelion ?? 0,
+                    this.data.longitudeOfAscendingNode ?? 0,
+                    dir,
+                    st,
+                    this.orbitalBasis
+                );
+                this.orbitGroup.position.set(st.x, st.y, st.z);
+            } else {
+                st.x = 0;
+                st.y = 0;
+                st.z = 0;
+                st.tx = 0;
+                st.ty = 0;
+                st.tz = -1;
+                this.orbitGroup.position.set(0, 0, 0);
+            }
         }
 
         // Rotate planet or moon on its axis (around local Y axis, tilted via tiltGroup)
         if (this.mesh) {
             if ('tidallyLocked' in this.data && this.data.tidallyLocked && this.data.distance !== 0) {
                 // Keep local +X (u = 0.5 prime meridian / lunar near-side center) facing parent body at (0, 0, 0)
-                this.mesh.rotation.y = Math.atan2(st.z, -st.x);
+                if (needsKeplerUpdate) {
+                    this.mesh.rotation.y = Math.atan2(st.z, -st.x);
+                }
             } else if (simTimePassed !== undefined) {
                 const daysSinceJ2000 = (simTimePassed * 365.25) / (Math.PI * 4);
                 if (this.data.name === 'Earth') {
@@ -1229,16 +1312,19 @@ export class CelestialBody {
 
         // Update Orbital Velocity Vector (zero per-frame heap allocations)
         if (this.velocityVectorGroup && this.velocityVectorGroup.visible && this.data.distance !== 0) {
-            const tangent = CelestialBody._tempTangent.set(st.tx, st.ty, st.tz).normalize();
-            const visualScale = this.tiltGroup ? this.tiltGroup.scale.x : 1.0;
-            const r = this.data.radius;
             const bodyScale = this.getVelocityBodyScale();
-            const clearanceR = this.data.name === 'Haumea' ? r * 1.45 : r;
-            const offsetDist = (clearanceR * 1.35 + bodyScale * 0.4) * visualScale;
-            this.velocityVectorGroup.position.copy(tangent).multiplyScalar(offsetDist);
-            this.velocityVectorGroup.quaternion.setFromUnitVectors(CelestialBody._unitZ, tangent);
+            if (needsKeplerUpdate || !this.hasInitializedVelocityTransform) {
+                this.hasInitializedVelocityTransform = true;
+                const tangent = CelestialBody._tempTangent.set(st.tx, st.ty, st.tz).normalize();
+                const visualScale = this.tiltGroup ? this.tiltGroup.scale.x : 1.0;
+                const r = this.data.radius;
+                const clearanceR = this.data.name === 'Haumea' ? r * 1.45 : r;
+                const offsetDist = (clearanceR * 1.35 + bodyScale * 0.4) * visualScale;
+                this.velocityVectorGroup.position.copy(tangent).multiplyScalar(offsetDist);
+                this.velocityVectorGroup.quaternion.setFromUnitVectors(CelestialBody._unitZ, tangent);
+            }
 
-            if (this.velocityPulseChevron) {
+            if (this.velocityPulseChevron && this.velocityPulseChevron.visible) {
                 this.velocityPulseChevron.position.z = (0.2 + CelestialBody._velocityPulseCycle * 0.9) * bodyScale;
             }
         }
@@ -1299,6 +1385,12 @@ export class CelestialBody {
             this.ensureLabelRendered();
         }
 
+        const velArrowMaxDist = Math.max(190, effectiveRadius * 115);
+        const showVelArrow = isFocused || distSq <= velArrowMaxDist * velArrowMaxDist;
+        if (this.velocityArrowMesh) {
+            this.velocityArrowMesh.visible = showVelArrow;
+        }
+
         const velDetailMaxDist = Math.max(95, effectiveRadius * 45);
         const showVelDetail = isFocused || distSq <= velDetailMaxDist * velDetailMaxDist;
         if (this.velocityPulseChevron) {
@@ -1311,7 +1403,9 @@ export class CelestialBody {
             }
         }
 
-        const geomLodMaxDist = Math.max(140, effectiveRadius * 42);
+        const geomLodMaxDist = this.data.name === 'Sun'
+            ? effectiveRadius * 12
+            : Math.max(140, effectiveRadius * 42);
         const useHighGeom = isFocused || distSq <= geomLodMaxDist * geomLodMaxDist;
         if (this.mesh && this.lowGeometry) {
             const targetGeom = useHighGeom ? this.getOrCreateHighGeometry() : this.lowGeometry;
@@ -1327,8 +1421,12 @@ export class CelestialBody {
         for (let i = 0; i < this.moons.length; i++) {
             const moon = this.moons[i];
             if (moon.mesh) {
-                moon.mesh.castShadow = enableMoonShadows;
-                if (moon.lowGeometry) {
+                const moonRadius = Math.max(0.02, moon.data.radius * scale);
+                const moonVisMaxDist = Math.max(180, moonRadius * 1500);
+                const showMoonMesh = isFocused || distSq <= moonVisMaxDist * moonVisMaxDist;
+                moon.mesh.visible = showMoonMesh;
+                moon.mesh.castShadow = showMoonMesh && enableMoonShadows;
+                if (showMoonMesh && moon.lowGeometry) {
                     const targetMoonGeom = useHighGeom ? moon.getOrCreateHighGeometry() : moon.lowGeometry;
                     if (moon.mesh.geometry !== targetMoonGeom) {
                         moon.mesh.geometry = targetMoonGeom;
@@ -1337,6 +1435,9 @@ export class CelestialBody {
             }
             if (moon.labelSprite?.visible) {
                 moon.ensureLabelRendered();
+            }
+            if (moon.velocityArrowMesh) {
+                moon.velocityArrowMesh.visible = showVelDetail;
             }
             if (moon.velocityPulseChevron) {
                 moon.velocityPulseChevron.visible = showVelDetail;
@@ -1355,6 +1456,9 @@ export class CelestialBody {
 
     toggleTrails(visible: boolean) {
         this.showTrails = visible;
+        if (visible && !this.trailLine && this.data.distance > 0) {
+            this.createTrail();
+        }
         if (this.trailLine) {
             this.trailLine.visible = visible;
             if (!visible) {
@@ -1370,6 +1474,9 @@ export class CelestialBody {
 
     toggleMeteors(visible: boolean) {
         this.showMeteors = visible;
+        if (visible && !this.meteorParticles && this.data.name === 'Earth') {
+            this.createMeteors();
+        }
         if (this.meteorParticles) {
             this.meteorParticles.visible = visible;
         }
@@ -1398,6 +1505,9 @@ export class CelestialBody {
 
     toggleAxes(visible: boolean) {
         this.showAxes = visible;
+        if (visible && !this.axesHelper && this.data.name !== 'Sun') {
+            this.createAxis();
+        }
         if (this.axesHelper) {
             this.axesHelper.visible = visible;
         }
@@ -1429,6 +1539,8 @@ export class CelestialBody {
             });
             this.velocityVectorGroup = null;
         }
+        this.velocityArrowMesh = null;
+        this.velocityPulseChevron = null;
         this.velocityLabelSprite = null;
 
         this.moons.forEach(moon => moon.dispose());

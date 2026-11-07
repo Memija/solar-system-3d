@@ -861,7 +861,9 @@ export class CustomDatePicker {
             this.populateMonths();
             this.populateWeekdays();
             this.updateLocalizedLabels();
-            this.renderCalendar();
+            if (this.isOpen) {
+                this.renderCalendar();
+            }
             this.updateDisplay();
             if (this.isYearModalOpen) {
                 this.renderYearModal();

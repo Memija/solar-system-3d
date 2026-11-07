@@ -552,7 +552,9 @@ export class SceneManager {
         window.addEventListener('resize', this.onResizeBound);
         window.addEventListener('orientationchange', this.onOrientationChangeBound);
 
-        this.createMeasureTools();
+        if (this.measureMode) {
+            this.createMeasureTools();
+        }
         this.updateZoomLimits();
 
         this.unregisterI18n = i18n.onLanguageChange(() => {
@@ -760,6 +762,11 @@ export class SceneManager {
                     this.comets[i].updateLOD?.(camPos, false);
                 }
             }
+            if (this.showSpacecrafts) {
+                for (let i = 0; i < this.spacecrafts.length; i++) {
+                    this.spacecrafts[i].updateLOD?.(camPos, false);
+                }
+            }
             if (this.lineBatcher) {
                 const rebaseDistance = Math.max(1e-4, this.camera.position.distanceTo(this.controls.target) * 0.25);
                 this.lineBatcher.sync(this.camera.position, rebaseDistance);
@@ -777,23 +784,20 @@ export class SceneManager {
     }
 
     /**
-     * On high-DPI displays (`currentPixelRatio > 1`), size the UnrealBloomPass mip chain using
-     * CSS pixel dimensions rather than physical pixels (`EffectComposer.addPass` and `setSize`
-     * otherwise scale every pass to `width * dpr`). On 1x displays (`currentPixelRatio <= 1`),
-     * keep the default full-resolution bloom pyramid.
+     * Size the UnrealBloomPass mip chain to half CSS resolution across all display pixel ratios
+     * (`EffectComposer.addPass` and `setSize` otherwise scale every pass to `width * dpr`),
+     * cutting bright-pass extraction and Mip-0 Gaussian blur fill-rate by 4x on 1x displays
+     * and up to 16x on 2x Retina/4K displays while keeping smooth wide-radius solar bloom.
      */
     private syncBloomResolution() {
         if (!this.bloomPass) return;
         const w = Math.max(1, window.innerWidth);
         const h = Math.max(1, window.innerHeight);
-        if (this.currentPixelRatio > 1) {
-            this.bloomPass.setSize?.(w, h);
-        }
+        const halfW = Math.max(1, Math.floor(w / 2));
+        const halfH = Math.max(1, Math.floor(h / 2));
+        this.bloomPass.setSize?.(halfW, halfH);
         if (this.bloomPass.resolution) {
-            this.bloomPass.resolution.set(
-                Math.max(1, Math.floor(w / 2)),
-                Math.max(1, Math.floor(h / 2))
-            );
+            this.bloomPass.resolution.set(halfW, halfH);
         }
     }
 
@@ -1068,6 +1072,12 @@ export class SceneManager {
             for (let i = 0; i < this.comets.length; i++) {
                 const comet = this.comets[i];
                 comet.updateLOD?.(camPos, this.focusedBody === comet);
+            }
+        }
+        if (this.showSpacecrafts) {
+            for (let i = 0; i < this.spacecrafts.length; i++) {
+                const sc = this.spacecrafts[i];
+                sc.updateLOD?.(camPos, this.focusedBody === sc);
             }
         }
 
@@ -1787,7 +1797,15 @@ export class SceneManager {
     }
 
     updateMeasurement() {
-        if (!this.measureMode || !this.measureLine || !this.measureLabel) {
+        if (!this.measureMode) {
+            if (this.measureLine) this.measureLine.visible = false;
+            if (this.measureLabel) this.measureLabel.visible = false;
+            return;
+        }
+        if ((!this.measureLine || !this.measureLabel) && this.measureTargetA && this.measureTargetB) {
+            this.createMeasureTools();
+        }
+        if (!this.measureLine || !this.measureLabel) {
             if (this.measureLine) this.measureLine.visible = false;
             if (this.measureLabel) this.measureLabel.visible = false;
             return;
@@ -1911,6 +1929,9 @@ export class SceneManager {
         this.measureMode = visible;
         this.renderDirty = true;
         PreferencesManager.set('measureMode', visible);
+        if (visible && (!this.measureLine || !this.measureLabel)) {
+            this.createMeasureTools();
+        }
         if (!visible) {
             this.measureTargetA = null;
             this.measureTargetB = null;
@@ -1960,6 +1981,9 @@ export class SceneManager {
         target = target || this.spacecrafts.find((s: Spacecraft) => s.data?.name === name);
 
         if (target) {
+            if (!this.measureLine || !this.measureLabel) {
+                this.createMeasureTools();
+            }
             if (!this.measureTargetA) {
                 this.measureTargetA = target;
                 this.currentMeasureDistance = null;

@@ -84,9 +84,7 @@ const PREWARM_WORLD_TEXTURES = [
   'Jupiter',
   'Saturn',
   'Uranus',
-  'Neptune',
-  'Pluto',
-  'Ceres'
+  'Neptune'
 ];
 
 async function init() {

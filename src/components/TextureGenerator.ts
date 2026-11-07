@@ -21,12 +21,20 @@ export class TextureGenerator {
     static dispose(): void {
         this.deferredQueue.forEach(item => {
             if (!this.cache.has(item.name)) {
-                item.placeholderMap.dispose();
-                item.placeholderBump?.dispose();
+                if (!item.placeholderMap.userData?.shared) item.placeholderMap.dispose();
+                if (item.placeholderBump && !item.placeholderBump.userData?.shared) item.placeholderBump.dispose();
             }
         });
         this.deferredQueue = [];
         this.loadingDeferred.clear();
+        if (this.sharedPlaceholderMap) {
+            this.sharedPlaceholderMap.dispose();
+            this.sharedPlaceholderMap = null;
+        }
+        if (this.sharedPlaceholderBump) {
+            this.sharedPlaceholderBump.dispose();
+            this.sharedPlaceholderBump = null;
+        }
         this.cache.forEach(texture => {
             texture.dispose();
         });
@@ -284,6 +292,49 @@ export class TextureGenerator {
         placeholderBump: THREE.CanvasTexture | null;
     }> = [];
     private static loadingDeferred: Set<string> = new Set();
+    private static sharedPlaceholderMap: THREE.CanvasTexture | null = null;
+    private static sharedPlaceholderBump: THREE.CanvasTexture | null = null;
+
+    private static getSharedPlaceholderMap(): THREE.CanvasTexture {
+        if (!this.sharedPlaceholderMap) {
+            const mapCanvas = document.createElement('canvas');
+            mapCanvas.width = 8;
+            mapCanvas.height = 4;
+            const ctx = mapCanvas.getContext('2d');
+            if (ctx) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, 8, 4);
+            }
+            const tex = new THREE.CanvasTexture(mapCanvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.userData = { shared: true };
+            tex.needsUpdate = true;
+            this.sharedPlaceholderMap = tex;
+        }
+        return this.sharedPlaceholderMap;
+    }
+
+    private static getSharedPlaceholderBump(): THREE.CanvasTexture {
+        if (!this.sharedPlaceholderBump) {
+            const bumpCanvas = document.createElement('canvas');
+            bumpCanvas.width = 8;
+            bumpCanvas.height = 4;
+            const bctx = bumpCanvas.getContext('2d');
+            if (bctx) {
+                bctx.fillStyle = '#808080';
+                bctx.fillRect(0, 0, 8, 4);
+            }
+            const tex = new THREE.CanvasTexture(bumpCanvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.userData = { shared: true };
+            tex.needsUpdate = true;
+            this.sharedPlaceholderBump = tex;
+        }
+        return this.sharedPlaceholderBump;
+    }
 
     /**
      * Trigger background loading of a deferred moon or dwarf planet surface map on demand
@@ -307,11 +358,12 @@ export class TextureGenerator {
             const fullBump = this.BUMP_WORLDS.has(name) ? this.getPlanetBumpMap(name) : null;
             for (const item of matching) {
                 item.material.map = fullMap;
+                item.material.color.setHex(0xffffff);
                 if (fullBump) {
                     item.material.bumpMap = fullBump;
                 }
-                item.placeholderMap.dispose();
-                item.placeholderBump?.dispose();
+                if (!item.placeholderMap.userData?.shared) item.placeholderMap.dispose();
+                if (item.placeholderBump && !item.placeholderBump.userData?.shared) item.placeholderBump.dispose();
             }
             this.loadingDeferred.delete(name);
             onLoaded?.(name);
@@ -337,6 +389,22 @@ export class TextureGenerator {
             if (contentType && !contentType.includes('image')) return null;
 
             const blob = await res.blob();
+            const needsCanvasForBump = this.BUMP_WORLDS.has(name);
+            if (!needsCanvasForBump && !isMobile) {
+                const bitmap = await createImageBitmap(blob, { imageOrientation: 'flipY' });
+                const tex = new THREE.CanvasTexture(bitmap as unknown as HTMLCanvasElement);
+                tex.flipY = false;
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.ClampToEdgeWrapping;
+                tex.colorSpace = THREE.SRGBColorSpace;
+                tex.anisotropy = TextureGenerator.maxAnisotropy;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.generateMipmaps = true;
+                tex.needsUpdate = true;
+                this.cache.set(name, tex);
+                return tex;
+            }
+
             const bitmap = await createImageBitmap(blob);
             const targetW = isMobile ? Math.min(1024, bitmap.width) : bitmap.width;
             const targetH = isMobile ? Math.min(512, bitmap.height) : bitmap.height;
@@ -384,46 +452,11 @@ export class TextureGenerator {
             return onCreateMaterial(map, bumpMap);
         }
 
-        const c = new THREE.Color(baseColorHex || 0x888888);
-        const r = Math.round(c.r * 255);
-        const g = Math.round(c.g * 255);
-        const b = Math.round(c.b * 255);
-
-        const mapCanvas = document.createElement('canvas');
-        mapCanvas.width = 64;
-        mapCanvas.height = 32;
-        const ctx = mapCanvas.getContext('2d');
-        if (ctx) {
-            const grad = ctx.createLinearGradient(0, 0, 0, 32);
-            grad.addColorStop(0, `rgb(${Math.min(255, r + 18)}, ${Math.min(255, g + 18)}, ${Math.min(255, b + 18)})`);
-            grad.addColorStop(0.5, `rgb(${r}, ${g}, ${b})`);
-            grad.addColorStop(1, `rgb(${Math.max(0, r - 18)}, ${Math.max(0, g - 18)}, ${Math.max(0, b - 18)})`);
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 64, 32);
-        }
-        const placeholderMap = new THREE.CanvasTexture(mapCanvas);
-        placeholderMap.wrapS = THREE.RepeatWrapping;
-        placeholderMap.wrapT = THREE.ClampToEdgeWrapping;
-        placeholderMap.colorSpace = THREE.SRGBColorSpace;
-        placeholderMap.needsUpdate = true;
-
-        let placeholderBump: THREE.CanvasTexture | null = null;
-        if (this.BUMP_WORLDS.has(name)) {
-            const bumpCanvas = document.createElement('canvas');
-            bumpCanvas.width = 16;
-            bumpCanvas.height = 8;
-            const bctx = bumpCanvas.getContext('2d');
-            if (bctx) {
-                bctx.fillStyle = '#808080';
-                bctx.fillRect(0, 0, 16, 8);
-            }
-            placeholderBump = new THREE.CanvasTexture(bumpCanvas);
-            placeholderBump.wrapS = THREE.RepeatWrapping;
-            placeholderBump.wrapT = THREE.ClampToEdgeWrapping;
-            placeholderBump.needsUpdate = true;
-        }
+        const placeholderMap = this.getSharedPlaceholderMap();
+        const placeholderBump = this.BUMP_WORLDS.has(name) ? this.getSharedPlaceholderBump() : null;
 
         const material = onCreateMaterial(placeholderMap, placeholderBump);
+        material.color.setHex(baseColorHex || 0x888888);
         this.deferredQueue.push({ name, material, placeholderMap, placeholderBump });
         return material;
     }
@@ -462,11 +495,12 @@ export class TextureGenerator {
             const fullBump = this.BUMP_WORLDS.has(item.name) ? this.getPlanetBumpMap(item.name) : null;
 
             item.material.map = fullMap;
+            item.material.color.setHex(0xffffff);
             if (fullBump) {
                 item.material.bumpMap = fullBump;
             }
-            item.placeholderMap.dispose();
-            item.placeholderBump?.dispose();
+            if (!item.placeholderMap.userData?.shared) item.placeholderMap.dispose();
+            if (item.placeholderBump && !item.placeholderBump.userData?.shared) item.placeholderBump.dispose();
             onEachLoaded?.(item.name);
 
             // Yield between background texture swaps so steady-state frame pacing stays smooth
