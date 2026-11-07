@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MajorConstellations } from './ConstellationData';
 import { equatorialToEcliptic3D } from './MathUtils';
+import { markLineBatchable } from './LineBatcher';
 
 export class ConstellationManager {
     scene: THREE.Scene;
@@ -9,6 +10,7 @@ export class ConstellationManager {
     isVisible: boolean = true;
     private sharedStarGeometry: THREE.SphereGeometry | null = null;
     private sharedStarMaterial: THREE.MeshBasicMaterial | null = null;
+    private mergedStarsMesh: THREE.Mesh | null = null;
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -21,6 +23,9 @@ export class ConstellationManager {
         this.constellationMeshes.forEach(group => {
             group.visible = this.isVisible;
         });
+        if (this.mergedStarsMesh) {
+            this.mergedStarsMesh.visible = this.isVisible;
+        }
         this.interactableObjects.forEach(obj => {
             obj.visible = this.isVisible;
         });
@@ -37,19 +42,21 @@ export class ConstellationManager {
         const vertsPerStar = basePosAttr.count;
         const indicesPerStar = baseIndex ? baseIndex.count : vertsPerStar;
 
+        const totalStarCount = MajorConstellations.reduce((sum, c) => sum + c.stars.length, 0);
+        const mergedPositions = new Float32Array(totalStarCount * vertsPerStar * 3);
+        const mergedNormals = new Float32Array(totalStarCount * vertsPerStar * 3);
+        const mergedIndices = new Uint32Array(totalStarCount * indicesPerStar);
+        let globalStarIdx = 0;
+
         MajorConstellations.forEach(constellation => {
             const constellationGroup = new THREE.Group();
             constellationGroup.userData = constellation;
             constellationGroup.visible = this.isVisible;
 
             const points: THREE.Vector3[] = [];
-            const starCount = constellation.stars.length;
-            const mergedPositions = new Float32Array(starCount * vertsPerStar * 3);
-            const mergedNormals = new Float32Array(starCount * vertsPerStar * 3);
-            const mergedIndices = new Uint32Array(starCount * indicesPerStar);
 
             // Create Stars (transform J2000 Equatorial RA/Dec into J2000 Ecliptic scene coordinates)
-            constellation.stars.forEach((star, sIdx) => {
+            constellation.stars.forEach((star) => {
                 const ecl = equatorialToEcliptic3D(star.ra, star.dec, radius);
                 const pos = new THREE.Vector3(ecl.x, ecl.y, ecl.z);
                 points.push(pos);
@@ -63,7 +70,7 @@ export class ConstellationManager {
                 starMesh.userData = { ...constellation, type: 'ConstellationStar' };
                 this.interactableObjects.push(starMesh);
 
-                const vOffset = sIdx * vertsPerStar;
+                const vOffset = globalStarIdx * vertsPerStar;
                 for (let v = 0; v < vertsPerStar; v++) {
                     const dst = (vOffset + v) * 3;
                     mergedPositions[dst] = basePosAttr.getX(v) + ecl.x;
@@ -76,7 +83,7 @@ export class ConstellationManager {
                     }
                 }
 
-                const iOffset = sIdx * indicesPerStar;
+                const iOffset = globalStarIdx * indicesPerStar;
                 if (baseIndex) {
                     for (let k = 0; k < indicesPerStar; k++) {
                         mergedIndices[iOffset + k] = baseIndex.getX(k) + vOffset;
@@ -86,18 +93,8 @@ export class ConstellationManager {
                         mergedIndices[iOffset + k] = vOffset + k;
                     }
                 }
+                globalStarIdx++;
             });
-
-            if (starCount > 0) {
-                const batchedStarGeo = new THREE.BufferGeometry();
-                batchedStarGeo.setAttribute('position', new THREE.BufferAttribute(mergedPositions, 3));
-                batchedStarGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNormals, 3));
-                batchedStarGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
-                const batchedStarMesh = new THREE.Mesh(batchedStarGeo, this.sharedStarMaterial!);
-                batchedStarMesh.matrixAutoUpdate = false;
-                batchedStarMesh.updateMatrix();
-                constellationGroup.add(batchedStarMesh);
-            }
 
             // Batch all constellation lines into a single LineSegments draw call
             const lineVertices: number[] = [];
@@ -123,12 +120,25 @@ export class ConstellationManager {
                 lineSegments.matrixAutoUpdate = false;
                 lineSegments.updateMatrix();
                 lineSegments.userData = { ...constellation, type: 'ConstellationLine' };
+                markLineBatchable(lineSegments);
                 constellationGroup.add(lineSegments);
             }
 
             this.scene.add(constellationGroup);
             this.constellationMeshes.push(constellationGroup);
         });
+
+        if (totalStarCount > 0) {
+            const batchedStarGeo = new THREE.BufferGeometry();
+            batchedStarGeo.setAttribute('position', new THREE.BufferAttribute(mergedPositions, 3));
+            batchedStarGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNormals, 3));
+            batchedStarGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+            this.mergedStarsMesh = new THREE.Mesh(batchedStarGeo, this.sharedStarMaterial!);
+            this.mergedStarsMesh.visible = this.isVisible;
+            this.mergedStarsMesh.matrixAutoUpdate = false;
+            this.mergedStarsMesh.updateMatrix();
+            this.scene.add(this.mergedStarsMesh);
+        }
     }
 
     getInteractableObjects(): THREE.Object3D[] {
@@ -164,6 +174,11 @@ export class ConstellationManager {
             this.scene.remove(group);
         });
 
+        if (this.mergedStarsMesh) {
+            this.mergedStarsMesh.geometry?.dispose();
+            this.scene.remove(this.mergedStarsMesh);
+            this.mergedStarsMesh = null;
+        }
         this.sharedStarGeometry?.dispose();
         this.sharedStarMaterial?.dispose();
         this.sharedStarGeometry = null;

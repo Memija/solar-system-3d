@@ -96,6 +96,11 @@ export class CelestialBody {
     auroraMaterial: THREE.ShaderMaterial | null = null;
     velocityVectorGroup: THREE.Group | null = null;
     velocityPulseChevron: THREE.Mesh | null = null;
+    velocityLabelSprite: THREE.Sprite | null = null;
+    private velocityLabelRendered: boolean = false;
+    private labelRendered: boolean = false;
+    private highGeometry: THREE.BufferGeometry | null = null;
+    private lowGeometry: THREE.BufferGeometry | null = null;
     private cloudDriftOffset: number = 0;
     showMeteors: boolean;
 
@@ -116,14 +121,73 @@ export class CelestialBody {
     private static _tempTangent = new THREE.Vector3();
     private static _unitZ = new THREE.Vector3(0, 0, 1);
     private static _tempKeplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
-    private static _sharedVelShaftGeo: THREE.CylinderGeometry | null = null;
-    private static _sharedVelHeadGeo: THREE.ConeGeometry | null = null;
+    private static _sharedVelArrowGeo: THREE.BufferGeometry | null = null;
     private static _sharedVelPulseGeo: THREE.ConeGeometry | null = null;
-    private static _sharedVelShaftMat: THREE.MeshBasicMaterial | null = null;
     private static _sharedVelHeadMat: THREE.MeshBasicMaterial | null = null;
     private static _sharedVelPulseMat: THREE.MeshBasicMaterial | null = null;
+    private static _sharedPlaceholderSpriteTex: THREE.CanvasTexture | null = null;
     private static _velocityPulseTimer = 0;
     private static _velocityPulseCycle = 0;
+
+    private static getSharedPlaceholderSpriteTex(): THREE.CanvasTexture {
+        if (!CelestialBody._sharedPlaceholderSpriteTex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2;
+            canvas.height = 2;
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.userData = { shared: true };
+            CelestialBody._sharedPlaceholderSpriteTex = tex;
+        }
+        return CelestialBody._sharedPlaceholderSpriteTex;
+    }
+
+    private static getSharedVelArrowGeo(): THREE.BufferGeometry {
+        if (CelestialBody._sharedVelArrowGeo) return CelestialBody._sharedVelArrowGeo;
+
+        const shaft = new THREE.CylinderGeometry(0.022, 0.022, 1.1, 8);
+        shaft.rotateX(Math.PI / 2);
+        shaft.translate(0, 0, 0.55);
+
+        const head = new THREE.ConeGeometry(0.09, 0.3, 12);
+        head.rotateX(Math.PI / 2);
+        head.translate(0, 0, 1.25);
+
+        const sPos = shaft.getAttribute('position') as THREE.BufferAttribute;
+        const hPos = head.getAttribute('position') as THREE.BufferAttribute;
+        const sNorm = shaft.getAttribute('normal') as THREE.BufferAttribute;
+        const hNorm = head.getAttribute('normal') as THREE.BufferAttribute;
+        const sIdx = shaft.getIndex();
+        const hIdx = head.getIndex();
+
+        const totalVerts = sPos.count + hPos.count;
+        const positions = new Float32Array(totalVerts * 3);
+        positions.set(sPos.array as Float32Array, 0);
+        positions.set(hPos.array as Float32Array, sPos.count * 3);
+
+        const normals = new Float32Array(totalVerts * 3);
+        if (sNorm && hNorm) {
+            normals.set(sNorm.array as Float32Array, 0);
+            normals.set(hNorm.array as Float32Array, sNorm.count * 3);
+        }
+
+        const merged = new THREE.BufferGeometry();
+        merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+
+        if (sIdx && hIdx) {
+            const indices = new Uint16Array(sIdx.count + hIdx.count);
+            for (let i = 0; i < sIdx.count; i++) indices[i] = sIdx.getX(i);
+            const offset = sPos.count;
+            for (let i = 0; i < hIdx.count; i++) indices[sIdx.count + i] = hIdx.getX(i) + offset;
+            merged.setIndex(new THREE.BufferAttribute(indices, 1));
+        }
+
+        shaft.dispose();
+        head.dispose();
+        merged.userData.shared = true;
+        CelestialBody._sharedVelArrowGeo = merged;
+        return merged;
+    }
 
     /**
      * Advance the shared velocity-arrow pulse animation. Call once per frame (not per body) with the
@@ -184,14 +248,17 @@ export class CelestialBody {
         }
         this.orbitGroup.add(this.tiltGroup);
 
-        // Geometry - Adaptive segments based on scale and moon status
-        let segments = 48;
-        if (this.isMoon) {
-            segments = (this.data.name === 'Iapetus') ? 64 : (this.data.radius < 0.5 ? 24 : 32);
-        } else if (this.data.radius > 3 || this.data.name === 'Earth') { // Gas giants, Sun, and Earth
-            segments = 64;
+        // Geometry - Start with low-poly LOD geometry at boot and lazily build high-res geometry only when approached
+        const canLodGeometry = this.data.name !== 'Iapetus' && this.data.name !== 'Sun';
+        const initSegments = canLodGeometry ? (this.isMoon ? 14 : 20) : 64;
+        const geometry = new THREE.SphereGeometry(this.data.radius, initSegments, initSegments);
+        if (canLodGeometry) {
+            this.lowGeometry = geometry;
+            this.highGeometry = null;
+        } else {
+            this.highGeometry = geometry;
+            this.lowGeometry = null;
         }
-        const geometry = new THREE.SphereGeometry(this.data.radius, segments, segments);
 
         if (this.data.name === 'Iapetus') {
             // Iapetus has an iconic walnut shape: polar flattening and a prominent equatorial mountain ridge
@@ -469,29 +536,39 @@ export class CelestialBody {
     }
 
     createLabel() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 256;
-        this.renderLabelCanvas(canvas);
-
-        const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.SpriteMaterial({
-            map: texture,
+            map: CelestialBody.getSharedPlaceholderSpriteTex(),
             transparent: true,
             depthTest: false,
             sizeAttenuation: false
         });
         this.labelSprite = new THREE.Sprite(material);
-        const aspect = canvas.width / canvas.height;
-        this.labelSprite.scale.set(0.05 * aspect, 0.05, 1);
+        this.labelSprite.scale.set(0.05, 0.05, 1);
         this.labelSprite.position.set(0, this.data.radius * 1.2, 0);
         this.labelSprite.visible = this.showLabel;
+        if (this.showLabel) {
+            this.ensureLabelRendered();
+        }
         // Don't add it to tiltGroup so the label stays upright
         this.orbitGroup.add(this.labelSprite);
     }
 
+    ensureLabelRendered() {
+        if (this.labelRendered || !this.labelSprite) return;
+        this.labelRendered = true;
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        this.renderLabelCanvas(canvas);
+        const texture = new THREE.CanvasTexture(canvas);
+        this.labelSprite.material.map = texture;
+        this.labelSprite.material.needsUpdate = true;
+        const aspect = canvas.width / canvas.height;
+        this.labelSprite.scale.set(0.05 * aspect, 0.05, 1);
+    }
+
     refreshLabel() {
-        if (this.labelSprite && this.labelSprite.material?.map) {
+        if (this.labelRendered && this.labelSprite && this.labelSprite.material?.map) {
             const canvas = this.labelSprite.material.map.image as HTMLCanvasElement | undefined;
             if (canvas && typeof canvas.getContext === 'function') {
                 this.renderLabelCanvas(canvas);
@@ -850,29 +927,11 @@ export class CelestialBody {
         // Responsive scaling based on celestial body radius
         const bodyScale = this.getVelocityBodyScale();
 
-        if (!CelestialBody._sharedVelShaftGeo) {
-            CelestialBody._sharedVelShaftGeo = new THREE.CylinderGeometry(0.022, 0.022, 1.1, 8);
-            CelestialBody._sharedVelShaftGeo.rotateX(Math.PI / 2);
-            CelestialBody._sharedVelShaftGeo.userData.shared = true;
-        }
-        if (!CelestialBody._sharedVelShaftMat) {
-            CelestialBody._sharedVelShaftMat = new THREE.MeshBasicMaterial({
-                color: 0x38bdf8,
-                transparent: true,
-                opacity: 0.75
-            });
-            CelestialBody._sharedVelShaftMat.userData.shared = true;
-        }
-        if (!CelestialBody._sharedVelHeadGeo) {
-            CelestialBody._sharedVelHeadGeo = new THREE.ConeGeometry(0.09, 0.3, 12);
-            CelestialBody._sharedVelHeadGeo.rotateX(Math.PI / 2);
-            CelestialBody._sharedVelHeadGeo.userData.shared = true;
-        }
         if (!CelestialBody._sharedVelHeadMat) {
             CelestialBody._sharedVelHeadMat = new THREE.MeshBasicMaterial({
                 color: 0x38bdf8,
                 transparent: true,
-                opacity: 0.95
+                opacity: 0.9
             });
             CelestialBody._sharedVelHeadMat.userData.shared = true;
         }
@@ -882,19 +941,11 @@ export class CelestialBody {
             CelestialBody._sharedVelPulseGeo.userData.shared = true;
         }
 
-        // Direction shaft
+        // Combined direction shaft + arrow head in a single shared BufferGeometry (1 draw call instead of 2)
         const shaftLength = 1.1 * bodyScale;
-        const shaftMesh = new THREE.Mesh(CelestialBody._sharedVelShaftGeo, CelestialBody._sharedVelShaftMat);
-        shaftMesh.scale.setScalar(bodyScale);
-        shaftMesh.position.z = shaftLength * 0.5;
-        this.velocityVectorGroup.add(shaftMesh);
-
-        // Arrow head
-        const headHeight = 0.3 * bodyScale;
-        const headMesh = new THREE.Mesh(CelestialBody._sharedVelHeadGeo, CelestialBody._sharedVelHeadMat);
-        headMesh.scale.setScalar(bodyScale);
-        headMesh.position.z = shaftLength + headHeight * 0.5;
-        this.velocityVectorGroup.add(headMesh);
+        const arrowMesh = new THREE.Mesh(CelestialBody.getSharedVelArrowGeo(), CelestialBody._sharedVelHeadMat);
+        arrowMesh.scale.setScalar(bodyScale);
+        this.velocityVectorGroup.add(arrowMesh);
 
         // Forward-pulsing chevron: one material shared by every body (driven by a common clock, see
         // advanceVelocityPulse) so the arrows don't each force a separate material/uniform upload
@@ -911,7 +962,28 @@ export class CelestialBody {
         this.velocityPulseChevron.position.z = shaftLength * 0.5;
         this.velocityVectorGroup.add(this.velocityPulseChevron);
 
-        // Telemetry readout sprite
+        // Telemetry readout sprite (canvas texture rendered lazily when camera approaches within LOD range)
+        const spriteMat = new THREE.SpriteMaterial({
+            map: CelestialBody.getSharedPlaceholderSpriteTex(),
+            transparent: true,
+            depthTest: true,
+            sizeAttenuation: true
+        });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.scale.set(1.4 * bodyScale, 0.35 * bodyScale, 1);
+        sprite.position.set(0, 0.38 * bodyScale, 0.65 * bodyScale);
+        this.velocityLabelSprite = sprite;
+        this.velocityVectorGroup.add(sprite);
+
+        // Inherit orbit visibility
+        this.velocityVectorGroup.visible = this.orbitLine?.visible ?? true;
+
+        this.orbitGroup.add(this.velocityVectorGroup);
+    }
+
+    private ensureVelocityLabelRendered() {
+        if (this.velocityLabelRendered || !this.velocityLabelSprite) return;
+        this.velocityLabelRendered = true;
         const speed = this.getOrbitalSpeed();
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -934,21 +1006,8 @@ export class CelestialBody {
         }
 
         const texture = new THREE.CanvasTexture(canvas);
-        const spriteMat = new THREE.SpriteMaterial({
-            map: texture,
-            transparent: true,
-            depthTest: true,
-            sizeAttenuation: true
-        });
-        const sprite = new THREE.Sprite(spriteMat);
-        sprite.scale.set(1.4 * bodyScale, 0.35 * bodyScale, 1);
-        sprite.position.set(0, 0.38 * bodyScale, 0.65 * bodyScale);
-        this.velocityVectorGroup.add(sprite);
-
-        // Inherit orbit visibility
-        this.velocityVectorGroup.visible = this.orbitLine?.visible ?? true;
-
-        this.orbitGroup.add(this.velocityVectorGroup);
+        this.velocityLabelSprite.material.map = texture;
+        this.velocityLabelSprite.material.needsUpdate = true;
     }
 
     createTrail() {
@@ -1191,6 +1250,19 @@ export class CelestialBody {
         this.moons.forEach(moon => moon.update(deltaTime, simTimePassed, rawDelta));
     }
 
+    private getOrCreateHighGeometry(): THREE.BufferGeometry {
+        if (!this.highGeometry) {
+            let segments = 48;
+            if (this.isMoon) {
+                segments = this.data.radius < 0.5 ? 24 : 32;
+            } else if (this.data.radius > 3 || this.data.name === 'Earth') {
+                segments = 64;
+            }
+            this.highGeometry = new THREE.SphereGeometry(this.data.radius, segments, segments);
+        }
+        return this.highGeometry;
+    }
+
     updateLOD(cameraWorldPos: THREE.Vector3, isFocused: boolean = false) {
         const worldPos = CelestialBody._tempWorldPos;
         this.orbitGroup.getWorldPosition(worldPos);
@@ -1222,10 +1294,58 @@ export class CelestialBody {
         if (loadDetailTextures) {
             TextureGenerator.ensureDeferredLoaded?.(this.data.name);
         }
+
+        if (this.labelSprite?.visible) {
+            this.ensureLabelRendered();
+        }
+
+        const velDetailMaxDist = Math.max(95, effectiveRadius * 45);
+        const showVelDetail = isFocused || distSq <= velDetailMaxDist * velDetailMaxDist;
+        if (this.velocityPulseChevron) {
+            this.velocityPulseChevron.visible = showVelDetail;
+        }
+        if (this.velocityLabelSprite) {
+            this.velocityLabelSprite.visible = showVelDetail;
+            if (showVelDetail) {
+                this.ensureVelocityLabelRendered();
+            }
+        }
+
+        const geomLodMaxDist = Math.max(140, effectiveRadius * 42);
+        const useHighGeom = isFocused || distSq <= geomLodMaxDist * geomLodMaxDist;
+        if (this.mesh && this.lowGeometry) {
+            const targetGeom = useHighGeom ? this.getOrCreateHighGeometry() : this.lowGeometry;
+            if (this.mesh.geometry !== targetGeom) {
+                this.mesh.geometry = targetGeom;
+            }
+        }
+
+        if (this.mesh && !this.isMoon && this.data.name !== 'Sun') {
+            this.mesh.castShadow = this.ringMeshes.length > 0 || (this.moons.length > 0 && enableMoonShadows);
+        }
+
         for (let i = 0; i < this.moons.length; i++) {
             const moon = this.moons[i];
             if (moon.mesh) {
                 moon.mesh.castShadow = enableMoonShadows;
+                if (moon.lowGeometry) {
+                    const targetMoonGeom = useHighGeom ? moon.getOrCreateHighGeometry() : moon.lowGeometry;
+                    if (moon.mesh.geometry !== targetMoonGeom) {
+                        moon.mesh.geometry = targetMoonGeom;
+                    }
+                }
+            }
+            if (moon.labelSprite?.visible) {
+                moon.ensureLabelRendered();
+            }
+            if (moon.velocityPulseChevron) {
+                moon.velocityPulseChevron.visible = showVelDetail;
+            }
+            if (moon.velocityLabelSprite) {
+                moon.velocityLabelSprite.visible = showVelDetail;
+                if (showVelDetail) {
+                    moon.ensureVelocityLabelRendered();
+                }
             }
             if (loadDetailTextures) {
                 TextureGenerator.ensureDeferredLoaded?.(moon.data.name);
@@ -1303,12 +1423,13 @@ export class CelestialBody {
                 if (geom && !geom.userData?.shared) geom.dispose();
                 const mat = (child as any).material;
                 if (mat && !mat.userData?.shared) {
-                    if (mat.map) mat.map.dispose();
+                    if (mat.map && !mat.map.userData?.shared) mat.map.dispose();
                     mat.dispose();
                 }
             });
             this.velocityVectorGroup = null;
         }
+        this.velocityLabelSprite = null;
 
         this.moons.forEach(moon => moon.dispose());
         this.moons = [];
@@ -1321,6 +1442,14 @@ export class CelestialBody {
                 this.mesh.material?.dispose();
             }
         }
+        if (this.highGeometry && this.highGeometry !== this.mesh?.geometry) {
+            this.highGeometry.dispose();
+        }
+        if (this.lowGeometry && this.lowGeometry !== this.mesh?.geometry) {
+            this.lowGeometry.dispose();
+        }
+        this.highGeometry = null;
+        this.lowGeometry = null;
 
         if (this.cloudMesh) {
             this.cloudMesh.geometry?.dispose();
@@ -1398,7 +1527,9 @@ export class CelestialBody {
         }
 
         if (this.labelSprite) {
-            this.labelSprite.material?.map?.dispose();
+            if (this.labelSprite.material?.map && !this.labelSprite.material.map.userData?.shared) {
+                this.labelSprite.material.map.dispose();
+            }
             this.labelSprite.material?.dispose();
         }
 

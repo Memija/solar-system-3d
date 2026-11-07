@@ -31,10 +31,10 @@ export class UIManager {
     selectedBody: CelestialBodyData | MoonData | StarData | ConstellationData | CometData | SpacecraftData | null;
     uiContainer: HTMLElement;
     infoPanel: HTMLElement;
-    modal: Modal;
-    eventModal: Modal;
-    shortcutsModal: Modal;
-    headerSlotsModal: Modal;
+    private _modal: Modal | null = null;
+    private _eventModal: Modal | null = null;
+    private _shortcutsModal: Modal | null = null;
+    private _headerSlotsModal: Modal | null = null;
     headerSlotsContainer: HTMLElement | null = null;
     audioManager: AudioManager;
     performanceMonitor: PerformanceMonitor;
@@ -115,34 +115,6 @@ export class UIManager {
         this.uiContainer = container;
 
         this.infoPanel = this.createInfoPanel();
-        this.modal = new Modal(this.uiContainer);
-        this.eventModal = new Modal(this.uiContainer);
-        this.eventModal.modalElement.style.top = '50%';
-        this.eventModal.modalElement.style.left = '50%';
-        this.eventModal.modalElement.style.right = 'auto';
-        this.eventModal.modalElement.style.transform = 'translate(-50%, -50%)';
-        this.eventModal.modalElement.style.borderTop = '4px solid gold';
-
-        this.shortcutsModal = new Modal(this.uiContainer);
-        this.shortcutsModal.modalElement.style.top = '50%';
-        this.shortcutsModal.modalElement.style.left = '50%';
-        this.shortcutsModal.modalElement.style.right = 'auto';
-        this.shortcutsModal.modalElement.style.transform = 'translate(-50%, -50%)';
-        this.shortcutsModal.modalElement.style.maxWidth = '580px';
-        this.shortcutsModal.modalElement.style.width = '92vw';
-        this.shortcutsModal.modalElement.style.borderTop = '3px solid #38bdf8';
-
-        this.headerSlotsModal = new Modal(this.uiContainer);
-        this.headerSlotsModal.modalElement.style.top = '50%';
-        this.headerSlotsModal.modalElement.style.left = '50%';
-        this.headerSlotsModal.modalElement.style.right = 'auto';
-        this.headerSlotsModal.modalElement.style.transform = 'translate(-50%, -50%)';
-        this.headerSlotsModal.modalElement.style.maxWidth = '760px';
-        this.headerSlotsModal.modalElement.style.width = '94vw';
-        this.headerSlotsModal.modalElement.style.maxHeight = '85vh';
-        this.headerSlotsModal.modalElement.style.overflowY = 'auto';
-        this.headerSlotsModal.modalElement.style.borderTop = '3px solid #38bdf8';
-        this.headerSlotsModal.modalElement.style.boxShadow = '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.2)';
 
         this.audioManager = new AudioManager();
         this.performanceMonitor = new PerformanceMonitor(this.sceneManager.renderer, this.uiContainer);
@@ -1560,8 +1532,77 @@ export class UIManager {
         this.scenePicker.pick(clientX, clientY);
     }
 
+    public get modal(): Modal {
+        if (!this._modal) {
+            this._modal = new Modal(this.uiContainer);
+        }
+        return this._modal;
+    }
+
+    public set modal(val: Modal) {
+        this._modal = val;
+    }
+
+    public get eventModal(): Modal {
+        if (!this._eventModal) {
+            const m = new Modal(this.uiContainer);
+            m.modalElement.style.top = '50%';
+            m.modalElement.style.left = '50%';
+            m.modalElement.style.right = 'auto';
+            m.modalElement.style.transform = 'translate(-50%, -50%)';
+            m.modalElement.style.borderTop = '4px solid gold';
+            this._eventModal = m;
+        }
+        return this._eventModal;
+    }
+
+    public set eventModal(val: Modal) {
+        this._eventModal = val;
+    }
+
+    public get shortcutsModal(): Modal {
+        if (!this._shortcutsModal) {
+            const m = new Modal(this.uiContainer);
+            m.modalElement.style.top = '50%';
+            m.modalElement.style.left = '50%';
+            m.modalElement.style.right = 'auto';
+            m.modalElement.style.transform = 'translate(-50%, -50%)';
+            m.modalElement.style.maxWidth = '580px';
+            m.modalElement.style.width = '92vw';
+            m.modalElement.style.borderTop = '3px solid #38bdf8';
+            this._shortcutsModal = m;
+        }
+        return this._shortcutsModal;
+    }
+
+    public set shortcutsModal(val: Modal) {
+        this._shortcutsModal = val;
+    }
+
+    public get headerSlotsModal(): Modal {
+        if (!this._headerSlotsModal) {
+            const m = new Modal(this.uiContainer);
+            m.modalElement.style.top = '50%';
+            m.modalElement.style.left = '50%';
+            m.modalElement.style.right = 'auto';
+            m.modalElement.style.transform = 'translate(-50%, -50%)';
+            m.modalElement.style.maxWidth = '760px';
+            m.modalElement.style.width = '94vw';
+            m.modalElement.style.maxHeight = '85vh';
+            m.modalElement.style.overflowY = 'auto';
+            m.modalElement.style.borderTop = '3px solid #38bdf8';
+            m.modalElement.style.boxShadow = '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.2)';
+            this._headerSlotsModal = m;
+        }
+        return this._headerSlotsModal;
+    }
+
+    public set headerSlotsModal(val: Modal) {
+        this._headerSlotsModal = val;
+    }
+
     showModal(data: any): void {
-        if (this.eventModal) this.eventModal.hide();
+        if (this._eventModal) this._eventModal.hide();
         this.modal.show(data);
         this.infoPanel.style.display = 'none';
 
@@ -1640,12 +1681,12 @@ export class UIManager {
             this.controlCenter = null;
         }
 
-        this.shortcutsModal?.dispose();
-        this.headerSlotsModal?.dispose();
+        this._shortcutsModal?.dispose();
+        this._headerSlotsModal?.dispose();
         this.audioManager?.dispose();
         this.performanceMonitor?.dispose();
-        this.modal?.dispose();
-        this.eventModal?.dispose();
+        this._modal?.dispose();
+        this._eventModal?.dispose();
 
         if (this.customDatePicker) {
             this.customDatePicker.dispose();

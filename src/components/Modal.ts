@@ -34,7 +34,7 @@ export class Modal {
     tooltipElement: HTMLElement;
     public headerElement: HTMLElement | null = null;
     public titleElement: HTMLElement | null = null;
-    public audioNarrator: AudioNarrator;
+    private _audioNarrator: AudioNarrator | null = null;
     private audioGuideBtn: HTMLButtonElement | null = null;
     private closeBtn: HTMLButtonElement | null = null;
     public isOpen: boolean = false;
@@ -43,9 +43,19 @@ export class Modal {
     private hideTooltipHandler: () => void;
     private previousFocusedElement: HTMLElement | null = null;
 
+    public get audioNarrator(): AudioNarrator {
+        if (!this._audioNarrator) {
+            this._audioNarrator = new AudioNarrator();
+        }
+        return this._audioNarrator;
+    }
+
+    public set audioNarrator(val: AudioNarrator) {
+        this._audioNarrator = val;
+    }
+
     constructor(container: HTMLElement) {
         this.container = container;
-        this.audioNarrator = new AudioNarrator();
         this.modalElement = this.createModal();
         this.tooltipElement = this.createTooltipModal();
 
@@ -55,7 +65,7 @@ export class Modal {
                 this.closeBtn.setAttribute('aria-label', i18n.t('ui.close'));
                 this.closeBtn.title = i18n.t('ui.close');
             }
-            const wasSpeaking = this.audioNarrator.isSpeaking();
+            const wasSpeaking = this._audioNarrator ? this._audioNarrator.isSpeaking() : false;
             if (this.isOpen && this.currentData) {
                 this.show(this.currentData, wasSpeaking);
             } else {
@@ -636,10 +646,10 @@ export class Modal {
         this.setupInfoButtons();
         this.setupJumpToDateButtons();
         if (!preserveAudio) {
-            this.audioNarrator.stop();
+            this._audioNarrator?.stop();
             this.updateAudioGuideButtonLabel(false);
         } else {
-            this.updateAudioGuideButtonLabel(this.audioNarrator.isSpeaking());
+            this.updateAudioGuideButtonLabel(this._audioNarrator ? this._audioNarrator.isSpeaking() : false);
         }
         this.modalElement.style.display = 'block';
     }
@@ -651,7 +661,7 @@ export class Modal {
         if (this.titleElement) {
             this.titleElement.textContent = '';
         }
-        this.audioNarrator.stop();
+        this._audioNarrator?.stop();
         this.updateAudioGuideButtonLabel(false);
         this.modalElement.style.display = 'none';
         this.tooltipElement.style.display = 'none';
@@ -687,7 +697,7 @@ export class Modal {
 
     public dispose() {
         this.hide();
-        this.audioNarrator.dispose();
+        this._audioNarrator?.dispose();
         if (this.unregisterI18n) {
             this.unregisterI18n();
             this.unregisterI18n = null;

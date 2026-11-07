@@ -61,20 +61,21 @@ export class ShortcutController {
             ui.closeLangDropdown();
             return;
         }
-        if (ui.shortcutsModal?.isOpen) {
-            ui.shortcutsModal.hide();
+        const anyUi = ui as any;
+        if (anyUi._shortcutsModal?.isOpen) {
+            anyUi._shortcutsModal.hide();
             return;
         }
-        if (ui.headerSlotsModal?.isOpen) {
-            ui.headerSlotsModal.hide();
+        if (anyUi._headerSlotsModal?.isOpen) {
+            anyUi._headerSlotsModal.hide();
             return;
         }
-        if (ui.eventModal?.isOpen) {
-            ui.eventModal.hide();
+        if (anyUi._eventModal?.isOpen) {
+            anyUi._eventModal.hide();
             return;
         }
-        if (ui.modal?.isOpen) {
-            ui.modal.hide();
+        if (anyUi._modal?.isOpen) {
+            anyUi._modal.hide();
             ui.hideInfo();
             return;
         }

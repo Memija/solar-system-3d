@@ -19,8 +19,10 @@ export class Comet {
     e: number; // Eccentricity
     b: number; // Semi-minor axis
     realisticDistances: boolean = false;
+    maxTailParticles: number = 0;
     private static readonly _tempDir = new THREE.Vector3();
     private static readonly _tempLateral = new THREE.Vector3();
+    private static readonly _tempWorldPos = new THREE.Vector3();
 
     constructor(data: CometData, parent: THREE.Object3D) {
         this.data = data;
@@ -111,6 +113,7 @@ export class Comet {
             window.innerWidth <= 768
         );
         const particleCount = isMobile ? 4000 : 10000;
+        this.maxTailParticles = particleCount;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const lifetimes = new Float32Array(particleCount);
@@ -302,6 +305,24 @@ export class Comet {
             const perihelion = this.a * (1 - this.e);
             const tailVisibility = Math.max(0.15, 1 - ((dist - perihelion) / (this.a * 2.5)));
             material.uniforms.tailVisibility.value = tailVisibility;
+        }
+    }
+
+    updateLOD(cameraWorldPos: THREE.Vector3, isFocused: boolean = false) {
+        if (!this.tailParticles || this.maxTailParticles <= 0) return;
+        this.orbitGroup.getWorldPosition(Comet._tempWorldPos);
+        const distSq = cameraWorldPos.distanceToSquared(Comet._tempWorldPos);
+        let activeCount: number;
+        if (isFocused || distSq <= 220 * 220) {
+            activeCount = this.maxTailParticles;
+        } else if (distSq <= 500 * 500) {
+            activeCount = Math.floor(this.maxTailParticles * 0.55);
+        } else {
+            activeCount = Math.floor(this.maxTailParticles * 0.3);
+        }
+        const drawRange = this.tailParticles.geometry.drawRange;
+        if (drawRange.count !== activeCount) {
+            this.tailParticles.geometry.setDrawRange(0, activeCount);
         }
     }
 

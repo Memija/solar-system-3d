@@ -751,6 +751,15 @@ export class SceneManager {
             // Sync the line batcher first so merged LineSegments meshes are present on layer 0
             // and individual source orbit/trail lines are already moved to layer 31.
             this.scene.updateMatrixWorld?.();
+            const camPos = this.camera.position;
+            for (let i = 0; i < this.planets.length; i++) {
+                this.planets[i].updateLOD?.(camPos, false);
+            }
+            if (this.showComets) {
+                for (let i = 0; i < this.comets.length; i++) {
+                    this.comets[i].updateLOD?.(camPos, false);
+                }
+            }
             if (this.lineBatcher) {
                 const rebaseDistance = Math.max(1e-4, this.camera.position.distanceTo(this.controls.target) * 0.25);
                 this.lineBatcher.sync(this.camera.position, rebaseDistance);
@@ -1055,6 +1064,12 @@ export class SceneManager {
                 (this.focusedBody !== null && Array.isArray(planet.moons) && planet.moons.includes(this.focusedBody as any));
             planet.updateLOD?.(camPos, isFocused);
         }
+        if (this.showComets) {
+            for (let i = 0; i < this.comets.length; i++) {
+                const comet = this.comets[i];
+                comet.updateLOD?.(camPos, this.focusedBody === comet);
+            }
+        }
 
         // Throttle 6-face PointLight shadow cubemap updates when paused or in wide/real-time views
         if (this.renderer?.shadowMap) {
@@ -1249,6 +1264,9 @@ export class SceneManager {
         if (sun && sun.labelSprite) {
             sun.showLabel = this.realisticDistances;
             sun.labelSprite.visible = this.realisticDistances;
+            if (this.realisticDistances) {
+                sun.ensureLabelRendered?.();
+            }
         }
 
         this.planets.forEach(planet => {
@@ -1256,6 +1274,9 @@ export class SceneManager {
             if (planet.labelSprite) {
                 planet.showLabel = this.realisticDistances;
                 planet.labelSprite.visible = this.realisticDistances;
+                if (this.realisticDistances) {
+                    planet.ensureLabelRendered?.();
+                }
             }
         });
 
