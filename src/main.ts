@@ -79,7 +79,6 @@ const yieldFrame = (ms: number = 16) => new Promise(resolve => setTimeout(resolv
 const PREWARM_WORLD_TEXTURES = [
   'Mercury',
   'Venus',
-  'EarthClouds',
   'Mars',
   'Jupiter',
   'Saturn',

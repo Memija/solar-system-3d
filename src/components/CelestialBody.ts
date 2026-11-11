@@ -130,8 +130,53 @@ export class CelestialBody {
     private static _sharedVelHeadMat: THREE.MeshBasicMaterial | null = null;
     private static _sharedVelPulseMat: THREE.MeshBasicMaterial | null = null;
     private static _sharedPlaceholderSpriteTex: THREE.CanvasTexture | null = null;
+    private static _sharedAtmoLowGeo: THREE.SphereGeometry | null = null;
+    private static _sharedAtmoHighGeo: THREE.SphereGeometry | null = null;
     private static _velocityPulseTimer = 0;
     private static _velocityPulseCycle = 0;
+
+    private static getSharedAtmoLowGeo(): THREE.SphereGeometry {
+        if (!CelestialBody._sharedAtmoLowGeo) {
+            const geo = new THREE.SphereGeometry(1, 20, 20);
+            geo.userData.shared = true;
+            CelestialBody._sharedAtmoLowGeo = geo;
+        }
+        return CelestialBody._sharedAtmoLowGeo;
+    }
+
+    private static getSharedAtmoHighGeo(): THREE.SphereGeometry {
+        if (!CelestialBody._sharedAtmoHighGeo) {
+            const geo = new THREE.SphereGeometry(1, 48, 48);
+            geo.userData.shared = true;
+            CelestialBody._sharedAtmoHighGeo = geo;
+        }
+        return CelestialBody._sharedAtmoHighGeo;
+    }
+
+    private static applyIapetusShape(geometry: THREE.BufferGeometry): void {
+        // Iapetus has an iconic walnut shape: polar flattening and a prominent equatorial mountain ridge
+        const pos = geometry.attributes.position;
+        const v = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+            v.fromBufferAttribute(pos, i);
+            const r = v.length();
+            if (r > 0) {
+                const lat = Math.asin(Math.max(-1, Math.min(1, v.y / r)));
+                // Oblate polar flattening (polar radius ~0.955 of equatorial)
+                const oblateness = 1.0 - 0.045 * Math.sin(lat) * Math.sin(lat);
+                // Equatorial ridge: sharp triangular peak along the equator (|lat| < 0.11 rad ~ 6.3 deg)
+                let ridge = 0;
+                if (Math.abs(lat) < 0.11) {
+                    const ridgeFactor = 1.0 - Math.abs(lat) / 0.11;
+                    ridge = Math.pow(ridgeFactor, 1.8) * 0.06;
+                }
+                const newR = r * oblateness * (1.0 + ridge);
+                v.setLength(newR);
+                pos.setXYZ(i, v.x, v.y, v.z);
+            }
+        }
+        geometry.computeVertexNormals();
+    }
 
     private static getSharedPlaceholderSpriteTex(): THREE.CanvasTexture {
         if (!CelestialBody._sharedPlaceholderSpriteTex) {
@@ -253,40 +298,14 @@ export class CelestialBody {
         this.orbitGroup.add(this.tiltGroup);
 
         // Geometry - Start with low-poly LOD geometry at boot and lazily build high-res geometry only when approached
-        const canLodGeometry = this.data.name !== 'Iapetus';
-        const initSegments = canLodGeometry ? (this.data.name === 'Sun' ? 32 : (this.isMoon ? 14 : 20)) : 64;
+        // (even heightSegments=14 preserves exact lat=0 equatorial ring vertices for Iapetus's walnut ridge).
+        const initSegments = this.data.name === 'Sun' ? 32 : (this.isMoon ? 14 : 20);
         const geometry = new THREE.SphereGeometry(this.data.radius, initSegments, initSegments);
-        if (canLodGeometry) {
-            this.lowGeometry = geometry;
-            this.highGeometry = null;
-        } else {
-            this.highGeometry = geometry;
-            this.lowGeometry = null;
-        }
+        this.lowGeometry = geometry;
+        this.highGeometry = null;
 
         if (this.data.name === 'Iapetus') {
-            // Iapetus has an iconic walnut shape: polar flattening and a prominent equatorial mountain ridge
-            const pos = geometry.attributes.position;
-            const v = new THREE.Vector3();
-            for (let i = 0; i < pos.count; i++) {
-                v.fromBufferAttribute(pos, i);
-                const r = v.length();
-                if (r > 0) {
-                    const lat = Math.asin(Math.max(-1, Math.min(1, v.y / r)));
-                    // Oblate polar flattening (polar radius ~0.955 of equatorial)
-                    const oblateness = 1.0 - 0.045 * Math.sin(lat) * Math.sin(lat);
-                    // Equatorial ridge: sharp triangular peak along the equator (|lat| < 0.11 rad ~ 6.3 deg)
-                    let ridge = 0;
-                    if (Math.abs(lat) < 0.11) {
-                        const ridgeFactor = 1.0 - Math.abs(lat) / 0.11;
-                        ridge = Math.pow(ridgeFactor, 1.8) * 0.06;
-                    }
-                    const newR = r * oblateness * (1.0 + ridge);
-                    v.setLength(newR);
-                    pos.setXYZ(i, v.x, v.y, v.z);
-                }
-            }
-            geometry.computeVertexNormals();
+            CelestialBody.applyIapetusShape(geometry);
         }
 
         // Material
@@ -304,19 +323,25 @@ export class CelestialBody {
             material = sunMaterial;
             this.shaderMaterial = sunMaterial;
         } else if (this.data.name === 'Earth') {
-            // High-resolution NASA Blue Marble WebP satellite map of Earth
+            // High-resolution NASA Blue Marble WebP satellite map of Earth (decoded off-thread)
             const roughnessMap = TextureGenerator.getPlanetRoughnessMap('Earth');
             const textureUrl = `${import.meta.env.BASE_URL}textures/earth_equirectangular.webp`;
-            const texture = new THREE.TextureLoader().load(textureUrl, (loadedTex) => {
-                if (loadedTex?.image) {
-                    TextureGenerator.updateEarthRoughnessFromImage(loadedTex.image);
-                }
-            });
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.anisotropy = TextureGenerator.maxAnisotropy;
-            texture.minFilter = THREE.LinearMipmapLinearFilter;
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.ClampToEdgeWrapping;
+            const texture = typeof TextureGenerator.loadStaticImageTexture === 'function'
+                ? TextureGenerator.loadStaticImageTexture(textureUrl, {
+                    colorSpace: THREE.SRGBColorSpace,
+                    anisotropy: TextureGenerator.maxAnisotropy,
+                    minFilter: THREE.LinearMipmapLinearFilter,
+                    wrapS: THREE.RepeatWrapping,
+                    wrapT: THREE.ClampToEdgeWrapping,
+                    onImageReady: (img, isFlippedY) => {
+                        TextureGenerator.updateEarthRoughnessFromImage(img, isFlippedY);
+                    }
+                })
+                : new THREE.TextureLoader().load(textureUrl, (loadedTex) => {
+                    if (loadedTex?.image) {
+                        TextureGenerator.updateEarthRoughnessFromImage(loadedTex.image);
+                    }
+                });
 
             material = new THREE.MeshStandardMaterial({
                 map: texture,
@@ -326,14 +351,17 @@ export class CelestialBody {
                 color: 0xffffff
             });
         } else if (this.data.name === 'Moon') {
-            // Real Lunar Reconnaissance Orbiter equirectangular map + surface crater relief
+            // Real Lunar Reconnaissance Orbiter equirectangular map + surface crater relief (decoded off-thread)
             const textureUrl = `${import.meta.env.BASE_URL}textures/moon.webp`;
-            const texture = new THREE.TextureLoader().load(textureUrl);
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.anisotropy = TextureGenerator.maxAnisotropy;
-            texture.minFilter = THREE.LinearMipmapLinearFilter;
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.ClampToEdgeWrapping;
+            const texture = typeof TextureGenerator.loadStaticImageTexture === 'function'
+                ? TextureGenerator.loadStaticImageTexture(textureUrl, {
+                    colorSpace: THREE.SRGBColorSpace,
+                    anisotropy: TextureGenerator.maxAnisotropy,
+                    minFilter: THREE.LinearMipmapLinearFilter,
+                    wrapS: THREE.RepeatWrapping,
+                    wrapT: THREE.ClampToEdgeWrapping
+                })
+                : new THREE.TextureLoader().load(textureUrl);
 
             material = new THREE.MeshStandardMaterial({
                 map: texture,
@@ -387,10 +415,9 @@ export class CelestialBody {
         this.createAtmosphere();
 
         if (this.data.name === 'Earth') {
-            // Earth Cloud Sphere - seamless 2:1 equirectangular crisp white cloud deck
-            const cloudGeometry = new THREE.SphereGeometry(this.data.radius * 1.008, 48, 48);
-            const cloudTexture = TextureGenerator.getPlanetTexture('EarthClouds');
-            const cloudMaterial = new THREE.MeshStandardMaterial({
+            // Earth Cloud Sphere - seamless 2:1 equirectangular crisp white cloud deck (deferred until close/focus)
+            const cloudGeometry = new THREE.SphereGeometry(this.data.radius * 1.008, 32, 32);
+            const buildCloudMaterial = (cloudTexture: THREE.Texture) => new THREE.MeshStandardMaterial({
                 map: cloudTexture,
                 transparent: true,
                 opacity: 0.88,
@@ -401,6 +428,9 @@ export class CelestialBody {
                 blending: THREE.NormalBlending,
                 depthWrite: false
             });
+            const cloudMaterial = typeof TextureGenerator.getOrDeferPlanetSurface === 'function'
+                ? TextureGenerator.getOrDeferPlanetSurface('EarthClouds', 0xffffff, buildCloudMaterial)
+                : buildCloudMaterial(TextureGenerator.getPlanetTexture('EarthClouds'));
             this.cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
             this.cloudMesh.receiveShadow = true;
             this.tiltGroup.add(this.cloudMesh);
@@ -605,8 +635,7 @@ export class CelestialBody {
         const config = atmosphereConfigs[this.data.name];
         if (!config) return;
 
-        const segments = this.data.radius > 3 ? 48 : 32;
-        const atmosphereGeometry = new THREE.SphereGeometry(this.data.radius * config.scale, segments, segments);
+        const atmosphereGeometry = CelestialBody.getSharedAtmoLowGeo();
         const atmosphereMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 glowColor: { value: new THREE.Color(config.color) },
@@ -659,6 +688,7 @@ export class CelestialBody {
         });
 
         this.atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+        this.atmosphereMesh.scale.setScalar(this.data.radius * config.scale);
         this.tiltGroup.add(this.atmosphereMesh);
     }
 
@@ -1339,12 +1369,17 @@ export class CelestialBody {
     private getOrCreateHighGeometry(): THREE.BufferGeometry {
         if (!this.highGeometry) {
             let segments = 48;
-            if (this.isMoon) {
+            if (this.data.name === 'Iapetus') {
+                segments = 64;
+            } else if (this.isMoon) {
                 segments = this.data.radius < 0.5 ? 24 : 32;
             } else if (this.data.radius > 3 || this.data.name === 'Earth') {
                 segments = 64;
             }
             this.highGeometry = new THREE.SphereGeometry(this.data.radius, segments, segments);
+            if (this.data.name === 'Iapetus') {
+                CelestialBody.applyIapetusShape(this.highGeometry);
+            }
         }
         return this.highGeometry;
     }
@@ -1356,6 +1391,11 @@ export class CelestialBody {
         const scale = this.tiltGroup ? this.tiltGroup.scale.x : 1.0;
         const effectiveRadius = Math.max(0.05, this.data.radius * scale);
 
+        const geomLodMaxDist = this.data.name === 'Sun'
+            ? effectiveRadius * 12
+            : Math.max(140, effectiveRadius * 42);
+        const useHighGeom = isFocused || distSq <= geomLodMaxDist * geomLodMaxDist;
+
         if (this.auroraMeshNorth && this.auroraMeshSouth) {
             const auroraMaxDist = effectiveRadius * 65;
             const showAurora = isFocused || distSq <= auroraMaxDist * auroraMaxDist;
@@ -1364,16 +1404,27 @@ export class CelestialBody {
         }
 
         if (this.cloudMesh) {
-            const cloudMaxDist = effectiveRadius * 140;
-            this.cloudMesh.visible = isFocused || distSq <= cloudMaxDist * cloudMaxDist;
+            const cloudMaxDist = effectiveRadius * 95;
+            const showClouds = isFocused || distSq <= cloudMaxDist * cloudMaxDist;
+            this.cloudMesh.visible = showClouds;
+            if (showClouds) {
+                TextureGenerator.ensureDeferredLoaded?.('EarthClouds');
+            }
         }
 
         if (this.atmosphereMesh) {
             const atmoMaxDist = effectiveRadius * 180;
-            this.atmosphereMesh.visible = isFocused || distSq <= atmoMaxDist * atmoMaxDist;
+            const showAtmo = isFocused || distSq <= atmoMaxDist * atmoMaxDist;
+            this.atmosphereMesh.visible = showAtmo;
+            if (showAtmo) {
+                const targetAtmoGeo = useHighGeom ? CelestialBody.getSharedAtmoHighGeo() : CelestialBody.getSharedAtmoLowGeo();
+                if (this.atmosphereMesh.geometry !== targetAtmoGeo) {
+                    this.atmosphereMesh.geometry = targetAtmoGeo;
+                }
+            }
         }
 
-        const moonShadowMaxDist = Math.max(220, effectiveRadius * 95);
+        const moonShadowMaxDist = Math.max(140, effectiveRadius * 22);
         const enableMoonShadows = isFocused || distSq <= moonShadowMaxDist * moonShadowMaxDist;
         const detailTexMaxDist = Math.max(60, effectiveRadius * 18);
         const loadDetailTextures = isFocused || distSq <= detailTexMaxDist * detailTexMaxDist;
@@ -1403,10 +1454,6 @@ export class CelestialBody {
             }
         }
 
-        const geomLodMaxDist = this.data.name === 'Sun'
-            ? effectiveRadius * 12
-            : Math.max(140, effectiveRadius * 42);
-        const useHighGeom = isFocused || distSq <= geomLodMaxDist * geomLodMaxDist;
         if (this.mesh && this.lowGeometry) {
             const targetGeom = useHighGeom ? this.getOrCreateHighGeometry() : this.lowGeometry;
             if (this.mesh.geometry !== targetGeom) {
@@ -1420,16 +1467,27 @@ export class CelestialBody {
 
         for (let i = 0; i < this.moons.length; i++) {
             const moon = this.moons[i];
+            const moonRadius = Math.max(0.02, moon.data.radius * scale);
+            const moonVisMaxDist = Math.max(180, moonRadius * 1500);
+            const showMoonMesh = isFocused || distSq <= moonVisMaxDist * moonVisMaxDist;
             if (moon.mesh) {
-                const moonRadius = Math.max(0.02, moon.data.radius * scale);
-                const moonVisMaxDist = Math.max(180, moonRadius * 1500);
-                const showMoonMesh = isFocused || distSq <= moonVisMaxDist * moonVisMaxDist;
                 moon.mesh.visible = showMoonMesh;
                 moon.mesh.castShadow = showMoonMesh && enableMoonShadows;
                 if (showMoonMesh && moon.lowGeometry) {
                     const targetMoonGeom = useHighGeom ? moon.getOrCreateHighGeometry() : moon.lowGeometry;
                     if (moon.mesh.geometry !== targetMoonGeom) {
                         moon.mesh.geometry = targetMoonGeom;
+                    }
+                }
+            }
+            if (moon.atmosphereMesh) {
+                const moonAtmoMaxDist = moonRadius * 180;
+                const showMoonAtmo = showMoonMesh && (isFocused || distSq <= moonAtmoMaxDist * moonAtmoMaxDist);
+                moon.atmosphereMesh.visible = showMoonAtmo;
+                if (showMoonAtmo) {
+                    const targetAtmoGeo = useHighGeom ? CelestialBody.getSharedAtmoHighGeo() : CelestialBody.getSharedAtmoLowGeo();
+                    if (moon.atmosphereMesh.geometry !== targetAtmoGeo) {
+                        moon.atmosphereMesh.geometry = targetAtmoGeo;
                     }
                 }
             }
@@ -1574,7 +1632,9 @@ export class CelestialBody {
         }
 
         if (this.atmosphereMesh) {
-            this.atmosphereMesh.geometry?.dispose();
+            if (!this.atmosphereMesh.geometry?.userData?.shared) {
+                this.atmosphereMesh.geometry?.dispose();
+            }
             if (Array.isArray(this.atmosphereMesh.material)) {
                 this.atmosphereMesh.material.forEach(m => m.dispose());
             } else {

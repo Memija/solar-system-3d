@@ -62,7 +62,6 @@ export function applySpaceEnvironmentMap(
 
         if (typeof THREE.PMREMGenerator === 'function') {
             pmremGenerator = new THREE.PMREMGenerator(renderer);
-            pmremGenerator.compileEquirectangularShader?.();
             pmremTarget = pmremGenerator.fromEquirectangular(envDataTexture);
             if (pmremTarget?.texture) {
                 scene.environment = pmremTarget.texture;

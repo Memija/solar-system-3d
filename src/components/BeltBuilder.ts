@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MajorStarsData } from './MajorStarsData';
 import { equatorialToEcliptic3D } from './MathUtils';
+import { TextureGenerator } from './TextureGenerator';
 
 export interface StarfieldHandle {
     skybox: THREE.Mesh;
@@ -15,13 +16,10 @@ export function buildAsteroidBelt(scene: THREE.Scene, visible: boolean): THREE.I
     const minDistance = 200;
     const maxDistance = 250;
 
-    // OctahedronGeometry(0.5, 0) uses 8 triangles/rock instead of 36 (DodecahedronGeometry),
-    // saving 56,000 triangles per frame across 2,000 sub-pixel belt rocks.
-    const geometry = new THREE.OctahedronGeometry(0.5, 0);
-    const material = new THREE.MeshStandardMaterial({
-        roughness: 0.85,
-        metalness: 0.15
-    });
+    // TetrahedronGeometry(0.55, 0) uses 4 triangles/rock instead of 36 (DodecahedronGeometry),
+    // paired with Lambert diffuse solar lighting to eliminate GGX/PMREM PBR overhead across 2,000 sub-pixel rocks.
+    const geometry = new THREE.TetrahedronGeometry(0.55, 0);
+    const material = new THREE.MeshLambertMaterial();
 
     const asteroidBelt = new THREE.InstancedMesh(geometry, material, numAsteroids);
     asteroidBelt.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 260);
@@ -72,13 +70,10 @@ export function buildKuiperBelt(scene: THREE.Scene, visible: boolean): THREE.Ins
     const minDistance = 670;
     const maxDistance = 850;
 
-    // OctahedronGeometry(0.8, 0) uses 8 triangles/rock instead of 36 (DodecahedronGeometry),
-    // saving 70,000 triangles per frame across 2,500 sub-pixel Kuiper belt bodies.
-    const geometry = new THREE.OctahedronGeometry(0.8, 0);
-    const material = new THREE.MeshStandardMaterial({
-        roughness: 0.7,
-        metalness: 0.1
-    });
+    // TetrahedronGeometry(0.88, 0) uses 4 triangles/rock instead of 36 (DodecahedronGeometry),
+    // paired with Lambert diffuse solar lighting across 2,500 sub-pixel Kuiper belt bodies.
+    const geometry = new THREE.TetrahedronGeometry(0.88, 0);
+    const material = new THREE.MeshLambertMaterial();
 
     const kuiperBelt = new THREE.InstancedMesh(geometry, material, numObjects);
     kuiperBelt.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 860);
@@ -206,11 +201,19 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
     // Opaque Milky Way WebP skybox (eliminates full-screen alpha blending overdraw).
     // 28x20 segments (1,120 tris vs 8,192 for 64x64) is curvature-free from the interior at r=50,000.
     const skyGeometry = new THREE.SphereGeometry(50000, 28, 20);
-    const textureLoader = new THREE.TextureLoader();
     const textureUrl = `${import.meta.env.BASE_URL}textures/milky_way.webp`;
-    const skyTexture = textureLoader.load(textureUrl);
-    skyTexture.colorSpace = THREE.SRGBColorSpace;
-    skyTexture.anisotropy = renderer.capabilities?.getMaxAnisotropy?.() ?? 16;
+    const aniso = renderer.capabilities?.getMaxAnisotropy?.() ?? 16;
+    const skyTexture = typeof TextureGenerator.loadStaticImageTexture === 'function'
+        ? TextureGenerator.loadStaticImageTexture(textureUrl, {
+            colorSpace: THREE.SRGBColorSpace,
+            anisotropy: aniso
+        })
+        : (() => {
+            const tex = new THREE.TextureLoader().load(textureUrl);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.anisotropy = aniso;
+            return tex;
+        })();
 
     const skyMaterial = new THREE.MeshBasicMaterial({
         map: skyTexture,

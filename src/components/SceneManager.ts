@@ -148,7 +148,8 @@ export class SceneManager {
     onTimeScaleChange?: (newScale: number) => void;
     private unregisterI18n?: () => void;
     private shadowFrameCounter: number = 0;
-    private shadowRenderedWhilePaused: boolean = false;
+    private lastShadowSimTime: number = NaN;
+    private lastShadowCasterMask: number = -1;
     private lastUpdatedSimTime: number = NaN;
     private lastUpdatedRealisticDistances: boolean = false;
     private lastMeasureRoundedAU: number = NaN;
@@ -351,7 +352,7 @@ export class SceneManager {
             sc.update(0, simTimePassed, this.simDate, 0);
         });
         this.scene.updateMatrixWorld?.(true);
-        this.shadowRenderedWhilePaused = false;
+        this.lastShadowSimTime = NaN;
         this.renderDirty = true;
         if (this.renderer?.shadowMap) {
             this.renderer.shadowMap.needsUpdate = true;
@@ -463,7 +464,7 @@ export class SceneManager {
         const rtWidth = Math.max(1, Math.floor(window.innerWidth * dpr));
         const rtHeight = Math.max(1, Math.floor(window.innerHeight * dpr));
         const renderTarget = new THREE.WebGLRenderTarget(rtWidth, rtHeight, {
-            samples: isMobile ? 2 : 4,
+            samples: (isMobile || isIntelD3D11) ? 2 : 4,
             type: THREE.HalfFloatType
         });
 
@@ -507,8 +508,9 @@ export class SceneManager {
 
         // Point-light shadows are packed into a 4x2 atlas of cube faces, so the backing texture is
         // (4 * mapSize) x (2 * mapSize) plus an equally sized depth buffer. 4096 per face meant a
-        // 16384x8192 atlas (~1 GB of VRAM) on GPUs that allow it; 2048 keeps it at 8192x4096.
-        const shadowMapSize = isMobile ? 1024 : 2048;
+        // 16384x8192 atlas (~1 GB of VRAM) on GPUs that allow it; 2048 keeps it at 8192x4096 on
+        // discrete GPUs, while 1024 (4096x2048) cuts integrated/mobile shadow fill-rate by 75%.
+        const shadowMapSize = (isMobile || isIntelD3D11) ? 1024 : 2048;
         this.pointLight.shadow.mapSize.width = shadowMapSize;
         this.pointLight.shadow.mapSize.height = shadowMapSize;
         this.pointLight.shadow.camera.near = 10;
@@ -1081,23 +1083,43 @@ export class SceneManager {
             }
         }
 
-        // Throttle 6-face PointLight shadow cubemap updates when paused or in wide/real-time views
+        // Schedule omnidirectional PointLight shadow cubemap updates strictly on shadow-caster LOD changes
+        // or meaningful astronomical motion (the Sun-centered cubemap is 100% view-independent).
         if (this.renderer?.shadowMap) {
-            if (this.timeScale === 0) {
-                if (!this.shadowRenderedWhilePaused) {
-                    this.renderer.shadowMap.needsUpdate = true;
-                    this.shadowRenderedWhilePaused = true;
+            let casterMask = 0;
+            let hasMoonShadowCaster = false;
+            const planetCount = Math.min(12, this.planets.length);
+            for (let i = 0; i < planetCount; i++) {
+                const p = this.planets[i];
+                if (p.mesh?.castShadow) {
+                    casterMask |= (1 << i);
                 }
-            } else {
-                this.shadowRenderedWhilePaused = false;
-                this.shadowFrameCounter++;
-                const isCloseFocus = Boolean(this.focusedBody || this.surfaceViewBody);
-                const isRealTimeRate = this.timeScale <= SceneManager.SPEED_PRESETS.realTime * 2.0;
-                const shadowInterval = isCloseFocus ? (isRealTimeRate ? 3 : 1) : 4;
-                if (this.shadowFrameCounter >= shadowInterval) {
-                    this.shadowFrameCounter = 0;
-                    this.renderer.shadowMap.needsUpdate = true;
+                const firstMoon = p.moons?.[0];
+                if (firstMoon?.mesh?.castShadow) {
+                    casterMask |= (1 << (i + 12));
+                    hasMoonShadowCaster = true;
                 }
+            }
+            const isSpacecraftShadowCaster = Boolean(
+                this.focusedBody && this.spacecrafts.includes(this.focusedBody as Spacecraft)
+            );
+            if (isSpacecraftShadowCaster) {
+                casterMask |= (1 << 28);
+            }
+
+            const hasFastShadowCaster = hasMoonShadowCaster || isSpacecraftShadowCaster;
+            const shadowSimThreshold = isSpacecraftShadowCaster ? 2e-5 : (hasMoonShadowCaster ? 1.2e-4 : 0.008);
+            const casterMaskChanged = casterMask !== this.lastShadowCasterMask;
+            const isFirstShadowPass = Number.isNaN(this.lastShadowSimTime);
+            const simMovedEnough = isFirstShadowPass || Math.abs(simTimePassed - this.lastShadowSimTime) >= shadowSimThreshold;
+
+            this.shadowFrameCounter++;
+            const minFrameInterval = hasFastShadowCaster ? 2 : 4;
+            if (casterMaskChanged || isFirstShadowPass || (simMovedEnough && this.shadowFrameCounter >= minFrameInterval)) {
+                this.renderer.shadowMap.needsUpdate = true;
+                this.lastShadowSimTime = simTimePassed;
+                this.lastShadowCasterMask = casterMask;
+                this.shadowFrameCounter = 0;
             }
         }
 
@@ -1333,6 +1355,11 @@ export class SceneManager {
                 TextureGenerator.ensureDeferredLoaded?.(target.data.name, () => {
                     this.renderDirty = true;
                 });
+                if (target.data.name === 'Earth') {
+                    TextureGenerator.ensureDeferredLoaded?.('EarthClouds', () => {
+                        this.renderDirty = true;
+                    });
+                }
             }
             if ('moons' in target && Array.isArray((target as CelestialBody).moons)) {
                 (target as CelestialBody).moons.forEach(m => {
@@ -2055,6 +2082,11 @@ export class SceneManager {
             TextureGenerator.ensureDeferredLoaded?.(target.data.name, () => {
                 this.renderDirty = true;
             });
+            if (target.data.name === 'Earth') {
+                TextureGenerator.ensureDeferredLoaded?.('EarthClouds', () => {
+                    this.renderDirty = true;
+                });
+            }
             this.surfaceViewBody = target;
             this.surfaceYaw = 0;
             this.surfacePitch = 0.22;

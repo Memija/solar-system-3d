@@ -31,6 +31,10 @@ export class TextureGenerator {
             this.sharedPlaceholderMap.dispose();
             this.sharedPlaceholderMap = null;
         }
+        if (this.sharedTransparentPlaceholderMap) {
+            this.sharedTransparentPlaceholderMap.dispose();
+            this.sharedTransparentPlaceholderMap = null;
+        }
         if (this.sharedPlaceholderBump) {
             this.sharedPlaceholderBump.dispose();
             this.sharedPlaceholderBump = null;
@@ -293,6 +297,7 @@ export class TextureGenerator {
     }> = [];
     private static loadingDeferred: Set<string> = new Set();
     private static sharedPlaceholderMap: THREE.CanvasTexture | null = null;
+    private static sharedTransparentPlaceholderMap: THREE.CanvasTexture | null = null;
     private static sharedPlaceholderBump: THREE.CanvasTexture | null = null;
 
     private static getSharedPlaceholderMap(): THREE.CanvasTexture {
@@ -314,6 +319,86 @@ export class TextureGenerator {
             this.sharedPlaceholderMap = tex;
         }
         return this.sharedPlaceholderMap;
+    }
+
+    private static getSharedTransparentPlaceholderMap(): THREE.CanvasTexture {
+        if (!this.sharedTransparentPlaceholderMap) {
+            const mapCanvas = document.createElement('canvas');
+            mapCanvas.width = 8;
+            mapCanvas.height = 4;
+            const ctx = mapCanvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, 8, 4);
+            }
+            const tex = new THREE.CanvasTexture(mapCanvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.userData = { shared: true };
+            tex.needsUpdate = true;
+            this.sharedTransparentPlaceholderMap = tex;
+        }
+        return this.sharedTransparentPlaceholderMap;
+    }
+
+    /**
+     * Load a static WebP/PNG texture off the main thread via `fetch` + `createImageBitmap`
+     * (`imageOrientation: 'flipY'`, `flipY = false`), avoiding synchronous main-thread image
+     * decoding and CPU `UNPACK_FLIP_Y_WEBGL` pixel-row flipping during WebGL texture upload.
+     * Falls back cleanly to `THREE.TextureLoader` in headless/unit-test environments.
+     */
+    static loadStaticImageTexture(
+        url: string,
+        options?: {
+            colorSpace?: THREE.ColorSpace;
+            anisotropy?: number;
+            wrapS?: THREE.Wrapping;
+            wrapT?: THREE.Wrapping;
+            minFilter?: THREE.MinificationTextureFilter;
+            onImageReady?: (img: CanvasImageSource, isFlippedY: boolean) => void;
+        }
+    ): THREE.Texture {
+        const applyParams = (tex: THREE.Texture) => {
+            if (options?.colorSpace !== undefined) tex.colorSpace = options.colorSpace;
+            if (options?.anisotropy !== undefined) tex.anisotropy = options.anisotropy;
+            if (options?.wrapS !== undefined) tex.wrapS = options.wrapS;
+            if (options?.wrapT !== undefined) tex.wrapT = options.wrapT;
+            if (options?.minFilter !== undefined) tex.minFilter = options.minFilter;
+        };
+
+        if (typeof fetch === 'function' && typeof createImageBitmap === 'function') {
+            const tex = new THREE.Texture();
+            applyParams(tex);
+            void fetch(url)
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.blob();
+                })
+                .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+                .then(bitmap => {
+                    tex.image = bitmap;
+                    tex.flipY = false;
+                    tex.needsUpdate = true;
+                    options?.onImageReady?.(bitmap, true);
+                })
+                .catch(() => {
+                    new THREE.ImageLoader().load(url, (img) => {
+                        tex.image = img;
+                        tex.flipY = true;
+                        tex.needsUpdate = true;
+                        options?.onImageReady?.(img, false);
+                    });
+                });
+            return tex;
+        }
+
+        const tex = new THREE.TextureLoader().load(url, (loadedTex) => {
+            if (loadedTex?.image) {
+                options?.onImageReady?.(loadedTex.image as CanvasImageSource, false);
+            }
+        });
+        applyParams(tex);
+        return tex;
     }
 
     private static getSharedPlaceholderBump(): THREE.CanvasTexture {
@@ -452,11 +537,13 @@ export class TextureGenerator {
             return onCreateMaterial(map, bumpMap);
         }
 
-        const placeholderMap = this.getSharedPlaceholderMap();
+        const placeholderMap = name === 'EarthClouds'
+            ? this.getSharedTransparentPlaceholderMap()
+            : this.getSharedPlaceholderMap();
         const placeholderBump = this.BUMP_WORLDS.has(name) ? this.getSharedPlaceholderBump() : null;
 
         const material = onCreateMaterial(placeholderMap, placeholderBump);
-        material.color.setHex(baseColorHex || 0x888888);
+        material.color.setHex(name === 'EarthClouds' ? 0xffffff : (baseColorHex || 0x888888));
         this.deferredQueue.push({ name, material, placeholderMap, placeholderBump });
         return material;
     }
@@ -627,7 +714,7 @@ export class TextureGenerator {
      * Derive Earth ocean/ice/land roughness map directly from an already-loaded image element,
      * eliminating duplicate image downloads.
      */
-    static updateEarthRoughnessFromImage(img: CanvasImageSource): void {
+    static updateEarthRoughnessFromImage(img: CanvasImageSource, isFlippedY: boolean = false): void {
         const texture = this.getPlanetRoughnessMap('Earth');
         const canvas = texture.image as HTMLCanvasElement | undefined;
         if (!canvas || typeof canvas.getContext !== 'function') return;
@@ -637,7 +724,15 @@ export class TextureGenerator {
         const width = canvas.width;
         const height = canvas.height;
         try {
-            ctx.drawImage(img, 0, 0, width, height);
+            if (isFlippedY && typeof ctx.save === 'function' && typeof ctx.translate === 'function' && typeof ctx.scale === 'function') {
+                ctx.save();
+                ctx.translate(0, height);
+                ctx.scale(1, -1);
+                ctx.drawImage(img, 0, 0, width, height);
+                ctx.restore();
+            } else {
+                ctx.drawImage(img, 0, 0, width, height);
+            }
             const imgData = ctx.getImageData(0, 0, width, height);
             if (!imgData || !imgData.data) return;
             const data = imgData.data;

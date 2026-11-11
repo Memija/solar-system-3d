@@ -697,13 +697,16 @@ export class Spacecraft {
 
     updateLOD(cameraWorldPos: THREE.Vector3, isFocused: boolean = false) {
         if (!this.baseGroup.visible) {
+            this.mesh.visible = false;
             this.beaconInLodRange = false;
             if (this.beaconMesh) this.beaconMesh.visible = false;
             return;
         }
         this.orbitGroup.getWorldPosition(Spacecraft._tempWorldPos);
         const distSq = cameraWorldPos.distanceToSquared(Spacecraft._tempWorldPos);
-        this.beaconInLodRange = isFocused || distSq <= 90 * 90;
+        const showMesh = isFocused || distSq <= 220 * 220;
+        this.mesh.visible = showMesh;
+        this.beaconInLodRange = showMesh && (isFocused || distSq <= 90 * 90);
         if (!this.beaconInLodRange && this.beaconMesh) {
             this.beaconMesh.visible = false;
         }
