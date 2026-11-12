@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solar-system-3d-v2';
+const CACHE_NAME = 'solar-system-3d-v8';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -8,11 +8,13 @@ self.addEventListener('install', (event) => {
         './',
         './index.html',
         './manifest.webmanifest',
-        './favicon.svg',
+        './favicon-32x32.png',
         './icon-192.png',
         './textures/earth_equirectangular.webp',
-        './textures/moon.webp',
+        './textures/earth_roughness.webp',
         './textures/milky_way.webp',
+        './textures/planets/Mercury_bump.webp',
+        './textures/planets/Mars_bump.webp',
       ]).catch(() => {})
     )
   );
@@ -42,6 +44,32 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match(request).then((res) => res || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Cache-first without background revalidation for immutable content-hashed bundles
+  // and static textures/icons (eliminates redundant warm-boot fetch + CacheStorage writes)
+  const pathname = url.pathname;
+  const isImmutableStatic =
+    pathname.includes('/assets/') ||
+    pathname.includes('/textures/') ||
+    pathname.includes('/flags/') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.ico');
+
+  if (isImmutableStatic) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        });
+      })
     );
     return;
   }

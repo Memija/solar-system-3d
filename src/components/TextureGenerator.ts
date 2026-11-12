@@ -27,6 +27,7 @@ export class TextureGenerator {
         });
         this.deferredQueue = [];
         this.loadingDeferred.clear();
+        this.staticBitmapPromises.clear();
         if (this.sharedPlaceholderMap) {
             this.sharedPlaceholderMap.dispose();
             this.sharedPlaceholderMap = null;
@@ -173,6 +174,14 @@ export class TextureGenerator {
         'Ganymede', 'Callisto', 'Mimas', 'Iapetus', 'Enceladus',
         'Triton', 'Haumea', 'Makemake', 'Io', 'Europa'
     ]);
+
+    private static readonly PREBAKED_BUMP_WORLDS = new Set([
+        'Mercury', 'Mars'
+    ]);
+
+    private static isSmallViewport(): boolean {
+        return typeof window !== 'undefined' && window.innerWidth > 0 && window.innerWidth <= 768;
+    }
 
     private static hashSeed(label: string): number {
         let h = 2166136261;
@@ -341,6 +350,31 @@ export class TextureGenerator {
         return this.sharedTransparentPlaceholderMap;
     }
 
+    private static staticBitmapPromises: Map<string, Promise<ImageBitmap>> = new Map();
+
+    /**
+     * Kick off an off-thread `fetch` + `createImageBitmap` decode ahead of `SceneManager`
+     * construction (for example before synchronous WebGL2 context acquisition) so the decoded
+     * `ImageBitmap` is already waiting when `loadStaticImageTexture(url)` is later called.
+     */
+    static preloadStaticImageBitmap(url: string): Promise<ImageBitmap> | null {
+        if (typeof fetch !== 'function' || typeof createImageBitmap !== 'function') {
+            return null;
+        }
+        let existing = this.staticBitmapPromises.get(url);
+        if (!existing) {
+            existing = fetch(url, { mode: 'cors', credentials: 'same-origin' })
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.blob();
+                })
+                .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }));
+            existing.catch(() => {});
+            this.staticBitmapPromises.set(url, existing);
+        }
+        return existing;
+    }
+
     /**
      * Load a static WebP/PNG texture off the main thread via `fetch` + `createImageBitmap`
      * (`imageOrientation: 'flipY'`, `flipY = false`), avoiding synchronous main-thread image
@@ -355,6 +389,7 @@ export class TextureGenerator {
             wrapS?: THREE.Wrapping;
             wrapT?: THREE.Wrapping;
             minFilter?: THREE.MinificationTextureFilter;
+            generateMipmaps?: boolean;
             onImageReady?: (img: CanvasImageSource, isFlippedY: boolean) => void;
         }
     ): THREE.Texture {
@@ -364,17 +399,15 @@ export class TextureGenerator {
             if (options?.wrapS !== undefined) tex.wrapS = options.wrapS;
             if (options?.wrapT !== undefined) tex.wrapT = options.wrapT;
             if (options?.minFilter !== undefined) tex.minFilter = options.minFilter;
+            if (options?.generateMipmaps !== undefined) tex.generateMipmaps = options.generateMipmaps;
         };
 
         if (typeof fetch === 'function' && typeof createImageBitmap === 'function') {
             const tex = new THREE.Texture();
             applyParams(tex);
-            void fetch(url)
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return res.blob();
-                })
-                .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+            const bitmapPromise = this.preloadStaticImageBitmap(url)!;
+            this.staticBitmapPromises.delete(url);
+            void bitmapPromise
                 .then(bitmap => {
                     tex.image = bitmap;
                     tex.flipY = false;
@@ -432,15 +465,16 @@ export class TextureGenerator {
         this.deferredQueue = this.deferredQueue.filter(it => it.name !== name);
         this.loadingDeferred.add(name);
 
-        const isMobile = typeof window !== 'undefined' && (
-            ('ontouchstart' in window) ||
-            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
-            window.innerWidth <= 768
-        );
+        const isMobile = this.isSmallViewport();
 
-        void this.loadPrebakedTextureAsync(name, isMobile).then(prebaked => {
+        void Promise.all([
+            this.loadPrebakedTextureAsync(name, isMobile),
+            this.PREBAKED_BUMP_WORLDS.has(name) ? this.loadPrebakedBumpAsync(name) : Promise.resolve(null)
+        ]).then(([prebaked, prebakedBump]) => {
             const fullMap = prebaked ?? this.getPlanetTexture(name);
-            const fullBump = this.BUMP_WORLDS.has(name) ? this.getPlanetBumpMap(name) : null;
+            const fullBump = name === 'Moon'
+                ? fullMap
+                : (prebakedBump ?? (this.BUMP_WORLDS.has(name) ? this.getPlanetBumpMap(name) : null));
             for (const item of matching) {
                 item.material.map = fullMap;
                 item.material.color.setHex(0xffffff);
@@ -456,10 +490,46 @@ export class TextureGenerator {
     }
 
     /**
+     * Fetch a pre-baked static grayscale `.webp` bump map (`public/textures/planets/<Name>_bump.webp`)
+     * and decode it off-thread into an `ImageBitmap` without any 2D `<canvas>` or `getImageData` readback.
+     */
+    private static async loadPrebakedBumpAsync(name: string): Promise<THREE.CanvasTexture | null> {
+        if (!this.PREBAKED_BUMP_WORLDS.has(name) || typeof fetch !== 'function' || typeof createImageBitmap !== 'function') {
+            return null;
+        }
+        const key = `${name}_Bump`;
+        if (this.cache.has(key)) {
+            return this.cache.get(key)!;
+        }
+        try {
+            const baseUrl = (import.meta as any).env?.BASE_URL || '/';
+            const url = `${baseUrl}textures/planets/${encodeURIComponent(name)}_bump.webp`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const contentType = res.headers?.get?.('content-type') || '';
+            if (contentType && !contentType.includes('image')) return null;
+
+            const blob = await res.blob();
+            const bitmap = await createImageBitmap(blob, { imageOrientation: 'flipY' });
+            const bumpTex = new THREE.CanvasTexture(bitmap as unknown as HTMLCanvasElement);
+            bumpTex.flipY = false;
+            bumpTex.wrapS = THREE.RepeatWrapping;
+            bumpTex.wrapT = THREE.ClampToEdgeWrapping;
+            bumpTex.anisotropy = TextureGenerator.maxAnisotropy;
+            bumpTex.minFilter = THREE.LinearMipmapLinearFilter;
+            bumpTex.generateMipmaps = true;
+            bumpTex.needsUpdate = true;
+            this.cache.set(key, bumpTex);
+            return bumpTex;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
      * Fetch a pre-baked static `.webp` surface map from `public/textures/planets/<Name>.webp`,
-     * decode it off the main thread via `createImageBitmap`, and draw it into a 2D canvas.
-     * Returns `null` if unavailable (e.g. unit tests or offline custom world), allowing callers
-     * to fall back to IndexedDB or procedural synthesis.
+     * decode it off the main thread via `createImageBitmap` (`imageOrientation: 'flipY'`), and
+     * only fall back to a 2D canvas when runtime bump-map pixel derivation or downscaling is needed.
      */
     private static async loadPrebakedTextureAsync(name: string, isMobile: boolean): Promise<THREE.CanvasTexture | null> {
         if (typeof fetch !== 'function' || typeof createImageBitmap !== 'function') {
@@ -467,15 +537,18 @@ export class TextureGenerator {
         }
         try {
             const baseUrl = (import.meta as any).env?.BASE_URL || '/';
-            const url = `${baseUrl}textures/planets/${encodeURIComponent(name)}.webp`;
+            const url = name === 'Moon'
+                ? `${baseUrl}textures/moon.webp`
+                : `${baseUrl}textures/planets/${encodeURIComponent(name)}.webp`;
             const res = await fetch(url);
             if (!res.ok) return null;
             const contentType = res.headers?.get?.('content-type') || '';
             if (contentType && !contentType.includes('image')) return null;
 
             const blob = await res.blob();
-            const needsCanvasForBump = this.BUMP_WORLDS.has(name);
-            if (!needsCanvasForBump && !isMobile) {
+            const needsCanvasForBump = this.BUMP_WORLDS.has(name) && !this.PREBAKED_BUMP_WORLDS.has(name);
+            const needsMobileDownscale = isMobile && name === 'EarthClouds';
+            if (!needsCanvasForBump && !needsMobileDownscale) {
                 const bitmap = await createImageBitmap(blob, { imageOrientation: 'flipY' });
                 const tex = new THREE.CanvasTexture(bitmap as unknown as HTMLCanvasElement);
                 tex.flipY = false;
@@ -540,7 +613,9 @@ export class TextureGenerator {
         const placeholderMap = name === 'EarthClouds'
             ? this.getSharedTransparentPlaceholderMap()
             : this.getSharedPlaceholderMap();
-        const placeholderBump = this.BUMP_WORLDS.has(name) ? this.getSharedPlaceholderBump() : null;
+        const placeholderBump = (this.BUMP_WORLDS.has(name) || name === 'Moon')
+            ? this.getSharedPlaceholderBump()
+            : null;
 
         const material = onCreateMaterial(placeholderMap, placeholderBump);
         material.color.setHex(name === 'EarthClouds' ? 0xffffff : (baseColorHex || 0x888888));
@@ -557,11 +632,7 @@ export class TextureGenerator {
         const items = this.deferredQueue.slice();
         this.deferredQueue = [];
 
-        const isMobile = typeof window !== 'undefined' && (
-            ('ontouchstart' in window) ||
-            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
-            window.innerWidth <= 768
-        );
+        const isMobile = this.isSmallViewport();
 
         const uniqueNames = Array.from(new Set(items.map(it => it.name)));
         const fetchMap = new Map<string, Promise<THREE.CanvasTexture | null>>();
@@ -579,7 +650,12 @@ export class TextureGenerator {
             if (!fullMap) {
                 fullMap = this.getPlanetTexture(item.name);
             }
-            const fullBump = this.BUMP_WORLDS.has(item.name) ? this.getPlanetBumpMap(item.name) : null;
+            const prebakedBump = this.PREBAKED_BUMP_WORLDS.has(item.name)
+                ? await this.loadPrebakedBumpAsync(item.name)
+                : null;
+            const fullBump = item.name === 'Moon'
+                ? fullMap
+                : (prebakedBump ?? (this.BUMP_WORLDS.has(item.name) ? this.getPlanetBumpMap(item.name) : null));
 
             item.material.map = fullMap;
             item.material.color.setHex(0xffffff);
@@ -608,16 +684,15 @@ export class TextureGenerator {
         const getNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
         let sliceStart = getNow();
         const canUseBitmapCache = typeof indexedDB !== 'undefined' && typeof createImageBitmap === 'function';
-        const isMobile = typeof window !== 'undefined' && (
-            ('ontouchstart' in window) ||
-            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
-            window.innerWidth <= 768
-        );
+        const isMobile = this.isSmallViewport();
         const resSuffix = isMobile ? '1024x512' : '2048x1024';
 
-        // Pipeline pre-baked WebP fetches + off-thread ImageBitmap decodes in parallel
+        // Pipeline pre-baked WebP surface & bump fetches + off-thread ImageBitmap decodes in parallel
         const prebakedPromises = names.map(name =>
             this.cache.has(name) ? Promise.resolve(this.cache.get(name)!) : this.loadPrebakedTextureAsync(name, isMobile)
+        );
+        const prebakedBumpPromises = names.map(name =>
+            this.PREBAKED_BUMP_WORLDS.has(name) ? this.loadPrebakedBumpAsync(name) : Promise.resolve(null)
         );
 
         for (let i = 0; i < total; i++) {
@@ -632,17 +707,11 @@ export class TextureGenerator {
                 const blob = await this.getCachedTextureBlob(`${name}_${resSuffix}`);
                 if (blob) {
                     try {
-                        // Decode off-thread, then blit into a canvas: WebGL ignores flipY for ImageBitmap
-                        // sources (which rendered restored maps upside-down), and bump-map derivation
-                        // needs a canvas source.
-                        const bitmap = await createImageBitmap(blob);
-                        const canvas = document.createElement('canvas');
-                        canvas.width = bitmap.width;
-                        canvas.height = bitmap.height;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                            ctx.drawImage(bitmap, 0, 0);
-                            const tex = new THREE.CanvasTexture(canvas);
+                        const needsCanvasForBump = this.BUMP_WORLDS.has(name) && !this.PREBAKED_BUMP_WORLDS.has(name);
+                        if (!needsCanvasForBump) {
+                            const bitmap = await createImageBitmap(blob, { imageOrientation: 'flipY' });
+                            const tex = new THREE.CanvasTexture(bitmap as unknown as HTMLCanvasElement);
+                            tex.flipY = false;
                             tex.wrapS = THREE.RepeatWrapping;
                             tex.wrapT = THREE.ClampToEdgeWrapping;
                             tex.colorSpace = THREE.SRGBColorSpace;
@@ -652,8 +721,27 @@ export class TextureGenerator {
                             tex.needsUpdate = true;
                             this.cache.set(name, tex);
                             restored = true;
+                        } else {
+                            const bitmap = await createImageBitmap(blob);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = bitmap.width;
+                            canvas.height = bitmap.height;
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                                ctx.drawImage(bitmap, 0, 0);
+                                const tex = new THREE.CanvasTexture(canvas);
+                                tex.wrapS = THREE.RepeatWrapping;
+                                tex.wrapT = THREE.ClampToEdgeWrapping;
+                                tex.colorSpace = THREE.SRGBColorSpace;
+                                tex.anisotropy = TextureGenerator.maxAnisotropy;
+                                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                                tex.generateMipmaps = true;
+                                tex.needsUpdate = true;
+                                this.cache.set(name, tex);
+                                restored = true;
+                            }
+                            bitmap.close?.();
                         }
-                        bitmap.close?.();
                     } catch {
                         // Fall through to procedural synthesis
                     }
@@ -667,7 +755,10 @@ export class TextureGenerator {
             }
 
             if (this.BUMP_WORLDS.has(name)) {
-                this.getPlanetBumpMap(name);
+                const prebakedBump = await prebakedBumpPromises[i];
+                if (!prebakedBump) {
+                    this.getPlanetBumpMap(name);
+                }
             }
             onProgress?.(i + 1, total, name);
             // Yield to browser paint loop only when the frame budget (~10ms) is exceeded

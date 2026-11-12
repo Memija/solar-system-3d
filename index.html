@@ -12,14 +12,15 @@
     <meta property="og:description" content="Interactive 3D real-time simulation and astronomical observatory of our Solar System." />
     <meta property="og:type" content="website" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="preload" as="fetch" type="image/webp" href="/textures/milky_way.webp" crossorigin />
+    <link rel="preload" as="fetch" type="image/webp" href="/textures/earth_equirectangular.webp" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" /></noscript>
     <style id="critical-loading-css">
       .loading-screen {
         position: fixed;
@@ -39,14 +40,17 @@
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         user-select: none;
         -webkit-user-select: none;
-        transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1), filter 0.75s ease;
-        will-change: opacity, transform, filter;
+        transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: opacity, transform;
       }
       .loading-screen.is-complete {
         opacity: 0;
         transform: scale(1.05);
-        filter: blur(8px);
         pointer-events: none;
+      }
+      .loading-screen.is-complete::before,
+      .loading-screen.is-complete * {
+        animation-play-state: paused !important;
       }
       .loading-screen.is-hidden {
         display: none !important;
@@ -193,7 +197,6 @@
         letter-spacing: 0.14em;
         color: #38bdf8;
         margin-bottom: 12px;
-        backdrop-filter: blur(8px);
       }
       .status-live-dot {
         width: 7px;

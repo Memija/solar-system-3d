@@ -35,17 +35,19 @@ export class ConstellationManager {
     createConstellations() {
         const radius = 49000;
         this.sharedStarGeometry = new THREE.SphereGeometry(80, 6, 4);
-        this.sharedStarMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        this.sharedStarMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
         const basePosAttr = this.sharedStarGeometry.getAttribute('position') as THREE.BufferAttribute;
-        const baseNormAttr = this.sharedStarGeometry.getAttribute('normal') as THREE.BufferAttribute | undefined;
         const baseIndex = this.sharedStarGeometry.getIndex();
         const vertsPerStar = basePosAttr.count;
         const indicesPerStar = baseIndex ? baseIndex.count : vertsPerStar;
 
         const totalStarCount = MajorConstellations.reduce((sum, c) => sum + c.stars.length, 0);
         const mergedPositions = new Float32Array(totalStarCount * vertsPerStar * 3);
-        const mergedNormals = new Float32Array(totalStarCount * vertsPerStar * 3);
-        const mergedIndices = new Uint32Array(totalStarCount * indicesPerStar);
+        const mergedColors = new Float32Array(totalStarCount * vertsPerStar * 3);
+        mergedColors.fill(1.0);
+        const mergedIndices = totalStarCount * vertsPerStar <= 65535
+            ? new Uint16Array(totalStarCount * indicesPerStar)
+            : new Uint32Array(totalStarCount * indicesPerStar);
         let globalStarIdx = 0;
 
         MajorConstellations.forEach(constellation => {
@@ -76,11 +78,6 @@ export class ConstellationManager {
                     mergedPositions[dst] = basePosAttr.getX(v) + ecl.x;
                     mergedPositions[dst + 1] = basePosAttr.getY(v) + ecl.y;
                     mergedPositions[dst + 2] = basePosAttr.getZ(v) + ecl.z;
-                    if (baseNormAttr) {
-                        mergedNormals[dst] = baseNormAttr.getX(v);
-                        mergedNormals[dst + 1] = baseNormAttr.getY(v);
-                        mergedNormals[dst + 2] = baseNormAttr.getZ(v);
-                    }
                 }
 
                 const iOffset = globalStarIdx * indicesPerStar;
@@ -124,20 +121,27 @@ export class ConstellationManager {
                 constellationGroup.add(lineSegments);
             }
 
+            constellationGroup.matrixAutoUpdate = false;
+            constellationGroup.updateMatrix();
             this.scene.add(constellationGroup);
+            constellationGroup.updateMatrixWorld(true);
+            constellationGroup.matrixWorldAutoUpdate = false;
             this.constellationMeshes.push(constellationGroup);
         });
 
         if (totalStarCount > 0) {
             const batchedStarGeo = new THREE.BufferGeometry();
             batchedStarGeo.setAttribute('position', new THREE.BufferAttribute(mergedPositions, 3));
-            batchedStarGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNormals, 3));
+            batchedStarGeo.setAttribute('color', new THREE.BufferAttribute(mergedColors, 3));
             batchedStarGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
             this.mergedStarsMesh = new THREE.Mesh(batchedStarGeo, this.sharedStarMaterial!);
+            this.mergedStarsMesh.frustumCulled = false;
             this.mergedStarsMesh.visible = this.isVisible;
             this.mergedStarsMesh.matrixAutoUpdate = false;
             this.mergedStarsMesh.updateMatrix();
             this.scene.add(this.mergedStarsMesh);
+            this.mergedStarsMesh.updateMatrixWorld(true);
+            this.mergedStarsMesh.matrixWorldAutoUpdate = false;
         }
     }
 

@@ -209,6 +209,13 @@ describe('SceneManager', () => {
             expect(res2).toBe(true);
             expect(manager.bloomPass.enabled).toBe(true);
 
+            expect((manager as any).outputPass?.needsSwap).toBe(false);
+            const pinnedReadBuffer = manager.composer.readBuffer;
+            for (let i = 0; i < 6; i++) {
+                (manager as any).renderDirty = true;
+                manager.update();
+                expect(manager.composer.readBuffer).toBe(pinnedReadBuffer);
+            }
             manager.toggleBloom(false);
             expect(manager.bloomPass.enabled).toBe(false);
         });

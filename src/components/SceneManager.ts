@@ -22,7 +22,7 @@ import {
     buildStarfield,
     StarfieldHandle
 } from './BeltBuilder';
-import { applySpaceEnvironmentMap, EnvironmentMapHandle } from './EnvironmentMapGenerator';
+import { createSpaceEnvironmentMap, EnvironmentMapHandle } from './EnvironmentMapGenerator';
 import { LineBatcher } from './LineBatcher';
 
 /** WebGL2 canvas/context pair acquired during boot capability probing, adopted by the renderer. */
@@ -71,6 +71,7 @@ export class SceneManager {
     renderer!: THREE.WebGLRenderer;
     composer!: EffectComposer;
     bloomPass!: UnrealBloomPass;
+    private outputPass!: OutputPass;
     controls!: OrbitControls;
     clock: THREE.Clock;
     planets: CelestialBody[];
@@ -162,6 +163,10 @@ export class SceneManager {
     private isMobileDevice: boolean = false;
     private smoothedFrameMs: number = 16.67;
     private adaptiveSampleCount: number = 0;
+    private adaptiveCooldownFrames: number = 0;
+    private adaptiveStepUpFrames: number = 0;
+    private lastAsteroidBeltRotY: number = 0;
+    private lastKuiperBeltRotY: number = 0;
     private renderDirty: boolean = true;
     private idleAccumulatedTime: number = 0;
     private lastRenderedCamPos = new THREE.Vector3(Infinity, Infinity, Infinity);
@@ -424,9 +429,6 @@ export class SceneManager {
         const maxAniso = this.renderer.capabilities?.getMaxAnisotropy?.() ?? 16;
         TextureGenerator.setMaxAnisotropy(maxAniso);
 
-        // Procedural PMREM space environment map for realistic metallic spacecraft specular reflections
-        this.envMapHandle = applySpaceEnvironmentMap(this.scene, this.renderer);
-
         // Post-processing pipeline: RenderPass -> UnrealBloomPass -> OutputPass (ACES tone mapping + sRGB)
         const renderScene = new RenderPass(this.scene, this.camera);
         const bloomWidth = Math.max(1, Math.floor(window.innerWidth / 2));
@@ -454,21 +456,206 @@ export class SceneManager {
             anyBloom.compositeMaterial.depthTest = false;
             anyBloom.compositeMaterial.depthWrite = false;
         }
+        // Trim redundant deep 50x29 & 25x15 bloom mip levels: 3 half-res mips (KERNEL_RADIUS 6, 10, 14)
+        // span ~50% of viewport height while saving 4 HalfFloat RTs, 4 fullscreen passes, and 2 blur programs.
+        if (Array.isArray(anyBloom.renderTargetsHorizontal) && anyBloom.renderTargetsHorizontal.length > 3) {
+            for (let i = 3; i < anyBloom.renderTargetsHorizontal.length; i++) {
+                anyBloom.renderTargetsHorizontal[i]?.dispose?.();
+                anyBloom.renderTargetsVertical?.[i]?.dispose?.();
+                anyBloom.separableBlurMaterials?.[i]?.dispose?.();
+            }
+            anyBloom.renderTargetsHorizontal.length = 3;
+            if (Array.isArray(anyBloom.renderTargetsVertical)) anyBloom.renderTargetsVertical.length = 3;
+            if (Array.isArray(anyBloom.separableBlurMaterials)) anyBloom.separableBlurMaterials.length = 3;
+            anyBloom.nMips = 3;
+            if (Array.isArray(anyBloom.bloomTintColors)) {
+                anyBloom.bloomTintColors.length = 3;
+            }
+            if (anyBloom.compositeMaterial?.uniforms) {
+                anyBloom.compositeMaterial.defines = { NUM_MIPS: 3 };
+                anyBloom.compositeMaterial.uniforms.bloomFactors.value = [1.0, 0.6, 0.2];
+                anyBloom.compositeMaterial.uniforms.bloomTintColors.value = anyBloom.bloomTintColors;
+                delete anyBloom.compositeMaterial.uniforms.blurTexture4;
+                delete anyBloom.compositeMaterial.uniforms.blurTexture5;
+                anyBloom.compositeMaterial.fragmentShader = `varying vec2 vUv;
+                    uniform sampler2D blurTexture1;
+                    uniform sampler2D blurTexture2;
+                    uniform sampler2D blurTexture3;
+                    uniform float bloomStrength;
+                    uniform float bloomRadius;
+                    uniform float bloomFactors[NUM_MIPS];
+                    uniform vec3 bloomTintColors[NUM_MIPS];
+                    float lerpBloomFactor(const in float factor) {
+                        float mirrorFactor = 1.2 - factor;
+                        return mix(factor, mirrorFactor, bloomRadius);
+                    }
+                    void main() {
+                        gl_FragColor = (bloomStrength * 1.6667) * (
+                            lerpBloomFactor(bloomFactors[0]) * vec4(bloomTintColors[0], 1.0) * texture2D(blurTexture1, vUv) +
+                            lerpBloomFactor(bloomFactors[1]) * vec4(bloomTintColors[1], 1.0) * texture2D(blurTexture2, vUv) +
+                            lerpBloomFactor(bloomFactors[2]) * vec4(bloomTintColors[2], 1.0) * texture2D(blurTexture3, vUv)
+                        );
+                    }`;
+                anyBloom.compositeMaterial.needsUpdate = true;
+            }
+        }
+
+        if (anyBloom._fsQuad && Array.isArray(anyBloom.renderTargetsHorizontal) && anyBloom.renderTargetsHorizontal.length > 0) {
+            // Bloom composition is fused directly into OutputPass, eliminating UnrealBloomPass's final
+            // CopyShader additive pass into the full-res MSAA readBuffer (and its 2nd full-screen MSAA
+            // blitFramebuffer resolve) plus 8 redundant clears before opaque NoBlending fullscreen quads.
+            anyBloom.blendMaterial?.dispose?.();
+            anyBloom.render = (
+                renderer: THREE.WebGLRenderer,
+                _writeBuffer: THREE.WebGLRenderTarget,
+                readBuffer: THREE.WebGLRenderTarget,
+                _deltaTime: number,
+                maskActive: boolean
+            ) => {
+                const oldAutoClear = renderer.autoClear;
+                renderer.autoClear = false;
+                if (maskActive) renderer.state.buffers.stencil.setTest(false);
+
+                anyBloom.highPassUniforms.tDiffuse.value = readBuffer.texture;
+                anyBloom.highPassUniforms.luminosityThreshold.value = this.bloomPass.threshold;
+                anyBloom._fsQuad.material = anyBloom.materialHighPassFilter;
+                renderer.setRenderTarget(anyBloom.renderTargetBright);
+                anyBloom._fsQuad.render(renderer);
+
+                let inputRT = anyBloom.renderTargetBright;
+                for (let i = 0; i < anyBloom.nMips; i++) {
+                    const blurMat = anyBloom.separableBlurMaterials[i];
+                    anyBloom._fsQuad.material = blurMat;
+
+                    blurMat.uniforms.colorTexture.value = inputRT.texture;
+                    blurMat.uniforms.direction.value = (UnrealBloomPass as any).BlurDirectionX;
+                    renderer.setRenderTarget(anyBloom.renderTargetsHorizontal[i]);
+                    anyBloom._fsQuad.render(renderer);
+
+                    blurMat.uniforms.colorTexture.value = anyBloom.renderTargetsHorizontal[i].texture;
+                    blurMat.uniforms.direction.value = (UnrealBloomPass as any).BlurDirectionY;
+                    renderer.setRenderTarget(anyBloom.renderTargetsVertical[i]);
+                    anyBloom._fsQuad.render(renderer);
+
+                    inputRT = anyBloom.renderTargetsVertical[i];
+                }
+
+                anyBloom._fsQuad.material = anyBloom.compositeMaterial;
+                anyBloom.compositeMaterial.uniforms.bloomStrength.value = this.bloomPass.strength;
+                anyBloom.compositeMaterial.uniforms.bloomRadius.value = this.bloomPass.radius;
+                anyBloom.compositeMaterial.uniforms.bloomTintColors.value = anyBloom.bloomTintColors;
+                renderer.setRenderTarget(anyBloom.renderTargetsHorizontal[0]);
+                anyBloom._fsQuad.render(renderer);
+
+                if (maskActive) renderer.state.buffers.stencil.setTest(true);
+                renderer.autoClear = oldAutoClear;
+            };
+        }
 
         const outputPass = new OutputPass();
-        if ((outputPass as any).material) {
-            (outputPass as any).material.depthTest = false;
-            (outputPass as any).material.depthWrite = false;
+        outputPass.needsSwap = false;
+        this.outputPass = outputPass;
+        const anyOutput = outputPass as any;
+        if (anyOutput.material) {
+            anyOutput.material.depthTest = false;
+            anyOutput.material.depthWrite = false;
+            if (anyOutput.uniforms && anyBloom.renderTargetsHorizontal?.[0]?.texture) {
+                anyOutput.uniforms.tBloom = { value: anyBloom.renderTargetsHorizontal[0].texture };
+                anyOutput.uniforms.bloomMix = { value: 1.0 };
+                anyOutput._outputColorSpace = this.renderer.outputColorSpace;
+                anyOutput._toneMapping = this.renderer.toneMapping;
+                anyOutput.material.defines = {
+                    SRGB_TRANSFER: '',
+                    ACES_FILMIC_TONE_MAPPING: ''
+                };
+                anyOutput.material.fragmentShader = `
+                    precision highp float;
+                    uniform sampler2D tDiffuse;
+                    uniform sampler2D tBloom;
+                    uniform float bloomMix;
+                    #include <tonemapping_pars_fragment>
+                    #include <colorspace_pars_fragment>
+                    varying vec2 vUv;
+                    void main() {
+                        gl_FragColor = texture2D( tDiffuse, vUv );
+                        if ( bloomMix > 0.0 ) {
+                            vec4 bloomSample = texture2D( tBloom, vUv );
+                            gl_FragColor.rgb += bloomSample.rgb * bloomSample.a * bloomMix;
+                        }
+                        #ifdef LINEAR_TONE_MAPPING
+                            gl_FragColor.rgb = LinearToneMapping( gl_FragColor.rgb );
+                        #elif defined( REINHARD_TONE_MAPPING )
+                            gl_FragColor.rgb = ReinhardToneMapping( gl_FragColor.rgb );
+                        #elif defined( CINEON_TONE_MAPPING )
+                            gl_FragColor.rgb = CineonToneMapping( gl_FragColor.rgb );
+                        #elif defined( ACES_FILMIC_TONE_MAPPING )
+                            gl_FragColor.rgb = ACESFilmicToneMapping( gl_FragColor.rgb );
+                        #elif defined( AGX_TONE_MAPPING )
+                            gl_FragColor.rgb = AgXToneMapping( gl_FragColor.rgb );
+                        #elif defined( NEUTRAL_TONE_MAPPING )
+                            gl_FragColor.rgb = NeutralToneMapping( gl_FragColor.rgb );
+                        #elif defined( CUSTOM_TONE_MAPPING )
+                            gl_FragColor.rgb = CustomToneMapping( gl_FragColor.rgb );
+                        #endif
+                        #ifdef SRGB_TRANSFER
+                            gl_FragColor = sRGBTransferOETF( gl_FragColor );
+                        #endif
+                    }`;
+                anyOutput.material.needsUpdate = true;
+                if (typeof anyOutput.render === 'function') {
+                    const origOutputRender = anyOutput.render.bind(outputPass);
+                    anyOutput.render = (
+                        renderer: THREE.WebGLRenderer,
+                        writeBuffer: THREE.WebGLRenderTarget,
+                        readBuffer: THREE.WebGLRenderTarget,
+                        deltaTime: number,
+                        maskActive: boolean
+                    ) => {
+                        anyOutput.uniforms.tBloom.value = anyBloom.renderTargetsHorizontal[0].texture;
+                        anyOutput.uniforms.bloomMix.value = this.bloomPass.enabled ? 1.0 : 0.0;
+                        origOutputRender(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
+                    };
+                }
+            }
         }
 
         const rtWidth = Math.max(1, Math.floor(window.innerWidth * dpr));
         const rtHeight = Math.max(1, Math.floor(window.innerHeight * dpr));
-        const renderTarget = new THREE.WebGLRenderTarget(rtWidth, rtHeight, {
-            samples: (isMobile || isIntelD3D11) ? 2 : 4,
+        // RenderPass, UnrealBloomPass, and OutputPass (renderToScreen=true) all have needsSwap=false and
+        // only ever touch readBuffer (renderTarget2). Keep writeBuffer (renderTarget1) as a 1x1 stub to
+        // halve full-screen MSAA RGBA16F + Depth24 VRAM and avoid resizing an unused MSAA target.
+        const stubWriteTarget = new THREE.WebGLRenderTarget(1, 1, {
+            depthBuffer: false,
             type: THREE.HalfFloatType
         });
-
-        this.composer = new EffectComposer(this.renderer, renderTarget);
+        this.composer = new EffectComposer(this.renderer, stubWriteTarget);
+        const anyComposer = this.composer as any;
+        if (anyComposer.renderTarget1 && anyComposer.renderTarget2) {
+            anyComposer.renderTarget2.dispose?.();
+            const sceneRenderTarget = new THREE.WebGLRenderTarget(rtWidth, rtHeight, {
+                samples: (isMobile || isIntelD3D11) ? 2 : 4,
+                type: THREE.HalfFloatType
+            });
+            sceneRenderTarget.texture.name = 'EffectComposer.rt2';
+            anyComposer.renderTarget2 = sceneRenderTarget;
+            anyComposer.readBuffer = sceneRenderTarget;
+            anyComposer.swapBuffers = () => {};
+            anyComposer._width = window.innerWidth;
+            anyComposer._height = window.innerHeight;
+            anyComposer.copyPass?.dispose?.();
+            anyComposer.setSize = (width: number, height: number) => {
+                anyComposer._width = width;
+                anyComposer._height = height;
+                const effW = Math.max(1, Math.floor(width * anyComposer._pixelRatio));
+                const effH = Math.max(1, Math.floor(height * anyComposer._pixelRatio));
+                anyComposer.renderTarget2.setSize(effW, effH);
+                if (Array.isArray(anyComposer.passes)) {
+                    for (let i = 0; i < anyComposer.passes.length; i++) {
+                        anyComposer.passes[i].setSize(effW, effH);
+                    }
+                }
+            };
+        }
         this.composer.addPass(renderScene);
         this.composer.addPass(this.bloomPass);
         this.composer.addPass(outputPass);
@@ -501,7 +688,11 @@ export class SceneManager {
 
         // Lighting (Sun)
         this.ambientLight = new THREE.AmbientLight(0xffffff, this.realisticLighting ? 0.05 : 0.36);
+        this.ambientLight.matrixAutoUpdate = false;
+        this.ambientLight.updateMatrix?.();
         this.scene.add(this.ambientLight);
+        this.ambientLight.updateMatrixWorld?.(true);
+        this.ambientLight.matrixWorldAutoUpdate = false;
 
         this.pointLight = new THREE.PointLight(0xfffcf5, this.realisticLighting ? 2.8 : 2.1, 0, 0);
         this.pointLight.castShadow = true;
@@ -517,7 +708,11 @@ export class SceneManager {
         this.pointLight.shadow.camera.far = 2000;
         this.pointLight.shadow.bias = -0.0001;
         this.pointLight.shadow.normalBias = 0.05;
+        this.pointLight.matrixAutoUpdate = false;
+        this.pointLight.updateMatrix?.();
         this.scene.add(this.pointLight);
+        this.pointLight.updateMatrixWorld?.(true);
+        this.pointLight.matrixWorldAutoUpdate = false;
 
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -716,6 +911,7 @@ export class SceneManager {
     createSpacecrafts() {
         SpacecraftDataList.forEach(data => {
             let parentObject: THREE.Object3D = this.scene;
+            let matchedTargetBody: CelestialBody | undefined;
 
             // Escaping interstellar probes (Voyager 1 & 2) are parented heliocentrically to the scene
             // rather than remaining stuck orbiting schematic Earth.
@@ -733,13 +929,31 @@ export class SceneManager {
                 }
 
                 if (targetBody) {
+                    targetBody.hasAttachedChildren = true;
+                    matchedTargetBody = targetBody;
                     parentObject = targetBody.orbitGroup;
                 }
             }
 
-            const spacecraft = new Spacecraft(data, parentObject);
+            const spacecraft = new Spacecraft(data, parentObject, {
+                lazyModel: true,
+                getEnvironmentMap: () => this.getOrCreateSpacecraftEnvMap()
+            });
+            (spacecraft as any).parentCelestialBody = matchedTargetBody;
             this.spacecrafts.push(spacecraft);
         });
+    }
+
+    /**
+     * Lazily generate the PMREM space environment map only when a spacecraft builds its metallic
+     * 3D model, avoiding synchronous PMREM shader compilation & convolution at boot and keeping
+     * CUBEUV IBL shader math out of matte planet/ring/moon MeshStandardMaterials.
+     */
+    private getOrCreateSpacecraftEnvMap(): THREE.Texture | null {
+        if (!this.envMapHandle) {
+            this.envMapHandle = createSpaceEnvironmentMap(this.renderer);
+        }
+        return this.envMapHandle.texture;
     }
 
     /**
@@ -773,13 +987,36 @@ export class SceneManager {
                 const rebaseDistance = Math.max(1e-4, this.camera.position.distanceTo(this.controls.target) * 0.25);
                 this.lineBatcher.sync(this.camera.position, rebaseDistance);
             }
-            // Program variants depend on the active render target (tone mapping and output colour
-            // space differ for offscreen targets), so compile against the composer's scene target.
+            // WebGLPrograms.getParameters only checks `currentRenderTarget === null` (offscreen vs screen
+            // toneMapping / outputColorSpace). Bind the 1x1 non-MSAA stub writeBuffer instead of the
+            // full-res MSAA readBuffer so precompilation doesn't block on MSAA FBO + Depth24 allocation.
             const previousTarget = renderer.getRenderTarget();
-            renderer.setRenderTarget(this.composer?.readBuffer ?? null);
-            const pending = renderer.compileAsync(this.scene, this.camera);
-            renderer.setRenderTarget(previousTarget);
+            renderer.setRenderTarget(this.composer?.writeBuffer ?? this.composer?.readBuffer ?? null);
+            const origTraverse = this.scene.traverse;
+            const cameraLayers = this.camera.layers;
+            this.scene.traverse = (cb: (obj: THREE.Object3D) => any) => {
+                const walkVisibleLayer0 = (node: THREE.Object3D) => {
+                    if (!node.visible) return;
+                    if ((node as any).isMesh || (node as any).isPoints || (node as any).isLine || (node as any).isSprite) {
+                        if (!node.layers.test(cameraLayers)) return;
+                    }
+                    cb(node);
+                    const children = node.children;
+                    for (let i = 0, l = children.length; i < l; i++) {
+                        walkVisibleLayer0(children[i]);
+                    }
+                };
+                walkVisibleLayer0(this.scene);
+            };
+            let pending: Promise<unknown>;
+            try {
+                pending = renderer.compileAsync(this.scene, this.camera);
+            } finally {
+                this.scene.traverse = origTraverse;
+                renderer.setRenderTarget(previousTarget);
+            }
             await pending;
+            this.clock?.getDelta?.();
         } catch {
             // Programs will compile lazily on first render instead
         }
@@ -818,20 +1055,37 @@ export class SceneManager {
     }
 
     private updateAdaptiveResolution(frameMs: number) {
-        this.smoothedFrameMs = this.smoothedFrameMs * 0.9 + frameMs * 0.1;
-        this.adaptiveSampleCount++;
-        if (this.adaptiveSampleCount < 60) return;
-        this.adaptiveSampleCount = 0;
+        if (this.adaptiveCooldownFrames > 0) {
+            this.adaptiveCooldownFrames--;
+            this.smoothedFrameMs = 16.67;
+            return;
+        }
+        const clampedMs = Math.min(frameMs, 60);
+        this.smoothedFrameMs = this.smoothedFrameMs * 0.92 + clampedMs * 0.08;
 
-        // Step down on high-DPI displays when below ~40 FPS (>25 ms), or below ~30 FPS (>33.3 ms) on 1x displays
         const minRatio = this.isMobileDevice ? 0.75 : 0.85;
-        const stepDownThreshold = this.currentPixelRatio > 1.0 ? 25.0 : 33.3;
+        const stepDownThreshold = this.currentPixelRatio > 1.0 ? 28.0 : 38.0;
         if (this.smoothedFrameMs > stepDownThreshold && this.currentPixelRatio > minRatio) {
-            const next = Math.max(minRatio, Math.round((this.currentPixelRatio - 0.25) * 100) / 100);
-            this.applyPixelRatio(next);
-        } else if (this.smoothedFrameMs < 17.2 && this.currentPixelRatio < this.basePixelRatio) {
-            const next = Math.min(this.basePixelRatio, Math.round((this.currentPixelRatio + 0.25) * 100) / 100);
-            this.applyPixelRatio(next);
+            this.adaptiveSampleCount++;
+            this.adaptiveStepUpFrames = 0;
+            if (this.adaptiveSampleCount >= 120) {
+                this.adaptiveSampleCount = 0;
+                this.adaptiveCooldownFrames = 240;
+                const next = Math.max(minRatio, Math.round((this.currentPixelRatio - 0.25) * 100) / 100);
+                this.applyPixelRatio(next);
+            }
+        } else if (this.smoothedFrameMs < 13.0 && this.currentPixelRatio < this.basePixelRatio) {
+            this.adaptiveStepUpFrames++;
+            this.adaptiveSampleCount = 0;
+            if (this.adaptiveStepUpFrames >= 300) {
+                this.adaptiveStepUpFrames = 0;
+                this.adaptiveCooldownFrames = 240;
+                const next = Math.min(this.basePixelRatio, Math.round((this.currentPixelRatio + 0.25) * 100) / 100);
+                this.applyPixelRatio(next);
+            }
+        } else {
+            this.adaptiveSampleCount = 0;
+            this.adaptiveStepUpFrames = 0;
         }
     }
 
@@ -969,10 +1223,20 @@ export class SceneManager {
 
             if (this.asteroidBelt && this.showAsteroids) {
                 this.asteroidBelt.rotation.y += 0.05 * deltaTime;
+                if (Math.abs(this.asteroidBelt.rotation.y - this.lastAsteroidBeltRotY) >= 1e-4) {
+                    this.lastAsteroidBeltRotY = this.asteroidBelt.rotation.y;
+                    this.asteroidBelt.updateMatrix?.();
+                    this.asteroidBelt.updateMatrixWorld?.(true);
+                }
             }
 
             if (this.kuiperBelt && this.showKuiperBelt) {
                 this.kuiperBelt.rotation.y += 0.01 * deltaTime;
+                if (Math.abs(this.kuiperBelt.rotation.y - this.lastKuiperBeltRotY) >= 1e-4) {
+                    this.lastKuiperBeltRotY = this.kuiperBelt.rotation.y;
+                    this.kuiperBelt.updateMatrix?.();
+                    this.kuiperBelt.updateMatrixWorld?.(true);
+                }
             }
         }
 
@@ -1063,8 +1327,16 @@ export class SceneManager {
 
         // Update distance-based planet/moon LODs & secondary shell culling
         const camPos = this.camera.position;
+        const focusedSpacecraftParent: CelestialBody | null =
+            (this.focusedBody && this.spacecrafts.includes(this.focusedBody as Spacecraft))
+                ? ((this.focusedBody as any).parentCelestialBody ?? null)
+                : null;
         for (let i = 0; i < this.planets.length; i++) {
             const planet = this.planets[i];
+            planet.hasShadowCastingChild = focusedSpacecraftParent !== null && (
+                focusedSpacecraftParent === planet ||
+                (Array.isArray(planet.moons) && planet.moons.includes(focusedSpacecraftParent))
+            );
             const isFocused = this.focusedBody === planet ||
                 this.surfaceViewBody === planet ||
                 (this.focusedBody !== null && Array.isArray(planet.moons) && planet.moons.includes(this.focusedBody as any));
@@ -1351,6 +1623,7 @@ export class SceneManager {
         target = target || this.spacecrafts.find((s: Spacecraft) => s.data.name === name);
 
         if (target && target.mesh) {
+            (target as Spacecraft).ensureModelBuilt?.();
             if ('data' in target && target.data?.name) {
                 TextureGenerator.ensureDeferredLoaded?.(target.data.name, () => {
                     this.renderDirty = true;
@@ -1368,6 +1641,7 @@ export class SceneManager {
                     });
                 });
             }
+            (target as CelestialBody).ensureTransformUpToDate?.();
             target.mesh.updateWorldMatrix?.(true, false);
             target.mesh.getWorldPosition(SceneManager._vPos);
 
@@ -2181,6 +2455,9 @@ export class SceneManager {
         disposeMesh(this.measureLabel);
         this.measureLabel = null;
 
+        this.pointLight?.shadow?.map?.dispose?.();
+        this.outputPass?.dispose?.();
+        this.bloomPass?.dispose?.();
         this.controls?.dispose?.();
         this.composer?.dispose?.();
 

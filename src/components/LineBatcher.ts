@@ -22,8 +22,10 @@ interface BatchSlot {
     posVersion: number;
     matrix: Float32Array;
     color: THREE.Color;
+    opacity: number;
     loop: boolean;
     segments: boolean;
+    isStaticRoot: boolean;
     seen: boolean;
 }
 
@@ -31,8 +33,9 @@ const _v = new THREE.Vector3();
 
 /**
  * One merged draw call for every batchable line sharing the same material settings.
- * Vertices are stored in world space with per-vertex colours; an index buffer lists the
- * segments of currently visible sources only.
+ * Vertices are stored in world space with per-vertex RGBA colours (folding per-line opacity
+ * into vertex alpha so translucent lines with different opacities share one draw call);
+ * an index buffer lists the segments of currently visible sources only.
  */
 class LineBatch {
     readonly object: THREE.LineSegments;
@@ -54,7 +57,7 @@ class LineBatch {
         this.material = new THREE.LineBasicMaterial({
             vertexColors: true,
             transparent: template.transparent,
-            opacity: template.opacity,
+            opacity: 1,
             blending: template.blending,
             depthTest: template.depthTest,
             depthWrite: template.depthWrite,
@@ -79,13 +82,13 @@ class LineBatch {
         if (this.positions.length < needed * 3) {
             const capacity = Math.ceil(needed * 1.25);
             this.positions = new Float32Array(capacity * 3);
-            this.colors = new Float32Array(capacity * 3);
+            this.colors = new Float32Array(capacity * 4);
             this.indices = new Uint32Array(capacity * 2 + 2 * Math.max(8, this.slots.length * 2));
             // GPU buffers cannot be resized in place: swap in a fresh geometry
             this.geometry.dispose();
             this.geometry = new THREE.BufferGeometry();
             this.positionAttr = new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage);
-            this.colorAttr = new THREE.BufferAttribute(this.colors, 3);
+            this.colorAttr = new THREE.BufferAttribute(this.colors, 4);
             this.indexAttr = new THREE.BufferAttribute(this.indices, 1).setUsage(THREE.DynamicDrawUsage);
             this.geometry.setAttribute('position', this.positionAttr);
             this.geometry.setAttribute('color', this.colorAttr);
@@ -109,11 +112,13 @@ class LineBatch {
 
     private writeColor(slot: BatchSlot): void {
         const { r, g, b } = slot.color;
-        const end = (slot.offset + slot.capacity) * 3;
-        for (let i = slot.offset * 3; i < end; i += 3) {
+        const a = slot.opacity;
+        const end = (slot.offset + slot.capacity) * 4;
+        for (let i = slot.offset * 4; i < end; i += 4) {
             this.colors[i] = r;
             this.colors[i + 1] = g;
             this.colors[i + 2] = b;
+            this.colors[i + 3] = a;
         }
     }
 
@@ -139,10 +144,16 @@ class LineBatch {
             const geometry = line.geometry as THREE.BufferGeometry;
             const position = geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
             const material = line.material as THREE.LineBasicMaterial;
+            const parent = line.parent;
 
-            let visible = line.visible && material.visible !== false && Boolean(position);
-            for (let p = line.parent; visible && p; p = p.parent) {
-                if (!p.visible) visible = false;
+            let visible: boolean;
+            if (slot.isStaticRoot) {
+                visible = line.visible && material.visible !== false && Boolean(position) && (!parent || parent.visible);
+            } else {
+                visible = line.visible && material.visible !== false && Boolean(position);
+                for (let p = parent; visible && p; p = p.parent) {
+                    if (!p.visible) visible = false;
+                }
             }
             const start = geometry.drawRange.start;
             const rawCount = visible && position
@@ -159,30 +170,36 @@ class LineBatch {
             }
             if (!visible || count === 0 || !position) continue;
 
-            if (!slot.color.equals(material.color)) {
+            const nextOpacity = material.transparent ? (material.opacity ?? 1) : 1;
+            if (!slot.color.equals(material.color) || slot.opacity !== nextOpacity) {
                 slot.color.copy(material.color);
+                slot.opacity = nextOpacity;
                 this.writeColor(slot);
                 this.colorAttr.needsUpdate = true;
             }
 
+            if (slot.isStaticRoot && !rebased && slot.posVersion === position.version) continue;
+
             // Rewrite vertices only when the source data or its world transform moved perceptibly (~0.2 px on screen)
             const m = line.matrixWorld.elements;
-            const dxCam = m[12] - ox;
-            const dyCam = m[13] - oy;
-            const dzCam = m[14] - oz;
-            const camDist = Math.sqrt(dxCam * dxCam + dyCam * dyCam + dzCam * dzCam);
-            const transTol = Math.max(1e-4, camDist * 2e-4);
             let matrixChanged = false;
-            for (let i = 0; i < 16; i++) {
-                const diff = Math.abs(slot.matrix[i] - m[i]);
-                const tol = (i >= 12 && i <= 14) ? transTol : 1e-4;
-                if (!(diff <= tol)) {
-                    matrixChanged = true;
-                }
-            }
-            if (matrixChanged) {
+            if (!slot.isStaticRoot || slot.posVersion === -1) {
+                const dxCam = m[12] - ox;
+                const dyCam = m[13] - oy;
+                const dzCam = m[14] - oz;
+                const camDist = Math.sqrt(dxCam * dxCam + dyCam * dyCam + dzCam * dzCam);
+                const transTol = Math.max(1e-4, camDist * 2e-4);
                 for (let i = 0; i < 16; i++) {
-                    slot.matrix[i] = m[i];
+                    const diff = Math.abs(slot.matrix[i] - m[i]);
+                    const tol = (i >= 12 && i <= 14) ? transTol : 1e-4;
+                    if (!(diff <= tol)) {
+                        matrixChanged = true;
+                    }
+                }
+                if (matrixChanged) {
+                    for (let i = 0; i < 16; i++) {
+                        slot.matrix[i] = m[i];
+                    }
                 }
             }
             if (!matrixChanged && !rebased && slot.posVersion === position.version) continue;
@@ -267,7 +284,7 @@ export class LineBatcher {
 
     private static keyFor(material: THREE.LineBasicMaterial): string {
         return [
-            material.transparent, material.opacity, material.blending,
+            material.transparent, material.blending,
             material.depthTest, material.depthWrite, material.toneMapped, material.fog
         ].join('|');
     }
@@ -295,6 +312,11 @@ export class LineBatcher {
             this.batches.set(key, batch);
             this.scene.add(batch.object);
         }
+        const parent = line.parent;
+        const isStaticRoot = line.matrixAutoUpdate === false && (
+            parent === this.scene ||
+            Boolean(parent && parent.matrixAutoUpdate === false && parent.parent === this.scene)
+        );
         const slot: BatchSlot = {
             line,
             offset: 0,
@@ -304,8 +326,10 @@ export class LineBatcher {
             posVersion: -1,
             matrix: new Float32Array(16).fill(NaN),
             color: material.color.clone(),
+            opacity: material.transparent ? (material.opacity ?? 1) : 1,
             loop: (line as THREE.LineLoop).isLineLoop === true,
             segments: (line as THREE.LineSegments).isLineSegments === true,
+            isStaticRoot,
             seen: true
         };
         batch.slots.push(slot);

@@ -77,20 +77,48 @@ vi.mock('three', async (importOriginal) => {
 
 vi.mock('three/examples/jsm/postprocessing/EffectComposer.js', () => ({
     EffectComposer: class {
-        addPass = vi.fn();
-        render = vi.fn();
+        renderTarget1: any;
+        renderTarget2: any;
+        writeBuffer: any;
+        readBuffer: any;
+        passes: any[] = [];
+        constructor(_renderer?: any, renderTarget?: any) {
+            this.renderTarget1 = renderTarget ?? { width: 800, height: 600, setSize: vi.fn(), dispose: vi.fn(), clone: () => ({ width: 800, height: 600, setSize: vi.fn(), dispose: vi.fn(), texture: {} }), texture: {} };
+            this.renderTarget2 = this.renderTarget1.clone ? this.renderTarget1.clone() : { width: 800, height: 600, setSize: vi.fn(), dispose: vi.fn(), texture: {} };
+            this.writeBuffer = this.renderTarget1;
+            this.readBuffer = this.renderTarget2;
+        }
+        swapBuffers() {
+            const tmp = this.readBuffer;
+            this.readBuffer = this.writeBuffer;
+            this.writeBuffer = tmp;
+        }
+        addPass = vi.fn((pass: any) => {
+            this.passes.push(pass);
+        });
+        render = vi.fn(() => {
+            for (const pass of this.passes) {
+                if (pass?.enabled === false) continue;
+                if (pass?.needsSwap) this.swapBuffers();
+            }
+        });
         setSize = vi.fn();
         dispose = vi.fn();
     }
 }));
 
 vi.mock('three/examples/jsm/postprocessing/RenderPass.js', () => ({
-    RenderPass: class {}
+    RenderPass: class {
+        enabled = true;
+        needsSwap = false;
+        setSize = vi.fn();
+    }
 }));
 
 vi.mock('three/examples/jsm/postprocessing/UnrealBloomPass.js', () => ({
     UnrealBloomPass: class {
         enabled = true;
+        needsSwap = false;
         strength = 1;
         radius = 1;
         threshold = 1;
@@ -101,6 +129,9 @@ vi.mock('three/examples/jsm/postprocessing/UnrealBloomPass.js', () => ({
 
 vi.mock('three/examples/jsm/postprocessing/OutputPass.js', () => ({
     OutputPass: class {
+        enabled = true;
+        needsSwap = true;
+        setSize = vi.fn();
         dispose = vi.fn();
     }
 }));

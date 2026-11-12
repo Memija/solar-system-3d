@@ -52,11 +52,43 @@ function renderBootFallback(title: string, description: string): void {
   `;
 }
 
+const PREWARM_WORLD_TEXTURES = [
+  'Mercury',
+  'Venus',
+  'Mars',
+  'Jupiter',
+  'Saturn',
+  'Uranus',
+  'Neptune'
+];
+
+// Kick off chunk fetch, static skybox/Earth texture fetches, and off-thread planet bitmap decoding
+// BEFORE `acquireWebGLContext()` blocks the main thread on GPU-process WebGL2 context creation.
+const hasWebGL2Api = typeof window.WebGL2RenderingContext !== 'undefined';
+const localePromise = i18n.currentLanguage !== 'en'
+  ? i18n.preloadLocale(i18n.currentLanguage)
+  : null;
+const uiModulePromise = hasWebGL2Api ? import('./components/UIManager') : null;
+uiModulePromise?.catch(() => {});
+
+let earlyPrewarmProgress: ((done: number, total: number) => void) | null = null;
+let prewarmPromise: Promise<void> | null = null;
+if (hasWebGL2Api) {
+  const baseUrl = import.meta.env.BASE_URL;
+  TextureGenerator.preloadStaticImageBitmap(`${baseUrl}textures/milky_way.webp`);
+  TextureGenerator.preloadStaticImageBitmap(`${baseUrl}textures/earth_equirectangular.webp`);
+  TextureGenerator.preloadStaticImageBitmap(`${baseUrl}textures/earth_roughness.webp`);
+  prewarmPromise = TextureGenerator.prewarmTexturesAsync(PREWARM_WORLD_TEXTURES, (done, total) => {
+    earlyPrewarmProgress?.(done, total);
+  });
+  prewarmPromise.catch(() => {});
+}
+
 const bootWebGL = acquireWebGLContext();
 
 if (!bootWebGL) {
-  if (i18n.currentLanguage !== 'en') {
-    void i18n.preloadLocale(i18n.currentLanguage).then(() => {
+  if (localePromise) {
+    void localePromise.then(() => {
       renderBootFallback(
         i18n.t('ui.webglUnavailableTitle'),
         i18n.t('ui.webglUnavailableDesc')
@@ -74,50 +106,38 @@ let animationFrameId: number | null = null;
 let isAnimating = true;
 let animate = () => {};
 
-const yieldFrame = (ms: number = 16) => new Promise(resolve => setTimeout(resolve, ms));
-
-const PREWARM_WORLD_TEXTURES = [
-  'Mercury',
-  'Venus',
-  'Mars',
-  'Jupiter',
-  'Saturn',
-  'Uranus',
-  'Neptune'
-];
-
 async function init() {
-  if (i18n.currentLanguage !== 'en') {
-    await i18n.preloadLocale(i18n.currentLanguage);
+  if (localePromise) {
+    await localePromise;
   }
 
   const loadingScreen = new LoadingScreen();
-  loadingScreen.setProgress(24, i18n.t('loading.core'), i18n.t('loading.tagBoot'));
-  // Begin fetching the code-split UI chunk in parallel while textures & shaders warm up
-  const uiModulePromise = import('./components/UIManager');
-  await yieldFrame(16);
-
   loadingScreen.setProgress(32, i18n.t('loading.surfaces'), i18n.t('loading.tagSynthesizing'));
-  await TextureGenerator.prewarmTexturesAsync(PREWARM_WORLD_TEXTURES, (done, total) => {
+  earlyPrewarmProgress = (done, total) => {
     const pct = 32 + Math.round((done / total) * 38);
     loadingScreen.setProgress(pct, i18n.t('loading.surfaces'), i18n.t('loading.tagSynthesizing'));
-  });
+  };
+  if (prewarmPromise) {
+    await prewarmPromise;
+  } else {
+    await TextureGenerator.prewarmTexturesAsync(PREWARM_WORLD_TEXTURES, earlyPrewarmProgress);
+  }
+  earlyPrewarmProgress = null;
 
   loadingScreen.setProgress(74, i18n.t('loading.ephemerides'), i18n.t('loading.tagCalibrating'));
-  await yieldFrame(16);
-
   const sceneManager = new SceneManager(container as HTMLElement, bootWebGL);
-  await yieldFrame(16);
 
-  // Compile every material's shader program in parallel (KHR_parallel_shader_compile) while the
-  // loading screen is still animating, instead of stalling the main thread on the first frame.
+  // Yield a macrotask so SceneManager construction doesn't merge with shader setup into a single
+  // long task, then overlap GPU background shader compilation (KHR_parallel_shader_compile) with
+  // CPU-bound UIManager DOM initialization instead of stalling the main thread idle in `await`.
   loadingScreen.setProgress(82, i18n.t('loading.calibrating'), i18n.t('loading.tagCalibrating'));
-  await sceneManager.precompileShaders();
+  await new Promise<void>(resolve => setTimeout(resolve, 0));
+  const compilePromise = sceneManager.precompileShaders();
 
+  const { UIManager } = await (uiModulePromise ?? import('./components/UIManager'));
   loadingScreen.setProgress(90, i18n.t('loading.controls'), i18n.t('loading.tagConfiguring'));
-  const { UIManager } = await uiModulePromise;
   const uiManager = new UIManager(sceneManager);
-  await yieldFrame(16);
+  await compilePromise;
 
   // EXPOSE FOR TESTING & CONSOLE INSPECTION
   (window as any).sceneManager = sceneManager;
@@ -160,14 +180,14 @@ async function init() {
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
 
+  // Flush accumulated clock delta from shader precompilation and UI setup before starting the render loop
+  sceneManager.clock.getDelta();
   animate();
 
-  // Signal completion once the initial render cycle executes
+  // Signal completion once the initial render cycle (synchronously executed by `animate()` above) paints
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      void loadingScreen.complete().then(() => {
-        document.getElementById('critical-loading-css')?.remove();
-      });
+    void loadingScreen.complete().then(() => {
+      document.getElementById('critical-loading-css')?.remove();
     });
   });
 
@@ -207,6 +227,7 @@ async function init() {
 (window as any).startSimulation = () => {
   if (!isAnimating) {
     isAnimating = true;
+    (window as any).sceneManager?.clock?.getDelta?.();
     animate();
   }
 };

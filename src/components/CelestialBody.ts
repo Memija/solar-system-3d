@@ -107,6 +107,9 @@ export class CelestialBody {
     private lastComputedRealistic: boolean = false;
     private cachedKeplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
     private hasInitializedVelocityTransform: boolean = false;
+    hasAttachedChildren: boolean = false;
+    hasShadowCastingChild: boolean = false;
+    isCulled: boolean = false;
     showMeteors: boolean;
 
     trailLine: THREE.Line | null;
@@ -252,6 +255,8 @@ export class CelestialBody {
     }
 
     private orbitalBasis: OrbitalBasis;
+    private orbitEnabled: boolean = true;
+    private moonsEnabled: boolean = true;
 
     constructor(data: CelestialBodyData | MoonData, parent: THREE.Object3D, isMoon: boolean = false) {
         this.data = data;
@@ -295,6 +300,8 @@ export class CelestialBody {
         if (this.data.axialTilt !== undefined) {
             this.tiltGroup.rotation.x = -THREE.MathUtils.degToRad(this.data.axialTilt);
         }
+        this.tiltGroup.matrixAutoUpdate = false;
+        this.tiltGroup.updateMatrix?.();
         this.orbitGroup.add(this.tiltGroup);
 
         // Geometry - Start with low-poly LOD geometry at boot and lazily build high-res geometry only when approached
@@ -318,30 +325,39 @@ export class CelestialBody {
                 },
                 vertexShader: sunVertexShader,
                 fragmentShader: sunFragmentShader,
-                side: THREE.DoubleSide
+                side: THREE.FrontSide
             });
             material = sunMaterial;
             this.shaderMaterial = sunMaterial;
         } else if (this.data.name === 'Earth') {
-            // High-resolution NASA Blue Marble WebP satellite map of Earth (decoded off-thread)
-            const roughnessMap = TextureGenerator.getPlanetRoughnessMap('Earth');
+            // High-resolution NASA Blue Marble WebP satellite map + pre-baked static ocean/ice/land roughness map
+            // (both decoded off-thread via createImageBitmap, eliminating synchronous 2D canvas getImageData readback)
             const textureUrl = `${import.meta.env.BASE_URL}textures/earth_equirectangular.webp`;
-            const texture = typeof TextureGenerator.loadStaticImageTexture === 'function'
-                ? TextureGenerator.loadStaticImageTexture(textureUrl, {
+            const roughnessUrl = `${import.meta.env.BASE_URL}textures/earth_roughness.webp`;
+            let texture: THREE.Texture;
+            let roughnessMap: THREE.Texture;
+
+            if (typeof TextureGenerator.loadStaticImageTexture === 'function') {
+                texture = TextureGenerator.loadStaticImageTexture(textureUrl, {
                     colorSpace: THREE.SRGBColorSpace,
                     anisotropy: TextureGenerator.maxAnisotropy,
                     minFilter: THREE.LinearMipmapLinearFilter,
                     wrapS: THREE.RepeatWrapping,
-                    wrapT: THREE.ClampToEdgeWrapping,
-                    onImageReady: (img, isFlippedY) => {
-                        TextureGenerator.updateEarthRoughnessFromImage(img, isFlippedY);
-                    }
-                })
-                : new THREE.TextureLoader().load(textureUrl, (loadedTex) => {
+                    wrapT: THREE.ClampToEdgeWrapping
+                });
+                roughnessMap = TextureGenerator.loadStaticImageTexture(roughnessUrl, {
+                    minFilter: THREE.LinearMipmapLinearFilter,
+                    wrapS: THREE.RepeatWrapping,
+                    wrapT: THREE.ClampToEdgeWrapping
+                });
+            } else {
+                roughnessMap = TextureGenerator.getPlanetRoughnessMap('Earth');
+                texture = new THREE.TextureLoader().load(textureUrl, (loadedTex) => {
                     if (loadedTex?.image) {
                         TextureGenerator.updateEarthRoughnessFromImage(loadedTex.image);
                     }
                 });
+            }
 
             material = new THREE.MeshStandardMaterial({
                 map: texture,
@@ -351,26 +367,32 @@ export class CelestialBody {
                 color: 0xffffff
             });
         } else if (this.data.name === 'Moon') {
-            // Real Lunar Reconnaissance Orbiter equirectangular map + surface crater relief (decoded off-thread)
-            const textureUrl = `${import.meta.env.BASE_URL}textures/moon.webp`;
-            const texture = typeof TextureGenerator.loadStaticImageTexture === 'function'
-                ? TextureGenerator.loadStaticImageTexture(textureUrl, {
-                    colorSpace: THREE.SRGBColorSpace,
-                    anisotropy: TextureGenerator.maxAnisotropy,
-                    minFilter: THREE.LinearMipmapLinearFilter,
-                    wrapS: THREE.RepeatWrapping,
-                    wrapT: THREE.ClampToEdgeWrapping
-                })
-                : new THREE.TextureLoader().load(textureUrl);
-
-            material = new THREE.MeshStandardMaterial({
+            // Defer Lunar Reconnaissance Orbiter equirectangular map (~414 KB) behind shared 8x4 placeholder
+            // at boot (Moon.mesh is distance-culled in the wide overview) and decode off-thread on approach/focus
+            const buildMoonMaterial = (texture: THREE.Texture, bumpMap: THREE.Texture | null) => new THREE.MeshStandardMaterial({
                 map: texture,
-                bumpMap: texture,
+                bumpMap: bumpMap ?? texture,
                 bumpScale: 0.018,
                 roughness: 0.92,
                 metalness: 0.02,
                 color: 0xffffff
             });
+
+            if (typeof TextureGenerator.getOrDeferPlanetSurface === 'function' && typeof createImageBitmap === 'function') {
+                material = TextureGenerator.getOrDeferPlanetSurface('Moon', this.data.color, buildMoonMaterial);
+            } else {
+                const textureUrl = `${import.meta.env.BASE_URL}textures/moon.webp`;
+                const texture = typeof TextureGenerator.loadStaticImageTexture === 'function'
+                    ? TextureGenerator.loadStaticImageTexture(textureUrl, {
+                        colorSpace: THREE.SRGBColorSpace,
+                        anisotropy: TextureGenerator.maxAnisotropy,
+                        minFilter: THREE.LinearMipmapLinearFilter,
+                        wrapS: THREE.RepeatWrapping,
+                        wrapT: THREE.ClampToEdgeWrapping
+                    })
+                    : new THREE.TextureLoader().load(textureUrl);
+                material = buildMoonMaterial(texture, texture);
+            }
         } else {
             // Apply 2:1 equirectangular seamless texture + bump relief on rocky/icy cratered worlds.
             // Non-boot moons & outer dwarf planets use a lightweight placeholder during SceneManager
@@ -519,6 +541,8 @@ export class CelestialBody {
             depthWrite: false
         });
         this.coronaMesh = new THREE.Mesh(coronaGeo, coronaMat);
+        this.coronaMesh.matrixAutoUpdate = false;
+        this.coronaMesh.updateMatrix?.();
         this.tiltGroup.add(this.coronaMesh);
     }
 
@@ -586,6 +610,8 @@ export class CelestialBody {
         this.labelSprite.scale.set(0.05, 0.05, 1);
         this.labelSprite.position.set(0, this.data.radius * 1.2, 0);
         this.labelSprite.visible = this.showLabel;
+        this.labelSprite.matrixAutoUpdate = false;
+        this.labelSprite.updateMatrix?.();
         if (this.showLabel) {
             this.ensureLabelRendered();
         }
@@ -605,6 +631,7 @@ export class CelestialBody {
         this.labelSprite.material.needsUpdate = true;
         const aspect = canvas.width / canvas.height;
         this.labelSprite.scale.set(0.05 * aspect, 0.05, 1);
+        this.labelSprite.updateMatrix?.();
     }
 
     refreshLabel() {
@@ -615,6 +642,7 @@ export class CelestialBody {
                 this.labelSprite.material.map.needsUpdate = true;
                 const aspect = canvas.width / canvas.height;
                 this.labelSprite.scale.set(0.05 * aspect, 0.05, 1);
+                this.labelSprite.updateMatrix?.();
             }
         }
         this.moons.forEach(moon => moon.refreshLabel());
@@ -689,6 +717,8 @@ export class CelestialBody {
 
         this.atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
         this.atmosphereMesh.scale.setScalar(this.data.radius * config.scale);
+        this.atmosphereMesh.matrixAutoUpdate = false;
+        this.atmosphereMesh.updateMatrix?.();
         this.tiltGroup.add(this.atmosphereMesh);
     }
 
@@ -809,6 +839,8 @@ export class CelestialBody {
 
         // Rings are aligned with the planet's equator in the XZ plane
         ringMesh.rotation.x = Math.PI / 2;
+        ringMesh.matrixAutoUpdate = false;
+        ringMesh.updateMatrix?.();
 
         // Attach to tiltGroup so rings inherit planet's axial tilt
         if (this.mesh) {
@@ -970,11 +1002,15 @@ export class CelestialBody {
         const northGeo = new THREE.CylinderGeometry(r * 0.33, r * 0.28, r * 0.12, 48, 4, true);
         this.auroraMeshNorth = new THREE.Mesh(northGeo, this.auroraMaterial);
         this.auroraMeshNorth.position.set(0, r * 0.96, 0);
+        this.auroraMeshNorth.matrixAutoUpdate = false;
+        this.auroraMeshNorth.updateMatrix?.();
         this.tiltGroup.add(this.auroraMeshNorth);
 
         const southGeo = new THREE.CylinderGeometry(r * 0.28, r * 0.33, r * 0.12, 48, 4, true);
         this.auroraMeshSouth = new THREE.Mesh(southGeo, this.auroraMaterial);
         this.auroraMeshSouth.position.set(0, -r * 0.96, 0);
+        this.auroraMeshSouth.matrixAutoUpdate = false;
+        this.auroraMeshSouth.updateMatrix?.();
         this.tiltGroup.add(this.auroraMeshSouth);
     }
 
@@ -1122,7 +1158,8 @@ export class CelestialBody {
         const material = new THREE.LineBasicMaterial({
             color: this.data.color || 0xffffff,
             transparent: true,
-            opacity: 0.5
+            opacity: 0.5,
+            depthWrite: false
         });
 
         this.trailLine = new THREE.Line(geometry, material);
@@ -1175,6 +1212,7 @@ export class CelestialBody {
         const realisticRadius = displayRadius * 0.005536 * sizeRatio;
         const scale = realistic ? (realisticRadius / this.data.radius) : 1.0;
         this.tiltGroup.scale.setScalar(scale);
+        this.tiltGroup.updateMatrix?.();
 
         if (this.velocityVectorGroup) {
             this.velocityVectorGroup.scale.setScalar(scale);
@@ -1189,6 +1227,7 @@ export class CelestialBody {
         if (this.labelSprite) {
             const currentRadius = realistic ? realisticRadius : this.data.radius;
             this.labelSprite.position.set(0, currentRadius * 1.2, 0);
+            this.labelSprite.updateMatrix?.();
         }
 
         if (this.orbitLine) {
@@ -1208,7 +1247,8 @@ export class CelestialBody {
     createOrbit() {
         if (this.data.distance === 0) return; // Sun or center
 
-        const segments = 256;
+        const isDwarf = 'isDwarfPlanet' in this.data && Boolean(this.data.isDwarfPlanet);
+        const segments = this.isMoon ? 64 : (isDwarf ? 160 : 256);
         const geometry = new THREE.BufferGeometry();
         const vertices = new Float32Array((segments + 1) * 3);
 
@@ -1232,15 +1272,36 @@ export class CelestialBody {
             color: this.data.color || 0x38bdf8,
             transparent: true,
             opacity: 0.35,
-            blending: THREE.AdditiveBlending
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
+        this.orbitLine.visible = this.orbitEnabled && (!this.isMoon || this.moonsEnabled);
         this.orbitLine.matrixAutoUpdate = false;
         this.orbitLine.updateMatrix?.();
         markLineBatchable(this.orbitLine);
 
         this.parent.add(this.orbitLine);
+        if (!this.isMoon) {
+            this.orbitLine.updateMatrixWorld?.(true);
+            this.orbitLine.matrixWorldAutoUpdate = false;
+        }
+    }
+
+    ensureTransformUpToDate() {
+        if (!this.isCulled && !Number.isNaN(this.lastComputedAngle)) return;
+        const wasCulled = this.isCulled;
+        this.isCulled = false;
+        this.orbitGroup.matrixAutoUpdate = true;
+        if (this.mesh) {
+            this.mesh.matrixAutoUpdate = true;
+        }
+        if (wasCulled) {
+            this.update(0);
+        }
+        this.orbitGroup.updateMatrix?.();
+        this.mesh?.updateMatrix?.();
     }
 
     update(deltaTime: number, simTimePassed?: number, rawDelta?: number) {
@@ -1255,6 +1316,11 @@ export class CelestialBody {
             this.angle = (((baseAngle + speed * simTimePassed) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         } else {
             this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        }
+
+        if (this.isCulled) {
+            this.lastComputedAngle = NaN;
+            return;
         }
 
         const st = this.cachedKeplerState;
@@ -1403,17 +1469,21 @@ export class CelestialBody {
             this.auroraMeshSouth.visible = showAurora;
         }
 
+        const moonShadowMaxDist = Math.max(140, effectiveRadius * 22);
+        const enableMoonShadows = isFocused || distSq <= moonShadowMaxDist * moonShadowMaxDist;
+
         if (this.cloudMesh) {
             const cloudMaxDist = effectiveRadius * 95;
             const showClouds = isFocused || distSq <= cloudMaxDist * cloudMaxDist;
             this.cloudMesh.visible = showClouds;
+            this.cloudMesh.receiveShadow = showClouds && ((this.moons.length > 0 && enableMoonShadows) || this.hasShadowCastingChild);
             if (showClouds) {
                 TextureGenerator.ensureDeferredLoaded?.('EarthClouds');
             }
         }
 
         if (this.atmosphereMesh) {
-            const atmoMaxDist = effectiveRadius * 180;
+            const atmoMaxDist = effectiveRadius * 55;
             const showAtmo = isFocused || distSq <= atmoMaxDist * atmoMaxDist;
             this.atmosphereMesh.visible = showAtmo;
             if (showAtmo) {
@@ -1424,8 +1494,6 @@ export class CelestialBody {
             }
         }
 
-        const moonShadowMaxDist = Math.max(140, effectiveRadius * 22);
-        const enableMoonShadows = isFocused || distSq <= moonShadowMaxDist * moonShadowMaxDist;
         const detailTexMaxDist = Math.max(60, effectiveRadius * 18);
         const loadDetailTextures = isFocused || distSq <= detailTexMaxDist * detailTexMaxDist;
         if (loadDetailTextures) {
@@ -1436,7 +1504,7 @@ export class CelestialBody {
             this.ensureLabelRendered();
         }
 
-        const velArrowMaxDist = Math.max(190, effectiveRadius * 115);
+        const velArrowMaxDist = Math.max(140, effectiveRadius * 50);
         const showVelArrow = isFocused || distSq <= velArrowMaxDist * velArrowMaxDist;
         if (this.velocityArrowMesh) {
             this.velocityArrowMesh.visible = showVelArrow;
@@ -1454,7 +1522,13 @@ export class CelestialBody {
             }
         }
 
-        if (this.mesh && this.lowGeometry) {
+        const isDwarf = 'isDwarfPlanet' in this.data && Boolean(this.data.isDwarfPlanet);
+        const showBodyMesh = !isDwarf || isFocused || distSq <= Math.pow(Math.max(260, effectiveRadius * 900), 2);
+        if (this.mesh && isDwarf) {
+            this.mesh.visible = showBodyMesh;
+        }
+
+        if (this.mesh && showBodyMesh && this.lowGeometry) {
             const targetGeom = useHighGeom ? this.getOrCreateHighGeometry() : this.lowGeometry;
             if (this.mesh.geometry !== targetGeom) {
                 this.mesh.geometry = targetGeom;
@@ -1462,23 +1536,29 @@ export class CelestialBody {
         }
 
         if (this.mesh && !this.isMoon && this.data.name !== 'Sun') {
-            this.mesh.castShadow = this.ringMeshes.length > 0 || (this.moons.length > 0 && enableMoonShadows);
+            const hasActiveMoonShadow = this.moons.length > 0 && enableMoonShadows;
+            this.mesh.castShadow = showBodyMesh && (this.ringMeshes.length > 0 || hasActiveMoonShadow);
+            this.mesh.receiveShadow = showBodyMesh && (hasActiveMoonShadow || this.hasShadowCastingChild);
         }
 
         for (let i = 0; i < this.moons.length; i++) {
             const moon = this.moons[i];
             const moonRadius = Math.max(0.02, moon.data.radius * scale);
-            const moonVisMaxDist = Math.max(180, moonRadius * 1500);
+            const moonVisMaxDist = Math.max(150, moonRadius * 350);
             const showMoonMesh = isFocused || distSq <= moonVisMaxDist * moonVisMaxDist;
             if (moon.mesh) {
                 moon.mesh.visible = showMoonMesh;
                 moon.mesh.castShadow = showMoonMesh && enableMoonShadows;
+                moon.mesh.receiveShadow = showMoonMesh && enableMoonShadows;
                 if (showMoonMesh && moon.lowGeometry) {
                     const targetMoonGeom = useHighGeom ? moon.getOrCreateHighGeometry() : moon.lowGeometry;
                     if (moon.mesh.geometry !== targetMoonGeom) {
                         moon.mesh.geometry = targetMoonGeom;
                     }
                 }
+            }
+            if (moon.orbitLine) {
+                moon.orbitLine.visible = moon.orbitEnabled && this.moonsEnabled && showMoonMesh;
             }
             if (moon.atmosphereMesh) {
                 const moonAtmoMaxDist = moonRadius * 180;
@@ -1506,7 +1586,24 @@ export class CelestialBody {
                     moon.ensureVelocityLabelRendered();
                 }
             }
-            if (loadDetailTextures) {
+            const moonActive = showMoonMesh ||
+                Boolean(moon.orbitLine?.visible) ||
+                Boolean(moon.labelSprite?.visible) ||
+                Boolean(moon.trailLine?.visible) ||
+                Boolean(moon.meteorParticles?.visible) ||
+                moon.hasAttachedChildren;
+            if (moon.isCulled === moonActive) {
+                moon.isCulled = !moonActive;
+                moon.orbitGroup.matrixAutoUpdate = moonActive;
+                if (moon.mesh) {
+                    moon.mesh.matrixAutoUpdate = moonActive;
+                }
+                if (moonActive) {
+                    moon.lastComputedAngle = NaN;
+                    moon.update(0);
+                }
+            }
+            if (loadDetailTextures || (showMoonMesh && moon.data.name === 'Moon')) {
                 TextureGenerator.ensureDeferredLoaded?.(moon.data.name);
             }
         }
@@ -1542,8 +1639,9 @@ export class CelestialBody {
     }
 
     toggleOrbit(visible: boolean) {
+        this.orbitEnabled = visible;
         if (this.orbitLine) {
-            this.orbitLine.visible = visible;
+            this.orbitLine.visible = visible && (!this.isMoon || this.moonsEnabled);
         }
         if (this.velocityVectorGroup) {
             this.velocityVectorGroup.visible = visible;
@@ -1552,9 +1650,11 @@ export class CelestialBody {
     }
 
     toggleMoons(visible: boolean) {
+        this.moonsEnabled = visible;
         this.moons.forEach(moon => {
+            moon.moonsEnabled = visible;
             moon.tiltGroup.visible = visible;
-            if (moon.orbitLine) moon.orbitLine.visible = visible;
+            if (moon.orbitLine) moon.orbitLine.visible = visible && moon.orbitEnabled;
             moon.toggleMoons(visible);
         });
     }

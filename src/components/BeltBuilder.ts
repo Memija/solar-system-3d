@@ -61,7 +61,11 @@ export function buildAsteroidBelt(scene: THREE.Scene, visible: boolean): THREE.I
     }
 
     asteroidBelt.visible = visible;
+    asteroidBelt.matrixAutoUpdate = false;
+    asteroidBelt.updateMatrix();
     scene.add(asteroidBelt);
+    asteroidBelt.updateMatrixWorld(true);
+    asteroidBelt.matrixWorldAutoUpdate = false;
     return asteroidBelt;
 }
 
@@ -114,7 +118,11 @@ export function buildKuiperBelt(scene: THREE.Scene, visible: boolean): THREE.Ins
     }
 
     kuiperBelt.visible = visible;
+    kuiperBelt.matrixAutoUpdate = false;
+    kuiperBelt.updateMatrix();
     scene.add(kuiperBelt);
+    kuiperBelt.updateMatrixWorld(true);
+    kuiperBelt.matrixWorldAutoUpdate = false;
     return kuiperBelt;
 }
 
@@ -165,6 +173,8 @@ export function buildHabitableZone(scene: THREE.Scene, visible: boolean): THREE.
     mesh.updateMatrix();
     mesh.visible = visible;
     scene.add(mesh);
+    mesh.updateMatrixWorld(true);
+    mesh.matrixWorldAutoUpdate = false;
     return mesh;
 }
 
@@ -194,24 +204,28 @@ export function buildEclipticGrid(scene: THREE.Scene, visible: boolean): THREE.P
     }
 
     scene.add(grid);
+    grid.updateMatrixWorld(true);
+    grid.matrixWorldAutoUpdate = false;
     return grid;
 }
 
-export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer): StarfieldHandle {
-    // Opaque Milky Way WebP skybox (eliminates full-screen alpha blending overdraw).
-    // 28x20 segments (1,120 tris vs 8,192 for 64x64) is curvature-free from the interior at r=50,000.
+export function buildStarfield(scene: THREE.Scene, _renderer: THREE.WebGLRenderer): StarfieldHandle {
+    // Opaque Milky Way WebP skybox (2048x1024, eliminates full-screen alpha blending overdraw).
+    // 28x20 segments (1,120 tris vs 8,192 for 64x64) is curvature-free from the interior at r=50,000,
+    // and constant interior viewing distance + 60 deg FOV means mipmaps are never sampled.
     const skyGeometry = new THREE.SphereGeometry(50000, 28, 20);
     const textureUrl = `${import.meta.env.BASE_URL}textures/milky_way.webp`;
-    const aniso = renderer.capabilities?.getMaxAnisotropy?.() ?? 16;
     const skyTexture = typeof TextureGenerator.loadStaticImageTexture === 'function'
         ? TextureGenerator.loadStaticImageTexture(textureUrl, {
             colorSpace: THREE.SRGBColorSpace,
-            anisotropy: aniso
+            minFilter: THREE.LinearFilter,
+            generateMipmaps: false
         })
         : (() => {
             const tex = new THREE.TextureLoader().load(textureUrl);
             tex.colorSpace = THREE.SRGBColorSpace;
-            tex.anisotropy = aniso;
+            tex.minFilter = THREE.LinearFilter;
+            tex.generateMipmaps = false;
             return tex;
         })();
 
@@ -228,6 +242,8 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
     skybox.matrixAutoUpdate = false;
     skybox.updateMatrix();
     scene.add(skybox);
+    skybox.updateMatrixWorld(true);
+    skybox.matrixWorldAutoUpdate = false;
 
     // Soft circular anti-aliased multi-spectral background starfield with subtle scintillation
     const starCount = 3200;
@@ -309,16 +325,25 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
     starPoints.matrixAutoUpdate = false;
     starPoints.updateMatrix();
     scene.add(starPoints);
+    starPoints.updateMatrixWorld(true);
+    starPoints.matrixWorldAutoUpdate = false;
 
-    // Major navigable catalog stars: rendered in a single InstancedMesh (1 draw call)
+    // Major navigable catalog stars: pre-merged into a single static vertex-colored Mesh
+    // (1 draw call, shares the exact MeshBasicMaterial+USE_COLOR program with ConstellationManager)
     // while keeping lightweight raycast/focus proxy meshes in starMeshes.
     const majorStarRadius = 48000;
-    const sharedMajorGeo = new THREE.SphereGeometry(140, 8, 6);
-    const sharedMajorMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const instancedMajorStars = new THREE.InstancedMesh(sharedMajorGeo, sharedMajorMat, MajorStarsData.length);
-    instancedMajorStars.frustumCulled = false;
-    instancedMajorStars.matrixAutoUpdate = false;
-    instancedMajorStars.updateMatrix();
+    const sharedMajorGeo = new THREE.SphereGeometry(140, 6, 4);
+    const sharedMajorMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+
+    const basePosAttr = sharedMajorGeo.getAttribute('position') as THREE.BufferAttribute;
+    const baseIndex = sharedMajorGeo.getIndex();
+    const vertsPerStar = basePosAttr.count;
+    const indicesPerStar = baseIndex ? baseIndex.count : vertsPerStar;
+    const majorStarCount = MajorStarsData.length;
+
+    const mergedPositions = new Float32Array(majorStarCount * vertsPerStar * 3);
+    const mergedColors = new Float32Array(majorStarCount * vertsPerStar * 3);
+    const mergedIndices = new Uint16Array(majorStarCount * indicesPerStar);
 
     const starMeshes: THREE.Object3D[] = [];
     const tempColor = new THREE.Color();
@@ -334,16 +359,42 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
         starMesh.updateMatrixWorld(true);
         starMeshes.push(starMesh);
 
-        instancedMajorStars.setMatrixAt(idx, starMesh.matrix);
         tempColor.setHex(star.color ?? 0xffffff);
-        instancedMajorStars.setColorAt(idx, tempColor);
+        const vOffset = idx * vertsPerStar;
+        for (let v = 0; v < vertsPerStar; v++) {
+            const dst = (vOffset + v) * 3;
+            mergedPositions[dst] = basePosAttr.getX(v) + ecl.x;
+            mergedPositions[dst + 1] = basePosAttr.getY(v) + ecl.y;
+            mergedPositions[dst + 2] = basePosAttr.getZ(v) + ecl.z;
+            mergedColors[dst] = tempColor.r;
+            mergedColors[dst + 1] = tempColor.g;
+            mergedColors[dst + 2] = tempColor.b;
+        }
+
+        const iOffset = idx * indicesPerStar;
+        if (baseIndex) {
+            for (let k = 0; k < indicesPerStar; k++) {
+                mergedIndices[iOffset + k] = baseIndex.getX(k) + vOffset;
+            }
+        } else {
+            for (let k = 0; k < indicesPerStar; k++) {
+                mergedIndices[iOffset + k] = vOffset + k;
+            }
+        }
     });
 
-    instancedMajorStars.instanceMatrix.needsUpdate = true;
-    if (instancedMajorStars.instanceColor) {
-        instancedMajorStars.instanceColor.needsUpdate = true;
-    }
-    scene.add(instancedMajorStars);
+    const batchedMajorGeo = new THREE.BufferGeometry();
+    batchedMajorGeo.setAttribute('position', new THREE.BufferAttribute(mergedPositions, 3));
+    batchedMajorGeo.setAttribute('color', new THREE.BufferAttribute(mergedColors, 3));
+    batchedMajorGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+
+    const mergedMajorStars = new THREE.Mesh(batchedMajorGeo, sharedMajorMat);
+    mergedMajorStars.frustumCulled = false;
+    mergedMajorStars.matrixAutoUpdate = false;
+    mergedMajorStars.updateMatrix();
+    scene.add(mergedMajorStars);
+    mergedMajorStars.updateMatrixWorld(true);
+    mergedMajorStars.matrixWorldAutoUpdate = false;
 
     return {
         skybox,
@@ -364,8 +415,8 @@ export function buildStarfield(scene: THREE.Scene, renderer: THREE.WebGLRenderer
             starGeometry.dispose();
             starMaterial.dispose();
 
-            scene.remove(instancedMajorStars);
-            instancedMajorStars.dispose();
+            scene.remove(mergedMajorStars);
+            batchedMajorGeo.dispose();
             sharedMajorGeo.dispose();
             sharedMajorMat.dispose();
             starMeshes.length = 0;

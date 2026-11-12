@@ -8,15 +8,16 @@ export interface EnvironmentMapHandle {
 /**
  * Generates a lightweight procedural cosmic + warm solar equirectangular environment map
  * processed through PMREMGenerator so metallic spacecraft foil (JWST, Cassini, Voyager, ISS)
- * exhibits realistic specular reflections in deep space without external HDR network assets.
+ * exhibits realistic specular reflections in deep space without external HDR network assets
+ * and without forcing CUBEUV IBL shader math onto matte planetary surfaces.
  */
-export function applySpaceEnvironmentMap(
-    scene: THREE.Scene,
+export function createSpaceEnvironmentMap(
     renderer: THREE.WebGLRenderer
 ): EnvironmentMapHandle {
     let envDataTexture: THREE.DataTexture | null = null;
     let pmremTarget: THREE.WebGLRenderTarget | null = null;
     let pmremGenerator: THREE.PMREMGenerator | null = null;
+    let envTexture: THREE.Texture | null = null;
 
     try {
         const width = 64;
@@ -63,34 +64,52 @@ export function applySpaceEnvironmentMap(
         if (typeof THREE.PMREMGenerator === 'function') {
             pmremGenerator = new THREE.PMREMGenerator(renderer);
             pmremTarget = pmremGenerator.fromEquirectangular(envDataTexture);
+            envTexture = pmremTarget?.texture ?? envDataTexture;
             if (pmremTarget?.texture) {
-                scene.environment = pmremTarget.texture;
-            } else {
-                scene.environment = envDataTexture;
+                envDataTexture.dispose();
+                envDataTexture = null;
             }
+            pmremGenerator.dispose();
+            pmremGenerator = null;
         } else {
-            scene.environment = envDataTexture;
-        }
-
-        if ('environmentIntensity' in scene) {
-            (scene as any).environmentIntensity = 0.55;
+            envTexture = envDataTexture;
         }
     } catch {
         // Safe fallback in headless unit test environments
     }
 
     return {
-        texture: scene.environment,
+        texture: envTexture,
         dispose: () => {
-            if (scene.environment === pmremTarget?.texture || scene.environment === envDataTexture) {
-                scene.environment = null;
-            }
             pmremTarget?.dispose?.();
             pmremGenerator?.dispose?.();
             envDataTexture?.dispose?.();
             pmremTarget = null;
             pmremGenerator = null;
             envDataTexture = null;
+            envTexture = null;
+        }
+    };
+}
+
+export function applySpaceEnvironmentMap(
+    scene: THREE.Scene,
+    renderer: THREE.WebGLRenderer
+): EnvironmentMapHandle {
+    const handle = createSpaceEnvironmentMap(renderer);
+    if (handle.texture) {
+        scene.environment = handle.texture;
+        if ('environmentIntensity' in scene) {
+            (scene as any).environmentIntensity = 0.55;
+        }
+    }
+    return {
+        texture: handle.texture,
+        dispose: () => {
+            if (scene.environment === handle.texture) {
+                scene.environment = null;
+            }
+            handle.dispose();
         }
     };
 }

@@ -68,9 +68,12 @@ export class UIManager {
     private realtimeDistanceKm: number = 0;
     private lastRealtimeDateMs: number = 0;
     private lastFormattedTime: string = '';
+    private lastUtcSecond: number = NaN;
     private lastSyncedTimeScale: number = NaN;
     private lastTickerTarget: string = '';
+    private cachedTickerSpeedKmS: number = 29.8;
     private lastTickerDistStep: number = NaN;
+    private lastTickerFormatMs: number = 0;
 
     private onTourFocusBound: ((e: Event) => void) | null = null;
     private onJumpToDateBound: ((e: Event) => void) | null = null;
@@ -465,38 +468,40 @@ export class UIManager {
         return panel;
     }
 
+    private static readonly ORBITAL_VELOCITIES: ReadonlyArray<readonly [string, number, string]> = [
+        ['Mercury', 47.4, 'Mercury'],
+        ['Venus', 35.0, 'Venus'],
+        ['Earth', 29.8, 'Earth'],
+        ['Mars', 24.1, 'Mars'],
+        ['Jupiter', 13.1, 'Jupiter'],
+        ['Saturn', 9.7, 'Saturn'],
+        ['Uranus', 6.8, 'Uranus'],
+        ['Neptune', 5.4, 'Neptune'],
+        ['Pluto', 4.7, 'Pluto'],
+        ['Moon', 1.0, 'Moon'],
+        ['ISS', 7.7, 'ISS'],
+        ['Hubble', 7.6, 'Hubble'],
+        ['Voyager', 17.0, 'Voyager 1'],
+        ['James Webb', 1.1, 'JWST'],
+        ['Cassini', 18.0, 'Cassini'],
+        ['Halley', 54.6, 'Halley']
+    ];
+
     private getOrbitalVelocity(bodyName: string): { speedKmS: number; label: string } {
         if (bodyName === 'Sun') {
             const mwVal = i18n.t('ui.milkyWay');
             const mwText = mwVal && mwVal !== 'ui.milkyWay' ? mwVal : 'Milky Way';
             return { speedKmS: 220, label: `${i18n.getBodyName('Sun') || 'Sun'} (${mwText})` };
         }
-        const velocities: Record<string, { speedKmS: number; key: string }> = {
-            Mercury: { speedKmS: 47.4, key: 'Mercury' },
-            Venus: { speedKmS: 35.0, key: 'Venus' },
-            Earth: { speedKmS: 29.8, key: 'Earth' },
-            Mars: { speedKmS: 24.1, key: 'Mars' },
-            Jupiter: { speedKmS: 13.1, key: 'Jupiter' },
-            Saturn: { speedKmS: 9.7, key: 'Saturn' },
-            Uranus: { speedKmS: 6.8, key: 'Uranus' },
-            Neptune: { speedKmS: 5.4, key: 'Neptune' },
-            Pluto: { speedKmS: 4.7, key: 'Pluto' },
-            Moon: { speedKmS: 1.0, key: 'Moon' },
-            ISS: { speedKmS: 7.7, key: 'ISS' },
-            Hubble: { speedKmS: 7.6, key: 'Hubble' },
-            Voyager: { speedKmS: 17.0, key: 'Voyager 1' },
-            'James Webb': { speedKmS: 1.1, key: 'JWST' },
-            Cassini: { speedKmS: 18.0, key: 'Cassini' },
-            Halley: { speedKmS: 54.6, key: 'Halley' }
-        };
-        for (const [key, val] of Object.entries(velocities)) {
-            if (bodyName.includes(key) || key.includes(bodyName)) {
+        for (let i = 0; i < UIManager.ORBITAL_VELOCITIES.length; i++) {
+            const [matchKey, speedKmS, locKey] = UIManager.ORBITAL_VELOCITIES[i];
+            if (bodyName.includes(matchKey) || matchKey.includes(bodyName)) {
                 const localized =
-                    i18n.getBodyName(val.key) ||
-                    i18n.getSpacecraftName(val.key) ||
-                    i18n.getCometName(val.key) ||
-                    val.key;
-                return { speedKmS: val.speedKmS, label: localized };
+                    i18n.getBodyName(locKey) ||
+                    i18n.getSpacecraftName(locKey) ||
+                    i18n.getCometName(locKey) ||
+                    locKey;
+                return { speedKmS, label: localized };
             }
         }
         return { speedKmS: 29.8, label: i18n.getBodyName(bodyName) || bodyName || 'Earth' };
@@ -504,19 +509,22 @@ export class UIManager {
 
     update(timestamp: number = performance.now()): void {
         if (this.sceneManager.simDate) {
-            if (this.customDatePicker && !this.customDatePicker.isOpen) {
-                this.customDatePicker.setDate(this.sceneManager.simDate);
-            }
-
-            if (this.timeNumsEl) {
-                const d = this.sceneManager.simDate;
-                const hh = String(d.getUTCHours()).padStart(2, '0');
-                const mm = String(d.getUTCMinutes()).padStart(2, '0');
-                const ss = String(d.getUTCSeconds()).padStart(2, '0');
-                const timeStr = `${hh}:${mm}:${ss}`;
-                if (timeStr !== this.lastFormattedTime) {
-                    this.lastFormattedTime = timeStr;
-                    this.timeNumsEl.textContent = timeStr;
+            const d = this.sceneManager.simDate;
+            const utcSec = Math.floor(d.getTime() / 1000);
+            if (utcSec !== this.lastUtcSecond) {
+                this.lastUtcSecond = utcSec;
+                if (this.customDatePicker && !this.customDatePicker.isOpen) {
+                    this.customDatePicker.setDate(d);
+                }
+                if (this.timeNumsEl) {
+                    const hh = String(d.getUTCHours()).padStart(2, '0');
+                    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+                    const ss = String(d.getUTCSeconds()).padStart(2, '0');
+                    const timeStr = `${hh}:${mm}:${ss}`;
+                    if (timeStr !== this.lastFormattedTime) {
+                        this.lastFormattedTime = timeStr;
+                        this.timeNumsEl.textContent = timeStr;
+                    }
                 }
             }
         }
@@ -539,11 +547,19 @@ export class UIManager {
                 }
                 const currentSimMs = this.sceneManager.simDate.getTime();
                 const targetName = (this.sceneManager.focusedBody as any)?.data?.name || 'Earth';
-                const vel = this.getOrbitalVelocity(targetName);
+                const targetChanged = targetName !== this.lastTickerTarget;
+                if (targetChanged) {
+                    const vel = this.getOrbitalVelocity(targetName);
+                    this.lastTickerTarget = targetName;
+                    this.cachedTickerSpeedKmS = vel.speedKmS;
+                    if (this.tickerBodyEl) this.tickerBodyEl.textContent = vel.label;
+                    if (this.tickerSpeedEl) this.tickerSpeedEl.textContent = `${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s`;
+                }
+
                 if (this.lastRealtimeDateMs > 0 && currentSimMs > this.lastRealtimeDateMs) {
                     const elapsedSec = (currentSimMs - this.lastRealtimeDateMs) / 1000;
                     if (elapsedSec > 0 && elapsedSec < 5) {
-                        this.realtimeDistanceKm += elapsedSec * vel.speedKmS;
+                        this.realtimeDistanceKm += elapsedSec * this.cachedTickerSpeedKmS;
                     }
                 }
                 this.lastRealtimeDateMs = currentSimMs;
@@ -552,14 +568,10 @@ export class UIManager {
                     ? Math.round(this.realtimeDistanceKm)
                     : Math.round(this.realtimeDistanceKm * 10) / 10;
 
-                if (targetName !== this.lastTickerTarget) {
-                    this.lastTickerTarget = targetName;
-                    if (this.tickerBodyEl) this.tickerBodyEl.textContent = vel.label;
-                    if (this.tickerSpeedEl) this.tickerSpeedEl.textContent = `${i18n.formatNumber(vel.speedKmS, { maximumFractionDigits: 2 })} km/s`;
-                }
-
-                if (distStep !== this.lastTickerDistStep || (this.tickerDistEl && !this.tickerDistEl.textContent)) {
+                const needsInitialFormat = Number.isNaN(this.lastTickerDistStep) || (this.tickerDistEl && !this.tickerDistEl.textContent);
+                if (targetChanged || needsInitialFormat || (distStep !== this.lastTickerDistStep && (timestamp - this.lastTickerFormatMs >= 100))) {
                     this.lastTickerDistStep = distStep;
+                    this.lastTickerFormatMs = timestamp;
                     const distFormatted = this.realtimeDistanceKm >= 1000
                         ? `${i18n.formatNumber(distStep)} km`
                         : `${i18n.formatNumber(this.realtimeDistanceKm, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;

@@ -27,15 +27,13 @@ $z-loading: 99999;
     font-family: $font-sans;
     user-select: none;
     -webkit-user-select: none;
-    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
-                filter 0.75s ease;
-    will-change: opacity, transform, filter;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
 
     &.is-complete {
         opacity: 0;
-        transform: scale(1.05);
-        filter: blur(8px);
+        transform: scale(1.04);
         pointer-events: none;
     }
 

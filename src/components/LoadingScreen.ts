@@ -224,40 +224,45 @@ export class LoadingScreen {
             this.safetyTimeoutId = null;
         }
 
-        // Set target to 100% and smoothly finish filling the line together with percentage
+        // Set target to 100%; if boot already exceeded minDisplayDuration, snap immediately without idle frame waits
         this.targetProgress = 100;
-
-        await new Promise<void>(resolve => {
-            const check = () => {
-                if (this.currentProgress >= 99.5 || this.isDisposed) {
-                    this.currentProgress = 100;
-                    this.updateUI(100);
-                    resolve();
-                } else {
-                    requestAnimationFrame(check);
-                }
-            };
-            check();
-        });
+        const startCompleteNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (startCompleteNow - this.startTime >= this.minDisplayDuration) {
+            this.currentProgress = 100;
+            this.updateUI(100);
+        } else {
+            await new Promise<void>(resolve => {
+                const check = () => {
+                    if (this.currentProgress >= 99.5 || this.isDisposed) {
+                        this.currentProgress = 100;
+                        this.updateUI(100);
+                        resolve();
+                    } else {
+                        requestAnimationFrame(check);
+                    }
+                };
+                check();
+            });
+        }
 
         this.setStatus(i18n.t('loading.ready'), true);
         if (this.subsystemsLabel) {
             this.subsystemsLabel.textContent = i18n.t('loading.online');
         }
 
-
-        // Ensure minimum visual duration so users experience a smooth transition
+        // Ensure minimum visual duration so fast cached loads still transition cleanly
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const elapsed = now - this.startTime;
         const remainingWait = Math.max(0, this.minDisplayDuration - elapsed);
+        if (remainingWait > 0) {
+            await new Promise(resolve => setTimeout(resolve, remainingWait));
+        }
 
-        await new Promise(resolve => setTimeout(resolve, remainingWait + 200));
-
-        // Start cinematic dismissal transition
+        // Start dismissal transition (matches 0.3s CSS opacity transition)
         this.element.classList.add('is-complete');
 
         // Cleanup element after transition finishes
-        await new Promise(resolve => setTimeout(resolve, 750));
+        await new Promise(resolve => setTimeout(resolve, 320));
         this.element.classList.add('is-hidden');
         this.dispose();
     }

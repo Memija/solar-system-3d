@@ -24,6 +24,16 @@ export class Comet {
     private lastComputedAngle: number = NaN;
     private lastComputedRealistic: boolean = false;
     private static _sharedComaGeo: THREE.SphereGeometry | null = null;
+    private static _sharedTailAttrsDesktop: {
+        position: THREE.BufferAttribute;
+        lifetime: THREE.BufferAttribute;
+        tailKind: THREE.BufferAttribute;
+    } | null = null;
+    private static _sharedTailAttrsMobile: {
+        position: THREE.BufferAttribute;
+        lifetime: THREE.BufferAttribute;
+        tailKind: THREE.BufferAttribute;
+    } | null = null;
     private static readonly _tempDir = new THREE.Vector3();
     private static readonly _tempLateral = new THREE.Vector3();
     private static readonly _tempWorldPos = new THREE.Vector3();
@@ -116,24 +126,19 @@ export class Comet {
         this.createOrbit();
     }
 
-    createTail() {
-        const isMobile = typeof window !== 'undefined' && (
-            ('ontouchstart' in window) ||
-            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
-            window.innerWidth <= 768
-        );
-        const particleCount = isMobile ? 4000 : 10000;
-        this.maxTailParticles = particleCount;
-        const geometry = new THREE.BufferGeometry();
+    private static getOrCreateSharedTailAttrs(isMobile: boolean, particleCount: number) {
+        const cached = isMobile ? Comet._sharedTailAttrsMobile : Comet._sharedTailAttrsDesktop;
+        if (cached) return cached;
+
         const positions = new Float32Array(particleCount * 3);
         const lifetimes = new Float32Array(particleCount);
         const tailKinds = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            // Guarantee non-zero initial spread vector
-            const rx = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
-            const ry = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
-            const rz = (THREE.MathUtils.seededRandom() - 0.5) * this.data.radius;
+            // Guarantee non-zero unit-radius initial spread vector (scaled by nucleusRadius uniform)
+            const rx = THREE.MathUtils.seededRandom() - 0.5;
+            const ry = THREE.MathUtils.seededRandom() - 0.5;
+            const rz = THREE.MathUtils.seededRandom() - 0.5;
             positions[i * 3] = Math.abs(rx) < 1e-4 && Math.abs(ry) < 1e-4 && Math.abs(rz) < 1e-4 ? 1e-3 : rx;
             positions[i * 3 + 1] = ry;
             positions[i * 3 + 2] = rz;
@@ -142,9 +147,36 @@ export class Comet {
             tailKinds[i] = i % 12 < 5 ? 0.0 : 1.0;
         }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
-        geometry.setAttribute('tailKind', new THREE.BufferAttribute(tailKinds, 1));
+        const attrs = {
+            position: new THREE.BufferAttribute(positions, 3),
+            lifetime: new THREE.BufferAttribute(lifetimes, 1),
+            tailKind: new THREE.BufferAttribute(tailKinds, 1)
+        };
+        if (isMobile) {
+            Comet._sharedTailAttrsMobile = attrs;
+        } else {
+            Comet._sharedTailAttrsDesktop = attrs;
+        }
+        return attrs;
+    }
+
+    createTail() {
+        const isMobile = typeof window !== 'undefined' && (
+            ('ontouchstart' in window) ||
+            (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+            window.innerWidth <= 768
+        );
+        const particleCount = isMobile ? 2000 : 4000;
+        this.maxTailParticles = particleCount;
+        const sharedAttrs = Comet.getOrCreateSharedTailAttrs(isMobile, particleCount);
+
+        // Each comet has its own lightweight BufferGeometry shell for independent LOD drawRange
+        // while sharing the single set of GPU VBOs across all comets.
+        const geometry = new THREE.BufferGeometry();
+        geometry.userData.sharedAttributes = true;
+        geometry.setAttribute('position', sharedAttrs.position);
+        geometry.setAttribute('lifetime', sharedAttrs.lifetime);
+        geometry.setAttribute('tailKind', sharedAttrs.tailKind);
         // Enclose maximum shader displacement (92-unit ion tail + 22-unit lateral drift) for accurate frustum culling
         geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 120);
 
@@ -154,12 +186,14 @@ export class Comet {
                 dustColor: { value: new THREE.Color(0xfef3c7) },  // Dust tail warm solar-reflected cream
                 sunDirection: { value: new THREE.Vector3(1, 0, 0) },
                 orbitLateral: { value: new THREE.Vector3(0, 0, 1) },
+                nucleusRadius: { value: this.data.radius },
                 time: { value: 0 },
                 tailVisibility: { value: 1 }
             },
             vertexShader: `
                 uniform vec3 sunDirection;
                 uniform vec3 orbitLateral;
+                uniform float nucleusRadius;
                 uniform float time;
                 attribute float lifetime;
                 attribute float tailKind;
@@ -173,7 +207,7 @@ export class Comet {
                     float currentLife = fract(lifetime + time * speedScale);
                     vAlpha = 1.0 - currentLife;
 
-                    vec3 offset = position;
+                    vec3 offset = position * nucleusRadius;
                     float offsetLen = length(offset);
                     vec3 radialDir = offsetLen > 0.0001 ? (offset / offsetLen) : vec3(0.0, 1.0, 0.0);
 
@@ -186,7 +220,7 @@ export class Comet {
                     offset += radialDir * (currentLife * coneSpread);
 
                     vec4 mvPosition = modelViewMatrix * vec4(tailMove + offset, 1.0);
-                    float size = mix(240.0, 320.0, tailKind) * vAlpha;
+                    float size = mix(305.0, 405.0, tailKind) * vAlpha;
                     gl_PointSize = max(1.5, size / max(0.1, -mvPosition.z));
                     gl_Position = projectionMatrix * mvPosition;
                 }
@@ -205,7 +239,7 @@ export class Comet {
 
                     float intensity = pow(1.0 - (r * 2.0), 1.35);
                     vec3 particleColor = mix(color, dustColor, vKind);
-                    gl_FragColor = vec4(particleColor, vAlpha * intensity * 0.48 * tailVisibility);
+                    gl_FragColor = vec4(particleColor, vAlpha * intensity * 0.64 * tailVisibility);
                 }
             `,
             transparent: true,
@@ -260,7 +294,12 @@ export class Comet {
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-        const material = new THREE.LineBasicMaterial({ color: 0x88bbff, transparent: true, opacity: 0.3 });
+        const material = new THREE.LineBasicMaterial({
+            color: 0x88bbff,
+            transparent: true,
+            opacity: 0.3,
+            depthWrite: false
+        });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
         this.orbitLine.matrixAutoUpdate = false;
@@ -340,9 +379,9 @@ export class Comet {
         if (isFocused || distSq <= 220 * 220) {
             activeCount = this.maxTailParticles;
         } else if (distSq <= 500 * 500) {
-            activeCount = Math.floor(this.maxTailParticles * 0.55);
+            activeCount = Math.floor(this.maxTailParticles * 0.45);
         } else {
-            activeCount = Math.floor(this.maxTailParticles * 0.3);
+            activeCount = Math.floor(this.maxTailParticles * 0.22);
         }
         const drawRange = this.tailParticles.geometry.drawRange;
         if (drawRange.count !== activeCount) {
@@ -369,7 +408,13 @@ export class Comet {
         }
 
         if (this.tailParticles) {
-            this.tailParticles.geometry?.dispose();
+            const tailGeo = this.tailParticles.geometry;
+            if (tailGeo?.userData?.sharedAttributes) {
+                tailGeo.deleteAttribute('position');
+                tailGeo.deleteAttribute('lifetime');
+                tailGeo.deleteAttribute('tailKind');
+            }
+            tailGeo?.dispose();
             if (Array.isArray(this.tailParticles.material)) {
                 this.tailParticles.material.forEach(m => m.dispose());
             } else {
