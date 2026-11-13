@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { HeaderSlotsManager } from '../HeaderSlotsManager';
-import { DEFAULT_HEADER_SLOTS } from '../PreferencesManager';
+import { HeaderSlotsManager, MAX_HEADER_SLOTS, stripShortcutFromLabel } from '../HeaderSlotsManager';
+import { DEFAULT_HEADER_SLOTS, PreferencesManager } from '../PreferencesManager';
+import { i18n } from '../../i18n';
 
 describe('HeaderSlotsManager', () => {
     beforeEach(() => {
@@ -255,5 +256,82 @@ describe('HeaderSlotsManager', () => {
         expect(tourBtn).not.toBeNull();
         expect(tourBtn.dataset.locked).toBe('true');
         expect(tourBtn.querySelector('svg[data-icon="cinematic-tour"]')).not.toBeNull();
+    });
+
+    it('enforces MAX_HEADER_SLOTS (8) when adding or toggling slots', () => {
+        expect(MAX_HEADER_SLOTS).toBe(8);
+        expect(HeaderSlotsManager.getMaxSlots()).toBe(8);
+        expect(HeaderSlotsManager.getActiveSlotIds().length).toBe(7);
+        expect(HeaderSlotsManager.isAtSlotLimit()).toBe(false);
+        expect(HeaderSlotsManager.canAddSlot('enableBloom')).toBe(true);
+
+        // 8th slot succeeds
+        expect(HeaderSlotsManager.addSlot('enableBloom')).toBe(true);
+        expect(HeaderSlotsManager.getActiveSlotIds().length).toBe(8);
+        expect(HeaderSlotsManager.isAtSlotLimit()).toBe(true);
+        expect(HeaderSlotsManager.canAddSlot('showAxes')).toBe(false);
+
+        // 9th slot is rejected via both addSlot and toggleSlot
+        expect(HeaderSlotsManager.addSlot('showAxes')).toBe(false);
+        expect(HeaderSlotsManager.toggleSlot('showOrbits')).toBe(false);
+        expect(HeaderSlotsManager.isSlotActive('showAxes')).toBe(false);
+        expect(HeaderSlotsManager.isSlotActive('showOrbits')).toBe(false);
+        expect(HeaderSlotsManager.getActiveSlotIds().length).toBe(8);
+
+        // Removing a removable slot frees capacity to add another
+        expect(HeaderSlotsManager.removeSlot('minimap')).toBe(true);
+        expect(HeaderSlotsManager.isAtSlotLimit()).toBe(false);
+        expect(HeaderSlotsManager.addSlot('showAxes')).toBe(true);
+        expect(HeaderSlotsManager.isSlotActive('showAxes')).toBe(true);
+        expect(HeaderSlotsManager.getActiveSlotIds().length).toBe(8);
+    });
+
+    it('clamps oversized stored headerSlots arrays to MAX_HEADER_SLOTS while preserving locked slots', () => {
+        PreferencesManager.set('headerSlots', [
+            'minimap', 'snapshot', 'audio', 'telemetry', 'shortcuts',
+            'enableBloom', 'showAxes', 'showOrbits', 'showMoons',
+            'cinematicTour', 'measureMode'
+        ]);
+
+        const activeIds = HeaderSlotsManager.getActiveSlotIds();
+        expect(activeIds.length).toBe(MAX_HEADER_SLOTS);
+        expect(activeIds).toContain('cinematicTour');
+        expect(activeIds).toContain('measureMode');
+    });
+
+    it('orders rendered quick-action buttons alphabetically in the main bar and re-orders on language change', async () => {
+        i18n.setLanguage('en');
+        HeaderSlotsManager.addSlot('enableBloom');
+
+        const container = document.createElement('div');
+        const mockUi = {
+            minimap: { isVisible: true },
+            audioManager: { getAudioEnabled: () => false },
+            performanceMonitor: { getVisible: () => true },
+            shortcutsModal: { isOpen: false },
+            sceneManager: { tourMode: false, measureMode: false }
+        };
+
+        HeaderSlotsManager.renderSlots(container, mockUi);
+
+        const getCleanTitles = () =>
+            Array.from(container.querySelectorAll<HTMLButtonElement>('.obs-header-slot-btn'))
+                .map(btn => stripShortcutFromLabel(btn.title));
+
+        const enTitles = getCleanTitles();
+        const enSorted = [...enTitles].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+        expect(enTitles).toEqual(enSorted);
+        expect(enTitles[0]).toBe('Astrophotography Snapshot');
+
+        // Switching language updates tooltips and maintains alphabetical order in the new locale
+        await i18n.preloadLocale('de');
+        i18n.setLanguage('de');
+        HeaderSlotsManager.updateSlotStates(container, mockUi);
+
+        const deTitles = getCleanTitles();
+        const deSorted = [...deTitles].sort((a, b) => a.localeCompare(b, 'de', { sensitivity: 'base' }));
+        expect(deTitles).toEqual(deSorted);
+
+        i18n.setLanguage('en');
     });
 });

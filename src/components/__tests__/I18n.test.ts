@@ -453,16 +453,14 @@ describe('I18n System', () => {
         expect(getLocaleFlagUrl('sr')).toContain('flags/rs.png');
     });
 
-    it('should order languages alphabetically and name Serbian as Serbian', () => {
+    it('should list native language names in order with Serbian in Cyrillic', () => {
         const nativeNames = AVAILABLE_LOCALES.map(l => l.nativeName);
-        const sorted = [...nativeNames].sort((a, b) => a.localeCompare(b));
-        expect(nativeNames).toEqual(sorted);
-        expect(nativeNames).toEqual(['Bahasa Indonesia', 'Bosanski', 'Deutsch', 'English', 'Polski', 'Serbian']);
+        expect(nativeNames).toEqual(['Bahasa Indonesia', 'Bosanski', 'Deutsch', 'English', 'Polski', 'Српски']);
 
         const serbian = AVAILABLE_LOCALES.find(l => l.code === 'sr');
         expect(serbian).toBeDefined();
         expect(serbian?.label).toBe('Serbian');
-        expect(serbian?.nativeName).toBe('Serbian');
+        expect(serbian?.nativeName).toBe('Српски');
     });
 
     it('should provide controls and header translations for all 6 languages', () => {
@@ -498,6 +496,10 @@ describe('I18n System', () => {
         await Promise.all(codes.map(c => i18n.preloadLocale(c)));
 
         const requiredKeys = [
+            'ui.slotsActive',
+            'ui.slotsLimitReached',
+            'ui.addSlot',
+            'ui.removeSlot',
             'ui.liveBadge',
             'ui.milkyWay',
             'ui.orbitTelemetry',

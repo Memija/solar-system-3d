@@ -35,6 +35,8 @@ export interface UserPreferences {
     [key: string]: any;
 }
 
+export const MAX_HEADER_SLOTS = 8;
+
 export const DEFAULT_HEADER_SLOTS: readonly string[] = [
     'cinematicTour',
     'measureMode',
@@ -141,8 +143,13 @@ export class PreferencesManagerClass {
             }
         }
 
-        // Ensure non-removable default slots (cinematicTour, measureMode) are always present
+        // Ensure non-removable default slots (cinematicTour, measureMode) are always present and cap to MAX_HEADER_SLOTS
         if (Array.isArray(loaded.headerSlots)) {
+            const deduped = Array.from(new Set(loaded.headerSlots));
+            if (deduped.length !== loaded.headerSlots.length) {
+                loaded.headerSlots = deduped;
+                migratedLegacy = true;
+            }
             if (!loaded.headerSlots.includes('cinematicTour')) {
                 loaded.headerSlots.unshift('cinematicTour');
                 migratedLegacy = true;
@@ -150,6 +157,22 @@ export class PreferencesManagerClass {
             if (!loaded.headerSlots.includes('measureMode')) {
                 const tourIdx = loaded.headerSlots.indexOf('cinematicTour');
                 loaded.headerSlots.splice(tourIdx >= 0 ? tourIdx + 1 : 0, 0, 'measureMode');
+                migratedLegacy = true;
+            }
+            if (loaded.headerSlots.length > MAX_HEADER_SLOTS) {
+                const lockedSet = new Set(['cinematicTour', 'measureMode']);
+                const clamped: string[] = [];
+                let remainingLocked = loaded.headerSlots.filter(id => lockedSet.has(id)).length;
+                for (const id of loaded.headerSlots) {
+                    if (clamped.length >= MAX_HEADER_SLOTS) break;
+                    if (lockedSet.has(id)) {
+                        clamped.push(id);
+                        remainingLocked--;
+                    } else if (clamped.length + remainingLocked < MAX_HEADER_SLOTS) {
+                        clamped.push(id);
+                    }
+                }
+                loaded.headerSlots = clamped;
                 migratedLegacy = true;
             }
         }

@@ -1593,7 +1593,7 @@ export class UIManager {
 
     public get headerSlotsModal(): Modal {
         if (!this._headerSlotsModal) {
-            const m = new Modal(this.uiContainer);
+            const m = new Modal(this.uiContainer, { enableAudioGuide: false });
             m.modalElement.style.top = '50%';
             m.modalElement.style.left = '50%';
             m.modalElement.style.right = 'auto';

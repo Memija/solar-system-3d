@@ -397,5 +397,29 @@ describe('Modal Localization & Audio Guide', () => {
         expect(calledLang).toBe('bs');
         expect(calledText).toContain('Prave razmjere Sunčevog sistema');
     });
+
+    it('omits or hides the audio guide button when enableAudioGuide is false or hideAudioGuide is set', () => {
+        const noAudioModal = new Modal(container, { enableAudioGuide: false });
+        expect(noAudioModal.modalElement.querySelector('.modal-audio-guide-btn')).toBeNull();
+        noAudioModal.dispose();
+
+        // Standard modal hides Listen button when hideAudioGuide is passed to show()
+        modal.show({
+            name: 'Header Quick Access',
+            description: '<div>Slots</div>',
+            hideAudioGuide: true
+        });
+        const audioBtn = modal.modalElement.querySelector('.modal-audio-guide-btn') as HTMLButtonElement;
+        expect(audioBtn.hidden).toBe(true);
+        expect(audioBtn.style.display).toBe('none');
+
+        // Showing normal data restores the Listen button
+        modal.show({
+            name: 'Earth',
+            description: 'Our home planet'
+        });
+        expect(audioBtn.hidden).toBe(false);
+        expect(audioBtn.style.display).toBe('');
+    });
 });
 

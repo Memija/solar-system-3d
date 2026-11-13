@@ -251,6 +251,12 @@ describe('UIManager', () => {
             expect(flagImg?.src).toContain('flags/');
         });
 
+        // Serbian item should show Cyrillic native name next to the Serbian flag
+        const srItem = Array.from(items).find(el => (el as HTMLElement).dataset.lang === 'sr') as HTMLElement;
+        expect(srItem).toBeTruthy();
+        expect(srItem.querySelector<HTMLImageElement>('.lang-flag-img')?.src).toContain('flags/rs.png');
+        expect(srItem.querySelector('.lang-label')?.textContent).toBe('Српски');
+
         // Click Bosnian item
         const bsItem = Array.from(items).find(el => el.textContent?.includes('Bosanski')) as HTMLElement;
         expect(bsItem).toBeTruthy();
@@ -637,9 +643,11 @@ describe('UIManager', () => {
         expect(modalShowSpy).toHaveBeenCalledTimes(1);
         const modalArg = modalShowSpy.mock.calls[0][0] as any;
         expect(modalArg.name).toContain('Header Quick Access');
+        expect(modalArg.hideAudioGuide).toBe(true);
         expect(modalArg.description).toContain('header-slots-customizer-modal');
         expect(modalArg.description).toContain('slotsResetBtn');
         expect(modalArg.description).toContain('slotsDoneBtn');
+        expect(uiManager.headerSlotsModal.modalElement.querySelector('.modal-audio-guide-btn')).toBeNull();
         modalShowSpy.mockRestore();
     });
 
@@ -710,6 +718,53 @@ describe('UIManager', () => {
         expect(checkbox.checked).toBe(true);
         const slotsContainer = uiContainer.querySelector('.obs-header-slots') as HTMLElement;
         expect(slotsContainer.querySelector('#hudSlot_cinematicTour')).not.toBeNull();
+    });
+
+    it('should enforce the 8-slot limit in the slots customizer modal and disable remaining inactive slots', () => {
+        uiManager.openHeaderSlotsCustomizer();
+        const content = uiManager.headerSlotsModal.contentElement!;
+        expect(content).not.toBeNull();
+
+        const counterBadge = content.querySelector('#slotsCounterBadge') as HTMLElement;
+        const limitBanner = content.querySelector('#slotsLimitBanner') as HTMLElement;
+        const orbitsCheckbox = content.querySelector('.slot-toggle-input[data-slot-id="showOrbits"]') as HTMLInputElement;
+        const axesCard = content.querySelector('.slot-config-card[data-slot-id="showAxes"]') as HTMLElement;
+        const axesCheckbox = content.querySelector('.slot-toggle-input[data-slot-id="showAxes"]') as HTMLInputElement;
+        const minimapCheckbox = content.querySelector('.slot-toggle-input[data-slot-id="minimap"]') as HTMLInputElement;
+
+        // Initially 7 / 8 active slots
+        expect(counterBadge.textContent).toContain('7 / 8');
+        expect(counterBadge.classList.contains('is-at-limit')).toBe(false);
+        expect(limitBanner.style.display).toBe('none');
+        expect(orbitsCheckbox.disabled).toBe(false);
+        expect(axesCheckbox.disabled).toBe(false);
+
+        // Toggle 8th slot ON -> reaches 8 / 8 limit
+        orbitsCheckbox.checked = true;
+        orbitsCheckbox.onchange?.(new Event('change'));
+
+        expect(counterBadge.textContent).toContain('8 / 8');
+        expect(counterBadge.classList.contains('is-at-limit')).toBe(true);
+        expect(limitBanner.style.display).toBe('flex');
+        expect(axesCheckbox.disabled).toBe(true);
+        expect(axesCard.classList.contains('is-limit-disabled')).toBe(true);
+        expect(minimapCheckbox.disabled).toBe(false); // Active removable slots remain enabled
+
+        // Clicking a limit-disabled card does not activate it or exceed 8 buttons
+        axesCard.click();
+        expect(axesCheckbox.checked).toBe(false);
+        const slotsContainer = uiContainer.querySelector('.obs-header-slots') as HTMLElement;
+        expect(slotsContainer.children.length).toBe(8);
+
+        // Removing an active slot drops to 7 / 8 and re-enables inactive options
+        minimapCheckbox.checked = false;
+        minimapCheckbox.onchange?.(new Event('change'));
+
+        expect(counterBadge.textContent).toContain('7 / 8');
+        expect(counterBadge.classList.contains('is-at-limit')).toBe(false);
+        expect(limitBanner.style.display).toBe('none');
+        expect(axesCheckbox.disabled).toBe(false);
+        expect(axesCard.classList.contains('is-limit-disabled')).toBe(false);
     });
 
     it('should dynamically update measurement HUD bar when objects move/rotate in animation loop', () => {

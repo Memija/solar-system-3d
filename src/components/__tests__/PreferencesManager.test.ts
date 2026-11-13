@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
     PreferencesManagerClass,
     APP_STORAGE_KEY,
-    DEFAULT_PREFERENCES
+    DEFAULT_PREFERENCES,
+    MAX_HEADER_SLOTS
 } from '../PreferencesManager';
 
 describe('PreferencesManager', () => {
@@ -170,5 +171,21 @@ describe('PreferencesManager', () => {
         expect(migratedManager.get('headerSlots')[0]).toBe('cinematicTour');
         expect(migratedManager.get('headerSlots')[1]).toBe('measureMode');
         expect(migratedManager.get('realisticDistances')).toBe(false);
+    });
+
+    it('clamps persisted headerSlots to MAX_HEADER_SLOTS on load while preserving locked slots', () => {
+        localStorage.clear();
+        localStorage.setItem('solar-system-3d', JSON.stringify({
+            headerSlots: [
+                'minimap', 'snapshot', 'audio', 'telemetry', 'shortcuts',
+                'enableBloom', 'showAxes', 'showOrbits', 'showMoons', 'showComets'
+            ]
+        }));
+
+        const migratedManager = new PreferencesManagerClass('solar-system-3d');
+        const slots = migratedManager.get('headerSlots');
+        expect(slots.length).toBe(MAX_HEADER_SLOTS);
+        expect(slots).toContain('cinematicTour');
+        expect(slots).toContain('measureMode');
     });
 });

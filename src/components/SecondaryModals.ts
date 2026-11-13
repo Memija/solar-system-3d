@@ -96,9 +96,39 @@ export function toggleShortcutsModal(ui: UIManager): void {
     });
 }
 
+function formatSlotsActiveText(count: number, max: number): string {
+    const raw = i18n.t('ui.slotsActive', { count: String(count), max: String(max) });
+    return raw && raw !== 'ui.slotsActive' ? raw : `${count} / ${max} active slots`;
+}
+
+function formatSlotsLimitText(max: number): string {
+    const raw = i18n.t('ui.slotsLimitReached', { max: String(max) });
+    return raw && raw !== 'ui.slotsLimitReached'
+        ? raw
+        : `Maximum of ${max} quick-access slots reached — remove a slot first`;
+}
+
+function getSlotSwitchTitle(isLocked: boolean, isActive: boolean, isLimitBlocked: boolean, maxSlots: number): string {
+    if (isLocked) {
+        const val = i18n.t('ui.permanentSlotDesc');
+        return val && val !== 'ui.permanentSlotDesc' ? val : 'Permanently pinned to header (cannot be removed)';
+    }
+    if (isActive) {
+        const val = i18n.t('ui.removeSlot');
+        return val && val !== 'ui.removeSlot' ? val : 'Remove from header';
+    }
+    if (isLimitBlocked) {
+        return formatSlotsLimitText(maxSlots);
+    }
+    const val = i18n.t('ui.addSlot');
+    return val && val !== 'ui.addSlot' ? val : 'Add to header';
+}
+
 export function openHeaderSlotsCustomizer(ui: UIManager): void {
     const availableSlots = HeaderSlotsManager.getAvailableSlots();
     const currentActive = HeaderSlotsManager.getActiveSlotIds();
+    const maxSlots = HeaderSlotsManager.getMaxSlots();
+    const isAtLimit = currentActive.length >= maxSlots;
 
     const categories: { id: HeaderSlotCategory; icon: SvgIconName; titleKey: string; defaultTitle: string }[] = [
         { id: 'camera', icon: 'camera', titleKey: 'ui.cameraCategory', defaultTitle: 'Camera Controls' },
@@ -107,16 +137,21 @@ export function openHeaderSlotsCustomizer(ui: UIManager): void {
         { id: 'tools', icon: 'system', titleKey: 'ui.toolsCategory', defaultTitle: 'Observatory Instruments' }
     ];
 
-    const activeText = i18n.t('ui.slotsActive', { count: currentActive.length.toString() }) || `${currentActive.length} active slots`;
+    const activeText = formatSlotsActiveText(currentActive.length, maxSlots);
+    const limitReachedText = formatSlotsLimitText(maxSlots);
 
     let html = `
         <div class="header-slots-customizer-modal">
             <div class="slots-modal-header-desc">
                 <p class="slots-desc-text">${i18n.t('ui.slotsDescription') || 'Pin and organize your favorite tools, optics settings, and celestial layers directly to the observatory header bar for instant 1-click access.'}</p>
-                <div class="slots-active-counter" id="slotsCounterBadge">
+                <div class="slots-active-counter ${isAtLimit ? 'is-at-limit' : ''}" id="slotsCounterBadge">
                     <span class="slots-live-dot">●</span>
                     <span class="counter-text">${activeText}</span>
                 </div>
+            </div>
+            <div class="slots-limit-banner" id="slotsLimitBanner" style="display: ${isAtLimit ? 'flex' : 'none'};" role="status" aria-live="polite">
+                <span class="slots-limit-icon">${svgIcon('info')}</span>
+                <span class="slots-limit-text">${limitReachedText}</span>
             </div>
     `;
 
@@ -141,13 +176,12 @@ export function openHeaderSlotsCustomizer(ui: UIManager): void {
             const label = stripLeadingEmoji(stripShortcutFromLabel(rawLabel));
             const icon = typeof slot.icon === 'function' ? slot.icon(ui) : slot.icon;
             const isLocked = !HeaderSlotsManager.isSlotRemovable(slot.id);
-
-            const switchTitle = isLocked
-                ? (i18n.t('ui.permanentSlotDesc') || 'Permanently pinned to header (cannot be removed)')
-                : (isActive ? 'Remove from header' : 'Add to header');
+            const isLimitBlocked = !isLocked && !isActive && isAtLimit;
+            const isDisabled = isLocked || isLimitBlocked;
+            const switchTitle = getSlotSwitchTitle(isLocked, isActive, isLimitBlocked, maxSlots);
 
             html += `
-                <div class="slot-config-card ${isActive ? 'is-active' : ''} ${isLocked ? 'is-locked' : ''}" data-slot-id="${slot.id}" ${isLocked ? 'data-locked="true"' : ''}>
+                <div class="slot-config-card ${isActive ? 'is-active' : ''} ${isLocked ? 'is-locked' : ''} ${isLimitBlocked ? 'is-limit-disabled' : ''}" data-slot-id="${slot.id}" ${isLocked ? 'data-locked="true"' : ''} ${isLimitBlocked ? `title="${switchTitle}"` : ''}>
                     <div class="slot-card-left">
                         <span class="slot-card-icon">${icon}</span>
                         <div class="slot-card-details">
@@ -156,8 +190,8 @@ export function openHeaderSlotsCustomizer(ui: UIManager): void {
                             ${isLocked ? `<span class="slot-locked-badge" title="${switchTitle}">${svgIcon('lock')}</span>` : ''}
                         </div>
                     </div>
-                    <label class="sci-switch ${isLocked ? 'is-disabled' : ''}" title="${switchTitle}">
-                        <input type="checkbox" class="slot-toggle-input" data-slot-id="${slot.id}" ${isActive ? 'checked' : ''} ${isLocked ? 'disabled aria-disabled="true"' : ''} />
+                    <label class="sci-switch ${isDisabled ? 'is-disabled' : ''}" title="${switchTitle}">
+                        <input type="checkbox" class="slot-toggle-input" data-slot-id="${slot.id}" ${isActive ? 'checked' : ''} ${isDisabled ? 'disabled aria-disabled="true"' : ''} />
                         <span class="sci-slider"></span>
                     </label>
                 </div>
@@ -185,10 +219,79 @@ export function openHeaderSlotsCustomizer(ui: UIManager): void {
     ui.headerSlotsModal.show({
         name: stripLeadingEmoji(i18n.t('ui.headerSlots') || 'Header Quick Access'),
         titleIcon: 'system',
+        hideAudioGuide: true,
         description: html
     });
 
     wireHeaderSlotsModalEvents(ui);
+}
+
+function syncSlotsModalState(modalContent: HTMLElement): void {
+    const currentActive = HeaderSlotsManager.getActiveSlotIds();
+    const maxSlots = HeaderSlotsManager.getMaxSlots();
+    const isAtLimit = currentActive.length >= maxSlots;
+
+    const counterBadge = modalContent.querySelector<HTMLElement>('#slotsCounterBadge');
+    if (counterBadge) {
+        counterBadge.classList.toggle('is-at-limit', isAtLimit);
+        const text = formatSlotsActiveText(currentActive.length, maxSlots);
+        counterBadge.innerHTML = `<span class="slots-live-dot">●</span> <span class="counter-text">${text}</span>`;
+    }
+
+    const limitBanner = modalContent.querySelector<HTMLElement>('#slotsLimitBanner');
+    if (limitBanner) {
+        limitBanner.style.display = isAtLimit ? 'flex' : 'none';
+        const limitTextEl = limitBanner.querySelector<HTMLElement>('.slots-limit-text');
+        if (limitTextEl) {
+            limitTextEl.textContent = formatSlotsLimitText(maxSlots);
+        }
+    }
+
+    const cards = modalContent.querySelectorAll<HTMLElement>('.slot-config-card');
+    cards.forEach(card => {
+        const slotId = card.dataset.slotId;
+        if (!slotId) return;
+        const isLocked = !HeaderSlotsManager.isSlotRemovable(slotId);
+        const isActive = currentActive.includes(slotId);
+        const isLimitBlocked = !isLocked && !isActive && isAtLimit;
+        const isDisabled = isLocked || isLimitBlocked;
+        const switchTitle = getSlotSwitchTitle(isLocked, isActive, isLimitBlocked, maxSlots);
+
+        card.classList.toggle('is-active', isActive);
+        card.classList.toggle('is-limit-disabled', isLimitBlocked);
+        if (isLimitBlocked) {
+            card.title = switchTitle;
+        } else {
+            card.removeAttribute('title');
+        }
+
+        const switchEl = card.querySelector<HTMLElement>('.sci-switch');
+        if (switchEl) {
+            switchEl.classList.toggle('is-disabled', isDisabled);
+            switchEl.title = switchTitle;
+        }
+
+        const input = card.querySelector<HTMLInputElement>('.slot-toggle-input');
+        if (input) {
+            input.checked = isActive;
+            input.disabled = isDisabled;
+            if (isDisabled) {
+                input.setAttribute('aria-disabled', 'true');
+            } else {
+                input.removeAttribute('aria-disabled');
+            }
+        }
+    });
+
+    const catSections = modalContent.querySelectorAll<HTMLElement>('.slots-category-section');
+    catSections.forEach(catSection => {
+        const catCounter = catSection.querySelector<HTMLElement>('.category-pinned-pill');
+        if (catCounter) {
+            const catActiveCount = catSection.querySelectorAll('.slot-config-card.is-active').length;
+            const catTotal = catSection.querySelectorAll('.slot-config-card').length;
+            catCounter.textContent = `${catActiveCount} / ${catTotal}`;
+        }
+    });
 }
 
 function wireHeaderSlotsModalEvents(ui: UIManager): void {
@@ -206,32 +309,18 @@ function wireHeaderSlotsModalEvents(ui: UIManager): void {
                 return;
             }
 
-            const willBeActive = input.checked;
-            if (willBeActive) {
-                HeaderSlotsManager.addSlot(slotId);
+            if (input.checked) {
+                const added = HeaderSlotsManager.addSlot(slotId);
+                if (!added) {
+                    input.checked = false;
+                    syncSlotsModalState(modalContent);
+                    return;
+                }
             } else {
                 HeaderSlotsManager.removeSlot(slotId);
             }
 
-            const card = modalContent.querySelector(`.slot-config-card[data-slot-id="${slotId}"]`);
-            if (card) card.classList.toggle('is-active', willBeActive);
-
-            const currentCount = HeaderSlotsManager.getActiveSlotIds().length;
-            const counterBadge = modalContent.querySelector('#slotsCounterBadge');
-            if (counterBadge) {
-                const text = i18n.t('ui.slotsActive', { count: currentCount.toString() }) || `${currentCount} active slots`;
-                counterBadge.innerHTML = `<span class="slots-live-dot">●</span> <span class="counter-text">${text}</span>`;
-            }
-
-            const catSection = card?.closest('.slots-category-section');
-            if (catSection) {
-                const catCounter = catSection.querySelector<HTMLElement>('.category-pinned-pill');
-                if (catCounter) {
-                    const catActiveCount = catSection.querySelectorAll('.slot-config-card.is-active').length;
-                    const catTotal = catSection.querySelectorAll('.slot-config-card').length;
-                    catCounter.textContent = `${catActiveCount} / ${catTotal}`;
-                }
-            }
+            syncSlotsModalState(modalContent);
 
             if (ui.headerSlotsContainer) {
                 HeaderSlotsManager.renderSlots(ui.headerSlotsContainer, ui);

@@ -1,6 +1,8 @@
-import { PreferencesManager, DEFAULT_HEADER_SLOTS } from './PreferencesManager';
+import { PreferencesManager, DEFAULT_HEADER_SLOTS, MAX_HEADER_SLOTS } from './PreferencesManager';
 import { i18n } from '../i18n';
 import { svgIcon, stripLeadingEmoji } from './SvgIcons';
+
+export { MAX_HEADER_SLOTS };
 
 export type HeaderSlotCategory = 'camera' | 'optics' | 'layers' | 'tools';
 
@@ -469,16 +471,20 @@ export class HeaderSlotsManagerClass {
         return this.slotMap.get(id);
     }
 
+    public getMaxSlots(): number {
+        return MAX_HEADER_SLOTS;
+    }
+
     public getActiveSlotIds(): string[] {
         const slots = PreferencesManager.get('headerSlots');
         let active: string[] = [];
         if (Array.isArray(slots) && slots.length > 0) {
-            active = [...slots];
+            active = Array.from(new Set(slots));
         } else {
             active = [...DEFAULT_HEADER_SLOTS];
         }
 
-        // Guarantee all locked slots (e.g. cinematicTour) are active
+        // Guarantee all locked slots (e.g. cinematicTour, measureMode) are active
         const lockedSlots = AVAILABLE_HEADER_SLOTS.filter(s => s.locked).map(s => s.id);
         for (const lockedId of lockedSlots) {
             if (!active.includes(lockedId)) {
@@ -490,7 +496,32 @@ export class HeaderSlotsManagerClass {
                 }
             }
         }
+
+        if (active.length > MAX_HEADER_SLOTS) {
+            const lockedSet = new Set(lockedSlots);
+            const clamped: string[] = [];
+            let remainingLocked = active.filter(id => lockedSet.has(id)).length;
+            for (const id of active) {
+                if (clamped.length >= MAX_HEADER_SLOTS) break;
+                if (lockedSet.has(id)) {
+                    clamped.push(id);
+                    remainingLocked--;
+                } else if (clamped.length + remainingLocked < MAX_HEADER_SLOTS) {
+                    clamped.push(id);
+                }
+            }
+            active = clamped;
+        }
         return active;
+    }
+
+    public isAtSlotLimit(): boolean {
+        return this.getActiveSlotIds().length >= MAX_HEADER_SLOTS;
+    }
+
+    public canAddSlot(id?: string): boolean {
+        if (id && this.isSlotActive(id)) return false;
+        return !this.isAtSlotLimit();
     }
 
     public isSlotActive(id: string): boolean {
@@ -510,12 +541,12 @@ export class HeaderSlotsManagerClass {
 
     public addSlot(id: string): boolean {
         const current = this.getActiveSlotIds();
-        if (!current.includes(id)) {
-            const next = [...current, id];
-            PreferencesManager.set('headerSlots', next);
-            return true;
+        if (current.includes(id) || current.length >= MAX_HEADER_SLOTS) {
+            return false;
         }
-        return false;
+        const next = [...current, id];
+        PreferencesManager.set('headerSlots', next);
+        return true;
     }
 
     public removeSlot(id: string): boolean {
@@ -539,8 +570,7 @@ export class HeaderSlotsManagerClass {
             this.removeSlot(id);
             return false;
         } else {
-            this.addSlot(id);
-            return true;
+            return this.addSlot(id);
         }
     }
 
@@ -548,14 +578,29 @@ export class HeaderSlotsManagerClass {
         PreferencesManager.set('headerSlots', [...DEFAULT_HEADER_SLOTS]);
     }
 
+    public getSlotDisplayLabel(def: HeaderSlotDefinition): string {
+        const rawLabel = i18n.t(def.labelKey) || def.id;
+        return stripLeadingEmoji(stripShortcutFromLabel(rawLabel));
+    }
+
+    public getSortedActiveSlots(): HeaderSlotDefinition[] {
+        const lang = i18n.currentLanguage || 'en';
+        return this.getActiveSlotIds()
+            .map(id => this.slotMap.get(id))
+            .filter((def): def is HeaderSlotDefinition => Boolean(def))
+            .sort((a, b) => {
+                const labelA = this.getSlotDisplayLabel(a);
+                const labelB = this.getSlotDisplayLabel(b);
+                const cmp = labelA.localeCompare(labelB, lang, { sensitivity: 'base' });
+                return cmp !== 0 ? cmp : a.id.localeCompare(b.id);
+            });
+    }
+
     public renderSlots(container: HTMLElement, ui: any): void {
         container.innerHTML = '';
-        const activeIds = this.getActiveSlotIds();
+        const sortedDefs = this.getSortedActiveSlots();
 
-        activeIds.forEach(slotId => {
-            const def = this.slotMap.get(slotId);
-            if (!def) return;
-
+        sortedDefs.forEach(def => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'hud-icon-btn obs-header-slot-btn';
@@ -565,8 +610,7 @@ export class HeaderSlotsManagerClass {
                 btn.id = `hudSlot_${def.id}`;
             }
 
-            const rawLabel = i18n.t(def.labelKey) || def.id;
-            const cleanLabel = stripLeadingEmoji(stripShortcutFromLabel(rawLabel));
+            const cleanLabel = this.getSlotDisplayLabel(def);
             const titleWithShortcut = def.shortcut ? `${cleanLabel} (${def.shortcut})` : cleanLabel;
             btn.title = titleWithShortcut;
             btn.setAttribute('aria-label', titleWithShortcut);
@@ -599,7 +643,9 @@ export class HeaderSlotsManagerClass {
     }
 
     public updateSlotStates(container: HTMLElement, ui: any): void {
-        const buttons = container.querySelectorAll<HTMLButtonElement>('.obs-header-slot-btn');
+        const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('.obs-header-slot-btn'));
+        const labeledButtons: { btn: HTMLButtonElement; label: string; id: string }[] = [];
+
         buttons.forEach(btn => {
             const slotId = btn.dataset.slotId;
             if (!slotId) return;
@@ -619,12 +665,23 @@ export class HeaderSlotsManagerClass {
             }
 
             // Update localized tooltip
-            const rawLabel = i18n.t(def.labelKey) || def.id;
-            const cleanLabel = stripLeadingEmoji(stripShortcutFromLabel(rawLabel));
+            const cleanLabel = this.getSlotDisplayLabel(def);
             const titleWithShortcut = def.shortcut ? `${cleanLabel} (${def.shortcut})` : cleanLabel;
             btn.title = titleWithShortcut;
             btn.setAttribute('aria-label', titleWithShortcut);
+            labeledButtons.push({ btn, label: cleanLabel, id: def.id });
         });
+
+        const lang = i18n.currentLanguage || 'en';
+        const sorted = [...labeledButtons].sort((a, b) => {
+            const cmp = a.label.localeCompare(b.label, lang, { sensitivity: 'base' });
+            return cmp !== 0 ? cmp : a.id.localeCompare(b.id);
+        });
+
+        const orderChanged = sorted.some((entry, idx) => entry.btn !== labeledButtons[idx]?.btn);
+        if (orderChanged) {
+            sorted.forEach(entry => container.appendChild(entry.btn));
+        }
     }
 }
 

@@ -12,9 +12,14 @@ export interface CustomModalData {
     titleKey?: string;
     descKey?: string;
     titleIcon?: SvgIconName;
+    hideAudioGuide?: boolean;
     images?: string[];
     imageUrl?: string;
     links?: any[];
+}
+
+export interface ModalOptions {
+    enableAudioGuide?: boolean;
 }
 
 function escapeAttr(val: string): string {
@@ -37,6 +42,7 @@ export class Modal {
     private _audioNarrator: AudioNarrator | null = null;
     private audioGuideBtn: HTMLButtonElement | null = null;
     private closeBtn: HTMLButtonElement | null = null;
+    private enableAudioGuide: boolean = true;
     public isOpen: boolean = false;
     public currentData: ModalData | CustomModalData | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -54,8 +60,9 @@ export class Modal {
         this._audioNarrator = val;
     }
 
-    constructor(container: HTMLElement) {
+    constructor(container: HTMLElement, options?: ModalOptions) {
         this.container = container;
+        this.enableAudioGuide = options?.enableAudioGuide ?? true;
         this.modalElement = this.createModal();
         this.tooltipElement = this.createTooltipModal();
 
@@ -157,24 +164,26 @@ export class Modal {
         actions.className = 'modal-header-actions';
 
         // Audio Guide narration button
-        const audioGuideBtn = document.createElement('button');
-        audioGuideBtn.type = 'button';
-        audioGuideBtn.className = 'modal-audio-guide-btn';
-        this.audioGuideBtn = audioGuideBtn;
-        this.updateAudioGuideButtonLabel(false);
-        audioGuideBtn.onclick = () => {
-            if (this.currentData) {
-                const desc = (this.contentElement.querySelector('.description')?.textContent) || this.currentData.description || '';
-                const titleText = (this.titleElement?.textContent) || (this.modalElement.querySelector('h2')?.textContent) || this.currentData.name || '';
-                const fullText = `${titleText}. ${desc}`;
-                const activeLang = i18n.currentLanguage || 'en';
-                const isSpeaking = this.audioNarrator.toggle(fullText, activeLang, () => {
-                    this.updateAudioGuideButtonLabel(false);
-                });
-                this.updateAudioGuideButtonLabel(isSpeaking);
-            }
-        };
-        actions.appendChild(audioGuideBtn);
+        if (this.enableAudioGuide) {
+            const audioGuideBtn = document.createElement('button');
+            audioGuideBtn.type = 'button';
+            audioGuideBtn.className = 'modal-audio-guide-btn';
+            this.audioGuideBtn = audioGuideBtn;
+            this.updateAudioGuideButtonLabel(false);
+            audioGuideBtn.onclick = () => {
+                if (this.currentData) {
+                    const desc = (this.contentElement.querySelector('.description')?.textContent) || this.currentData.description || '';
+                    const titleText = (this.titleElement?.textContent) || (this.modalElement.querySelector('h2')?.textContent) || this.currentData.name || '';
+                    const fullText = `${titleText}. ${desc}`;
+                    const activeLang = i18n.currentLanguage || 'en';
+                    const isSpeaking = this.audioNarrator.toggle(fullText, activeLang, () => {
+                        this.updateAudioGuideButtonLabel(false);
+                    });
+                    this.updateAudioGuideButtonLabel(isSpeaking);
+                }
+            };
+            actions.appendChild(audioGuideBtn);
+        }
 
         // Close button
         const closeBtn = document.createElement('button');
@@ -645,7 +654,15 @@ export class Modal {
         this.setupGalleryLogic(data);
         this.setupInfoButtons();
         this.setupJumpToDateButtons();
-        if (!preserveAudio) {
+        const hideAudio = !this.enableAudioGuide || Boolean(custom.hideAudioGuide);
+        if (this.audioGuideBtn) {
+            this.audioGuideBtn.style.display = hideAudio ? 'none' : '';
+            this.audioGuideBtn.hidden = hideAudio;
+        }
+        if (hideAudio) {
+            this._audioNarrator?.stop();
+            this.updateAudioGuideButtonLabel(false);
+        } else if (!preserveAudio) {
             this._audioNarrator?.stop();
             this.updateAudioGuideButtonLabel(false);
         } else {

@@ -43,6 +43,9 @@ export interface TranslationSchema {
         customizeSlots?: string;
         slotsDescription?: string;
         slotsActive?: string;
+        slotsLimitReached?: string;
+        addSlot?: string;
+        removeSlot?: string;
         resetSlots?: string;
         cameraCategory?: string;
         opticsCategory?: string;

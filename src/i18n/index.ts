@@ -32,7 +32,7 @@ export const AVAILABLE_LOCALES: LocaleInfo[] = [
     { code: 'de', label: 'German', nativeName: 'Deutsch', flag: '🇩🇪', flagFile: 'de.png' },
     { code: 'en', label: 'English', nativeName: 'English', flag: '🇬🇧', flagFile: 'gb.png' },
     { code: 'pl', label: 'Polish', nativeName: 'Polski', flag: '🇵🇱', flagFile: 'pl.png' },
-    { code: 'sr', label: 'Serbian', nativeName: 'Serbian', flag: '🇷🇸', flagFile: 'rs.png' }
+    { code: 'sr', label: 'Serbian', nativeName: 'Српски', flag: '🇷🇸', flagFile: 'rs.png' }
 ];
 
 const LOCALE_LOADERS: Record<string, () => Promise<TranslationSchema>> = {
