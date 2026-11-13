@@ -312,6 +312,46 @@ export const SETTING_OPTIONS_INFO: Record<string, SettingOptionInfo> = {
         categoryKey: 'controls.tabs.system',
         fallbackCategory: 'System Instrument',
         summary: 'Measures real-time astronomical distances in AU and million km between any two selected celestial bodies.'
+    },
+    audio: {
+        id: 'audio',
+        iconName: 'audio-on',
+        titleKey: 'ui.audioAmbience',
+        fallbackTitle: 'Cosmic Audio Ambience',
+        categoryKey: 'controls.tabs.system',
+        fallbackCategory: 'System Instrument',
+        kbd: 'S',
+        summary: 'Procedural deep-space ambience and interface cues. Space itself is silent; this is an artistic sonification.'
+    },
+    fullscreen: {
+        id: 'fullscreen',
+        iconName: 'fullscreen',
+        titleKey: 'shortcuts.fullscreen',
+        fallbackTitle: 'Fullscreen Display',
+        categoryKey: 'controls.tabs.system',
+        fallbackCategory: 'System Instrument',
+        kbd: 'F',
+        summary: 'Expands the observatory to fill the entire screen for an immersive view.'
+    },
+    snapshot: {
+        id: 'snapshot',
+        iconName: 'snapshot',
+        titleKey: 'ui.astrophotography',
+        fallbackTitle: 'Astrophotography Snapshot',
+        categoryKey: 'controls.tabs.system',
+        fallbackCategory: 'System Instrument',
+        kbd: 'K',
+        summary: 'Captures the current view as an image file.'
+    },
+    shortcuts: {
+        id: 'shortcuts',
+        iconName: 'shortcuts',
+        titleKey: 'ui.keyboardShortcuts',
+        fallbackTitle: 'Keyboard Shortcuts',
+        categoryKey: 'controls.tabs.system',
+        fallbackCategory: 'System Instrument',
+        kbd: '?',
+        summary: 'Lists every keyboard shortcut available in the observatory.'
     }
 };
 
@@ -346,7 +386,11 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         showAxes: 'Overlays 3D Cartesian coordinate axes (X: Red, Y: Green, Z: Blue) centered on the Sun.',
         minimap: 'Toggles the top-down tactical radar display in the lower-right corner showing nearby bodies.',
         telemetry: 'Displays real-time graphics performance metrics including FPS (Frames Per Second), draw calls, and GPU (Graphics Processing Unit) load.',
-        measureMode: 'Measures real-time astronomical distances in AU and million km between any two selected celestial bodies.'
+        measureMode: 'Measures real-time astronomical distances in AU and million km between any two selected celestial bodies.',
+        audio: 'Procedural deep-space ambience and interface cues. Space itself is silent; this is an artistic sonification.',
+        fullscreen: 'Expands the observatory to fill the entire screen for an immersive view.',
+        snapshot: 'Captures the current view as an image file.',
+        shortcuts: 'Lists every keyboard shortcut available in the observatory.'
     },
     bs: {
         celestialNav: 'Ciljajte, pratite i usmjerite kameru na planete, mjesece i letjelice prema JPL efemeridama.',
@@ -378,7 +422,11 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         showAxes: 'Prikazuje 3D Kartezijeve koordinatne ose (X: crvena, Y: zelena, Z: plava) sa centrom u Suncu.',
         minimap: 'Prikazuje taktički radarski ekran u donjem desnom uglu sa prikazom obližnjih tijela.',
         telemetry: 'Prikazuje performanse grafičkog enginea uključujući FPS (broj sličica u sekundi), vrijeme renderovanja i GPU (grafički procesor) memoriju.',
-        measureMode: 'Mjeri astronomske udaljenosti u realnom vremenu (u AJ i milionima km) između bilo koja dva odabrana nebeska tijela.'
+        measureMode: 'Mjeri astronomske udaljenosti u realnom vremenu (u AJ i milionima km) između bilo koja dva odabrana nebeska tijela.',
+        audio: 'Proceduralni ambijent dubokog svemira i zvučni signali sučelja. Sam svemir je nijem; ovo je umjetnička sonifikacija.',
+        fullscreen: 'Proširuje opservatoriju na cijeli ekran za potpuni doživljaj.',
+        snapshot: 'Snima trenutni prikaz kao slikovnu datoteku.',
+        shortcuts: 'Prikazuje sve prečice na tastaturi dostupne u opservatoriji.'
     },
     sr: {
         celestialNav: 'Циљајте, пратите и усмерите камеру на планете, месеце и летелице према JPL ефемеридама.',
@@ -410,7 +458,11 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         showAxes: 'Приказује 3D Декартове координатне осе (X: црвена, Y: зелена, Z: плава) са центром у Сунцу.',
         minimap: 'Приказује тактички радарски екран у доњем десном углу са приказом оближњих тела.',
         telemetry: 'Приказује перформансе графичког енџина укључујући FPS (број сличица у секунди), време рендеровања и GPU (графички процесор) меморију.',
-        measureMode: 'Мери астрономске удаљености у реалном времену (у АЈ и милионима км) између било која два одабрана небеска тела.'
+        measureMode: 'Мери астрономске удаљености у реалном времену (у АЈ и милионима км) између било која два одабрана небеска тела.',
+        audio: 'Процедурални амбијент дубоког свемира и звучни сигнали интерфејса. Сам свемир је нем; ово је уметничка сонификација.',
+        fullscreen: 'Проширује опсерваторију на цео екран за потпуни доживљај.',
+        snapshot: 'Снима тренутни приказ као датотеку слике.',
+        shortcuts: 'Приказује све пречице на тастатури доступне у опсерваторији.'
     },
     de: {
         celestialNav: 'Zielen, verfolgen und richten Sie die Kamera mit JPL-Ephemeriden auf Planeten, Monde und Sonden aus.',
@@ -442,7 +494,11 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         showAxes: 'Blendet räumliche 3D-Koordinatenachsen (X: Rot, Y: Grün, Z: Blau) an der Sonne ein.',
         minimap: 'Aktiviert das taktische holografische Radarfenster unten rechts.',
         telemetry: 'Zeigt technische Echtzeit-Metriken wie FPS (Bilder pro Sekunde), Frametime und GPU-Last (Grafikprozessor) an.',
-        measureMode: 'Misst astronomische Echtzeit-Entfernungen in AE und Millionen km zwischen zwei beliebigen Himmelskörpern.'
+        measureMode: 'Misst astronomische Echtzeit-Entfernungen in AE und Millionen km zwischen zwei beliebigen Himmelskörpern.',
+        audio: 'Prozedurale Weltraum-Atmosphäre und Bedienklänge. Der Weltraum selbst ist still; dies ist eine künstlerische Sonifikation.',
+        fullscreen: 'Erweitert das Observatorium auf den gesamten Bildschirm.',
+        snapshot: 'Speichert die aktuelle Ansicht als Bilddatei.',
+        shortcuts: 'Listet alle im Observatorium verfügbaren Tastaturkürzel auf.'
     },
     id: {
         celestialNav: 'Arahkan, lacak, dan kunci kamera ke planet, bulan, dan wahana antariksa dengan efemeris JPL.',
@@ -474,7 +530,11 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         showAxes: 'Menampilkan sumbu koordinat kartesius 3D (X: Merah, Y: Hijau, Z: Biru) berpusat di Matahari.',
         minimap: 'Menampilkan radar taktis di sudut kanan bawah yang melacak benda langit terdekat.',
         telemetry: 'Menampilkan metrik performa grafis real-time termasuk FPS (Frame Per Detik), waktu render, dan beban GPU (Unit Pemroses Grafis).',
-        measureMode: 'Mengukur jarak astronomis waktu nyata dalam SA dan juta km di antara dua benda langit yang dipilih.'
+        measureMode: 'Mengukur jarak astronomis waktu nyata dalam SA dan juta km di antara dua benda langit yang dipilih.',
+        audio: 'Ambien luar angkasa prosedural dan isyarat suara antarmuka. Ruang angkasa sendiri sunyi; ini adalah sonifikasi artistik.',
+        fullscreen: 'Memperluas observatorium hingga memenuhi seluruh layar.',
+        snapshot: 'Menyimpan tampilan saat ini sebagai file gambar.',
+        shortcuts: 'Menampilkan semua pintasan keyboard yang tersedia di observatorium.'
     },
     pl: {
         celestialNav: 'Namierzaj, śledź i ustawiaj kamerę na planety, księżyce i sondy z efemerydami JPL.',
@@ -506,7 +566,11 @@ export const SETTING_SUMMARIES: Record<SupportedLanguage, Record<string, string>
         showAxes: 'Wyświetla przestrzenne osie współrzędnych (X: czerwona, Y: zielona, Z: niebieska) w centrum Słońca.',
         minimap: 'Włącza taktyczny ekran radaru w prawym dolnym rogu śledzący pobliskie obiekty.',
         telemetry: 'Wyświetla wskaźniki wydajności graficznej w czasie rzeczywistym, w tym FPS (klatki na sekundę), czas klatki i pamięć GPU (procesora graficznego).',
-        measureMode: 'Mierzy odległości astronomiczne w czasie rzeczywistym (w j.a. i mln km) między dwoma wybranymi ciałami niebieskimi.'
+        measureMode: 'Mierzy odległości astronomiczne w czasie rzeczywistym (w j.a. i mln km) między dwoma wybranymi ciałami niebieskimi.',
+        audio: 'Proceduralne tło dźwiękowe głębokiego kosmosu i sygnały interfejsu. Sam kosmos jest cichy; to artystyczna sonifikacja.',
+        fullscreen: 'Rozszerza obserwatorium na cały ekran.',
+        snapshot: 'Zapisuje bieżący widok jako plik graficzny.',
+        shortcuts: 'Wyświetla wszystkie skróty klawiszowe dostępne w obserwatorium.'
     }
 };
 
@@ -862,7 +926,10 @@ export function getSettingOptionInfo(id: string): {
     if (!raw) return undefined;
 
     const currentLang = (i18n.currentLanguage || 'en') as SupportedLanguage;
-    const title = (raw.titleKey ? i18n.t(raw.titleKey) : '') || raw.fallbackTitle;
+    const title = ((raw.titleKey ? i18n.t(raw.titleKey) : '') || raw.fallbackTitle)
+        // Drop trailing "(S)" / "(? / H)" hints; the shortcut is shown as a kbd badge instead
+        .replace(/\s*\([A-Z0-9?/\s-]+\)\s*$/i, '')
+        .trim();
     const category = (raw.categoryKey ? i18n.t(raw.categoryKey) : '') || raw.fallbackCategory;
 
     const langSummaries = SETTING_SUMMARIES[currentLang] || SETTING_SUMMARIES.en;

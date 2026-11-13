@@ -2,7 +2,7 @@ import { SceneManager } from './SceneManager';
 import { UIManager } from './UIManager';
 import { i18n } from '../i18n';
 import { EventBus } from './EventBus';
-import { HeaderSlotsManager } from './HeaderSlotsManager';
+import { HeaderSlotsManager, stripShortcutFromLabel } from './HeaderSlotsManager';
 import { getSettingOptionInfo, buildTelemetryDetailListHtml } from './SettingOptionsData';
 import { svgIcon, stripLeadingEmoji, SvgIconName } from './SvgIcons';
 
@@ -35,6 +35,7 @@ export class ControlCenter {
     private closeBtnEl: HTMLElement | null = null;
 
     private onKeyDownBound: ((e: KeyboardEvent) => void) | null = null;
+    private onFullscreenChangeBound: (() => void) | null = null;
     private unregisterI18n: (() => void) | null = null;
     private lastSyncedTimeScale: number = NaN;
 
@@ -1025,8 +1026,136 @@ export class ControlCenter {
         toolsGroup.appendChild(measureRow);
         this.switches.set('measureMode', measureInput);
 
+        // Cosmic Audio Ambience Toggle (always reachable, even if removed from the header bar)
+        const audioInput = this.appendSystemToggleRow(toolsGroup, {
+            prop: 'audio',
+            icon: 'audio-on',
+            labelKey: 'ui.audioAmbience',
+            fallback: 'Cosmic Audio Ambience',
+            kbd: 'S',
+            checked: this.uiManager?.audioManager?.getAudioEnabled?.() ?? false,
+            onChange: (checked) => {
+                const audio = this.uiManager?.audioManager as any;
+                if (!audio) return;
+                if (typeof audio.setEnabled === 'function') {
+                    audio.setEnabled(checked);
+                } else if (audio.getAudioEnabled?.() !== checked) {
+                    audio.toggle?.();
+                }
+                // AudioManager plays its own confirmation ping when enabled; no extra tick
+            }
+        });
+
+        // Fullscreen Toggle (hidden where the Fullscreen API is unavailable, e.g. iPhone Safari)
+        if (ControlCenter.isFullscreenSupported()) {
+            this.appendSystemToggleRow(toolsGroup, {
+                prop: 'fullscreen',
+                icon: 'fullscreen',
+                labelKey: 'shortcuts.fullscreen',
+                fallback: 'Fullscreen Display',
+                kbd: 'F',
+                checked: typeof document !== 'undefined' && !!document.fullscreenElement,
+                onChange: (checked) => {
+                    ControlCenter.setFullscreen(checked);
+                    this.uiManager?.audioManager?.playTick?.();
+                }
+            });
+        }
+
         panel.appendChild(toolsGroup);
+
+        // One-shot observatory actions
+        const actionsGroup = document.createElement('div');
+        actionsGroup.className = 'ctrl-group system-actions-group';
+
+        const snapBtn = this.createSystemActionButton('snapshot', 'snapshot', 'ui.astrophotography', 'Astrophotography Snapshot', 'K');
+        snapBtn.classList.add('snap-action-btn');
+        snapBtn.onclick = () => {
+            this.uiManager?.audioManager?.playShutter?.();
+            this.sceneManager?.captureScreenshot?.(this.uiManager?.cameraTarget);
+        };
+        actionsGroup.appendChild(snapBtn);
+
+        const shortcutsBtn = this.createSystemActionButton('shortcuts', 'shortcuts', 'ui.keyboardShortcuts', 'Keyboard Shortcuts', '?');
+        shortcutsBtn.classList.add('shortcuts-action-btn');
+        shortcutsBtn.onclick = () => {
+            this.close();
+            this.uiManager?.toggleShortcutsModal?.();
+            this.uiManager?.audioManager?.playTick?.();
+        };
+        actionsGroup.appendChild(shortcutsBtn);
+
+        panel.appendChild(actionsGroup);
         return panel;
+    }
+
+    private static isFullscreenSupported(): boolean {
+        if (typeof document === 'undefined') return false;
+        const el = document.documentElement as any;
+        return (document as any).fullscreenEnabled !== false && typeof el?.requestFullscreen === 'function';
+    }
+
+    private static setFullscreen(enable: boolean): void {
+        if (typeof document === 'undefined') return;
+        if (enable && !document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.().catch(() => {});
+        } else if (!enable && document.fullscreenElement) {
+            document.exitFullscreen?.().catch(() => {});
+        }
+    }
+
+    /** Localized label without trailing shortcut hints like "(S)"; kbd badges show those. */
+    private cleanLabel(key: string, fallback: string): string {
+        return stripShortcutFromLabel(stripLeadingEmoji(this.tr(key, fallback)));
+    }
+
+    private appendSystemToggleRow(group: HTMLElement, cfg: {
+        prop: string;
+        icon: SvgIconName;
+        labelKey: string;
+        fallback: string;
+        kbd?: string;
+        checked: boolean;
+        onChange: (checked: boolean) => void;
+    }): HTMLInputElement {
+        const row = document.createElement('div');
+        row.className = 'ctrl-row-toggle';
+
+        const label = document.createElement('label');
+        label.className = 'toggle-label-wrap';
+        const kbdHtml = cfg.kbd ? `<kbd class="ctrl-kbd-badge">${cfg.kbd}</kbd>` : '';
+        label.innerHTML = `<span class="toggle-icon">${svgIcon(cfg.icon)}</span><span data-i18n-key="${cfg.labelKey}" data-strip-shortcut="true">${this.cleanLabel(cfg.labelKey, cfg.fallback)}</span>${kbdHtml}`;
+        label.appendChild(this.createInfoButton(cfg.prop, cfg.fallback));
+        row.appendChild(label);
+
+        const switchWrap = document.createElement('label');
+        switchWrap.className = 'sci-switch';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = cfg.checked;
+        input.setAttribute('aria-label', this.cleanLabel(cfg.labelKey, cfg.fallback));
+        input.onchange = () => {
+            cfg.onChange(input.checked);
+            if (this.uiManager?.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+            }
+        };
+        switchWrap.appendChild(input);
+        switchWrap.appendChild(document.createElement('span')).className = 'sci-slider';
+        row.appendChild(switchWrap);
+        group.appendChild(row);
+
+        this.switches.set(cfg.prop, input);
+        return input;
+    }
+
+    private createSystemActionButton(optionId: string, icon: SvgIconName, labelKey: string, fallback: string, kbd: string): HTMLButtonElement {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'master-action-btn system-action-btn';
+        btn.dataset.optionId = optionId;
+        btn.innerHTML = `<span>${svgIcon(icon)} <span data-i18n-key="${labelKey}" data-strip-shortcut="true">${this.cleanLabel(labelKey, fallback)}</span></span><kbd class="ctrl-kbd-badge">${kbd}</kbd>`;
+        return btn;
     }
 
     // =========================================================================
@@ -1137,6 +1266,8 @@ export class ControlCenter {
         setChecked('minimap', this.uiManager?.minimap?.isVisible || false);
         setChecked('telemetry', this.uiManager?.performanceMonitor?.getVisible() || false);
         setChecked('measureMode', Boolean(sm.measureMode ?? false));
+        setChecked('audio', Boolean(this.uiManager?.audioManager?.getAudioEnabled?.()));
+        setChecked('fullscreen', typeof document !== 'undefined' && !!document.fullscreenElement);
 
         // Sync camera mode segmented buttons
         const isSurface = !!sm.surfaceViewBody;
@@ -1181,6 +1312,8 @@ export class ControlCenter {
                     if (text && text !== key) {
                         if (el.classList.contains('toggle-info-hint')) {
                             el.title = stripLeadingEmoji(text);
+                        } else if (el.dataset.stripShortcut === 'true') {
+                            el.textContent = stripShortcutFromLabel(stripLeadingEmoji(text));
                         } else {
                             el.textContent = stripLeadingEmoji(text);
                         }
@@ -1260,6 +1393,12 @@ export class ControlCenter {
         };
         window.addEventListener('keydown', this.onKeyDownBound);
 
+        // Keep fullscreen switch + header slot in sync when the user exits via Esc / browser UI
+        if (typeof document !== 'undefined') {
+            this.onFullscreenChangeBound = () => this.syncSwitches();
+            document.addEventListener('fullscreenchange', this.onFullscreenChangeBound);
+        }
+
         this.unregisterI18n = i18n.onLanguageChange(() => {
             this.updateTranslations();
         });
@@ -1279,6 +1418,10 @@ export class ControlCenter {
         if (this.onKeyDownBound) {
             window.removeEventListener('keydown', this.onKeyDownBound);
             this.onKeyDownBound = null;
+        }
+        if (this.onFullscreenChangeBound && typeof document !== 'undefined') {
+            document.removeEventListener('fullscreenchange', this.onFullscreenChangeBound);
+            this.onFullscreenChangeBound = null;
         }
         if (this.drawerElement?.parentElement) {
             this.drawerElement.parentElement.removeChild(this.drawerElement);

@@ -19,6 +19,10 @@ export interface HeaderSlotDefinition {
     domId?: string;
     locked?: boolean;
     getState?: (ui: any) => boolean;
+    /** Action plays its own sound cue, so the generic click tick is skipped. */
+    playsOwnSound?: boolean;
+    /** Returns false when the feature is unavailable on this device (slot is hidden). */
+    isSupported?: () => boolean;
     action: (ui: any, btn?: HTMLElement) => void;
 }
 
@@ -376,6 +380,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         icon: svgIcon('snapshot'),
         shortcut: 'K',
         domId: 'hudSnapshotBtn',
+        playsOwnSound: true,
         action: (ui) => {
             ui.audioManager?.playShutter?.();
             ui.sceneManager?.captureScreenshot?.(ui.cameraTarget);
@@ -389,6 +394,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         shortcut: 'S',
         domId: 'hudSoundBtn',
         getState: (ui) => ui.audioManager?.getAudioEnabled?.() ?? false,
+        playsOwnSound: true,
         action: (ui) => {
             ui.audioManager?.toggle?.();
         }
@@ -442,13 +448,18 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         icon: svgIcon('fullscreen'),
         shortcut: 'F',
         domId: 'hudSlot_fullscreen',
+        isSupported: () => {
+            if (typeof document === 'undefined') return false;
+            return (document as any).fullscreenEnabled !== false
+                && typeof (document.documentElement as any)?.requestFullscreen === 'function';
+        },
         getState: () => (typeof document !== 'undefined' ? !!document.fullscreenElement : false),
         action: () => {
             if (typeof document === 'undefined') return;
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
+                document.documentElement.requestFullscreen?.().catch(() => {});
             } else {
-                document.exitFullscreen().catch(() => {});
+                document.exitFullscreen?.().catch(() => {});
             }
         }
     }
@@ -464,7 +475,15 @@ export class HeaderSlotsManagerClass {
     }
 
     public getAvailableSlots(): HeaderSlotDefinition[] {
-        return AVAILABLE_HEADER_SLOTS;
+        return AVAILABLE_HEADER_SLOTS.filter(slot => this.isSupportedSlot(slot));
+    }
+
+    private isSupportedSlot(slot: HeaderSlotDefinition): boolean {
+        try {
+            return slot.isSupported ? slot.isSupported() : true;
+        } catch {
+            return false;
+        }
     }
 
     public getSlot(id: string): HeaderSlotDefinition | undefined {
@@ -587,7 +606,7 @@ export class HeaderSlotsManagerClass {
         const lang = i18n.currentLanguage || 'en';
         return this.getActiveSlotIds()
             .map(id => this.slotMap.get(id))
-            .filter((def): def is HeaderSlotDefinition => Boolean(def))
+            .filter((def): def is HeaderSlotDefinition => Boolean(def) && this.isSupportedSlot(def!))
             .sort((a, b) => {
                 const labelA = this.getSlotDisplayLabel(a);
                 const labelB = this.getSlotDisplayLabel(b);
@@ -634,7 +653,7 @@ export class HeaderSlotsManagerClass {
                 e.stopPropagation();
                 def.action(ui, btn);
                 if (ui.controlCenter) ui.controlCenter.syncSwitches?.();
-                if (ui.audioManager) ui.audioManager.playTick?.();
+                if (ui.audioManager && !def.playsOwnSound) ui.audioManager.playTick?.();
                 this.updateSlotStates(container, ui);
             };
 

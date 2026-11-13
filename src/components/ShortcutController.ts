@@ -149,6 +149,7 @@ export class ShortcutController {
                 soundBtn.classList.toggle('active', enabled);
                 soundBtn.setAttribute('aria-pressed', String(enabled));
             }
+            ui.controlCenter?.syncSwitches?.();
         } else if (event.key === 'p' || event.key === 'P') {
             event.preventDefault();
             const visible = ui.performanceMonitor.toggle();
@@ -210,6 +211,7 @@ export class ShortcutController {
         } else if (event.key === 'm' || event.key === 'M') {
             event.preventDefault();
             ui.toggleMinimap();
+            ui.audioManager?.playTick?.();
         } else if (event.key === 'o' || event.key === 'O') {
             if (typeof sm?.toggleOrbits === 'function') {
                 sm.toggleOrbits(!sm.showOrbits);

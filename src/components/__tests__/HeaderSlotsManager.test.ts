@@ -137,6 +137,29 @@ describe('HeaderSlotsManager', () => {
         expect(mockUi.controlCenter.syncSwitches).toHaveBeenCalledTimes(1);
     });
 
+    it('does not layer the generic tick over slots that play their own sound (audio, snapshot)', () => {
+        const container = document.createElement('div');
+        const playTick = vi.fn();
+        const playShutter = vi.fn();
+        const toggle = vi.fn();
+        const mockUi = {
+            minimap: { isVisible: false },
+            audioManager: { playTick, playShutter, toggle, getAudioEnabled: () => false },
+            performanceMonitor: { getVisible: () => false },
+            shortcutsModal: { isOpen: false },
+            controlCenter: { syncSwitches: vi.fn() },
+            sceneManager: { captureScreenshot: vi.fn() }
+        };
+
+        HeaderSlotsManager.renderSlots(container, mockUi);
+
+        (container.querySelector('#hudSoundBtn') as HTMLButtonElement).click();
+        expect(toggle).toHaveBeenCalledTimes(1);
+        (container.querySelector('#hudSnapshotBtn') as HTMLButtonElement).click();
+        expect(playShutter).toHaveBeenCalledTimes(1);
+        expect(playTick).not.toHaveBeenCalled();
+    });
+
     it('updates slot states and dynamic icons without re-creating buttons', () => {
         const container = document.createElement('div');
         let soundEnabled = false;

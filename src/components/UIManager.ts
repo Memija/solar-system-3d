@@ -708,7 +708,7 @@ export class UIManager {
             radarBtn.setAttribute('aria-pressed', String(next));
         }
         this.controlCenter?.syncSwitches();
-        this.audioManager?.playTick?.();
+        // No tick here: callers (header slot click, M shortcut) play the UI cue once
         if (this.headerSlotsContainer) {
             HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
         }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AudioManager } from '../AudioManager';
+import { AudioManager, NARRATION_STATE_EVENT } from '../AudioManager';
 
 class MockAudioParam {
     value = 0;
@@ -44,6 +44,7 @@ class MockAudioContext {
     sampleRate = 44100;
     destination = new MockAudioNode();
     resume = vi.fn().mockResolvedValue(undefined);
+    suspend = vi.fn().mockResolvedValue(undefined);
     close = vi.fn().mockResolvedValue(undefined);
 
     createGain() { return new MockGainNode(); }
@@ -119,5 +120,70 @@ describe('AudioManager', () => {
         audio.setEnabled(true);
         audio.dispose();
         expect(audio.getAudioEnabled()).toBe(true); // retains preference
+    });
+
+    it('restores audio on the first user gesture after reload when previously enabled', async () => {
+        localStorage.setItem('solar-system-3d', JSON.stringify({ audioEnabled: true }));
+        const { PreferencesManager } = await import('../PreferencesManager');
+        PreferencesManager.set('audioEnabled', true);
+
+        const audio = new AudioManager();
+        expect(audio.getAudioEnabled()).toBe(true);
+        expect((audio as any).ctx).toBeNull();
+
+        window.dispatchEvent(new Event('pointerdown'));
+        expect((audio as any).ctx).not.toBeNull();
+        expect((audio as any).isInitialized).toBe(true);
+
+        audio.dispose();
+        PreferencesManager.set('audioEnabled', false);
+    });
+
+    it('does not create an AudioContext on gesture when audio is disabled', () => {
+        const audio = new AudioManager();
+        window.dispatchEvent(new Event('pointerdown'));
+        expect((audio as any).ctx).toBeNull();
+        audio.dispose();
+    });
+
+    it('plays the enable confirmation ping only after the context resumes', async () => {
+        const audio = new AudioManager();
+        const selectSpy = vi.spyOn(audio, 'playSelect');
+        audio.setEnabled(true);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(selectSpy).toHaveBeenCalled();
+        audio.dispose();
+    });
+
+    it('anchors master gain before ramping and suspends the context after fade-out', () => {
+        vi.useFakeTimers();
+        const audio = new AudioManager();
+        audio.setEnabled(true);
+        const ctx = (audio as any).ctx;
+        ctx.suspend = vi.fn().mockResolvedValue(undefined);
+        const gain = (audio as any).masterGain.gain as MockAudioParam;
+        gain.setValueAtTime.mockClear();
+
+        audio.setEnabled(false);
+        expect(gain.cancelScheduledValues).toHaveBeenCalled();
+        expect(gain.setValueAtTime).toHaveBeenCalled();
+        expect(gain.linearRampToValueAtTime).toHaveBeenCalled();
+
+        vi.advanceTimersByTime(500);
+        expect(ctx.suspend).toHaveBeenCalled();
+
+        audio.dispose();
+        vi.useRealTimers();
+    });
+
+    it('ducks the ambient bed while narration is speaking', () => {
+        const audio = new AudioManager();
+        audio.setEnabled(true);
+        window.dispatchEvent(new CustomEvent(NARRATION_STATE_EVENT, { detail: { speaking: true } }));
+        expect(audio.getDucked()).toBe(true);
+        window.dispatchEvent(new CustomEvent(NARRATION_STATE_EVENT, { detail: { speaking: false } }));
+        expect(audio.getDucked()).toBe(false);
+        audio.dispose();
     });
 });

@@ -183,20 +183,95 @@ describe('ControlCenter Component', () => {
         expect(controlCenter.drawerElement.classList.contains('closed')).toBe(true);
     });
 
-    it('should render system instruments and omit redundant header action/language controls', () => {
+    it('should render system instruments, including audio and one-shot actions, without language controls', () => {
         controlCenter.switchTab('system');
         const systemPanel = controlCenter.drawerElement.querySelector('.drawer-panel[data-panel="system"]');
         expect(systemPanel).toBeTruthy();
 
-        // Minimap radar toggle, telemetry toggle, and distance measuring tool toggle should be present
+        // Minimap, telemetry, measuring tool, and audio toggles (fullscreen is hidden when unsupported, as in jsdom)
         const switches = systemPanel?.querySelectorAll('.ctrl-row-toggle');
-        expect(switches?.length).toBe(3);
+        expect(switches?.length).toBe(4);
+        expect(systemPanel?.querySelector('.ctrl-info-btn[data-option-id="audio"]')).not.toBeNull();
+        expect(systemPanel?.querySelector('.ctrl-info-btn[data-option-id="fullscreen"]')).toBeNull();
 
-        // Language presets, snapshot, audio, and shortcuts buttons should not be in system controls
+        // Snapshot and shortcuts remain reachable even if removed from the header bar
+        expect(systemPanel?.querySelector('.snap-action-btn')).not.toBeNull();
+        expect(systemPanel?.querySelector('.shortcuts-action-btn')).not.toBeNull();
+
+        // Language presets stay in the header language switcher only
         expect(systemPanel?.querySelector('.lang-presets-grid')).toBeNull();
-        expect(systemPanel?.querySelector('.snap-action-btn')).toBeNull();
-        expect(systemPanel?.querySelector('.audio-action-btn')).toBeNull();
-        expect(systemPanel?.querySelector('.shortcuts-action-btn')).toBeNull();
+    });
+
+    it('toggles cosmic audio from the system panel and stays in sync with the audio manager', () => {
+        let enabled = false;
+        mockUIManager.audioManager = {
+            getAudioEnabled: vi.fn(() => enabled),
+            setEnabled: vi.fn((v: boolean) => { enabled = v; return v; }),
+            playTick: vi.fn(),
+            playShutter: vi.fn()
+        };
+        controlCenter.dispose();
+        controlCenter = new ControlCenter(mockUIManager, mockSceneManager, container);
+
+        const audioRow = controlCenter.drawerElement
+            .querySelector('.ctrl-info-btn[data-option-id="audio"]')
+            ?.closest('.ctrl-row-toggle');
+        const audioInput = audioRow?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+        expect(audioInput).toBeTruthy();
+        expect(audioInput!.checked).toBe(false);
+
+        // Label has no "(S)" suffix; shortcut shown as badge
+        expect(audioRow?.querySelector('[data-i18n-key="ui.audioAmbience"]')?.textContent).toBe('Cosmic Audio Ambience');
+        expect(audioRow?.querySelector('.ctrl-kbd-badge')?.textContent).toBe('S');
+
+        audioInput!.checked = true;
+        audioInput!.dispatchEvent(new Event('change'));
+        expect(mockUIManager.audioManager.setEnabled).toHaveBeenCalledWith(true);
+        // AudioManager plays its own confirmation ping; no extra tick layered on top
+        expect(mockUIManager.audioManager.playTick).not.toHaveBeenCalled();
+
+        // External toggle (S key / header) is reflected on sync
+        enabled = false;
+        controlCenter.syncSwitches();
+        expect(audioInput!.checked).toBe(false);
+
+        // Label stays clean after a language change
+        i18n.setLanguage('bs');
+        expect(audioRow?.querySelector('[data-i18n-key="ui.audioAmbience"]')?.textContent).toBe('Kosmički audio ambijent');
+        i18n.setLanguage('en');
+    });
+
+    it('triggers snapshot and shortcuts actions from the system panel', () => {
+        const snapBtn = controlCenter.drawerElement.querySelector<HTMLButtonElement>('.snap-action-btn');
+        snapBtn?.click();
+        expect(mockUIManager.audioManager.playShutter).toHaveBeenCalledTimes(1);
+        expect(mockSceneManager.captureScreenshot).toHaveBeenCalledWith('Earth');
+
+        controlCenter.open('system');
+        const shortcutsBtn = controlCenter.drawerElement.querySelector<HTMLButtonElement>('.shortcuts-action-btn');
+        shortcutsBtn?.click();
+        expect(controlCenter.isOpen).toBe(false);
+        expect(mockUIManager.toggleShortcutsModal).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders a fullscreen switch when the Fullscreen API is available', () => {
+        const root = document.documentElement as any;
+        const original = root.requestFullscreen;
+        root.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+        try {
+            controlCenter.dispose();
+            controlCenter = new ControlCenter(mockUIManager, mockSceneManager, container);
+            const fsRow = controlCenter.drawerElement
+                .querySelector('.ctrl-info-btn[data-option-id="fullscreen"]')
+                ?.closest('.ctrl-row-toggle');
+            const fsInput = fsRow?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+            expect(fsInput).toBeTruthy();
+            fsInput!.checked = true;
+            fsInput!.dispatchEvent(new Event('change'));
+            expect(root.requestFullscreen).toHaveBeenCalled();
+        } finally {
+            root.requestFullscreen = original;
+        }
     });
 
     it('should dynamically update drawer headers, tabs, section titles, and chips when language changes', () => {
@@ -580,7 +655,7 @@ describe('ControlCenter Component', () => {
         expect(measureLabel?.textContent).toBe('Distance Measuring Tool');
 
         const checkboxes = systemPanel!.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-        expect(checkboxes.length).toBe(3); // minimap, telemetry, measureMode
+        expect(checkboxes.length).toBe(4); // minimap, telemetry, measureMode, audio (fullscreen unsupported in jsdom)
         const measureInput = checkboxes[2];
         expect(measureInput.checked).toBe(false);
 

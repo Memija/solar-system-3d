@@ -1224,6 +1224,20 @@
     }
 }
 
+// System tab one-shot actions (Snapshot, Keyboard Shortcuts)
+.system-actions-group {
+    gap: 8px;
+
+    .system-action-btn {
+        justify-content: space-between;
+        text-align: left;
+
+        .ctrl-kbd-badge {
+            flex-shrink: 0;
+        }
+    }
+}
+
 // Backdrop Overlay — Crisp transparent click-catcher on desktop, dimmed blur on mobile
 .drawer-backdrop {
     position: fixed;

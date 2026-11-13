@@ -7,6 +7,8 @@
  * for systems lacking native Balkan speech engines.
  */
 
+import { NARRATION_STATE_EVENT } from './AudioManager';
+
 /**
  * Detects if a text string contains Cyrillic characters.
  */
@@ -161,7 +163,12 @@ export class AudioNarrator {
     }
 
     private notifyState(speaking: boolean): void {
+        const changed = this.speaking !== speaking;
         this.speaking = speaking;
+        if (changed && typeof window !== 'undefined') {
+            // Lets AudioManager duck the ambient bed while narration plays
+            window.dispatchEvent(new CustomEvent(NARRATION_STATE_EVENT, { detail: { speaking } }));
+        }
         this.onStateChangeCallbacks.forEach(cb => {
             try {
                 cb(speaking);
