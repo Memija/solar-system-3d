@@ -77,10 +77,10 @@ body {
     height: 100%;
     pointer-events: none;
     z-index: $z-ui;
+}
 
-    > *:not(.ctrl-info-tooltip) {
-        pointer-events: auto;
-    }
+:where(#ui-container) > :where(*:not(.ctrl-info-tooltip):not(.modal-tooltip)) {
+    pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

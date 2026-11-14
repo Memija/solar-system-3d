@@ -538,7 +538,7 @@
         transform: translateY(-15px) scale(0.97);
         opacity: 0;
         visibility: hidden;
-        pointer-events: none;
+        pointer-events: none !important;
     }
 
     // Scrollbar Styling
@@ -1249,12 +1249,12 @@
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s;
-    pointer-events: none;
+    pointer-events: none !important;
 
     &.open {
         opacity: 1;
         visibility: visible;
-        pointer-events: auto;
+        pointer-events: auto !important;
     }
 
     @media (min-width: 769px) {

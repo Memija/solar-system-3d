@@ -950,6 +950,9 @@ export class ControlCenter {
                 radarBtn.classList.toggle('active', radarInput.checked);
                 radarBtn.setAttribute('aria-pressed', String(radarInput.checked));
             }
+            if (this.uiManager?.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
+            }
             if (this.uiManager.audioManager) this.uiManager.audioManager.playTick?.();
         };
         radarSwitch.appendChild(radarInput);
@@ -979,6 +982,9 @@ export class ControlCenter {
             if (perfBtn) {
                 perfBtn.classList.toggle('active', perfInput.checked);
                 perfBtn.setAttribute('aria-pressed', String(perfInput.checked));
+            }
+            if (this.uiManager?.headerSlotsContainer) {
+                HeaderSlotsManager.updateSlotStates(this.uiManager.headerSlotsContainer, this.uiManager);
             }
             if (this.uiManager.audioManager) this.uiManager.audioManager.playTick?.();
         };
@@ -1027,7 +1033,7 @@ export class ControlCenter {
         this.switches.set('measureMode', measureInput);
 
         // Cosmic Audio Ambience Toggle (always reachable, even if removed from the header bar)
-        const audioInput = this.appendSystemToggleRow(toolsGroup, {
+        this.appendSystemToggleRow(toolsGroup, {
             prop: 'audio',
             icon: 'audio-on',
             labelKey: 'ui.audioAmbience',
@@ -1169,6 +1175,21 @@ export class ControlCenter {
         }
 
         if (this.isOpen) {
+            const anyUi = this.uiManager as any;
+            this.uiManager?.closeLangDropdown?.();
+            if (this.uiManager?.customDatePicker?.isOpen) {
+                this.uiManager.customDatePicker.closePopup();
+            }
+            if (anyUi && ('_headerSlotsModal' in anyUi ? anyUi._headerSlotsModal?.isOpen : this.uiManager?.headerSlotsModal?.isOpen)) {
+                this.uiManager!.headerSlotsModal.hide();
+                this.uiManager?.syncHeaderSlotsTriggerState?.();
+            }
+            if (anyUi && ('_shortcutsModal' in anyUi ? anyUi._shortcutsModal?.isOpen : this.uiManager?.shortcutsModal?.isOpen)) {
+                this.uiManager!.shortcutsModal.hide();
+            }
+            if (anyUi && ('_eventModal' in anyUi ? anyUi._eventModal?.isOpen : this.uiManager?.eventModal?.isOpen)) {
+                this.uiManager!.eventModal.hide();
+            }
             this.drawerElement.classList.remove('closed');
             this.backdropElement.classList.add('open');
             this.syncTimePanel();
@@ -1379,10 +1400,10 @@ export class ControlCenter {
                     ui?.customDatePicker?.isYearModalActive?.() ||
                     ui?.customDatePicker?.isOpen ||
                     (typeof document !== 'undefined' && !!document.querySelector('.lang-switcher-container.open')) ||
-                    ui?.shortcutsModal?.isOpen ||
-                    ui?.headerSlotsModal?.isOpen ||
-                    ui?.eventModal?.isOpen ||
-                    ui?.modal?.isOpen;
+                    (ui && ('_shortcutsModal' in ui ? ui._shortcutsModal?.isOpen : ui.shortcutsModal?.isOpen)) ||
+                    (ui && ('_headerSlotsModal' in ui ? ui._headerSlotsModal?.isOpen : ui.headerSlotsModal?.isOpen)) ||
+                    (ui && ('_eventModal' in ui ? ui._eventModal?.isOpen : ui.eventModal?.isOpen)) ||
+                    (ui && ('_modal' in ui ? ui._modal?.isOpen : ui.modal?.isOpen));
                 if (hasHigherOverlay) {
                     return;
                 }

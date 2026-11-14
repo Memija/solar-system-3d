@@ -418,7 +418,7 @@ export const AVAILABLE_HEADER_SLOTS: HeaderSlotDefinition[] = [
         icon: svgIcon('shortcuts'),
         shortcut: '?',
         domId: 'hudHelpBtn',
-        getState: (ui) => ui.shortcutsModal?.isOpen ?? false,
+        getState: (ui) => ('_shortcutsModal' in ui ? ui._shortcutsModal?.isOpen : ui.shortcutsModal?.isOpen) ?? false,
         action: (ui) => {
             ui.toggleShortcutsModal?.();
         }

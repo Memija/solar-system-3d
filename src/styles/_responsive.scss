@@ -71,6 +71,10 @@
         box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.15) !important;
         animation: bottomSheetSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 
+        &.obs-dialog-modal {
+            z-index: $z-dialog !important;
+        }
+
         .sheet-drag-handle {
             display: block !important;
         }
@@ -248,6 +252,10 @@
         border-top: none !important;
         z-index: $z-modal !important;
         animation: drawerSlideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+
+        &.obs-dialog-modal {
+            z-index: $z-dialog !important;
+        }
 
         .sheet-drag-handle {
             display: none !important;

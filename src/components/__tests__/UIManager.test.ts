@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { UIManager } from '../UIManager';
 import { Modal } from '../Modal';
+import { HeaderSlotsManager } from '../HeaderSlotsManager';
 import { i18n } from '../../i18n';
 
 vi.mock('three', () => ({
@@ -1017,5 +1020,189 @@ describe('UIManager', () => {
         expect(slowDownBtn.title).toContain('Simulation verlangsamen');
         expect(speedUpBtn.title).toContain('Simulation beschleunigen');
         i18n.setLanguage('en');
+    });
+
+    it('keeps Header Quick Access fully responsive after opening Settings and performing actions there', () => {
+        // Restore real Modal prototype methods so lazy DOM insertion, event wiring, and close callbacks run end-to-end
+        vi.restoreAllMocks();
+        uiManager.dispose();
+        uiContainer.innerHTML = '';
+        localStorage.clear();
+        HeaderSlotsManager.resetDefaults();
+
+        sceneManager.realisticDistances = false;
+        sceneManager.toggleRealisticDistances = vi.fn(function(this: any, val: boolean) {
+            this.realisticDistances = val;
+        });
+
+        uiManager = new UIManager(sceneManager);
+
+        const slotAddBtn = uiContainer.querySelector('#hudSlotAddBtn') as HTMLButtonElement;
+        const controlsBtn = uiContainer.querySelector('#hudControlsBtn') as HTMLButtonElement;
+        expect(slotAddBtn).toBeTruthy();
+        expect(controlsBtn).toBeTruthy();
+        expect(slotAddBtn.getAttribute('aria-expanded')).toBe('false');
+
+        // 1. Open Header Quick Access first (instantiates headerSlotsModal before primary dossier modal)
+        slotAddBtn.click();
+        expect(uiManager.headerSlotsModal.isOpen).toBe(true);
+        expect(uiManager.headerSlotsModal.modalElement.classList.contains('obs-dialog-modal')).toBe(true);
+        expect(slotAddBtn.classList.contains('active')).toBe(true);
+        expect(slotAddBtn.getAttribute('aria-expanded')).toBe('true');
+
+        // 2. Open Settings (Control Center) while Header Quick Access is open -> Header Quick Access closes cleanly
+        controlsBtn.click();
+        expect(uiManager.controlCenter?.isOpen).toBe(true);
+        expect(uiManager.headerSlotsModal.isOpen).toBe(false);
+        expect(slotAddBtn.classList.contains('active')).toBe(false);
+        expect(slotAddBtn.getAttribute('aria-expanded')).toBe('false');
+
+        // 3. Perform actions in Settings:
+        // 3a. Click a target chip ("Mars"), which lazily creates uiManager.modal AFTER headerSlotsModal in #ui-container
+        const marsChip = Array.from(
+            uiManager.controlCenter!.drawerElement.querySelectorAll<HTMLButtonElement>('.target-chip-btn')
+        ).find(btn => btn.textContent?.includes('Mars'))!;
+        expect(marsChip).toBeTruthy();
+        marsChip.click();
+        expect(uiManager.modal.isOpen).toBe(true);
+
+        // Confirm uiManager.modal was appended after headerSlotsModal in #ui-container,
+        // while headerSlotsModal carries .obs-dialog-modal to stack above uiManager.modal
+        const children = Array.from(uiContainer.children);
+        expect(children.indexOf(uiManager.modal.modalElement)).toBeGreaterThan(
+            children.indexOf(uiManager.headerSlotsModal.modalElement)
+        );
+        expect(uiManager.modal.modalElement.classList.contains('obs-dialog-modal')).toBe(false);
+        expect(uiManager.headerSlotsModal.modalElement.classList.contains('obs-dialog-modal')).toBe(true);
+
+        // 3b. Toggle Realistic Scale in Settings -> updates uiManager.modal popup
+        const opticsSwitch = uiManager.controlCenter!.drawerElement.querySelector<HTMLInputElement>(
+            '.drawer-panel[data-panel="optics"] input[type="checkbox"]'
+        )!;
+        opticsSwitch.checked = true;
+        opticsSwitch.dispatchEvent(new Event('change'));
+        expect(sceneManager.toggleRealisticDistances).toHaveBeenCalledWith(true);
+        expect(uiManager.modal.isOpen).toBe(true);
+
+        // 3c. Toggle Tactical Radar Minimap in Settings -> header quick-access slot updates immediately
+        const systemSwitches = uiManager.controlCenter!.drawerElement.querySelectorAll<HTMLInputElement>(
+            '.drawer-panel[data-panel="system"] input[type="checkbox"]'
+        );
+        const radarSwitch = systemSwitches[0];
+        radarSwitch.checked = false;
+        radarSwitch.dispatchEvent(new Event('change'));
+        const headerRadarBtn = uiContainer.querySelector('#hudRadarBtn') as HTMLButtonElement;
+        expect(headerRadarBtn.classList.contains('active')).toBe(false);
+
+        // 4. Header quick-access bar buttons remain immediately interactive
+        headerRadarBtn.click();
+        expect(uiManager.minimap.isVisible).toBe(true);
+        expect(headerRadarBtn.classList.contains('active')).toBe(true);
+
+        // 5. Re-open Header Quick Access via '+' while Settings & dossier modal are open:
+        // Settings closes automatically and all Header Quick Access controls react properly
+        slotAddBtn.click();
+        expect(uiManager.controlCenter?.isOpen).toBe(false);
+        expect(uiManager.headerSlotsModal.isOpen).toBe(true);
+        expect(slotAddBtn.classList.contains('active')).toBe(true);
+
+        // Card click adds a new quick-access slot (8th slot: showOrbits)
+        const orbitsCard = uiManager.headerSlotsModal.contentElement.querySelector<HTMLElement>(
+            '.slot-config-card[data-slot-id="showOrbits"]'
+        )!;
+        expect(orbitsCard).toBeTruthy();
+        orbitsCard.click();
+        expect(HeaderSlotsManager.isSlotActive('showOrbits')).toBe(true);
+        expect(uiContainer.querySelector('#hudSlot_showOrbits')).not.toBeNull();
+
+        // Newly added quick-access slot in header reacts immediately
+        const orbitsSlotBtn = uiContainer.querySelector('#hudSlot_showOrbits') as HTMLButtonElement;
+        orbitsSlotBtn.click();
+        expect(sceneManager.toggleOrbits).toHaveBeenCalled();
+
+        // Reset button inside Header Quick Access reacts and restores defaults
+        const resetBtn = uiManager.headerSlotsModal.contentElement.querySelector<HTMLButtonElement>('#slotsResetBtn')!;
+        resetBtn.click();
+        expect(HeaderSlotsManager.isSlotActive('showOrbits')).toBe(false);
+        expect(uiContainer.querySelector('#hudSlot_showOrbits')).toBeNull();
+
+        // Escape dismisses Header Quick Access first while leaving dossier modal intact until next Escape
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(uiManager.headerSlotsModal.isOpen).toBe(false);
+        expect(slotAddBtn.classList.contains('active')).toBe(false);
+        expect(uiManager.modal.isOpen).toBe(true);
+
+        // Clicking '+' toggles Header Quick Access open and clicking '+' again toggles it closed
+        slotAddBtn.click();
+        expect(uiManager.headerSlotsModal.isOpen).toBe(true);
+        slotAddBtn.click();
+        expect(uiManager.headerSlotsModal.isOpen).toBe(false);
+        expect(slotAddBtn.classList.contains('active')).toBe(false);
+    });
+
+    it('preserves Header Quick Access interactive listeners when switching language while open', async () => {
+        vi.restoreAllMocks();
+        uiManager.dispose();
+        uiContainer.innerHTML = '';
+        localStorage.clear();
+        HeaderSlotsManager.resetDefaults();
+
+        await Promise.all(['en', 'de', 'bs'].map(code => i18n.preloadLocale(code)));
+        uiManager = new UIManager(sceneManager);
+
+        const slotAddBtn = uiContainer.querySelector('#hudSlotAddBtn') as HTMLButtonElement;
+        slotAddBtn.click();
+        expect(uiManager.headerSlotsModal.isOpen).toBe(true);
+
+        // Switch languages while Header Quick Access is open (previously Modal.onLanguageChange wiped event handlers)
+        i18n.setLanguage('de');
+        i18n.setLanguage('bs');
+        i18n.setLanguage('en');
+
+        expect(uiManager.headerSlotsModal.isOpen).toBe(true);
+
+        const bloomCard = uiManager.headerSlotsModal.contentElement.querySelector<HTMLElement>(
+            '.slot-config-card[data-slot-id="enableBloom"]'
+        )!;
+        expect(bloomCard).toBeTruthy();
+        bloomCard.click();
+        expect(HeaderSlotsManager.isSlotActive('enableBloom')).toBe(true);
+        expect(uiContainer.querySelector('#hudSlot_enableBloom')).not.toBeNull();
+
+        const doneBtn = uiManager.headerSlotsModal.contentElement.querySelector<HTMLButtonElement>('#slotsDoneBtn')!;
+        doneBtn.click();
+        expect(uiManager.headerSlotsModal.isOpen).toBe(false);
+        expect(slotAddBtn.classList.contains('active')).toBe(false);
+
+        HeaderSlotsManager.resetDefaults();
+    });
+
+    it('enforces z-index hierarchy ($z-dialog > $z-modal > $z-drawer) and zero-specificity pointer-events in SCSS', () => {
+        const stylesDir = resolve(process.cwd(), 'src/styles');
+        const tokensScss = readFileSync(resolve(stylesDir, '_tokens.scss'), 'utf8');
+        const modalScss = readFileSync(resolve(stylesDir, '_modal.scss'), 'utf8');
+        const responsiveScss = readFileSync(resolve(stylesDir, '_responsive.scss'), 'utf8');
+        const baseScss = readFileSync(resolve(stylesDir, '_base.scss'), 'utf8');
+
+        const getToken = (name: string) => {
+            const match = tokensScss.match(new RegExp(`\\$${name}:\\s*(\\d+)`));
+            return match ? parseInt(match[1], 10) : NaN;
+        };
+
+        const zDrawer = getToken('z-drawer');
+        const zHeader = getToken('z-header');
+        const zModal = getToken('z-modal');
+        const zDialog = getToken('z-dialog');
+        const zDropdown = getToken('z-dropdown');
+
+        expect(zDrawer).toBeLessThan(zHeader);
+        expect(zHeader).toBeLessThan(zModal);
+        expect(zModal).toBeLessThan(zDialog);
+        expect(zDialog).toBeLessThan(zDropdown);
+
+        expect(modalScss).toContain('&.obs-dialog-modal');
+        expect(modalScss).toContain('z-index: $z-dialog');
+        expect(responsiveScss.match(/z-index:\s*\$z-dialog\s*!important/g)?.length).toBeGreaterThanOrEqual(2);
+        expect(baseScss).toContain(':where(#ui-container)');
     });
 });

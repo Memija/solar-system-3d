@@ -16,10 +16,14 @@ export interface CustomModalData {
     images?: string[];
     imageUrl?: string;
     links?: any[];
+    onAfterShow?: (modal: Modal) => void;
 }
 
 export interface ModalOptions {
     enableAudioGuide?: boolean;
+    autoReRenderOnLanguageChange?: boolean;
+    onHide?: () => void;
+    contentId?: string;
 }
 
 function escapeAttr(val: string): string {
@@ -43,6 +47,9 @@ export class Modal {
     private audioGuideBtn: HTMLButtonElement | null = null;
     private closeBtn: HTMLButtonElement | null = null;
     private enableAudioGuide: boolean = true;
+    private autoReRenderOnLanguageChange: boolean = true;
+    private onHideCallback: (() => void) | null = null;
+    private customContentId?: string;
     public isOpen: boolean = false;
     public currentData: ModalData | CustomModalData | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -63,6 +70,9 @@ export class Modal {
     constructor(container: HTMLElement, options?: ModalOptions) {
         this.container = container;
         this.enableAudioGuide = options?.enableAudioGuide ?? true;
+        this.autoReRenderOnLanguageChange = options?.autoReRenderOnLanguageChange ?? true;
+        this.onHideCallback = options?.onHide ?? null;
+        this.customContentId = options?.contentId;
         this.modalElement = this.createModal();
         this.tooltipElement = this.createTooltipModal();
 
@@ -73,7 +83,7 @@ export class Modal {
                 this.closeBtn.title = i18n.t('ui.close');
             }
             const wasSpeaking = this._audioNarrator ? this._audioNarrator.isSpeaking() : false;
-            if (this.isOpen && this.currentData) {
+            if (this.isOpen && this.currentData && this.autoReRenderOnLanguageChange) {
                 this.show(this.currentData, wasSpeaking);
             } else {
                 this.updateAudioGuideButtonLabel(wasSpeaking);
@@ -203,7 +213,9 @@ export class Modal {
 
         // Content Container
         const content = document.createElement('div');
-        content.id = 'modal-content';
+        content.className = 'modal-content';
+        content.id = this.customContentId
+            ?? (this.container.querySelector('#modal-content') ? `modal-content-${modalId}` : 'modal-content');
         this.contentElement = content;
         modal.appendChild(content);
 
@@ -669,6 +681,7 @@ export class Modal {
             this.updateAudioGuideButtonLabel(this._audioNarrator ? this._audioNarrator.isSpeaking() : false);
         }
         this.modalElement.style.display = 'block';
+        custom.onAfterShow?.(this);
     }
 
     public hide() {
@@ -682,6 +695,10 @@ export class Modal {
         this.updateAudioGuideButtonLabel(false);
         this.modalElement.style.display = 'none';
         this.tooltipElement.style.display = 'none';
+
+        if (wasOpen) {
+            this.onHideCallback?.();
+        }
 
         if (wasOpen && this.previousFocusedElement && this.previousFocusedElement.isConnected) {
             try {

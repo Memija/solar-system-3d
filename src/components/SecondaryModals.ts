@@ -9,9 +9,28 @@ import type { UIManager } from './UIManager';
  * Header Quick-Access Slots Customizer modal using monochrome telemetry icons.
  */
 export function toggleShortcutsModal(ui: UIManager): void {
-    if (ui.shortcutsModal.isOpen) {
+    const anyUi = ui as any;
+    const isCurrentlyOpen = '_shortcutsModal' in anyUi ? Boolean(anyUi._shortcutsModal?.isOpen) : Boolean(ui.shortcutsModal?.isOpen);
+    if (isCurrentlyOpen) {
         ui.shortcutsModal.hide();
+        if (ui.headerSlotsContainer) {
+            HeaderSlotsManager.updateSlotStates(ui.headerSlotsContainer, ui);
+        }
         return;
+    }
+
+    ui.closeLangDropdown?.();
+    if (ui.customDatePicker?.isOpen) {
+        ui.customDatePicker.closePopup();
+    }
+    if ('_headerSlotsModal' in anyUi ? anyUi._headerSlotsModal?.isOpen : ui.headerSlotsModal?.isOpen) {
+        ui.headerSlotsModal.hide();
+    }
+    if ('_eventModal' in anyUi ? anyUi._eventModal?.isOpen : ui.eventModal?.isOpen) {
+        ui.eventModal.hide();
+    }
+    if (ui.controlCenter?.isOpen) {
+        ui.controlCenter.close();
     }
 
     const s = (key: string) => i18n.t(`shortcuts.${key}`);
@@ -94,6 +113,10 @@ export function toggleShortcutsModal(ui: UIManager): void {
         titleIcon: 'shortcuts',
         description: shortcutsContent
     });
+
+    if (ui.headerSlotsContainer) {
+        HeaderSlotsManager.updateSlotStates(ui.headerSlotsContainer, ui);
+    }
 }
 
 function formatSlotsActiveText(count: number, max: number): string {
@@ -124,7 +147,33 @@ function getSlotSwitchTitle(isLocked: boolean, isActive: boolean, isLimitBlocked
     return val && val !== 'ui.addSlot' ? val : 'Add to header';
 }
 
+export function toggleHeaderSlotsCustomizer(ui: UIManager): void {
+    const anyUi = ui as any;
+    const isCurrentlyOpen = '_headerSlotsModal' in anyUi ? Boolean(anyUi._headerSlotsModal?.isOpen) : Boolean(ui.headerSlotsModal?.isOpen);
+    if (isCurrentlyOpen) {
+        ui.headerSlotsModal.hide();
+        ui.syncHeaderSlotsTriggerState?.();
+        return;
+    }
+    openHeaderSlotsCustomizer(ui);
+}
+
 export function openHeaderSlotsCustomizer(ui: UIManager): void {
+    const anyUi = ui as any;
+    ui.closeLangDropdown?.();
+    if (ui.customDatePicker?.isOpen) {
+        ui.customDatePicker.closePopup();
+    }
+    if ('_shortcutsModal' in anyUi ? anyUi._shortcutsModal?.isOpen : ui.shortcutsModal?.isOpen) {
+        ui.shortcutsModal.hide();
+    }
+    if ('_eventModal' in anyUi ? anyUi._eventModal?.isOpen : ui.eventModal?.isOpen) {
+        ui.eventModal.hide();
+    }
+    if (ui.controlCenter?.isOpen) {
+        ui.controlCenter.close();
+    }
+
     const availableSlots = HeaderSlotsManager.getAvailableSlots();
     const currentActive = HeaderSlotsManager.getActiveSlotIds();
     const maxSlots = HeaderSlotsManager.getMaxSlots();
@@ -220,10 +269,12 @@ export function openHeaderSlotsCustomizer(ui: UIManager): void {
         name: stripLeadingEmoji(i18n.t('ui.headerSlots') || 'Header Quick Access'),
         titleIcon: 'system',
         hideAudioGuide: true,
-        description: html
+        description: html,
+        onAfterShow: () => wireHeaderSlotsModalEvents(ui)
     });
 
     wireHeaderSlotsModalEvents(ui);
+    ui.syncHeaderSlotsTriggerState?.();
 }
 
 function syncSlotsModalState(modalContent: HTMLElement): void {
@@ -364,6 +415,7 @@ function wireHeaderSlotsModalEvents(ui: UIManager): void {
     if (doneBtn) {
         doneBtn.onclick = () => {
             ui.headerSlotsModal.hide();
+            ui.syncHeaderSlotsTriggerState?.();
             ui.audioManager?.playTick?.();
         };
     }

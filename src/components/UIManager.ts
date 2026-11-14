@@ -18,7 +18,7 @@ import { ControlCenter } from './ControlCenter';
 import { HeaderSlotsManager } from './HeaderSlotsManager';
 import { ScenePicker } from './ScenePicker';
 import { ShortcutController } from './ShortcutController';
-import { toggleShortcutsModal, openHeaderSlotsCustomizer } from './SecondaryModals';
+import { toggleShortcutsModal, openHeaderSlotsCustomizer, toggleHeaderSlotsCustomizer } from './SecondaryModals';
 import { svgIcon, stripLeadingEmoji } from './SvgIcons';
 import { PreferencesManager } from './PreferencesManager';
 
@@ -36,6 +36,7 @@ export class UIManager {
     private _shortcutsModal: Modal | null = null;
     private _headerSlotsModal: Modal | null = null;
     headerSlotsContainer: HTMLElement | null = null;
+    slotAddBtn: HTMLButtonElement | null = null;
     audioManager: AudioManager;
     performanceMonitor: PerformanceMonitor;
     menuContainer: HTMLElement | null = null;
@@ -1007,11 +1008,13 @@ export class UIManager {
         slotAddBtn.id = 'hudSlotAddBtn';
         slotAddBtn.title = i18n.t('ui.customizeSlots') || 'Customize Quick Access Slots';
         slotAddBtn.setAttribute('aria-label', slotAddBtn.title);
+        slotAddBtn.setAttribute('aria-expanded', 'false');
         slotAddBtn.innerHTML = `<span class="slot-add-glyph">${svgIcon('plus')}</span>`;
         slotAddBtn.onclick = (e) => {
             e.stopPropagation();
-            this.openHeaderSlotsCustomizer();
+            this.toggleHeaderSlotsCustomizer();
         };
+        this.slotAddBtn = slotAddBtn;
         actionsContainer.appendChild(slotAddBtn);
 
         const controlsBtn = document.createElement('button');
@@ -1156,7 +1159,7 @@ export class UIManager {
                 this.headerBodySelect.setAttribute('aria-label', this.headerBodySelect.title);
             }
 
-            if (this.headerSlotsModal?.isOpen) {
+            if (this._headerSlotsModal?.isOpen) {
                 this.openHeaderSlotsCustomizer();
             }
 
@@ -1206,7 +1209,7 @@ export class UIManager {
                         : `Orbit: +${distFormatted}`;
                 }
             }
-            if (this.eventModal?.isOpen && this.activeHistoricalEventId) {
+            if (this._eventModal?.isOpen && this.activeHistoricalEventId) {
                 const evt = HISTORICAL_SPACE_EVENTS.find(e => e.id === this.activeHistoricalEventId);
                 if (evt) {
                     this.eventModal.show({
@@ -1228,7 +1231,7 @@ export class UIManager {
 
             this.controlCenter?.updateTranslations();
 
-            if (this.shortcutsModal?.isOpen) {
+            if (this._shortcutsModal?.isOpen) {
                 this.toggleShortcutsModal();
                 this.toggleShortcutsModal();
             }
@@ -1546,7 +1549,7 @@ export class UIManager {
 
     public get modal(): Modal {
         if (!this._modal) {
-            this._modal = new Modal(this.uiContainer);
+            this._modal = new Modal(this.uiContainer, { contentId: 'modal-content' });
         }
         return this._modal;
     }
@@ -1557,7 +1560,8 @@ export class UIManager {
 
     public get eventModal(): Modal {
         if (!this._eventModal) {
-            const m = new Modal(this.uiContainer);
+            const m = new Modal(this.uiContainer, { contentId: 'event-modal-content' });
+            m.modalElement.classList.add('obs-dialog-modal');
             m.modalElement.style.top = '50%';
             m.modalElement.style.left = '50%';
             m.modalElement.style.right = 'auto';
@@ -1574,7 +1578,16 @@ export class UIManager {
 
     public get shortcutsModal(): Modal {
         if (!this._shortcutsModal) {
-            const m = new Modal(this.uiContainer);
+            const m = new Modal(this.uiContainer, {
+                autoReRenderOnLanguageChange: false,
+                contentId: 'shortcuts-modal-content',
+                onHide: () => {
+                    if (this.headerSlotsContainer) {
+                        HeaderSlotsManager.updateSlotStates(this.headerSlotsContainer, this);
+                    }
+                }
+            });
+            m.modalElement.classList.add('obs-dialog-modal');
             m.modalElement.style.top = '50%';
             m.modalElement.style.left = '50%';
             m.modalElement.style.right = 'auto';
@@ -1593,7 +1606,13 @@ export class UIManager {
 
     public get headerSlotsModal(): Modal {
         if (!this._headerSlotsModal) {
-            const m = new Modal(this.uiContainer, { enableAudioGuide: false });
+            const m = new Modal(this.uiContainer, {
+                enableAudioGuide: false,
+                autoReRenderOnLanguageChange: false,
+                contentId: 'header-slots-modal-content',
+                onHide: () => this.syncHeaderSlotsTriggerState()
+            });
+            m.modalElement.classList.add('obs-dialog-modal');
             m.modalElement.style.top = '50%';
             m.modalElement.style.left = '50%';
             m.modalElement.style.right = 'auto';
@@ -1651,6 +1670,19 @@ export class UIManager {
 
     openHeaderSlotsCustomizer(): void {
         openHeaderSlotsCustomizer(this);
+    }
+
+    toggleHeaderSlotsCustomizer(): void {
+        toggleHeaderSlotsCustomizer(this);
+    }
+
+    syncHeaderSlotsTriggerState(): void {
+        const isOpen = Boolean(this._headerSlotsModal?.isOpen);
+        const btn = this.slotAddBtn || this.uiContainer?.querySelector<HTMLButtonElement>('#hudSlotAddBtn');
+        if (btn) {
+            btn.classList.toggle('active', isOpen);
+            btn.setAttribute('aria-expanded', String(isOpen));
+        }
     }
 
     dispose(): void {
@@ -1718,6 +1750,7 @@ export class UIManager {
             this.menuContainer.parentElement.removeChild(this.menuContainer);
             this.menuContainer = null;
         }
+        this.slotAddBtn = null;
 
         if (this.infoPanel?.parentElement) {
             this.infoPanel.parentElement.removeChild(this.infoPanel);

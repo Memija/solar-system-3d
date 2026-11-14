@@ -421,5 +421,62 @@ describe('Modal Localization & Audio Guide', () => {
         expect(audioBtn.hidden).toBe(false);
         expect(audioBtn.style.display).toBe('');
     });
+
+    it('supports onAfterShow, autoReRenderOnLanguageChange: false, onHide, and unique content element IDs', () => {
+        const onHideSpy = vi.fn();
+        const secondaryModal = new Modal(container, {
+            enableAudioGuide: false,
+            autoReRenderOnLanguageChange: false,
+            onHide: onHideSpy
+        });
+
+        // Primary modal keeps #modal-content; secondary modal gets a distinct ID and .modal-content class
+        expect(modal.contentElement.id).toBe('modal-content');
+        expect(modal.contentElement.classList.contains('modal-content')).toBe(true);
+        expect(secondaryModal.contentElement.id).not.toBe('modal-content');
+        expect(secondaryModal.contentElement.classList.contains('modal-content')).toBe(true);
+
+        // Calling hide() while already closed does not invoke onHide
+        secondaryModal.hide();
+        expect(onHideSpy).not.toHaveBeenCalled();
+
+        let clickCount = 0;
+        const onAfterShowSpy = vi.fn((m: Modal) => {
+            const btn = m.contentElement.querySelector<HTMLButtonElement>('#interactiveTestBtn');
+            if (btn) {
+                btn.onclick = () => {
+                    clickCount++;
+                };
+            }
+        });
+
+        secondaryModal.show({
+            name: 'Header Quick Access',
+            description: '<button type="button" id="interactiveTestBtn">Toggle</button>',
+            hideAudioGuide: true,
+            onAfterShow: onAfterShowSpy
+        });
+
+        expect(onAfterShowSpy).toHaveBeenCalledTimes(1);
+        const btnBefore = secondaryModal.contentElement.querySelector<HTMLButtonElement>('#interactiveTestBtn')!;
+        btnBefore.click();
+        expect(clickCount).toBe(1);
+
+        // Switching language with autoReRenderOnLanguageChange: false updates close button without wiping custom DOM handlers
+        i18n.setLanguage('de');
+        const closeBtn = secondaryModal.modalElement.querySelector('.modal-close-btn') as HTMLButtonElement;
+        expect(closeBtn.getAttribute('aria-label')).toBe(i18n.t('ui.close'));
+        const btnAfter = secondaryModal.contentElement.querySelector<HTMLButtonElement>('#interactiveTestBtn')!;
+        expect(btnAfter).toBe(btnBefore);
+        btnAfter.click();
+        expect(clickCount).toBe(2);
+
+        // Closing via close button invokes onHide once
+        closeBtn.click();
+        expect(secondaryModal.isOpen).toBe(false);
+        expect(onHideSpy).toHaveBeenCalledTimes(1);
+
+        secondaryModal.dispose();
+    });
 });
 
