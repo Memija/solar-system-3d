@@ -112,11 +112,16 @@ export class ScenePicker {
             });
         }
 
-        // 3. Spacecrafts (meshes may be hierarchical Groups)
+        // 3. Spacecrafts (meshes may be hierarchical Groups; distant probes expose markerSprite)
         if (sm.showSpacecrafts !== false && Array.isArray(sm.spacecrafts)) {
             sm.spacecrafts.forEach(sc => {
-                if (!sc?.mesh || sc.mesh.visible === false) return;
-                this.registerTarget(sc.mesh, 'spacecraft', sc.data.name, sc.data, sc.mesh);
+                if (!sc || sc.baseGroup?.visible === false) return;
+                if (sc.mesh && sc.mesh.visible !== false) {
+                    this.registerTarget(sc.mesh, 'spacecraft', sc.data.name, sc.data, sc.mesh);
+                }
+                if (sc.markerSprite && sc.markerSprite.visible !== false) {
+                    this.registerTarget(sc.markerSprite, 'spacecraft', sc.data.name, sc.data, sc.mesh);
+                }
             });
         }
 

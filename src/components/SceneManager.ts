@@ -199,6 +199,8 @@ export class SceneManager {
     private static readonly _vNorthTangent = new THREE.Vector3();
     private static readonly _vAuA = new THREE.Vector3();
     private static readonly _vAuB = new THREE.Vector3();
+    private static readonly _vOldFocusPos = new THREE.Vector3();
+    private static readonly _vOldTransPos = new THREE.Vector3();
     private static readonly _keplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
 
     public static readonly EARTH_YEAR_SIM_SECONDS = (2 * Math.PI) / 0.5;
@@ -338,25 +340,86 @@ export class SceneManager {
         }
     }
 
-    setSimDate(newDate: Date) {
-        this.simDate = newDate;
-        this.syncEphemeris();
+    private getSimTimePassed(): number {
+        const yearsSince2000 = (this.simDate.getTime() - this.baseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        return yearsSince2000 * SceneManager.EARTH_YEAR_SIM_SECONDS;
     }
 
-    syncEphemeris() {
-        const yearsSince2000 = (this.simDate.getTime() - this.baseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-        const simTimePassed = yearsSince2000 * SceneManager.EARTH_YEAR_SIM_SECONDS;
+    private syncBelts(simTimePassed: number, forceMatrix: boolean = false) {
+        const twoPi = Math.PI * 2;
+        if (this.asteroidBelt && (forceMatrix || this.showAsteroids)) {
+            this.asteroidBelt.rotation.y = (((0.05 * simTimePassed) % twoPi) + twoPi) % twoPi;
+            if (forceMatrix || Math.abs(this.asteroidBelt.rotation.y - this.lastAsteroidBeltRotY) >= 1e-4) {
+                this.lastAsteroidBeltRotY = this.asteroidBelt.rotation.y;
+                this.asteroidBelt.updateMatrix?.();
+                this.asteroidBelt.updateMatrixWorld?.(true);
+            }
+        }
+        if (this.kuiperBelt && (forceMatrix || this.showKuiperBelt)) {
+            this.kuiperBelt.rotation.y = (((0.01 * simTimePassed) % twoPi) + twoPi) % twoPi;
+            if (forceMatrix || Math.abs(this.kuiperBelt.rotation.y - this.lastKuiperBeltRotY) >= 1e-4) {
+                this.lastKuiperBeltRotY = this.kuiperBelt.rotation.y;
+                this.kuiperBelt.updateMatrix?.();
+                this.kuiperBelt.updateMatrixWorld?.(true);
+            }
+        }
+    }
 
-        this.planets.forEach(planet => {
-            planet.update(0, simTimePassed, 0);
-        });
-        this.comets.forEach(comet => {
-            comet.update(0, simTimePassed, 0);
-        });
-        this.spacecrafts.forEach(sc => {
-            sc.update(0, simTimePassed, this.simDate, 0);
-        });
+    private static rotatePlanarOffsetForJump(oldPos: THREE.Vector3, newPos: THREE.Vector3, offset: THREE.Vector3) {
+        const oldPlanarSq = oldPos.x * oldPos.x + oldPos.z * oldPos.z;
+        const newPlanarSq = newPos.x * newPos.x + newPos.z * newPos.z;
+        if (oldPlanarSq <= 1e-4 || newPlanarSq <= 1e-4) return;
+        const dTheta = Math.atan2(newPos.z, newPos.x) - Math.atan2(oldPos.z, oldPos.x);
+        if (Math.abs(dTheta) <= 1e-7) return;
+        const cosA = Math.cos(dTheta);
+        const sinA = Math.sin(dTheta);
+        const ox = offset.x;
+        const oz = offset.z;
+        offset.x = ox * cosA - oz * sinA;
+        offset.z = ox * sinA + oz * cosA;
+    }
+
+    private refreshAllLODs() {
+        if (!this.camera) return;
+        const camPos = this.camera.position;
+        const focusedSpacecraftParent: CelestialBody | null =
+            (this.focusedBody && this.spacecrafts.includes(this.focusedBody as Spacecraft))
+                ? ((this.focusedBody as any).parentCelestialBody ?? null)
+                : null;
+        for (let i = 0; i < this.planets.length; i++) {
+            const planet = this.planets[i];
+            planet.hasShadowCastingChild = focusedSpacecraftParent !== null && (
+                focusedSpacecraftParent === planet ||
+                (Array.isArray(planet.moons) && planet.moons.includes(focusedSpacecraftParent))
+            );
+            const isFocused = this.focusedBody === planet ||
+                this.surfaceViewBody === planet ||
+                planet.hasShadowCastingChild ||
+                (this.focusedBody !== null && Array.isArray(planet.moons) && planet.moons.includes(this.focusedBody as any));
+            planet.updateLOD?.(camPos, isFocused);
+        }
+        if (this.showComets) {
+            for (let i = 0; i < this.comets.length; i++) {
+                const comet = this.comets[i];
+                comet.updateLOD?.(camPos, this.focusedBody === comet);
+            }
+        }
+        if (this.showSpacecrafts) {
+            for (let i = 0; i < this.spacecrafts.length; i++) {
+                const sc = this.spacecrafts[i];
+                sc.updateLOD?.(camPos, this.focusedBody === sc);
+            }
+        }
+    }
+
+    private finalizeEphemerisSync() {
+        this.refreshAllLODs();
         this.scene.updateMatrixWorld?.(true);
+        if (this.lineBatcher && this.camera && this.controls) {
+            this.lineBatcher.invalidateDynamic?.();
+            const rebaseDistance = Math.max(1e-4, this.camera.position.distanceTo(this.controls.target) * 0.25);
+            this.lineBatcher.sync(this.camera.position, rebaseDistance);
+        }
         this.lastShadowSimTime = NaN;
         this.renderDirty = true;
         if (this.renderer?.shadowMap) {
@@ -364,6 +427,132 @@ export class SceneManager {
         }
         if (this.measureMode) {
             this.updateMeasurement();
+        }
+    }
+
+    setSimDate(newDate: Date) {
+        let hasOldFocusedPos = false;
+        if (this.focusedBody?.mesh) {
+            (this.focusedBody as CelestialBody).ensureTransformUpToDate?.();
+            this.focusedBody.mesh.updateWorldMatrix?.(true, false);
+            this.focusedBody.mesh.getWorldPosition(SceneManager._vOldFocusPos);
+            hasOldFocusedPos = true;
+        }
+        let hasOldTransitionPos = false;
+        if (this.cameraTransition?.targetBody?.mesh) {
+            (this.cameraTransition.targetBody as CelestialBody).ensureTransformUpToDate?.();
+            this.cameraTransition.targetBody.mesh.updateWorldMatrix?.(true, false);
+            this.cameraTransition.targetBody.mesh.getWorldPosition(SceneManager._vOldTransPos);
+            hasOldTransitionPos = true;
+        }
+
+        // Clear motion trails across all planets, dwarf planets, and moons before jumping epochs
+        // so pre-jump orbital trail arcs and cross-system chord lines are never left behind.
+        this.planets.forEach(planet => {
+            planet.clearTrail?.();
+        });
+
+        this.simDate = new Date(newDate.getTime());
+        this.syncEphemeris(false);
+
+        const isUnlaunchedSpacecraft = (target: any): target is Spacecraft =>
+            Boolean(
+                target &&
+                this.spacecrafts.includes(target as Spacecraft) &&
+                (target as Spacecraft).baseGroup &&
+                !(target as Spacecraft).baseGroup.visible
+            );
+
+        if (isUnlaunchedSpacecraft(this.focusedBody)) {
+            const sc = this.focusedBody;
+            const fallbackName =
+                (sc as any).parentCelestialBody?.data?.name ||
+                sc.data?.targetBody ||
+                'Earth';
+            this.focusOnBody(fallbackName, false);
+        } else if (this.cameraTransition?.targetBody && isUnlaunchedSpacecraft(this.cameraTransition.targetBody)) {
+            const sc = this.cameraTransition.targetBody;
+            const fallbackName =
+                (sc as any).parentCelestialBody?.data?.name ||
+                sc.data?.targetBody ||
+                'Earth';
+            this.focusOnBody(fallbackName, true);
+        } else if (this.surfaceViewBody?.mesh) {
+            this.updateSurfaceCamera(this.surfaceViewBody);
+        } else if (this.cameraTransition?.targetBody?.mesh && this.cameraTransition.endOffset) {
+            this.cameraTransition.targetBody.mesh.updateWorldMatrix?.(true, false);
+            this.cameraTransition.targetBody.mesh.getWorldPosition(this.cameraTransition.endTarget);
+            if (hasOldTransitionPos) {
+                SceneManager.rotatePlanarOffsetForJump(
+                    SceneManager._vOldTransPos,
+                    this.cameraTransition.endTarget,
+                    this.cameraTransition.endOffset
+                );
+            }
+            this.cameraTransition.endPos.copy(this.cameraTransition.endTarget).add(this.cameraTransition.endOffset);
+            if (this.previousBodyPosition) {
+                this.previousBodyPosition.copy(this.cameraTransition.endTarget);
+            } else {
+                this.previousBodyPosition = this.cameraTransition.endTarget.clone();
+            }
+            if (this.camera && this.controls) {
+                const p = Math.min(this.cameraTransition.progress, 1);
+                const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+                this.camera.position.lerpVectors(this.cameraTransition.startPos, this.cameraTransition.endPos, ease);
+                this.controls.target.lerpVectors(this.cameraTransition.startTarget, this.cameraTransition.endTarget, ease);
+                this.controls.update();
+            }
+        } else if (this.focusedBody?.mesh) {
+            this.focusedBody.mesh.updateWorldMatrix?.(true, false);
+            this.focusedBody.mesh.getWorldPosition(SceneManager._vPos);
+            const refOldPos = hasOldFocusedPos ? SceneManager._vOldFocusPos : this.previousBodyPosition;
+            if (refOldPos && this.camera) {
+                SceneManager._vOffset.copy(this.camera.position).sub(refOldPos);
+                SceneManager.rotatePlanarOffsetForJump(refOldPos, SceneManager._vPos, SceneManager._vOffset);
+                this.camera.position.copy(SceneManager._vPos).add(SceneManager._vOffset);
+            }
+            if (this.previousBodyPosition) {
+                this.previousBodyPosition.copy(SceneManager._vPos);
+            } else {
+                this.previousBodyPosition = SceneManager._vPos.clone();
+            }
+            if (this.controls) {
+                this.controls.target.copy(SceneManager._vPos);
+                this.controls.update();
+            }
+        }
+
+        this.finalizeEphemerisSync();
+    }
+
+    syncEphemeris(finalize: boolean = true) {
+        const simTimePassed = this.getSimTimePassed();
+        this.lastUpdatedSimTime = simTimePassed;
+        this.lastUpdatedRealisticDistances = this.realisticDistances;
+
+        this.planets.forEach(planet => {
+            planet.update(0, simTimePassed, 0, true);
+        });
+        this.comets.forEach(comet => {
+            comet.update(0, simTimePassed, 0);
+            if (!this.showComets) {
+                if (comet.mesh) comet.mesh.visible = false;
+                if (comet.orbitLine) comet.orbitLine.visible = false;
+                if (comet.tailParticles) comet.tailParticles.visible = false;
+            }
+        });
+        this.spacecrafts.forEach(sc => {
+            sc.update(0, simTimePassed, this.simDate, 0);
+            if (!this.showSpacecrafts) {
+                if (sc.mesh) sc.mesh.visible = false;
+                if (sc.orbitLine) sc.orbitLine.visible = false;
+            }
+        });
+        this.syncBelts(simTimePassed, true);
+        this.scene.updateMatrixWorld?.(true);
+
+        if (finalize) {
+            this.finalizeEphemerisSync();
         }
     }
 
@@ -939,7 +1128,7 @@ export class SceneManager {
                 lazyModel: true,
                 getEnvironmentMap: () => this.getOrCreateSpacecraftEnvMap()
             });
-            (spacecraft as any).parentCelestialBody = matchedTargetBody;
+            spacecraft.parentCelestialBody = matchedTargetBody;
             this.spacecrafts.push(spacecraft);
         });
     }
@@ -1221,23 +1410,7 @@ export class SceneManager {
                 });
             }
 
-            if (this.asteroidBelt && this.showAsteroids) {
-                this.asteroidBelt.rotation.y += 0.05 * deltaTime;
-                if (Math.abs(this.asteroidBelt.rotation.y - this.lastAsteroidBeltRotY) >= 1e-4) {
-                    this.lastAsteroidBeltRotY = this.asteroidBelt.rotation.y;
-                    this.asteroidBelt.updateMatrix?.();
-                    this.asteroidBelt.updateMatrixWorld?.(true);
-                }
-            }
-
-            if (this.kuiperBelt && this.showKuiperBelt) {
-                this.kuiperBelt.rotation.y += 0.01 * deltaTime;
-                if (Math.abs(this.kuiperBelt.rotation.y - this.lastKuiperBeltRotY) >= 1e-4) {
-                    this.lastKuiperBeltRotY = this.kuiperBelt.rotation.y;
-                    this.kuiperBelt.updateMatrix?.();
-                    this.kuiperBelt.updateMatrixWorld?.(true);
-                }
-            }
+            this.syncBelts(simTimePassed, false);
         }
 
         if (this.surfaceViewBody?.mesh) {
@@ -1326,34 +1499,7 @@ export class SceneManager {
         this.updateMeasurement();
 
         // Update distance-based planet/moon LODs & secondary shell culling
-        const camPos = this.camera.position;
-        const focusedSpacecraftParent: CelestialBody | null =
-            (this.focusedBody && this.spacecrafts.includes(this.focusedBody as Spacecraft))
-                ? ((this.focusedBody as any).parentCelestialBody ?? null)
-                : null;
-        for (let i = 0; i < this.planets.length; i++) {
-            const planet = this.planets[i];
-            planet.hasShadowCastingChild = focusedSpacecraftParent !== null && (
-                focusedSpacecraftParent === planet ||
-                (Array.isArray(planet.moons) && planet.moons.includes(focusedSpacecraftParent))
-            );
-            const isFocused = this.focusedBody === planet ||
-                this.surfaceViewBody === planet ||
-                (this.focusedBody !== null && Array.isArray(planet.moons) && planet.moons.includes(this.focusedBody as any));
-            planet.updateLOD?.(camPos, isFocused);
-        }
-        if (this.showComets) {
-            for (let i = 0; i < this.comets.length; i++) {
-                const comet = this.comets[i];
-                comet.updateLOD?.(camPos, this.focusedBody === comet);
-            }
-        }
-        if (this.showSpacecrafts) {
-            for (let i = 0; i < this.spacecrafts.length; i++) {
-                const sc = this.spacecrafts[i];
-                sc.updateLOD?.(camPos, this.focusedBody === sc);
-            }
-        }
+        this.refreshAllLODs();
 
         // Schedule omnidirectional PointLight shadow cubemap updates strictly on shadow-caster LOD changes
         // or meaningful astronomical motion (the Sun-centered cubemap is 100% view-independent).
@@ -1429,7 +1575,11 @@ export class SceneManager {
         this.showComets = visible;
         this.renderDirty = true;
         PreferencesManager.set('showComets', visible);
+        const simTimePassed = visible ? this.getSimTimePassed() : 0;
         this.comets.forEach(comet => {
+            if (visible) {
+                comet.update(0, simTimePassed, 0);
+            }
             if (comet.mesh) comet.mesh.visible = visible;
             if (comet.orbitLine) comet.orbitLine.visible = visible && this.showOrbits;
             if (comet.tailParticles) comet.tailParticles.visible = visible;
@@ -1461,10 +1611,22 @@ export class SceneManager {
         this.showSpacecrafts = visible;
         this.renderDirty = true;
         PreferencesManager.set('showSpacecraft', visible);
+        const simTimePassed = visible ? this.getSimTimePassed() : 0;
         this.spacecrafts.forEach(sc => {
-            if (sc.mesh) sc.mesh.visible = visible;
-            if (sc.orbitLine) sc.orbitLine.visible = visible && this.showOrbits;
+            if (visible) {
+                sc.update(0, simTimePassed, this.simDate, 0);
+            }
+            if (typeof sc.setSpacecraftVisible === 'function') {
+                sc.setSpacecraftVisible(visible);
+            } else {
+                const isLaunched = !sc.baseGroup || sc.baseGroup.visible !== false;
+                if (sc.mesh) sc.mesh.visible = visible && isLaunched;
+                if (sc.orbitLine) sc.orbitLine.visible = visible && this.showOrbits && isLaunched;
+            }
         });
+        if (visible) {
+            this.refreshAllLODs();
+        }
     }
 
     toggleAsteroids(visible: boolean) {
@@ -1473,6 +1635,9 @@ export class SceneManager {
         PreferencesManager.set('showAsteroids', visible);
         if (this.asteroidBelt) {
             this.asteroidBelt.visible = visible;
+            if (visible) {
+                this.syncBelts(this.getSimTimePassed(), true);
+            }
         }
     }
 
@@ -1482,6 +1647,9 @@ export class SceneManager {
         PreferencesManager.set('showKuiperBelt', visible);
         if (this.kuiperBelt) {
             this.kuiperBelt.visible = visible;
+            if (visible) {
+                this.syncBelts(this.getSimTimePassed(), true);
+            }
         }
     }
 
@@ -1623,6 +1791,22 @@ export class SceneManager {
         target = target || this.spacecrafts.find((s: Spacecraft) => s.data.name === name);
 
         if (target && target.mesh) {
+            if (this.spacecrafts.includes(target as Spacecraft)) {
+                const sc = target as Spacecraft;
+                if (!this.showSpacecrafts) {
+                    this.toggleSpacecrafts(true);
+                }
+                if ((sc.parentCelestialBody as CelestialBody | undefined)?.isMoon && !this.showMoons) {
+                    this.toggleMoons(true);
+                }
+                if (typeof sc.launchTimestamp === 'number' && this.simDate.getTime() < sc.launchTimestamp) {
+                    const missionSpan = typeof sc.endTimestamp === 'number' && sc.endTimestamp > sc.launchTimestamp
+                        ? (sc.endTimestamp - sc.launchTimestamp) * 0.5
+                        : 86_400_000;
+                    const activeEpochMs = sc.launchTimestamp + Math.min(86_400_000, missionSpan);
+                    this.setSimDate(new Date(activeEpochMs));
+                }
+            }
             (target as Spacecraft).ensureModelBuilt?.();
             if ('data' in target && target.data?.name) {
                 TextureGenerator.ensureDeferredLoaded?.(target.data.name, () => {
@@ -1645,14 +1829,19 @@ export class SceneManager {
             target.mesh.updateWorldMatrix?.(true, false);
             target.mesh.getWorldPosition(SceneManager._vPos);
 
+            const hasCustomVisualRadius = typeof (target as Spacecraft).getVisualRadius === 'function';
             const hasRadius = 'radius' in target.data && typeof target.data.radius === 'number';
             const scale = ('tiltGroup' in target && target.tiltGroup)
                 ? (target.tiltGroup.scale?.x || 1.0)
                 : (target.mesh.scale?.x || 1.0);
             const rawRadius = hasRadius ? (target.data as any).radius : 0.5;
-            const visualRadius = hasRadius ? rawRadius * scale : 0.5 * (this.realisticDistances ? 0.005 : 1.0);
+            const visualRadius = hasCustomVisualRadius
+                ? (target as Spacecraft).getVisualRadius()
+                : (hasRadius ? rawRadius * scale : 0.5 * (this.realisticDistances ? 0.005 : 1.0));
 
-            let distance = hasRadius ? visualRadius * 4.5 : (this.realisticDistances ? Math.max(0.012, scale * 2.5) : 2.5);
+            let distance = (hasRadius || hasCustomVisualRadius)
+                ? visualRadius * 4.5
+                : (this.realisticDistances ? Math.max(0.012, scale * 2.5) : 2.5);
 
             // Ringed worlds get slightly wider framing so entire ring plane fits inside viewport
             if ('rings' in target.data && (target.data as any).rings) {
@@ -1720,6 +1909,9 @@ export class SceneManager {
             this.controls.autoRotateSpeed = 0.5;
 
             this.updateZoomLimits();
+            if (!smooth) {
+                this.refreshAllLODs();
+            }
         }
     }
 
@@ -1839,12 +2031,19 @@ export class SceneManager {
         if (this.focusedBody && this.focusedBody.mesh) {
             const target = this.focusedBody;
             const isSun = target.data?.name === 'Sun';
-            const scale = ('tiltGroup' in target && target.tiltGroup) ? target.tiltGroup.scale.x : 1.0;
+            const hasCustomVisualRadius = typeof (target as Spacecraft).getVisualRadius === 'function';
+            const scale = ('tiltGroup' in target && target.tiltGroup)
+                ? target.tiltGroup.scale.x
+                : (target.mesh?.scale?.x || 1.0);
             const rawRadius = ('data' in target && target.data && 'radius' in target.data) ? target.data.radius : 0.5;
-            const visualRadius = rawRadius * scale;
+            const visualRadius = hasCustomVisualRadius
+                ? (target as Spacecraft).getVisualRadius()
+                : rawRadius * scale;
 
             const nearPlane = this.camera?.near ?? 0.0001;
-            const minFloor = this.realisticDistances ? nearPlane * 2.5 : 0.4;
+            const minFloor = hasCustomVisualRadius
+                ? Math.max(nearPlane * 2.5, visualRadius * 0.35)
+                : (this.realisticDistances ? nearPlane * 2.5 : 0.4);
             const surfaceMargin = Math.max(visualRadius * 0.25, nearPlane * 2, minFloor);
             const minDistance = visualRadius + surfaceMargin;
 
@@ -2114,6 +2313,7 @@ export class SceneManager {
 
         if (this.measureTargetA && this.measureTargetB) {
             const resolvePos = (target: any, out: THREE.Vector3) => {
+                target?.ensureTransformUpToDate?.();
                 if (target?.mesh) {
                     target.mesh.updateWorldMatrix?.(true, false);
                     target.mesh.getWorldPosition(out);

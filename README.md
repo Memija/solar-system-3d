@@ -1,4 +1,4 @@
-# Solar System 3D
+# Solar System
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Memija_solar-system-3d&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Memija_solar-system-3d)
 

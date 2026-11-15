@@ -39,14 +39,15 @@ export function createSpaceEnvironmentMap(
                 const dy = sinLat;
                 const dz = cosLat * Math.sin(lon);
 
-                // Warm solar radiance lobe centered around +X + Galactic plane cool starlight band
-                const solarLobe = Math.pow(Math.max(0, dx), 6);
-                const solarHalo = Math.pow(Math.max(0, dx * 0.7 + 0.3), 2);
-                const galacticBand = Math.exp(-Math.pow((dy * 0.8 + dz * 0.4) * 3.2, 2));
+                // Warm solar radiance lobe centered around +X + Galactic starlight band + cool planetary albedo fill
+                const solarLobe = Math.pow(Math.max(0, dx), 5);
+                const solarHalo = Math.pow(Math.max(0, dx * 0.65 + 0.35), 2);
+                const galacticBand = Math.exp(-Math.pow((dy * 0.8 + dz * 0.4) * 2.6, 2));
+                const earthshine = Math.max(0, -dy) * 0.45 + 0.55;
 
-                const r = Math.min(255, Math.round(14 + galacticBand * 26 + solarHalo * 48 + solarLobe * 165));
-                const g = Math.min(255, Math.round(20 + galacticBand * 36 + solarHalo * 40 + solarLobe * 145));
-                const b = Math.min(255, Math.round(36 + galacticBand * 58 + solarHalo * 28 + solarLobe * 110));
+                const r = Math.min(255, Math.round(52 * earthshine + galacticBand * 48 + solarHalo * 68 + solarLobe * 175));
+                const g = Math.min(255, Math.round(64 * earthshine + galacticBand * 62 + solarHalo * 60 + solarLobe * 160));
+                const b = Math.min(255, Math.round(92 * earthshine + galacticBand * 86 + solarHalo * 46 + solarLobe * 130));
 
                 const idx = (y * width + x) * 4;
                 data[idx] = r;

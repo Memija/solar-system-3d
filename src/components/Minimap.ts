@@ -148,6 +148,10 @@ export class Minimap {
         PreferencesManager.set('minimap', visible);
     }
 
+    invalidate() {
+        this.lastDrawTime = -1;
+    }
+
     private renderStaticBackdrop(targetCtx: CanvasRenderingContext2D, width: number, height: number, dpr: number) {
         const cx = width / 2;
         const cy = height / 2;

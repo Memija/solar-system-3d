@@ -50,7 +50,7 @@ export function exportObservatoryScreenshot(
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 12px "JetBrains Mono", monospace';
-    ctx.fillText('SOLAR SYSTEM 3D OBSERVATORY', badgeX + 16, badgeY + 22);
+    ctx.fillText('SOLAR SYSTEM OBSERVATORY', badgeX + 16, badgeY + 22);
 
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '11px "Inter", sans-serif';

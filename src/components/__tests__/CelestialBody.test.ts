@@ -302,4 +302,33 @@ describe('CelestialBody', () => {
             expect(moonNearSideNormal.dot(toEarth)).toBeGreaterThan(0.97);
         }
     });
+
+    it('clears planet and moon motion trails on clearTrail() and updates culled moons when forceTransform is true', () => {
+        const earthData = SolarSystemData.find(b => b.name === 'Earth')!;
+        const earth = new CelestialBody(earthData, parentGroup);
+        const moon = earth.moons[0];
+
+        earth.toggleTrails(true);
+        for (let step = 0; step < 6; step++) {
+            earth.update(0, step * 0.5, 0);
+        }
+        expect(earth.trailPositions.length).toBeGreaterThan(2);
+        expect(moon.trailPositions.length).toBeGreaterThan(2);
+
+        earth.clearTrail();
+        expect(earth.trailPositions.length).toBe(0);
+        expect(moon.trailPositions.length).toBe(0);
+        expect(earth.trailLine!.geometry.drawRange.count).toBe(0);
+        expect(moon.trailLine!.geometry.drawRange.count).toBe(0);
+
+        // Simulate LOD-culled moon when trails are disabled
+        earth.toggleTrails(false);
+        moon.isCulled = true;
+        moon.orbitGroup.matrixAutoUpdate = false;
+        const beforeJumpPos = moon.orbitGroup.position.clone();
+
+        // Forced transform sync (used by setSimDate / syncEphemeris) updates culled moons too
+        earth.update(0, 1.25, 0, true);
+        expect(moon.orbitGroup.position.distanceTo(beforeJumpPos)).toBeGreaterThan(0.1);
+    });
 });

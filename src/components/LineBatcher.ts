@@ -389,6 +389,14 @@ export class LineBatcher {
         }
     }
 
+    invalidateDynamic(): void {
+        for (const { slot } of this.slotBySource.values()) {
+            if (!slot.isStaticRoot) {
+                slot.posVersion = -1;
+            }
+        }
+    }
+
     dispose(): void {
         for (const line of [...this.slotBySource.keys()]) this.release(line);
         for (const batch of this.batches.values()) batch.dispose();

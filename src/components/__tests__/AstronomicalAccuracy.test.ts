@@ -277,4 +277,123 @@ describe('Astronomical Ephemeris, Orbits & Real-Time Day/Night Accuracy', () => 
         manager.setSimDate(new Date('2010-06-01T00:00:00Z'));
         expect(cassini.isActive).toBe(true);
     });
+
+    it('synchronizes trails, asteroid & Kuiper belts, culled moons, camera tracking, and pre-launch spacecraft fallback on setSimDate', () => {
+        manager.setSimDate(new Date('2026-06-21T12:00:00Z'));
+        const earth = manager.planets.find(p => p.data.name === 'Earth')!;
+        const jupiter = manager.planets.find(p => p.data.name === 'Jupiter')!;
+        const io = jupiter.moons.find(m => m.data.name === 'Io')!;
+
+        // Accumulate multi-point motion trails across planets and moons before changing date
+        manager.toggleTrails(true);
+        for (let day = 1; day <= 20; day++) {
+            const stepSimTime = ((new Date(Date.UTC(2026, 5, 21 + day, 12)).getTime() - manager.baseDate.getTime()) /
+                (365.25 * 24 * 60 * 60 * 1000)) * SceneManager.EARTH_YEAR_SIM_SECONDS;
+            earth.update(0, stepSimTime, 0);
+        }
+        expect(earth.trailPositions.length).toBeGreaterThan(5);
+        expect(earth.moons[0].trailPositions.length).toBeGreaterThan(5);
+
+        const prevAsteroidRot = manager.asteroidBelt!.rotation.y;
+        const prevKuiperRot = manager.kuiperBelt!.rotation.y;
+
+        // Focus on Earth (sunlit day side) and jump 6 months to winter solstice
+        manager.focusOnBody('Earth', false);
+        const juneEarthPos = new THREE.Vector3();
+        earth.mesh!.getWorldPosition(juneEarthPos);
+        const juneCamToSunDot = manager.camera.position.clone().sub(juneEarthPos).normalize()
+            .dot(juneEarthPos.clone().negate().normalize());
+        expect(juneCamToSunDot).toBeGreaterThan(0.5);
+
+        // Also test a culled moon on a distant planet with trails off for that moon
+        io.isCulled = true;
+        io.orbitGroup.matrixAutoUpdate = false;
+        const ioPosBefore = new THREE.Vector3();
+        io.mesh!.getWorldPosition(ioPosBefore);
+
+        const decDate = new Date('2026-12-21T12:00:00Z');
+        const frozenInputTime = decDate.getTime();
+        manager.setSimDate(decDate);
+
+        // Input Date instance is cloned so advancing simDate later never mutates caller constants
+        expect(manager.simDate).not.toBe(decDate);
+        expect(decDate.getTime()).toBe(frozenInputTime);
+
+        // 1. Pre-jump trails are cleared across all planets and moons (only 1 new seed point at new epoch)
+        expect(earth.trailPositions.length).toBe(1);
+        expect(earth.moons[0].trailPositions.length).toBe(1);
+
+        // 2. Asteroid belt & Kuiper belt advance to the new epoch instead of staying frozen behind
+        expect(manager.asteroidBelt!.rotation.y).not.toBeCloseTo(prevAsteroidRot, 3);
+        expect(manager.kuiperBelt!.rotation.y).not.toBeCloseTo(prevKuiperRot, 3);
+
+        // 3. Distant / culled moons update their world transforms on epoch jump
+        const ioPosAfter = new THREE.Vector3();
+        io.mesh!.getWorldPosition(ioPosAfter);
+        expect(ioPosAfter.distanceTo(ioPosBefore)).toBeGreaterThan(1.0);
+
+        // 4. Camera immediately follows Earth to opposite side of Sun AND preserves sunlit phase angle
+        const decEarthPos = new THREE.Vector3();
+        earth.mesh!.getWorldPosition(decEarthPos);
+        expect(decEarthPos.distanceTo(juneEarthPos)).toBeGreaterThan(200);
+        expect(manager.controls.target.distanceTo(decEarthPos)).toBeLessThan(1e-4);
+        const decCamToSunDot = manager.camera.position.clone().sub(decEarthPos).normalize()
+            .dot(decEarthPos.clone().negate().normalize());
+        expect(decCamToSunDot).toBeCloseTo(juneCamToSunDot, 2);
+
+        // 5. Jumping to pre-launch epoch while focused on Voyager 1 falls back cleanly to Earth
+        const voyager1 = manager.spacecrafts.find(s => s.data.name === 'Voyager 1')!;
+        manager.focusOnBody('Voyager 1', false);
+        expect(manager.focusedBody).toBe(voyager1);
+
+        manager.setSimDate(new Date('1969-07-20T20:17:00Z'));
+        expect(voyager1.baseGroup.visible).toBe(false);
+        expect(voyager1.orbitGroup.position.length()).toBe(0);
+        expect(manager.focusedBody?.data.name).toBe('Earth');
+    });
+
+    it('renders spacecraft markers in overview, frames lazy-built meshes accurately in schematic & realistic scale, and auto-enables pre-launch spacecraft on focus', () => {
+        manager.setSimDate(new Date('2026-06-21T12:00:00Z'));
+        manager.camera.position.set(0, 100, 400);
+        (manager as any).refreshAllLODs();
+
+        // 1. From default Solar System overview, all 8 launched spacecraft display visible locator markers
+        expect(manager.spacecrafts.length).toBe(8);
+        for (const sc of manager.spacecrafts) {
+            expect(sc.baseGroup.visible).toBe(true);
+            expect(sc.markerSprite?.visible).toBe(true);
+        }
+
+        // 2. Focusing ISS builds local-centered geometry, hides close-up marker, and frames tightly in Realistic Scale
+        manager.focusOnBody('ISS (International Space Station)', false);
+        const iss = manager.spacecrafts.find(s => s.data.name.includes('ISS'))!;
+        expect(iss.mesh.visible).toBe(true);
+        expect(iss.markerSprite?.visible).toBe(false);
+
+        manager.toggleRealisticDistances(true);
+        expect(manager.controls.minDistance).toBeLessThan(0.01);
+
+        const earth = manager.planets.find(p => p.data.name === 'Earth')!;
+        const moon = earth.moons.find(m => m.data.name === 'Moon')!;
+        const sputnik = manager.spacecrafts.find(s => s.data.name === 'Sputnik 1')!;
+        const apollo = manager.spacecrafts.find(s => s.data.name === 'Apollo 11')!;
+        const earthRealRadius = (earth.data.displayRadius ?? earth.data.radius) * 0.005536;
+        const moonRealRadius = (moon.data.displayRadius ?? moon.data.radius) * 0.005536;
+        expect(sputnik.orbitGroup.position.length()).toBeGreaterThan(earthRealRadius);
+        expect(apollo.orbitGroup.position.length()).toBeGreaterThan(moonRealRadius);
+        manager.toggleRealisticDistances(false);
+
+        // 3. Focusing a pre-launch spacecraft while layer is hidden enables spacecraft and jumps to active mission epoch
+        manager.toggleSpacecrafts(false);
+        manager.setSimDate(new Date('1969-07-20T20:17:00Z'));
+        const jwst = manager.spacecrafts.find(s => s.data.name === 'James Webb Space Telescope')!;
+        expect(jwst.baseGroup.visible).toBe(false);
+
+        manager.focusOnBody('James Webb Space Telescope', false);
+        expect(manager.showSpacecrafts).toBe(true);
+        expect(manager.simDate.getUTCFullYear()).toBeGreaterThanOrEqual(2021);
+        expect(jwst.baseGroup.visible).toBe(true);
+        expect(jwst.mesh.visible).toBe(true);
+        expect(jwst.orbitGroup.position.length()).toBeGreaterThan(0);
+    });
 });

@@ -9,15 +9,19 @@ export class Spacecraft {
     parent: THREE.Object3D;
     mesh: THREE.Group; // Spacecraft usually composed of multiple parts
     orbitLine: THREE.LineLoop | null;
+    escapeLine: THREE.Line | null = null;
+    markerSprite: THREE.Sprite | null = null;
     orbitGroup: THREE.Group;
     baseGroup: THREE.Group;
     angle: number;
     realisticDistances: boolean = false;
     isActive: boolean = true;
+    spacecraftEnabled: boolean = true;
     materials: THREE.Material[] = [];
+    parentCelestialBody?: { data: { radius: number; displayRadius?: number } };
+    readonly launchTimestamp: number | null = null;
+    readonly endTimestamp: number | null = null;
     private baseModelScale: number = 1.0;
-    private launchTimestamp: number | null = null;
-    private endTimestamp: number | null = null;
     private beaconMesh: THREE.Mesh | null = null;
     private beaconMaterial: THREE.MeshBasicMaterial | null = null;
     private beaconTimer: number = 0;
@@ -28,8 +32,11 @@ export class Spacecraft {
     private getEnvironmentMap?: () => THREE.Texture | null;
     private shadowCastingEnabled: boolean = false;
     private currentScaleFactor: number = 1.0;
+    private currentSizeRatio: number = 1.0;
     private orbitEnabled: boolean = true;
     private static _sharedBeaconGeo: THREE.SphereGeometry | null = null;
+    private static _sharedActiveMarkerTex: THREE.Texture | null = null;
+    private static _sharedInactiveMarkerTex: THREE.Texture | null = null;
     private static readonly _tempWorldPos = new THREE.Vector3();
 
     constructor(
@@ -78,12 +85,14 @@ export class Spacecraft {
             this.ensureModelBuilt();
         }
         this.orbitGroup.add(this.mesh);
+        this.createMarkerSprite();
 
         if (!this.data.escaping) {
             this.createOrbit();
         } else {
             // For escaping spacecraft, set initial position
             this.orbitGroup.position.set(this.data.distance, 0, 0);
+            this.createEscapeTrajectory();
         }
     }
 
@@ -93,6 +102,140 @@ export class Spacecraft {
         if (name.includes('Voyager')) return 2.0;
         if (name.includes('James Webb') || name.includes('Cassini') || name.includes('Sputnik') || name.includes('Apollo')) return 1.5;
         return 1.0;
+    }
+
+    private getRawModelRadius(): number {
+        const name = this.data.name;
+        if (name.includes('ISS')) return 0.36;
+        if (name.includes('Hubble')) return 0.26;
+        if (name.includes('Sputnik')) return 0.28;
+        if (name.includes('Apollo')) return 0.34;
+        if (name.includes('James Webb') || name.includes('Cassini')) return 0.42;
+        if (name.includes('Voyager')) return 0.52;
+        return 0.24;
+    }
+
+    getVisualRadius(): number {
+        return this.getRawModelRadius() * this.currentScaleFactor * this.baseModelScale;
+    }
+
+    private getVisualOrbitSemiMajorAxis(): number {
+        if (!this.realisticDistances || !this.data.distanceAU) {
+            return this.data.distance;
+        }
+        const rawA = this.data.distanceAU * 130;
+        if (!this.parentCelestialBody) {
+            return rawA;
+        }
+        const parentDisplayRadius = this.parentCelestialBody.data.displayRadius ?? this.parentCelestialBody.data.radius;
+        const parentRealisticRadius = parentDisplayRadius * 0.005536 * this.currentSizeRatio;
+        const ecc = this.data.eccentricity || 0;
+        const minPeriapsis = parentRealisticRadius * 1.06 + this.getVisualRadius() * 2.2;
+        const minClearanceA = minPeriapsis / Math.max(0.2, 1 - ecc);
+        return Math.max(rawA, minClearanceA);
+    }
+
+    private static getSharedMarkerTexture(active: boolean): THREE.Texture {
+        const cached = active ? Spacecraft._sharedActiveMarkerTex : Spacecraft._sharedInactiveMarkerTex;
+        if (cached) return cached;
+
+        const size = 64;
+        let tex: THREE.Texture | null = null;
+
+        if (typeof document !== 'undefined') {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            if (ctx && typeof ctx.beginPath === 'function') {
+                ctx.clearRect(0, 0, size, size);
+                const c = size / 2;
+                const strokeColor = active ? '#38bdf8' : '#f59e0b';
+                const glowColor = active ? 'rgba(56, 189, 248, 0.32)' : 'rgba(245, 158, 11, 0.32)';
+
+                // Soft outer telemetry halo
+                ctx.fillStyle = glowColor;
+                ctx.beginPath();
+                ctx.arc(c, c, 20, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Dark observatory contrast backing inside diamond
+                ctx.fillStyle = 'rgba(4, 10, 24, 0.78)';
+                ctx.beginPath();
+                ctx.moveTo(c, c - 13);
+                ctx.lineTo(c + 13, c);
+                ctx.lineTo(c, c + 13);
+                ctx.lineTo(c - 13, c);
+                ctx.closePath();
+                ctx.fill();
+
+                // Crisp diamond reticle border
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2.6;
+                ctx.stroke();
+
+                // Bright central spacecraft telemetry core
+                ctx.fillStyle = '#f8fafc';
+                ctx.beginPath();
+                ctx.arc(c, c, 4.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+            }
+        }
+
+        if (!tex) {
+            const fbSize = 16;
+            const data = new Uint8Array(fbSize * fbSize * 4);
+            const cr = active ? 56 : 245;
+            const cg = active ? 189 : 158;
+            const cb = active ? 248 : 11;
+            const mid = (fbSize - 1) * 0.5;
+            for (let y = 0; y < fbSize; y++) {
+                for (let x = 0; x < fbSize; x++) {
+                    const manhattan = Math.abs(x - mid) + Math.abs(y - mid);
+                    const idx = (y * fbSize + x) * 4;
+                    if (manhattan <= 2.2) {
+                        data[idx] = 248;
+                        data[idx + 1] = 250;
+                        data[idx + 2] = 252;
+                        data[idx + 3] = 255;
+                    } else if (manhattan >= 4.2 && manhattan <= 6.2) {
+                        data[idx] = cr;
+                        data[idx + 1] = cg;
+                        data[idx + 2] = cb;
+                        data[idx + 3] = 235;
+                    }
+                }
+            }
+            tex = new THREE.DataTexture(data, fbSize, fbSize, THREE.RGBAFormat);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.needsUpdate = true;
+        }
+
+        tex.userData.shared = true;
+        if (active) {
+            Spacecraft._sharedActiveMarkerTex = tex;
+        } else {
+            Spacecraft._sharedInactiveMarkerTex = tex;
+        }
+        return tex;
+    }
+
+    private createMarkerSprite(): void {
+        const spriteMat = new THREE.SpriteMaterial({
+            map: Spacecraft.getSharedMarkerTexture(this.isActive),
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            sizeAttenuation: false
+        });
+        this.markerSprite = new THREE.Sprite(spriteMat);
+        this.markerSprite.scale.set(0.024, 0.024, 1);
+        this.markerSprite.renderOrder = 12;
+        this.markerSprite.visible = this.spacecraftEnabled;
+        this.orbitGroup.add(this.markerSprite);
     }
 
     ensureModelBuilt(): void {
@@ -133,7 +276,7 @@ export class Spacecraft {
             const stdMat = mat as THREE.MeshStandardMaterial;
             if (stdMat && (stdMat as any).isMeshStandardMaterial) {
                 stdMat.envMap = envMap;
-                stdMat.envMapIntensity = 0.55;
+                stdMat.envMapIntensity = 1.15;
                 stdMat.needsUpdate = true;
             }
         }
@@ -144,25 +287,25 @@ export class Spacecraft {
         const material = new THREE.MeshStandardMaterial({
             color: baseColor,
             roughness: 0.35,
-            metalness: 0.9
+            metalness: 0.5
         });
 
         const goldFoil = new THREE.MeshStandardMaterial({
             color: 0xffd700,
             roughness: 0.25,
-            metalness: 1.0
+            metalness: 0.65
         });
 
         const silverFoil = new THREE.MeshStandardMaterial({
             color: 0xe2e8f0,
             roughness: 0.28,
-            metalness: 1.0
+            metalness: 0.55
         });
 
         const panelMat = new THREE.MeshStandardMaterial({
-            color: 0x1e40af,
-            metalness: 0.9,
-            roughness: 0.2
+            color: 0x2563eb,
+            metalness: 0.45,
+            roughness: 0.25
         });
 
         this.materials.push(material, goldFoil, silverFoil, panelMat);
@@ -196,9 +339,9 @@ export class Spacecraft {
             Spacecraft._sharedBeaconGeo.userData.shared = true;
         }
         this.beaconMaterial = new THREE.MeshBasicMaterial({
-            color: 0x38bdf8,
+            color: this.isActive ? 0x38bdf8 : 0xf59e0b,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.85
         });
         this.materials.push(this.beaconMaterial);
         this.beaconMesh = new THREE.Mesh(Spacecraft._sharedBeaconGeo, this.beaconMaterial);
@@ -234,15 +377,33 @@ export class Spacecraft {
     private syncMaterialActiveColors() {
         for (let i = 0; i < this.materials.length; i++) {
             const mat = this.materials[i];
-            if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+            if (mat instanceof THREE.MeshStandardMaterial) {
                 if (mat.userData.originalColor === undefined) {
                     mat.userData.originalColor = mat.color.getHex();
                 }
                 if (!this.isActive) {
-                    mat.color.setHex(0xff8800);
+                    mat.color.setHex(0xffcf8b);
+                    mat.emissive.setHex(0x4a2f10);
                 } else {
                     mat.color.setHex(mat.userData.originalColor);
+                    mat.emissive.setHex(0x2a3950);
                 }
+            } else if (mat instanceof THREE.MeshBasicMaterial) {
+                if (mat.userData.originalColor === undefined) {
+                    mat.userData.originalColor = mat.color.getHex();
+                }
+                if (!this.isActive) {
+                    mat.color.setHex(0xf59e0b);
+                } else {
+                    mat.color.setHex(0x38bdf8);
+                }
+            }
+        }
+        if (this.markerSprite) {
+            const nextTex = Spacecraft.getSharedMarkerTexture(this.isActive);
+            if (this.markerSprite.material.map !== nextTex) {
+                this.markerSprite.material.map = nextTex;
+                this.markerSprite.material.needsUpdate = true;
             }
         }
     }
@@ -253,24 +414,34 @@ export class Spacecraft {
         this.mesh.position.set(0, 0, 0);
         this.mesh.rotation.set(0, 0, 0);
         this.mesh.scale.set(1, 1, 1);
-        this.mesh.updateMatrixWorld(true);
 
-        const meshes: THREE.Mesh[] = [];
-        this.mesh.traverse((child) => {
-            if (child instanceof THREE.Mesh && child.material && !Array.isArray(child.material)) {
-                meshes.push(child);
+        // Accumulate transforms strictly relative to `this.mesh` (NEVER `m.matrixWorld`),
+        // otherwise lazy model builds bake the host planet's heliocentric world offset into vertices!
+        const meshEntries: { mesh: THREE.Mesh; relMatrix: THREE.Matrix4 }[] = [];
+        const accumulate = (node: THREE.Object3D, parentRelMatrix: THREE.Matrix4) => {
+            for (let i = 0; i < node.children.length; i++) {
+                const child = node.children[i];
+                child.updateMatrix();
+                const childRelMatrix = parentRelMatrix.clone().multiply(child.matrix);
+                if (child instanceof THREE.Mesh && child.material && !Array.isArray(child.material)) {
+                    meshEntries.push({ mesh: child, relMatrix: childRelMatrix });
+                }
+                if (child.children.length > 0) {
+                    accumulate(child, childRelMatrix);
+                }
             }
-        });
+        };
+        accumulate(this.mesh, new THREE.Matrix4());
 
-        if (meshes.length > 0) {
+        if (meshEntries.length > 0) {
             let totalVerts = 0;
             let totalIndices = 0;
             const bakedGeoms: { g: THREE.BufferGeometry; r: number; gr: number; b: number }[] = [];
 
-            for (let i = 0; i < meshes.length; i++) {
-                const m = meshes[i];
+            for (let i = 0; i < meshEntries.length; i++) {
+                const { mesh: m, relMatrix } = meshEntries[i];
                 const g = m.geometry.clone();
-                g.applyMatrix4(m.matrixWorld);
+                g.applyMatrix4(relMatrix);
                 const matColor = (m.material as THREE.MeshStandardMaterial)?.color;
                 const r = matColor ? matColor.r : 1;
                 const gr = matColor ? matColor.g : 1;
@@ -330,21 +501,23 @@ export class Spacecraft {
                     g.dispose();
                 }
 
-                for (let i = 0; i < meshes.length; i++) {
-                    const m = meshes[i];
+                for (let i = 0; i < meshEntries.length; i++) {
+                    const m = meshEntries[i].mesh;
                     m.geometry.dispose();
                     if (m.parent) m.parent.remove(m);
                 }
 
-                // Dispose temporary per-part materials and replace with a single vertex-colored material
+                // Dispose temporary per-part materials and replace with a single aerospace metallic-satin material
                 this.materials.forEach(mat => mat.dispose());
                 this.materials = [];
 
                 const bodyMat = new THREE.MeshStandardMaterial({
                     color: 0xffffff,
                     vertexColors: true,
-                    roughness: 0.3,
-                    metalness: 0.88,
+                    roughness: 0.34,
+                    metalness: 0.48,
+                    emissive: new THREE.Color(0x2a3950),
+                    emissiveIntensity: 0.38,
                     side: THREE.DoubleSide
                 });
                 this.materials.push(bodyMat);
@@ -493,7 +666,7 @@ export class Spacecraft {
         this.mesh.add(body);
 
         const apertureGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.1, 16);
-        const apertureMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.3, roughness: 0.8 });
+        const apertureMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.35, roughness: 0.65 });
         this.materials.push(apertureMat);
         const aperture = new THREE.Mesh(apertureGeo, apertureMat);
         aperture.position.y = 0.2;
@@ -508,7 +681,7 @@ export class Spacecraft {
 
     private createCassiniModel(material: THREE.MeshStandardMaterial, foilMat: THREE.MeshStandardMaterial) {
         const dishGeo = new THREE.ConeGeometry(0.15, 0.05, 16);
-        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.8 });
+        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.65 });
         this.materials.push(dishMat);
         const dish = new THREE.Mesh(dishGeo, dishMat);
         dish.position.y = 0.2;
@@ -524,7 +697,7 @@ export class Spacecraft {
         this.mesh.add(base);
 
         const boomGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.6);
-        const boomMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.5 });
+        const boomMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.6, roughness: 0.4 });
         this.materials.push(boomMat);
         const boom = new THREE.Mesh(boomGeo, boomMat);
         boom.position.set(0.2, -0.1, 0);
@@ -536,7 +709,7 @@ export class Spacecraft {
 
     private createVoyagerModel(material: THREE.MeshStandardMaterial, goldMat: THREE.MeshStandardMaterial) {
         const dishGeo = new THREE.SphereGeometry(0.25, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
-        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, metalness: 0.3, roughness: 0.7 });
+        const dishMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, metalness: 0.25, roughness: 0.55 });
         this.materials.push(dishMat);
         const dish = new THREE.Mesh(dishGeo, dishMat);
         dish.rotation.x = -Math.PI / 2;
@@ -560,7 +733,7 @@ export class Spacecraft {
         }
 
         const busGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.15, 10);
-        const busMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5, roughness: 0.6 });
+        const busMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.45, roughness: 0.5 });
         this.materials.push(busMat);
         const bus = new THREE.Mesh(busGeo, busMat);
         bus.rotation.x = Math.PI / 2;
@@ -581,7 +754,7 @@ export class Spacecraft {
         this.mesh.add(rtgBoom);
 
         const rtgGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.06, 16);
-        const rtgMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.4 });
+        const rtgMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
         this.materials.push(rtgMat);
         for (let i = 0; i < 3; i++) {
             const rtg = new THREE.Mesh(rtgGeo, rtgMat);
@@ -613,6 +786,7 @@ export class Spacecraft {
 
     rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
+        this.currentSizeRatio = sizeRatio;
 
         // Preserve each spacecraft's bespoke relative model scale (ISS 0.5, Cassini/JWST 1.5, Voyager 2.0)
         const scaleFactor = realistic ? 0.0015 * sizeRatio : 1.0;
@@ -628,6 +802,8 @@ export class Spacecraft {
 
         if (!this.data.escaping) {
             this.createOrbit();
+        } else {
+            this.updateEscapeTrajectory();
         }
     }
 
@@ -636,7 +812,7 @@ export class Spacecraft {
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array((segments + 1) * 3);
 
-        const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
+        const a = this.getVisualOrbitSemiMajorAxis();
         const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
         const b = a * Math.sqrt(1 - e * e);
 
@@ -649,35 +825,99 @@ export class Spacecraft {
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         const material = new THREE.LineBasicMaterial({
-            color: 0x888888,
+            color: 0x5ea8d6,
             transparent: true,
-            opacity: 0.5,
+            opacity: 0.58,
             depthWrite: false
         });
 
         this.orbitLine = new THREE.LineLoop(geometry, material);
-        this.orbitLine.visible = this.orbitEnabled;
+        this.orbitLine.visible = this.spacecraftEnabled && this.orbitEnabled && this.baseGroup.visible;
         this.orbitLine.matrixAutoUpdate = false;
         this.orbitLine.updateMatrix?.();
         markLineBatchable(this.orbitLine);
         this.baseGroup.add(this.orbitLine);
     }
 
-    update(deltaTime: number, simTimePassed?: number, simDate?: Date, rawDelta?: number) {
-        if (this.beaconMesh && this.beaconMaterial) {
-            if (this.isActive && this.beaconInLodRange && (deltaTime > 0 || (rawDelta !== undefined && rawDelta > 0))) {
-                const step = (rawDelta !== undefined && rawDelta > 0) ? rawDelta : deltaTime;
-                this.beaconTimer += step * 4;
-                const flash = (Math.sin(this.beaconTimer) > 0.3) ? 0.95 : 0.15;
-                this.beaconMaterial.opacity = flash;
-                this.beaconMesh.visible = true;
-            } else {
-                this.beaconMesh.visible = false;
-            }
+    private createEscapeTrajectory(): void {
+        const isVoyager1 = this.data.name.includes('Voyager 1');
+        const isVoyager2 = this.data.name.includes('Voyager 2');
+        if (!isVoyager1 && !isVoyager2) return;
+
+        const positions = new Float32Array(6);
+        const azimuth = isVoyager1 ? 1.8059 : 1.2175;
+        const elevation = THREE.MathUtils.degToRad(isVoyager1 ? 35.01 : -38.45);
+        const cosEl = Math.cos(elevation);
+        const startDist = 130;
+        positions[0] = startDist * cosEl * Math.cos(azimuth);
+        positions[1] = startDist * Math.sin(elevation);
+        positions[2] = startDist * cosEl * Math.sin(azimuth);
+        positions[3] = this.orbitGroup.position.x || positions[0];
+        positions[4] = this.orbitGroup.position.y || positions[1];
+        positions[5] = this.orbitGroup.position.z || positions[2];
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.LineBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.42,
+            depthWrite: false
+        });
+        this.escapeLine = new THREE.Line(geometry, material);
+        this.escapeLine.visible = this.spacecraftEnabled && this.orbitEnabled && this.baseGroup.visible;
+        this.escapeLine.matrixAutoUpdate = false;
+        this.escapeLine.updateMatrix?.();
+        markLineBatchable(this.escapeLine);
+        this.baseGroup.add(this.escapeLine);
+    }
+
+    private updateEscapeTrajectory(): void {
+        if (!this.escapeLine) return;
+        const posAttr = this.escapeLine.geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
+        if (!posAttr) return;
+        const arr = posAttr.array as Float32Array;
+        const px = this.orbitGroup.position.x;
+        const py = this.orbitGroup.position.y;
+        const pz = this.orbitGroup.position.z;
+        if (arr[3] !== px || arr[4] !== py || arr[5] !== pz) {
+            arr[3] = px;
+            arr[4] = py;
+            arr[5] = pz;
+            posAttr.needsUpdate = true;
         }
+    }
+
+    setSpacecraftVisible(visible: boolean): void {
+        this.spacecraftEnabled = visible;
+        const isLaunched = this.baseGroup.visible !== false;
+        const effective = visible && isLaunched;
+        if (!effective) {
+            this.mesh.visible = false;
+            if (this.markerSprite) this.markerSprite.visible = false;
+            if (this.beaconMesh) this.beaconMesh.visible = false;
+            if (this.orbitLine) this.orbitLine.visible = false;
+            if (this.escapeLine) this.escapeLine.visible = false;
+        } else {
+            this.mesh.visible = true;
+            if (this.markerSprite) this.markerSprite.visible = true;
+            if (this.beaconMesh) this.beaconMesh.visible = this.beaconInLodRange;
+            if (this.orbitLine) this.orbitLine.visible = this.orbitEnabled;
+            if (this.escapeLine) this.escapeLine.visible = this.orbitEnabled;
+        }
+    }
+
+    update(deltaTime: number, simTimePassed?: number, simDate?: Date, rawDelta?: number) {
+        const wasVisible = this.baseGroup.visible;
         if (this.launchTimestamp !== null && simDate) {
             if (simDate.getTime() < this.launchTimestamp) {
                 this.baseGroup.visible = false;
+                this.mesh.visible = false;
+                if (this.markerSprite) this.markerSprite.visible = false;
+                if (this.orbitLine) this.orbitLine.visible = false;
+                if (this.escapeLine) this.escapeLine.visible = false;
+                if (this.beaconMesh) this.beaconMesh.visible = false;
+                this.orbitGroup.position.set(0, 0, 0);
                 return;
             } else {
                 this.baseGroup.visible = true;
@@ -686,11 +926,41 @@ export class Spacecraft {
             this.baseGroup.visible = true;
         }
 
+        if (!wasVisible && this.baseGroup.visible && this.spacecraftEnabled) {
+            this.mesh.visible = true;
+            if (this.markerSprite) this.markerSprite.visible = true;
+            if (this.orbitLine) {
+                this.orbitLine.visible = this.orbitEnabled;
+            }
+            if (this.escapeLine) {
+                this.escapeLine.visible = this.orbitEnabled;
+            }
+        }
+
         if (this.endTimestamp !== null && simDate) {
             const currentlyActive = simDate.getTime() <= this.endTimestamp;
             if (this.isActive !== currentlyActive) {
                 this.isActive = currentlyActive;
                 this.syncMaterialActiveColors();
+            }
+        }
+
+        if (this.beaconMesh && this.beaconMaterial) {
+            if (this.spacecraftEnabled && this.beaconInLodRange && this.baseGroup.visible) {
+                const step = (rawDelta !== undefined && rawDelta > 0) ? rawDelta : deltaTime;
+                if (this.isActive) {
+                    if (step > 0) {
+                        this.beaconTimer += step * 4;
+                        this.beaconMaterial.opacity = (Math.sin(this.beaconTimer) > 0.3) ? 0.95 : 0.35;
+                    } else {
+                        this.beaconMaterial.opacity = 0.85;
+                    }
+                } else {
+                    this.beaconMaterial.opacity = 0.68;
+                }
+                this.beaconMesh.visible = true;
+            } else {
+                this.beaconMesh.visible = false;
             }
         }
 
@@ -722,6 +992,7 @@ export class Spacecraft {
                     );
                     // Orient high-gain antenna dish (-Z) back toward inner Solar System / Earth
                     this.mesh.lookAt(0, 0, 0);
+                    this.updateEscapeTrajectory();
                 } else {
                     const earthYearInSimSeconds = 2 * Math.PI / 0.5;
                     const effectiveSimTimePassed = yearsSinceLaunch * earthYearInSimSeconds;
@@ -756,7 +1027,7 @@ export class Spacecraft {
                 this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
             }
 
-            const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
+            const a = this.getVisualOrbitSemiMajorAxis();
             const e = this.realisticDistances && this.data.eccentricity ? this.data.eccentricity : 0;
             const b = a * Math.sqrt(1 - e * e);
 
@@ -779,33 +1050,46 @@ export class Spacecraft {
     }
 
     updateLOD(cameraWorldPos: THREE.Vector3, isFocused: boolean = false) {
-        if (!this.baseGroup.visible) {
+        if (!this.spacecraftEnabled || !this.baseGroup.visible) {
             this.mesh.visible = false;
+            if (this.markerSprite) this.markerSprite.visible = false;
             if (this.orbitLine) this.orbitLine.visible = false;
+            if (this.escapeLine) this.escapeLine.visible = false;
             this.beaconInLodRange = false;
             if (this.beaconMesh) this.beaconMesh.visible = false;
             return;
         }
         this.orbitGroup.getWorldPosition(Spacecraft._tempWorldPos);
         const distSq = cameraWorldPos.distanceToSquared(Spacecraft._tempWorldPos);
-        const showMesh = isFocused || distSq <= 220 * 220;
+        const showMesh = isFocused || distSq <= 650 * 650;
         if (showMesh && !this.modelBuilt) {
             this.ensureModelBuilt();
         }
         this.mesh.visible = showMesh;
         if (this.orbitLine) {
-            this.orbitLine.visible = this.orbitEnabled && (isFocused || distSq <= 320 * 320);
+            this.orbitLine.visible = this.orbitEnabled;
         }
-        this.beaconInLodRange = showMesh && (isFocused || distSq <= 90 * 90);
-        if (!this.beaconInLodRange && this.beaconMesh) {
-            this.beaconMesh.visible = false;
+        if (this.escapeLine) {
+            this.escapeLine.visible = this.orbitEnabled;
+        }
+        const closeFadeDist = this.getVisualRadius() * 12;
+        if (this.markerSprite) {
+            this.markerSprite.visible = distSq > closeFadeDist * closeFadeDist;
+        }
+        this.beaconInLodRange = showMesh && (isFocused || distSq <= 160 * 160);
+        if (this.beaconMesh) {
+            this.beaconMesh.visible = this.beaconInLodRange;
         }
     }
 
     toggleOrbit(visible: boolean) {
         this.orbitEnabled = visible;
+        const canShow = visible && this.spacecraftEnabled && this.baseGroup.visible;
         if (this.orbitLine) {
-            this.orbitLine.visible = visible;
+            this.orbitLine.visible = canShow;
+        }
+        if (this.escapeLine) {
+            this.escapeLine.visible = canShow;
         }
     }
 
@@ -824,6 +1108,17 @@ export class Spacecraft {
             }
         });
 
+        if (this.markerSprite) {
+            if (this.markerSprite.material?.map && !this.markerSprite.material.map.userData?.shared) {
+                this.markerSprite.material.map.dispose();
+            }
+            this.markerSprite.material?.dispose();
+            if (this.markerSprite.parent) {
+                this.markerSprite.parent.remove(this.markerSprite);
+            }
+            this.markerSprite = null;
+        }
+
         if (this.orbitLine) {
             this.orbitLine.geometry?.dispose();
             if (Array.isArray(this.orbitLine.material)) {
@@ -831,6 +1126,16 @@ export class Spacecraft {
             } else {
                 (this.orbitLine.material as any)?.dispose?.();
             }
+        }
+
+        if (this.escapeLine) {
+            this.escapeLine.geometry?.dispose();
+            if (Array.isArray(this.escapeLine.material)) {
+                this.escapeLine.material.forEach(m => m.dispose());
+            } else {
+                (this.escapeLine.material as any)?.dispose?.();
+            }
+            this.escapeLine = null;
         }
 
         this.materials.forEach(m => m.dispose());

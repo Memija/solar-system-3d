@@ -34,6 +34,7 @@ vi.mock('../Minimap', () => {
         Minimap: class MockMinimap {
             update = vi.fn();
             dispose = vi.fn();
+            invalidate = vi.fn();
             isVisible = true;
             setVisible = vi.fn(function(this: any, val: boolean) {
                 this.isVisible = val;
@@ -1204,5 +1205,74 @@ describe('UIManager', () => {
         expect(modalScss).toContain('z-index: $z-dialog');
         expect(responsiveScss.match(/z-index:\s*\$z-dialog\s*!important/g)?.length).toBeGreaterThanOrEqual(2);
         expect(baseScss).toContain(':where(#ui-container)');
+    });
+
+    it('displays Solar System as the application name across header brand, index.html, and manifest', () => {
+        const brand = uiContainer.querySelector('.obs-brand') as HTMLElement;
+        expect(brand).not.toBeNull();
+        expect(brand.textContent).toContain('Solar System');
+        expect(brand.textContent).not.toContain('Solar System 3D');
+        expect(brand.title).toBe('Solar System — Deep Space Astronomical Observatory');
+
+        const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+        expect(indexHtml).toContain('<title>Solar System</title>');
+        expect(indexHtml).toContain('<h1 class="loading-title">Solar System</h1>');
+        expect(indexHtml).not.toContain('Solar System 3D');
+
+        const manifest = JSON.parse(readFileSync(resolve(process.cwd(), 'public/manifest.webmanifest'), 'utf8'));
+        expect(manifest.name).toBe('Solar System — Deep Space Observatory');
+        expect(manifest.short_name).toBe('Solar System');
+    });
+
+    it('synchronizes transport speed memory, radar minimap, UTC clock, and fallback target selection on simulation date change', () => {
+        const oneWeekSpeed = 0.24;
+        sceneManager.timeScale = oneWeekSpeed;
+        const invalidateSpy = vi.spyOn(uiManager.minimap, 'invalidate');
+
+        const jwstMock = { data: { name: 'James Webb Space Telescope' } };
+        const earthMock = sceneManager.planets.find((p: any) => p.data.name === 'Earth') || { data: { name: 'Earth' } };
+        sceneManager.focusedBody = jwstMock;
+        uiManager.cameraTarget = 'James Webb Space Telescope';
+        sceneManager.setSimDate = vi.fn((d: Date) => {
+            sceneManager.simDate = new Date(d.getTime());
+            // Simulate pre-launch fallback from JWST -> Earth in 1969
+            if (d.getUTCFullYear() < 2021) {
+                sceneManager.focusedBody = earthMock;
+            }
+        });
+
+        window.dispatchEvent(new CustomEvent('jump-to-date', { detail: '1969-07-20T20:17:40Z' }));
+
+        expect(sceneManager.setSimDate).toHaveBeenCalledTimes(1);
+        expect(sceneManager.timeScale).toBe(0);
+        expect(invalidateSpy).toHaveBeenCalled();
+        expect(uiManager.cameraTarget).toBe('Earth');
+
+        // Resuming from pause restores the user's prior speed (1 wk/s) rather than losing it
+        uiManager.togglePause();
+        expect(sceneManager.timeScale).toBeCloseTo(oneWeekSpeed, 8);
+    });
+
+    it('syncs date picker, minimap, and layer switches when selecting a pre-launch spacecraft advances simDate', () => {
+        sceneManager.simDate = new Date('1969-07-20T20:17:40Z');
+        sceneManager.showSpacecrafts = false;
+        const setDateSpy = vi.spyOn(uiManager.customDatePicker!, 'setDate');
+        const invalidateSpy = vi.spyOn(uiManager.minimap, 'invalidate');
+
+        sceneManager.focusOnBody = vi.fn((name: string) => {
+            if (name === 'James Webb Space Telescope') {
+                sceneManager.showSpacecrafts = true;
+                sceneManager.simDate = new Date('2021-12-26T12:20:00Z');
+            }
+        });
+
+        uiManager.focusOrSurfaceTarget('James Webb Space Telescope');
+
+        expect(setDateSpy).toHaveBeenCalledWith(sceneManager.simDate);
+        expect(invalidateSpy).toHaveBeenCalled();
+        const scSwitch = uiManager.controlCenter!.drawerElement.querySelector<HTMLInputElement>(
+            '.drawer-panel[data-panel="layers"] input[type="checkbox"]'
+        );
+        expect(scSwitch).toBeTruthy();
     });
 });

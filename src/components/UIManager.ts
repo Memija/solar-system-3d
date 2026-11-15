@@ -180,18 +180,9 @@ export class UIManager {
         this.onJumpToDateBound = (e: Event) => {
             const customEvent = e as CustomEvent;
             const dateStr = customEvent.detail;
-            if (dateStr && this.sceneManager.setSimDate) {
+            if (dateStr && typeof this.sceneManager.setSimDate === 'function') {
                 const newDate = new Date(dateStr);
-                this.sceneManager.setSimDate(newDate);
-                if (this.customDatePicker) {
-                    this.customDatePicker.setDate(newDate);
-                }
-
-                this.sceneManager.timeScale = 0;
-                if (this.sceneManager.onTimeScaleChange) {
-                    this.sceneManager.onTimeScaleChange(0);
-                }
-                this.controlCenter?.syncTimePanel();
+                this.applySimDateChange(newDate, true);
             }
         };
         window.addEventListener('jump-to-date', this.onJumpToDateBound);
@@ -325,22 +316,18 @@ export class UIManager {
         this.customDatePicker = new CustomDatePicker(
             initialDate,
             (newDate: Date) => {
-                if (this.sceneManager.setSimDate) {
-                    this.sceneManager.setSimDate(newDate);
-                    this.sceneManager.timeScale = 0;
-                    this.sceneManager.onTimeScaleChange?.(0);
-                }
-                this.controlCenter?.syncTimePanel();
+                this.applySimDateChange(newDate, false);
             },
             () => {
-                this.sceneManager.timeScale = 0;
-                this.sceneManager.onTimeScaleChange?.(0);
-                this.controlCenter?.syncTimePanel();
+                this.pauseSimulationPreservingSpeed();
             },
             {
                 onSnapToLive: () => {
+                    this.previousTimeSpeed = SceneManager.SPEED_PRESETS.realTime;
                     this.sceneManager.timeScale = SceneManager.SPEED_PRESETS.realTime;
                     this.sceneManager.onTimeScaleChange?.(SceneManager.SPEED_PRESETS.realTime);
+                    this.minimap?.invalidate?.();
+                    this.syncTransportState();
                     this.controlCenter?.syncTimePanel();
                 }
             }
@@ -467,6 +454,44 @@ export class UIManager {
 
         this.uiContainer.appendChild(panel);
         return panel;
+    }
+
+    private pauseSimulationPreservingSpeed(): void {
+        if ((this.sceneManager.timeScale ?? 0) > 0) {
+            this.previousTimeSpeed = this.sceneManager.timeScale;
+        }
+        this.sceneManager.timeScale = 0;
+        this.sceneManager.onTimeScaleChange?.(0);
+        this.syncTransportState();
+        this.controlCenter?.syncTimePanel();
+    }
+
+    private applySimDateChange(newDate: Date, syncDatePickerDisplay: boolean = false): void {
+        const prevFocusName = (this.sceneManager.focusedBody as any)?.data?.name;
+        if (typeof this.sceneManager.setSimDate === 'function') {
+            this.sceneManager.setSimDate(newDate);
+            if ((this.sceneManager.timeScale ?? 0) > 0) {
+                this.previousTimeSpeed = this.sceneManager.timeScale;
+            }
+            this.sceneManager.timeScale = 0;
+            this.sceneManager.onTimeScaleChange?.(0);
+        }
+        if (syncDatePickerDisplay && this.customDatePicker) {
+            this.customDatePicker.setDate(newDate);
+        }
+        const nextFocusName = (this.sceneManager.focusedBody as any)?.data?.name;
+        if (nextFocusName && nextFocusName !== prevFocusName) {
+            this.cameraTarget = nextFocusName;
+            this.syncDropdownSelection(nextFocusName);
+        }
+        this.lastUtcSecond = NaN;
+        this.lastRealtimeDateMs = newDate.getTime();
+        this.minimap?.invalidate?.();
+        this.syncTransportState();
+        this.controlCenter?.syncTimePanel();
+        if (this.sceneManager.measureMode && this.sceneManager.measureTargetA && this.sceneManager.measureTargetB) {
+            this.updateMeasureHud();
+        }
     }
 
     private static readonly ORBITAL_VELOCITIES: ReadonlyArray<readonly [string, number, string]> = [
@@ -918,8 +943,8 @@ export class UIManager {
         // Left Brand element
         const brand = document.createElement('div');
         brand.className = 'obs-brand';
-        brand.title = 'Solar System 3D — Deep Space Astronomical Observatory';
-        brand.innerHTML = '<span class="brand-sparkle">✦</span><span>Solar System 3D</span><span class="brand-live-dot"></span>';
+        brand.title = 'Solar System — Deep Space Astronomical Observatory';
+        brand.innerHTML = '<span class="brand-sparkle">✦</span><span>Solar System</span><span class="brand-live-dot"></span>';
         brand.onclick = () => {
             if (typeof this.sceneManager?.detachCamera === 'function') {
                 this.sceneManager.detachCamera();
@@ -1501,6 +1526,7 @@ export class UIManager {
     focusOrSurfaceTarget(targetName: string): void {
         if (!targetName) return;
         this.cameraTarget = targetName;
+        const prevSimMs = this.sceneManager?.simDate?.getTime();
 
         if (this.sceneManager?.surfaceViewBody) {
             let surfaceSuccess = false;
@@ -1513,6 +1539,13 @@ export class UIManager {
             }
         } else if (typeof this.sceneManager?.focusOnBody === 'function') {
             this.sceneManager.focusOnBody(targetName);
+        }
+
+        const nextSimDate = this.sceneManager?.simDate;
+        if (nextSimDate && prevSimMs !== undefined && nextSimDate.getTime() !== prevSimMs) {
+            this.customDatePicker?.setDate(nextSimDate);
+            this.lastUtcSecond = NaN;
+            this.minimap?.invalidate?.();
         }
 
         this.controlCenter?.syncSwitches();
@@ -1637,7 +1670,11 @@ export class UIManager {
         this.modal.show(data);
         this.infoPanel.style.display = 'none';
 
-        if ('targetBody' in data && data.targetBody === 'Earth' && 'distance' in data && data.distance < 10) {
+        const isFastOrbiter = 'targetBody' in data && Boolean(data.targetBody) && !data.escaping && (
+            (data.targetBody === 'Earth' && 'distance' in data && data.distance < 10) ||
+            ('period' in data && typeof data.period === 'number' && data.period > 0 && data.period <= 0.15)
+        );
+        if (isFastOrbiter) {
             if (this.previousTimeSpeed === null) {
                 this.previousTimeSpeed = this.sceneManager.timeScale;
             }

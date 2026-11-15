@@ -17,7 +17,7 @@ export type SolarSystemEventType = keyof SolarSystemEventMap;
 export type EventHandler<T> = (data: T) => void;
 
 /**
- * Strongly-typed event emitter bus for Solar System 3D.
+ * Strongly-typed event emitter bus for Solar System.
  * Provides type-safe pub/sub communication with automatic unsubscribe callbacks,
  * maintaining full backwards compatibility with window CustomEvents.
  */

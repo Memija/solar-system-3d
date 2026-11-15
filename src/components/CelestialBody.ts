@@ -105,6 +105,7 @@ export class CelestialBody {
     private cloudDriftOffset: number = 0;
     private lastComputedAngle: number = NaN;
     private lastComputedRealistic: boolean = false;
+    private lastSimTimePassed: number | undefined = undefined;
     private cachedKeplerState: KeplerianState = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: -1 };
     private hasInitializedVelocityTransform: boolean = false;
     hasAttachedChildren: boolean = false;
@@ -1202,6 +1203,17 @@ export class CelestialBody {
         }
     }
 
+    clearTrail() {
+        this.trailPositions.length = 0;
+        if (this.trailLine) {
+            this.trailLine.geometry.setDrawRange(0, 0);
+            if (this.trailLine.geometry.attributes.position) {
+                this.trailLine.geometry.attributes.position.needsUpdate = true;
+            }
+        }
+        this.moons.forEach(moon => moon.clearTrail());
+    }
+
     rebuildOrbit(realistic: boolean, sizeRatio: number = 1.0) {
         this.realisticDistances = realistic;
         this.lastComputedAngle = NaN;
@@ -1297,14 +1309,20 @@ export class CelestialBody {
         if (this.mesh) {
             this.mesh.matrixAutoUpdate = true;
         }
-        if (wasCulled) {
-            this.update(0);
+        if (wasCulled || Number.isNaN(this.lastComputedAngle)) {
+            this.update(0, this.lastSimTimePassed, 0);
         }
         this.orbitGroup.updateMatrix?.();
         this.mesh?.updateMatrix?.();
     }
 
-    update(deltaTime: number, simTimePassed?: number, rawDelta?: number) {
+    update(deltaTime: number, simTimePassed?: number, rawDelta?: number, forceTransform: boolean = false) {
+        if (simTimePassed !== undefined) {
+            this.lastSimTimePassed = simTimePassed;
+        } else if (this.lastSimTimePassed !== undefined && deltaTime !== 0) {
+            this.lastSimTimePassed += deltaTime;
+        }
+
         // Update position
         const isRetrograde = 'retrograde' in this.data && Boolean(this.data.retrograde);
         const dir = isRetrograde ? -1 : 1;
@@ -1318,8 +1336,9 @@ export class CelestialBody {
             this.angle = (((this.angle + speed * deltaTime) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         }
 
-        if (this.isCulled) {
+        if (this.isCulled && !forceTransform) {
             this.lastComputedAngle = NaN;
+            this.moons.forEach(moon => moon.update(deltaTime, simTimePassed, rawDelta, forceTransform));
             return;
         }
 
@@ -1331,6 +1350,7 @@ export class CelestialBody {
         if (needsKeplerUpdate) {
             this.lastComputedAngle = this.angle;
             this.lastComputedRealistic = this.realisticDistances;
+            this.hasInitializedVelocityTransform = false;
 
             if (this.data.distance !== 0) {
                 const a = this.realisticDistances && this.data.distanceAU ? this.data.distanceAU * 130 : this.data.distance;
@@ -1425,11 +1445,20 @@ export class CelestialBody {
             }
         }
 
+        if (forceTransform) {
+            if (!this.orbitGroup.matrixAutoUpdate) {
+                this.orbitGroup.updateMatrix?.();
+            }
+            if (this.mesh && !this.mesh.matrixAutoUpdate) {
+                this.mesh.updateMatrix?.();
+            }
+        }
+
         this.updateMeteors(deltaTime, rawDelta);
         this.updateTrail();
 
         // Update moons
-        this.moons.forEach(moon => moon.update(deltaTime, simTimePassed, rawDelta));
+        this.moons.forEach(moon => moon.update(deltaTime, simTimePassed, rawDelta, forceTransform));
     }
 
     private getOrCreateHighGeometry(): THREE.BufferGeometry {
@@ -1600,7 +1629,7 @@ export class CelestialBody {
                 }
                 if (moonActive) {
                     moon.lastComputedAngle = NaN;
-                    moon.update(0);
+                    moon.update(0, moon.lastSimTimePassed, 0);
                 }
             }
             if (loadDetailTextures || (showMoonMesh && moon.data.name === 'Moon')) {

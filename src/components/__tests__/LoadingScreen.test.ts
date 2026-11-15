@@ -17,7 +17,7 @@ describe('LoadingScreen', () => {
             <div class="loading-content">
                 <div class="loading-badge"><span class="status-live-dot"></span><span>Observatory Boot</span></div>
                 <div class="loading-orrery"><div class="loading-sun"></div></div>
-                <h1 class="loading-title">SOLAR SYSTEM 3D</h1>
+                <h1 class="loading-title">SOLAR SYSTEM</h1>
                 <div class="loading-progress-wrapper">
                     <div class="loading-status-text">INITIALIZING...</div>
                     <div class="loading-progress-bar-container">
@@ -56,7 +56,7 @@ describe('LoadingScreen', () => {
         const element = loadingScreen.getElement();
         expect(element).toBeDefined();
         expect(document.getElementById('loading-screen')).toBe(element);
-        expect(element.querySelector('.loading-title')?.textContent).toContain('Solar System 3D');
+        expect(element.querySelector('.loading-title')?.textContent).toBe('Solar System');
         loadingScreen.dispose();
     });
 
