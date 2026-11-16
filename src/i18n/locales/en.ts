@@ -7,7 +7,7 @@ export const en: TranslationSchema = {
         controlsToggle: 'Toggle Simulation Controls',
         languageToggle: 'Change Language',
         orbiting: '(orbiting {planet})',
-        jumpToDate: 'Jump to Active Date ({date})',
+        jumpToDate: 'Jump to Launch Date ({date})',
         close: 'Close',
         help: 'Help',
         audioAmbience: 'Cosmic Audio Ambience (S)',
@@ -302,8 +302,10 @@ export const en: TranslationSchema = {
         milestones: {
             sputnik1: { name: 'Sputnik 1 Launch', shortName: 'Sputnik 1', impact: 'The launch of Sputnik 1 marked the beginning of the space age and demonstrated the feasibility of artificial satellites.' },
             apollo11: { name: 'Apollo 11 Moon Landing', shortName: 'Apollo 11', impact: 'First humans on the Moon, proving crewed extraterrestrial travel was possible and achieving a milestone in human history.' },
+            voyager2: { name: 'Voyager 2 Launch', shortName: 'Voyager 2', impact: 'Completed the historic Grand Tour of Jupiter, Saturn, Uranus, and Neptune — remaining the only spacecraft ever to visit the ice giants before entering interstellar space.' },
             voyager1: { name: 'Voyager 1 Launch', shortName: 'Voyager 1', impact: 'Voyager 1 became the first human-made object to enter interstellar space, returning unprecedented outer Solar System imagery.' },
             hubble: { name: 'Hubble Space Telescope Launch', shortName: 'Hubble', impact: 'Revolutionized astronomy with deep optical views of galaxies, exoplanets, and the expansion of the universe.' },
+            cassini: { name: 'Cassini-Huygens Launch', shortName: 'Cassini', impact: 'First spacecraft to orbit Saturn, revealing liquid methane seas on Titan via the Huygens lander and subsurface ocean plumes on Enceladus across 13 years of exploration.' },
             iss: { name: 'ISS First Module Launch', shortName: 'ISS', impact: 'Began the era of continuous human presence in low-Earth orbit and international microgravity research.' },
             jwst: { name: 'James Webb Telescope Launch', shortName: 'James Webb', impact: 'Engineered to observe the earliest galaxies in the cosmos and peer inside stellar nurseries in infrared light.' }
         },

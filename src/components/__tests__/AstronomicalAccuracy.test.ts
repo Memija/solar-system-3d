@@ -383,7 +383,7 @@ describe('Astronomical Ephemeris, Orbits & Real-Time Day/Night Accuracy', () => 
         expect(apollo.orbitGroup.position.length()).toBeGreaterThan(moonRealRadius);
         manager.toggleRealisticDistances(false);
 
-        // 3. Focusing a pre-launch spacecraft while layer is hidden enables spacecraft and jumps to active mission epoch
+        // 3. Focusing a pre-launch spacecraft while layer is hidden enables spacecraft & previews it in 3D WITHOUT mutating simDate
         manager.toggleSpacecrafts(false);
         manager.setSimDate(new Date('1969-07-20T20:17:00Z'));
         const jwst = manager.spacecrafts.find(s => s.data.name === 'James Webb Space Telescope')!;
@@ -391,9 +391,13 @@ describe('Astronomical Ephemeris, Orbits & Real-Time Day/Night Accuracy', () => 
 
         manager.focusOnBody('James Webb Space Telescope', false);
         expect(manager.showSpacecrafts).toBe(true);
-        expect(manager.simDate.getUTCFullYear()).toBeGreaterThanOrEqual(2021);
+        expect(manager.simDate.toISOString()).toBe('1969-07-20T20:17:00.000Z');
         expect(jwst.baseGroup.visible).toBe(true);
         expect(jwst.mesh.visible).toBe(true);
         expect(jwst.orbitGroup.position.length()).toBeGreaterThan(0);
+
+        // Switching focus away from pre-launch JWST while still in 1969 hides JWST again
+        manager.focusOnBody('Earth', false);
+        expect(jwst.baseGroup.visible).toBe(false);
     });
 });

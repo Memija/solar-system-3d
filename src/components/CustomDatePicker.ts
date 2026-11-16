@@ -4,12 +4,13 @@ import { svgIcon, SvgIconName } from './SvgIcons';
 import { getSettingOptionInfo, getEphemerisTimeDetails } from './SettingOptionsData';
 
 export interface HistoricalSpaceEvent {
-    id: 'sputnik1' | 'apollo11' | 'voyager1' | 'hubble' | 'iss' | 'jwst';
+    id: 'sputnik1' | 'apollo11' | 'voyager2' | 'voyager1' | 'hubble' | 'cassini' | 'iss' | 'jwst';
     name: string;
     date: Date;
     target?: string;
     impact?: string;
     iconName: SvgIconName;
+    showInCalendar?: boolean;
 }
 
 export const HISTORICAL_SPACE_EVENTS: HistoricalSpaceEvent[] = [
@@ -30,6 +31,15 @@ export const HISTORICAL_SPACE_EVENTS: HistoricalSpaceEvent[] = [
         iconName: 'moons'
     },
     {
+        id: 'voyager2',
+        name: 'Voyager 2 Launch',
+        date: new Date('1977-08-20T14:29:45Z'),
+        target: 'Voyager 2',
+        impact: 'Completed the historic Grand Tour of Jupiter, Saturn, Uranus, and Neptune — remaining the only spacecraft ever to visit the ice giants before entering interstellar space.',
+        iconName: 'rocket',
+        showInCalendar: false
+    },
+    {
         id: 'voyager1',
         name: 'Voyager 1 Launch',
         date: new Date('1977-09-05T12:56:01Z'),
@@ -44,6 +54,15 @@ export const HISTORICAL_SPACE_EVENTS: HistoricalSpaceEvent[] = [
         target: 'Hubble Space Telescope',
         impact: 'Revolutionized astronomy by providing clear, deep images of the universe, leading to discoveries about the age of the universe, dark energy, and exoplanets.',
         iconName: 'camera'
+    },
+    {
+        id: 'cassini',
+        name: 'Cassini-Huygens Launch',
+        date: new Date('1997-10-15T08:43:01Z'),
+        target: 'Cassini',
+        impact: 'First spacecraft to orbit Saturn, revealing liquid methane seas on Titan via the Huygens lander and subsurface ocean plumes on Enceladus across 13 years of exploration.',
+        iconName: 'spacecraft',
+        showInCalendar: false
     },
     {
         id: 'iss',
@@ -763,7 +782,7 @@ export class CustomDatePicker {
         const chipsContainer = document.createElement('div');
         chipsContainer.className = 'datepicker-milestone-chips';
 
-        HISTORICAL_SPACE_EVENTS.forEach((evt) => {
+        HISTORICAL_SPACE_EVENTS.filter(evt => evt.showInCalendar !== false).forEach((evt) => {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'milestone-chip';

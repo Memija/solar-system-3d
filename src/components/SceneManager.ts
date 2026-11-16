@@ -453,6 +453,7 @@ export class SceneManager {
         });
 
         this.simDate = new Date(newDate.getTime());
+        this.spacecrafts.forEach(sc => sc.setFocusedPreview?.(false));
         this.syncEphemeris(false);
 
         const isUnlaunchedSpacecraft = (target: any): target is Spacecraft =>
@@ -1775,6 +1776,16 @@ export class SceneManager {
         }
     }
 
+    private clearSpacecraftFocusedPreviews(except?: Spacecraft) {
+        const simTimePassed = this.getSimTimePassed();
+        this.spacecrafts.forEach(sc => {
+            if (sc !== except && sc.isFocusedPreview) {
+                sc.setFocusedPreview?.(false);
+                sc.update(0, simTimePassed, this.simDate, 0);
+            }
+        });
+    }
+
     focusOnBody(name: string, smooth: boolean = true) {
         this.renderDirty = true;
         let target: CelestialBody | Comet | Spacecraft | undefined;
@@ -1793,19 +1804,20 @@ export class SceneManager {
         if (target && target.mesh) {
             if (this.spacecrafts.includes(target as Spacecraft)) {
                 const sc = target as Spacecraft;
+                this.clearSpacecraftFocusedPreviews(sc);
                 if (!this.showSpacecrafts) {
                     this.toggleSpacecrafts(true);
                 }
                 if ((sc.parentCelestialBody as CelestialBody | undefined)?.isMoon && !this.showMoons) {
                     this.toggleMoons(true);
                 }
+                // Show a focused pre-launch spacecraft in 3D without mutating simDate, so its modal still offers "Jump to Launch Date"
                 if (typeof sc.launchTimestamp === 'number' && this.simDate.getTime() < sc.launchTimestamp) {
-                    const missionSpan = typeof sc.endTimestamp === 'number' && sc.endTimestamp > sc.launchTimestamp
-                        ? (sc.endTimestamp - sc.launchTimestamp) * 0.5
-                        : 86_400_000;
-                    const activeEpochMs = sc.launchTimestamp + Math.min(86_400_000, missionSpan);
-                    this.setSimDate(new Date(activeEpochMs));
+                    sc.setFocusedPreview?.(true);
+                    sc.update(0, this.getSimTimePassed(), this.simDate, 0);
                 }
+            } else {
+                this.clearSpacecraftFocusedPreviews();
             }
             (target as Spacecraft).ensureModelBuilt?.();
             if ('data' in target && target.data?.name) {
@@ -1917,6 +1929,7 @@ export class SceneManager {
 
     focusOnStar(starMesh: THREE.Object3D, smooth: boolean = true) {
         this.renderDirty = true;
+        this.clearSpacecraftFocusedPreviews();
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.previousBodyPosition = null;
@@ -1964,6 +1977,7 @@ export class SceneManager {
         const sphere = new THREE.Sphere();
         box.getBoundingSphere(sphere);
 
+        this.clearSpacecraftFocusedPreviews();
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.previousBodyPosition = null;
@@ -2517,6 +2531,7 @@ export class SceneManager {
     }
 
     detachCamera() {
+        this.clearSpacecraftFocusedPreviews();
         this.focusedBody = null;
         this.surfaceViewBody = null;
         this.isSurfaceDragging = false;
@@ -2561,6 +2576,7 @@ export class SceneManager {
                     this.renderDirty = true;
                 });
             }
+            this.clearSpacecraftFocusedPreviews();
             this.surfaceViewBody = target;
             this.surfaceYaw = 0;
             this.surfacePitch = 0.22;

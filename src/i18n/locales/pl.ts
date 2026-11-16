@@ -7,7 +7,7 @@ export const pl: TranslationSchema = {
         controlsToggle: 'Przełącz panel sterowania',
         languageToggle: 'Zmień język',
         orbiting: '(krąży wokół: {planet})',
-        jumpToDate: 'Przejdź do aktywnej daty ({date})',
+        jumpToDate: 'Przejdź do daty startu ({date})',
         close: 'Zamknij',
         help: 'Pomoc',
         audioAmbience: 'Kosmiczne tło dźwiękowe (S)',
@@ -302,8 +302,10 @@ export const pl: TranslationSchema = {
         milestones: {
             sputnik1: { name: 'Start Sputnika 1', shortName: 'Sputnik 1', impact: 'Start Sputnika 1 zapoczątkował erę kosmiczną i udowodnił możliwość umieszczania sztucznych satelitów na orbicie.' },
             apollo11: { name: 'Lądowanie Apollo 11 na Księżycu', shortName: 'Apollo 11', impact: 'Pierwsi ludzie na Księżycu — przełomowy kamień milowy w historii ludzkości.' },
+            voyager2: { name: 'Start sondy Voyager 2', shortName: 'Voyager 2', impact: 'Zrealizował historyczną Wielką Wyprawę obok Jowisza, Saturna, Urana i Neptuna — pozostając jedyną sondą, która odwiedziła lodowe olbrzymy w drodze w przestrzeń międzygwiazdową.' },
             voyager1: { name: 'Start sondy Voyager 1', shortName: 'Voyager 1', impact: 'Voyager 1 stał się pierwszym obiektem stworzonym przez człowieka w przestrzeni międzygwiazdowej.' },
             hubble: { name: 'Start Teleskopu Hubble’a', shortName: 'Hubble', impact: 'Zrewolucjonizował astronomię głębokimi obrazami galaktyk, egzoplanet i ekspansji wszechświata.' },
+            cassini: { name: 'Start sondy Cassini-Huygens', shortName: 'Cassini', impact: 'Pierwszy sztuczny satelita Saturna; odkrył morza ciekłego metanu na Tytanie dzięki lądownikowi Huygens oraz pióropusze oceanu na Enceladusie.' },
             iss: { name: 'Pierwszy moduł stacji ISS', shortName: 'ISS', impact: 'Rozpoczął erę stałej obecności człowieka na orbicie i międzynarodowych badań w mikrograwitacji.' },
             jwst: { name: 'Start Teleskopu Jamesa Webba', shortName: 'James Webb', impact: 'Zaprojektowany do obserwacji najstarszych galaktyk i obszarów narodzin gwiazd w podczerwieni.' }
         },

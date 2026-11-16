@@ -17,6 +17,7 @@ export class Spacecraft {
     realisticDistances: boolean = false;
     isActive: boolean = true;
     spacecraftEnabled: boolean = true;
+    isFocusedPreview: boolean = false;
     materials: THREE.Material[] = [];
     parentCelestialBody?: { data: { radius: number; displayRadius?: number } };
     readonly launchTimestamp: number | null = null;
@@ -907,10 +908,14 @@ export class Spacecraft {
         }
     }
 
+    setFocusedPreview(enabled: boolean): void {
+        this.isFocusedPreview = enabled;
+    }
+
     update(deltaTime: number, simTimePassed?: number, simDate?: Date, rawDelta?: number) {
         const wasVisible = this.baseGroup.visible;
         if (this.launchTimestamp !== null && simDate) {
-            if (simDate.getTime() < this.launchTimestamp) {
+            if (simDate.getTime() < this.launchTimestamp && !this.isFocusedPreview) {
                 this.baseGroup.visible = false;
                 this.mesh.visible = false;
                 if (this.markerSprite) this.markerSprite.visible = false;

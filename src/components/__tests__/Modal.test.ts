@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Modal } from '../Modal';
+import { SpacecraftDataList } from '../SolarSystemData';
+import { EventBus } from '../EventBus';
 import { i18n } from '../../i18n';
 
 describe('Modal Localization & Audio Guide', () => {
@@ -477,6 +479,75 @@ describe('Modal Localization & Audio Guide', () => {
         expect(onHideSpy).toHaveBeenCalledTimes(1);
 
         secondaryModal.dispose();
+    });
+
+    it('shows Jump to Launch Date button for all spacecraft only when viewing a different date and syncs dynamically', () => {
+        let activeSimDate = new Date('2026-11-16T12:00:00Z');
+        const dateAwareModal = new Modal(container, {
+            getSimDate: () => activeSimDate
+        });
+
+        // 1. On a different date (2026-11-16), ALL 8 spacecraft display the Jump to Launch Date button
+        for (const sc of SpacecraftDataList) {
+            expect(sc.launchDate).toBeTruthy();
+            dateAwareModal.show(sc);
+            const btn = dateAwareModal.contentElement.querySelector<HTMLButtonElement>('.jump-to-date-btn');
+            expect(btn, `Expected launch date button for ${sc.name} on 2026-11-16`).not.toBeNull();
+            expect(btn!.getAttribute('data-date')).toBe(sc.launchDate);
+            expect(btn!.textContent).toBe(`Jump to Launch Date (${sc.launchDate!.slice(0, 10)})`);
+        }
+
+        // 2. When already viewing a spacecraft's launch date (even at a different second/hour that same UTC day), button is omitted
+        for (const sc of SpacecraftDataList) {
+            const launchMs = new Date(sc.launchDate!).getTime();
+            activeSimDate = new Date(launchMs + 1000); // e.g. Historical Space Mission milestone (+1s)
+            dateAwareModal.show(sc);
+            const btn = dateAwareModal.contentElement.querySelector('.jump-to-date-btn');
+            expect(btn, `Expected NO launch date button for ${sc.name} when already on ${sc.launchDate}`).toBeNull();
+        }
+
+        // 2b. Apollo 11 also omits the button when viewing its 1969-07-20 Moon Landing milestone (and active 1969-07-16..24 mission window),
+        // while restoring it outside the mission window (e.g. 1969-08-01 or 2026-11-16)
+        const apollo11 = SpacecraftDataList.find(s => s.name === 'Apollo 11')!;
+        activeSimDate = new Date('1969-07-20T12:00:00Z'); // Date Picker Apollo 11 milestone chip
+        dateAwareModal.show(apollo11);
+        expect(dateAwareModal.contentElement.querySelector('.jump-to-date-btn')).toBeNull();
+
+        activeSimDate = new Date('1969-07-24T12:00:00Z'); // Splashdown day
+        dateAwareModal.syncSimDate(activeSimDate);
+        expect(dateAwareModal.contentElement.querySelector('.jump-to-date-btn')).toBeNull();
+
+        activeSimDate = new Date('1969-08-01T12:00:00Z'); // After Apollo 11 mission ended
+        dateAwareModal.syncSimDate(activeSimDate);
+        expect(dateAwareModal.contentElement.querySelector('.jump-to-date-btn')).not.toBeNull();
+
+        // 3. Dynamic syncSimDate toggles the button in-place as simulation date moves off and back onto launch date
+        const voyager1 = SpacecraftDataList.find(s => s.name === 'Voyager 1')!;
+        activeSimDate = new Date('1977-09-05T12:56:01Z');
+        dateAwareModal.show(voyager1);
+        expect(dateAwareModal.contentElement.querySelector('.jump-to-date-btn')).toBeNull();
+
+        activeSimDate = new Date('2026-11-16T12:00:00Z');
+        dateAwareModal.syncSimDate(activeSimDate);
+        const dynamicBtn = dateAwareModal.contentElement.querySelector<HTMLButtonElement>('.jump-to-date-btn');
+        expect(dynamicBtn).not.toBeNull();
+        expect(dynamicBtn!.textContent).toBe('Jump to Launch Date (1977-09-05)');
+
+        const linksSection = dateAwareModal.contentElement.querySelector('.modal-links-section');
+        expect(dynamicBtn!.nextElementSibling).toBe(linksSection);
+
+        const jumpEvents: string[] = [];
+        const unsub = EventBus.on('jump-to-date', (dateStr) => jumpEvents.push(dateStr));
+        dynamicBtn!.click();
+        unsub();
+        expect(jumpEvents).toEqual([voyager1.launchDate!]);
+
+        // Jumping back onto 1977-09-05 removes the button immediately
+        activeSimDate = new Date(voyager1.launchDate!);
+        dateAwareModal.syncSimDate(activeSimDate);
+        expect(dateAwareModal.contentElement.querySelector('.jump-to-date-btn')).toBeNull();
+
+        dateAwareModal.dispose();
     });
 });
 

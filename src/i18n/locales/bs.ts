@@ -7,7 +7,7 @@ export const bs: TranslationSchema = {
         controlsToggle: 'Uključi/isključi kontrole simulacije',
         languageToggle: 'Promijeni jezik',
         orbiting: '(orbitira oko: {planet})',
-        jumpToDate: 'Skoči na aktivni datum ({date})',
+        jumpToDate: 'Skoči na datum lansiranja ({date})',
         close: 'Zatvori',
         help: 'Pomoć',
         audioAmbience: 'Kosmički audio ambijent (S)',
@@ -302,8 +302,10 @@ export const bs: TranslationSchema = {
         milestones: {
             sputnik1: { name: 'Lansiranje Sputnjika 1', shortName: 'Sputnjik 1', impact: 'Lansiranje Sputnjika 1 označilo je početak svemirskog doba i dokazalo izvodljivost vještačkih satelita.' },
             apollo11: { name: 'Apollo 11 slijetanje na Mjesec', shortName: 'Apollo 11', impact: 'Prvi ljudi na Mjesecu — historijska prekretnica čovječanstva.' },
+            voyager2: { name: 'Lansiranje Voyagera 2', shortName: 'Voyager 2', impact: 'Izveo historijsku Veliku turneju pored Jupitera, Saturna, Urana i Neptuna — jedina letjelica koja je posjetila ledene divove prije ulaska u međuzvjezdani prostor.' },
             voyager1: { name: 'Lansiranje Voyagera 1', shortName: 'Voyager 1', impact: 'Voyager 1 je postao prva ljudska letjelica u međuzvjezdanom prostoru.' },
             hubble: { name: 'Lansiranje teleskopa Hubble', shortName: 'Hubble', impact: 'Revolucionirao je astronomiju dubokim snimcima galaksija i širenja svemira.' },
+            cassini: { name: 'Lansiranje sonde Cassini-Huygens', shortName: 'Cassini', impact: 'Prva letjelica u orbiti Saturna; otkrila tečna metanska mora na Titanu i gejzire podzemnog okeana na Enkeladu.' },
             iss: { name: 'Prvi modul ISS-a', shortName: 'ISS', impact: 'Početak neprekidnog boravka ljudi u orbiti i međunarodne naučne saradnje.' },
             jwst: { name: 'Lansiranje teleskopa James Webb', shortName: 'James Webb', impact: 'Konstruisan za infracrveno posmatranje najranijih galaksija i rađanja zvijezda.' }
         },

@@ -1275,4 +1275,99 @@ describe('UIManager', () => {
         );
         expect(scSwitch).toBeTruthy();
     });
+
+    it('hides spacecraft Launch Date button when clicking it or viewing launch date, and restores it when switching to another date', () => {
+        vi.mocked(Modal.prototype.show).mockRestore();
+        vi.mocked(Modal.prototype.hide).mockRestore();
+
+        const voyagerData = {
+            name: 'Voyager 1',
+            targetBody: 'Earth',
+            launchDate: '1977-09-05T12:56:00Z',
+            escaping: true,
+            distance: 2.0,
+            period: 0,
+            color: 0xaaaaaa,
+            description: 'Interstellar probe'
+        };
+        sceneManager.spacecrafts = [{ data: voyagerData, mesh: {} }];
+        sceneManager.simDate = new Date('2026-11-16T12:00:00Z');
+        sceneManager.setSimDate = vi.fn((d: Date) => {
+            sceneManager.simDate = new Date(d.getTime());
+        });
+
+        // 1. Viewing Voyager 1 on 2026-11-16 shows the Jump to Launch Date button
+        uiManager.showModal(voyagerData);
+        let jumpBtn = uiManager.modal.contentElement.querySelector<HTMLButtonElement>('.jump-to-date-btn');
+        expect(jumpBtn).not.toBeNull();
+        expect(jumpBtn!.textContent).toBe('Jump to Launch Date (1977-09-05)');
+
+        // 2. Clicking the Jump to Launch Date button jumps to 1977-09-05, opens the launch importance eventModal, and hides the button
+        jumpBtn!.click();
+        expect(sceneManager.simDate.toISOString()).toBe('1977-09-05T12:56:00.000Z');
+        expect(uiManager.modal.contentElement.querySelector('.jump-to-date-btn')).toBeNull();
+        expect(uiManager.eventModal.isOpen).toBe(true);
+        expect(uiManager.eventModal.titleElement?.textContent).toBe('Voyager 1 Launch');
+        expect(uiManager.eventModal.contentElement.textContent).toContain('interstellar space');
+        uiManager.eventModal.hide();
+
+        // 3. Changing simulation date to another date while modal remains open restores the button
+        window.dispatchEvent(new CustomEvent('jump-to-date', { detail: '2026-11-16T00:00:00Z' }));
+        jumpBtn = uiManager.modal.contentElement.querySelector<HTMLButtonElement>('.jump-to-date-btn');
+        expect(jumpBtn).not.toBeNull();
+        expect(jumpBtn!.textContent).toBe('Jump to Launch Date (1977-09-05)');
+
+        // 4. Selecting JWST while viewing an earlier historical date (e.g. 1969-07-20) keeps simDate unchanged and shows Jump to Launch Date (2021-12-25)
+        const jwstData = {
+            name: 'James Webb Space Telescope',
+            targetBody: 'Earth',
+            launchDate: '2021-12-25T12:20:00Z',
+            distance: 5.0,
+            period: 1.0,
+            color: 0xffd700,
+            description: 'Infrared space observatory'
+        };
+        sceneManager.spacecrafts.push({ data: jwstData, mesh: {} });
+        sceneManager.simDate = new Date('1969-07-20T12:00:00Z');
+
+        const typeSelect = uiContainer.querySelector('#typeSelect') as HTMLSelectElement;
+        const bodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
+        typeSelect.value = 'Spacecraft';
+        typeSelect.dispatchEvent(new Event('change'));
+        bodySelect.value = 'James Webb Space Telescope';
+        bodySelect.dispatchEvent(new Event('change'));
+
+        expect(sceneManager.simDate.toISOString()).toBe('1969-07-20T12:00:00.000Z');
+        const jwstJumpBtn = uiManager.modal.contentElement.querySelector<HTMLButtonElement>('.jump-to-date-btn');
+        expect(jwstJumpBtn).not.toBeNull();
+        expect(jwstJumpBtn!.textContent).toBe('Jump to Launch Date (2021-12-25)');
+
+        jwstJumpBtn!.click();
+        expect(sceneManager.simDate.toISOString()).toBe('2021-12-25T12:20:00.000Z');
+        expect(uiManager.modal.contentElement.querySelector('.jump-to-date-btn')).toBeNull();
+        expect(uiManager.eventModal.isOpen).toBe(true);
+        expect(uiManager.eventModal.titleElement?.textContent).toBe('James Webb Telescope Launch');
+        expect(uiManager.eventModal.contentElement.textContent).toContain('infrared');
+
+        // 5. Non-calendar spacecraft (Cassini & Voyager 2) also display their launch importance modal when clicking Jump to Launch Date
+        const cassiniData = {
+            name: 'Cassini',
+            targetBody: 'Saturn',
+            launchDate: '1997-10-15T08:43:00Z',
+            endDate: '2017-09-15T11:55:46Z',
+            distance: 25,
+            period: 0.1,
+            color: 0xdddddd,
+            description: 'Saturn orbiter'
+        };
+        sceneManager.spacecrafts.push({ data: cassiniData, mesh: {} });
+        uiManager.showModal(cassiniData);
+        const cassiniJumpBtn = uiManager.modal.contentElement.querySelector<HTMLButtonElement>('.jump-to-date-btn');
+        expect(cassiniJumpBtn).not.toBeNull();
+        cassiniJumpBtn!.click();
+        expect(sceneManager.simDate.toISOString()).toBe('1997-10-15T08:43:00.000Z');
+        expect(uiManager.eventModal.isOpen).toBe(true);
+        expect(uiManager.eventModal.titleElement?.textContent).toBe('Cassini-Huygens Launch');
+        expect(uiManager.eventModal.contentElement.textContent).toContain('Titan');
+    });
 });

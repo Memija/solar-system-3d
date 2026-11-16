@@ -7,7 +7,7 @@ export const de: TranslationSchema = {
         controlsToggle: 'Simulationssteuerung umschalten',
         languageToggle: 'Sprache ändern',
         orbiting: '(umkreist {planet})',
-        jumpToDate: 'Zum aktiven Datum springen ({date})',
+        jumpToDate: 'Zum Startdatum springen ({date})',
         close: 'Schließen',
         help: 'Hilfe',
         audioAmbience: 'Kosmische Audio-Atmosphäre (S)',
@@ -302,8 +302,10 @@ export const de: TranslationSchema = {
         milestones: {
             sputnik1: { name: 'Start von Sputnik 1', shortName: 'Sputnik 1', impact: 'Der Start von Sputnik 1 läutete das Raumfahrtzeitalter ein und bewies die Machbarkeit künstlicher Erdsatelliten.' },
             apollo11: { name: 'Apollo-11-Mondlandung', shortName: 'Apollo 11', impact: 'Die ersten Menschen auf dem Mond – ein historischer Meilenstein der bemannten Raumfahrt.' },
+            voyager2: { name: 'Start von Voyager 2', shortName: 'Voyager 2', impact: 'Vollendete die historische Grand Tour zu Jupiter, Saturn, Uranus und Neptun – bis heute die einzige Raumsonde an den Eisriesen auf dem Weg in den interstellaren Raum.' },
             voyager1: { name: 'Start von Voyager 1', shortName: 'Voyager 1', impact: 'Voyager 1 erreichte als erstes von Menschen geschaffenes Objekt den interstellaren Raum.' },
             hubble: { name: 'Start des Hubble-Weltraumteleskops', shortName: 'Hubble', impact: 'Revolutionierte die Astronomie mit tiefen Aufnahmen des Universums, Galaxien und Exoplaneten.' },
+            cassini: { name: 'Start von Cassini-Huygens', shortName: 'Cassini', impact: 'Erster Orbiter am Saturn; entdeckte Methanseen auf Titan durch die Sonde Huygens sowie Wasserdampffontänen auf Enceladus.' },
             iss: { name: 'Start des ersten ISS-Moduls', shortName: 'ISS', impact: 'Beginn der dauerhaften menschlichen Präsenz und internationalen Forschung im Erdorbit.' },
             jwst: { name: 'Start des James-Webb-Teleskops', shortName: 'James Webb', impact: 'Entwickelt zur Infrarot-Beobachtung der ersten Galaxien und planetarer Entstehungsgebiete.' }
         },

@@ -7,7 +7,7 @@ export const id: TranslationSchema = {
         controlsToggle: 'Alihkan Kontrol Simulasi',
         languageToggle: 'Ganti Bahasa',
         orbiting: '(mengorbit {planet})',
-        jumpToDate: 'Lompat ke Tanggal Aktif ({date})',
+        jumpToDate: 'Lompat ke Tanggal Peluncuran ({date})',
         close: 'Tutup',
         help: 'Bantuan',
         audioAmbience: 'Ambien Audio Kosmik (S)',
@@ -302,8 +302,10 @@ export const id: TranslationSchema = {
         milestones: {
             sputnik1: { name: 'Peluncuran Sputnik 1', shortName: 'Sputnik 1', impact: 'Peluncuran Sputnik 1 menandai dimulainya era antariksa dan membuktikan kelayakan satelit buatan.' },
             apollo11: { name: 'Pendaratan Bulan Apollo 11', shortName: 'Apollo 11', impact: 'Manusia pertama di Bulan — tonggak bersejarah penjelajahan antariksa berawak.' },
+            voyager2: { name: 'Peluncuran Voyager 2', shortName: 'Voyager 2', impact: 'Menyelesaikan Tur Agung bersejarah melintasi Jupiter, Saturnus, Uranus, dan Neptunus — satu-satunya wahana yang pernah mengunjungi raksasa es sebelum memasuki ruang antarbintang.' },
             voyager1: { name: 'Peluncuran Voyager 1', shortName: 'Voyager 1', impact: 'Voyager 1 menjadi objek buatan manusia pertama yang memasuki ruang antarbintang.' },
             hubble: { name: 'Peluncuran Teleskop Hubble', shortName: 'Hubble', impact: 'Merevolusi astronomi dengan citra mendalam galaksi, eksoplanet, dan perluasan alam semesta.' },
+            cassini: { name: 'Peluncuran Cassini-Huygens', shortName: 'Cassini', impact: 'Wahana pertama yang mengorbit Saturnus, mengungkap lautan metana cair di Titan melalui pendarat Huygens dan semburan samudra bawah permukaan di Enceladus.' },
             iss: { name: 'Peluncuran Modul Pertama ISS', shortName: 'ISS', impact: 'Memulai era kehadiran manusia berkelanjutan di orbit dan riset mikrogravitasi internasional.' },
             jwst: { name: 'Peluncuran Teleskop James Webb', shortName: 'James Webb', impact: 'Dirancang untuk mengamati galaksi paling awal dan wilayah pembentukan bintang dalam inframerah.' }
         },

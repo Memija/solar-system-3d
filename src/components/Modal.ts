@@ -1,4 +1,5 @@
 import { CelestialBodyData, MoonData, StarData, ConstellationData, CometData, SpacecraftData, SolarSystemData } from './SolarSystemData';
+import { HISTORICAL_SPACE_EVENTS } from './CustomDatePicker';
 import { i18n } from '../i18n/index';
 import { EventBus } from './EventBus';
 import { AudioNarrator } from './AudioNarrator';
@@ -24,6 +25,7 @@ export interface ModalOptions {
     autoReRenderOnLanguageChange?: boolean;
     onHide?: () => void;
     contentId?: string;
+    getSimDate?: () => Date | null | undefined;
 }
 
 function escapeAttr(val: string): string {
@@ -50,6 +52,7 @@ export class Modal {
     private autoReRenderOnLanguageChange: boolean = true;
     private onHideCallback: (() => void) | null = null;
     private customContentId?: string;
+    private getSimDate?: () => Date | null | undefined;
     public isOpen: boolean = false;
     public currentData: ModalData | CustomModalData | null = null;
     private unregisterI18n: (() => void) | null = null;
@@ -73,6 +76,7 @@ export class Modal {
         this.autoReRenderOnLanguageChange = options?.autoReRenderOnLanguageChange ?? true;
         this.onHideCallback = options?.onHide ?? null;
         this.customContentId = options?.contentId;
+        this.getSimDate = options?.getSimDate;
         this.modalElement = this.createModal();
         this.tooltipElement = this.createTooltipModal();
 
@@ -331,6 +335,62 @@ export class Modal {
         return { value: valueStr, subValue: ratioStr };
     }
 
+    private static isSameUtcDate(a: Date, b: Date): boolean {
+        if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+        return (
+            a.getUTCFullYear() === b.getUTCFullYear() &&
+            a.getUTCMonth() === b.getUTCMonth() &&
+            a.getUTCDate() === b.getUTCDate()
+        );
+    }
+
+    private static formatLaunchDateLabel(launchDateStr: string): string {
+        const parsed = new Date(launchDateStr);
+        if (Number.isNaN(parsed.getTime())) return launchDateStr;
+        const yyyy = String(parsed.getUTCFullYear()).padStart(4, '0');
+        const mm = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(parsed.getUTCDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    private shouldShowLaunchDateButton(data: ModalData | CustomModalData, simDateOverride?: Date | null): boolean {
+        if (!('launchDate' in data) || !data.launchDate) return false;
+        const launchDateObj = new Date(data.launchDate);
+        if (Number.isNaN(launchDateObj.getTime())) return false;
+
+        const currentSimDate = simDateOverride !== undefined ? simDateOverride : this.getSimDate?.();
+        if (currentSimDate instanceof Date && !Number.isNaN(currentSimDate.getTime())) {
+            if (Modal.isSameUtcDate(currentSimDate, launchDateObj)) {
+                return false;
+            }
+
+            // Hide when already viewing a Historical Space Mission milestone date for this spacecraft (e.g. Apollo 11 Moon Landing on 1969-07-20)
+            if (HISTORICAL_SPACE_EVENTS.some(evt => evt.target === data.name && Modal.isSameUtcDate(currentSimDate, evt.date))) {
+                return false;
+            }
+
+            // For short crewed flights (<= 14 days, such as Apollo 11's 1969-07-16 to 1969-07-24 mission),
+            // treat any UTC day during the active mission window as already viewing that mission.
+            if ('endDate' in data && data.endDate) {
+                const endDateObj = new Date(data.endDate);
+                if (!Number.isNaN(endDateObj.getTime()) && (endDateObj.getTime() - launchDateObj.getTime() <= 14 * 86_400_000)) {
+                    const launchUtcDayStart = Date.UTC(launchDateObj.getUTCFullYear(), launchDateObj.getUTCMonth(), launchDateObj.getUTCDate());
+                    const endUtcDayEnd = Date.UTC(endDateObj.getUTCFullYear(), endDateObj.getUTCMonth(), endDateObj.getUTCDate(), 23, 59, 59, 999);
+                    const curMs = currentSimDate.getTime();
+                    if (curMs >= launchUtcDayStart && curMs <= endUtcDayEnd) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private createLaunchDateButtonHtml(launchDate: string): string {
+        const formatted = Modal.formatLaunchDateLabel(launchDate);
+        return `<button type="button" class="jump-to-date-btn" data-date="${escapeAttr(launchDate)}">${i18n.t('ui.jumpToDate', { date: formatted })}</button>`;
+    }
+
     private getExtraInfo(data: ModalData | CustomModalData): string {
         const stats: { label: string; value: string; tooltipTitle: string; tooltipText: string; subValue?: string }[] = [];
         let additionalHtml = '';
@@ -346,7 +406,7 @@ export class Modal {
             </div>
         `;
 
-        if ('targetBody' in data || 'escaping' in data) {
+        if ('targetBody' in data || 'escaping' in data || 'launchDate' in data) {
             stats.push({
                 label: i18n.t('modal.labels.type'),
                 value: i18n.t('modal.labels.spacecraftType'),
@@ -354,8 +414,8 @@ export class Modal {
                 tooltipText: i18n.t('modal.tooltips.spacecraft')
             });
 
-            if ('launchDate' in data && data.launchDate && (data.name === 'Sputnik 1' || data.name === 'Apollo 11')) {
-                additionalHtml += `<button type="button" class="jump-to-date-btn" data-date="${escapeAttr(data.launchDate)}">${i18n.t('ui.jumpToDate', { date: data.launchDate })}</button>`;
+            if (this.shouldShowLaunchDateButton(data)) {
+                additionalHtml += this.createLaunchDateButtonHtml((data as SpacecraftData).launchDate!);
             }
         }
 
@@ -524,18 +584,50 @@ export class Modal {
         this.tooltipElement.style.left = `${left}px`;
     }
 
+    private bindJumpToDateButton(btn: HTMLElement): void {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dateStr = btn.getAttribute('data-date');
+            if (dateStr) {
+                EventBus.emit('jump-to-date', dateStr);
+            }
+        });
+    }
+
     private setupJumpToDateButtons() {
         const jumpToDateButtons = this.contentElement.querySelectorAll('.jump-to-date-btn') as NodeListOf<HTMLElement>;
+        jumpToDateButtons.forEach(btn => this.bindJumpToDateButton(btn));
+    }
 
-        jumpToDateButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const dateStr = btn.getAttribute('data-date');
-                if (dateStr) {
-                    EventBus.emit('jump-to-date', dateStr);
-                }
-            });
-        });
+    /**
+     * Dynamically shows or hides the spacecraft Launch Date button when the active simulation date
+     * changes, without interrupting audio narration or resetting gallery state.
+     */
+    public syncSimDate(simDate?: Date | null): void {
+        if (!this.isOpen || !this.currentData || !this.contentElement) return;
+        if (!('launchDate' in this.currentData) || !this.currentData.launchDate) return;
+
+        const shouldShow = this.shouldShowLaunchDateButton(this.currentData, simDate);
+        const existingBtn = this.contentElement.querySelector<HTMLElement>('.jump-to-date-btn');
+
+        if (!shouldShow && existingBtn) {
+            existingBtn.remove();
+        } else if (shouldShow && !existingBtn) {
+            const launchDate = this.currentData.launchDate;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'jump-to-date-btn';
+            btn.setAttribute('data-date', launchDate);
+            btn.textContent = i18n.t('ui.jumpToDate', { date: Modal.formatLaunchDateLabel(launchDate) });
+            this.bindJumpToDateButton(btn);
+
+            const linksSection = this.contentElement.querySelector('.modal-links-section');
+            if (linksSection) {
+                this.contentElement.insertBefore(btn, linksSection);
+            } else {
+                this.contentElement.appendChild(btn);
+            }
+        }
     }
 
     private setupInfoButtons() {

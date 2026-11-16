@@ -70,6 +70,7 @@ export class UIManager {
     private lastRealtimeDateMs: number = 0;
     private lastFormattedTime: string = '';
     private lastUtcSecond: number = NaN;
+    private lastModalSyncedUtcDay: number = NaN;
     private lastSyncedTimeScale: number = NaN;
     private lastTickerTarget: string = '';
     private cachedTickerSpeedKmS: number = 29.8;
@@ -183,6 +184,41 @@ export class UIManager {
             if (dateStr && typeof this.sceneManager.setSimDate === 'function') {
                 const newDate = new Date(dateStr);
                 this.applySimDateChange(newDate, true);
+
+                // If jumping to a spacecraft's launch date while its dossier modal is open, re-focus it and show its launch importance modal
+                const openModalData = this._modal?.isOpen ? this._modal.currentData : null;
+                const targetName = (openModalData && 'launchDate' in openModalData && openModalData.name)
+                    ? openModalData.name
+                    : null;
+
+                if (targetName && this.cameraTarget !== targetName) {
+                    this.focusOrSurfaceTarget(targetName);
+                    this.syncDropdownSelection(targetName);
+                }
+
+                const isSameDay = (a: Date, b: Date) =>
+                    !Number.isNaN(a.getTime()) &&
+                    !Number.isNaN(b.getTime()) &&
+                    a.getUTCFullYear() === b.getUTCFullYear() &&
+                    a.getUTCMonth() === b.getUTCMonth() &&
+                    a.getUTCDate() === b.getUTCDate();
+
+                const modalLaunchDate = (openModalData && 'launchDate' in openModalData && openModalData.launchDate)
+                    ? new Date(openModalData.launchDate)
+                    : null;
+                const isJumpingToTargetLaunch = Boolean(modalLaunchDate && isSameDay(newDate, modalLaunchDate));
+
+                const matchedEvent = HISTORICAL_SPACE_EVENTS.find(evt =>
+                    (isJumpingToTargetLaunch && targetName && evt.target === targetName) ||
+                    isSameDay(newDate, evt.date)
+                );
+                if (matchedEvent) {
+                    this.activeHistoricalEventId = matchedEvent.id;
+                    this.eventModal.show({
+                        name: getLocalizedEventName(matchedEvent),
+                        description: `<div style="padding: 10px; background-color: rgba(255, 215, 0, 0.2); margin-bottom: 10px; color: white;">${getLocalizedEventImpact(matchedEvent)}</div>`
+                    });
+                }
             }
         };
         window.addEventListener('jump-to-date', this.onJumpToDateBound);
@@ -485,8 +521,10 @@ export class UIManager {
             this.syncDropdownSelection(nextFocusName);
         }
         this.lastUtcSecond = NaN;
+        this.lastModalSyncedUtcDay = Math.floor(newDate.getTime() / 86400000);
         this.lastRealtimeDateMs = newDate.getTime();
         this.minimap?.invalidate?.();
+        this._modal?.syncSimDate?.(this.sceneManager.simDate ?? newDate);
         this.syncTransportState();
         this.controlCenter?.syncTimePanel();
         if (this.sceneManager.measureMode && this.sceneManager.measureTargetA && this.sceneManager.measureTargetB) {
@@ -551,6 +589,11 @@ export class UIManager {
                         this.lastFormattedTime = timeStr;
                         this.timeNumsEl.textContent = timeStr;
                     }
+                }
+                const utcDay = Math.floor(utcSec / 86400);
+                if (utcDay !== this.lastModalSyncedUtcDay) {
+                    this.lastModalSyncedUtcDay = utcDay;
+                    this._modal?.syncSimDate?.(d);
                 }
             }
         }
@@ -929,10 +972,10 @@ export class UIManager {
                     if (sc) foundData = sc.data;
                 }
 
+                this.focusOrSurfaceTarget(selectedName);
                 if (foundData) {
                     this.showModal(foundData);
                 }
-                this.focusOrSurfaceTarget(selectedName);
             }
         });
 
@@ -1508,15 +1551,15 @@ export class UIManager {
 
         if (typeSelect && bodySelect) {
             this.ignoreNextBodyChange = true;
-            setTimeout(() => {
+            try {
+                if (typeSelect.value !== determinedType) {
+                    typeSelect.value = determinedType;
+                    typeSelect.dispatchEvent(new Event('change'));
+                }
+                bodySelect.value = targetName;
+            } finally {
                 this.ignoreNextBodyChange = false;
-            }, 100);
-
-            if (typeSelect.value !== determinedType) {
-                typeSelect.value = determinedType;
-                typeSelect.dispatchEvent(new Event('change'));
             }
-            bodySelect.value = targetName;
         }
 
         this.updateTargetPillDisplay(targetName, determinedType);
@@ -1545,7 +1588,9 @@ export class UIManager {
         if (nextSimDate && prevSimMs !== undefined && nextSimDate.getTime() !== prevSimMs) {
             this.customDatePicker?.setDate(nextSimDate);
             this.lastUtcSecond = NaN;
+            this.lastModalSyncedUtcDay = Math.floor(nextSimDate.getTime() / 86400000);
             this.minimap?.invalidate?.();
+            this._modal?.syncSimDate?.(nextSimDate);
         }
 
         this.controlCenter?.syncSwitches();
@@ -1582,7 +1627,10 @@ export class UIManager {
 
     public get modal(): Modal {
         if (!this._modal) {
-            this._modal = new Modal(this.uiContainer, { contentId: 'modal-content' });
+            this._modal = new Modal(this.uiContainer, {
+                contentId: 'modal-content',
+                getSimDate: () => this.sceneManager?.simDate
+            });
         }
         return this._modal;
     }

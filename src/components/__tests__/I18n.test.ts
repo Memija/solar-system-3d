@@ -554,8 +554,12 @@ describe('I18n System', () => {
             'datepicker.centuryFormat',
             'datepicker.milestones.sputnik1.shortName',
             'datepicker.milestones.apollo11.shortName',
+            'datepicker.milestones.voyager2.name',
+            'datepicker.milestones.voyager2.impact',
             'datepicker.milestones.voyager1.shortName',
             'datepicker.milestones.hubble.shortName',
+            'datepicker.milestones.cassini.name',
+            'datepicker.milestones.cassini.impact',
             'datepicker.milestones.iss.shortName',
             'datepicker.milestones.jwst.shortName'
         ];
