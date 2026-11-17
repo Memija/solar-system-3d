@@ -331,4 +331,33 @@ describe('CelestialBody', () => {
         earth.update(0, 1.25, 0, true);
         expect(moon.orbitGroup.position.distanceTo(beforeJumpPos)).toBeGreaterThan(0.1);
     });
+
+    it('keeps the Sun surface opaque with depth writing enabled and includes logarithmic depth chunks across custom shaders', () => {
+        const sunData = SolarSystemData.find(b => b.name === 'Sun')!;
+        const sun = new CelestialBody(sunData, parentGroup);
+
+        expect(sun.shaderMaterial).toBeInstanceOf(THREE.ShaderMaterial);
+        expect(sun.shaderMaterial!.transparent).toBe(false);
+        expect(sun.shaderMaterial!.depthWrite).toBe(true);
+        expect(sun.shaderMaterial!.depthTest).toBe(true);
+        expect(sun.shaderMaterial!.side).toBe(THREE.FrontSide);
+
+        const coronaMat = sun.coronaMesh?.material as THREE.ShaderMaterial;
+        expect(coronaMat).toBeInstanceOf(THREE.ShaderMaterial);
+        expect(coronaMat.vertexShader).toContain('#include <logdepthbuf_vertex>');
+        expect(coronaMat.fragmentShader).toContain('#include <logdepthbuf_fragment>');
+
+        const earthData = SolarSystemData.find(b => b.name === 'Earth')!;
+        const earth = new CelestialBody(earthData, parentGroup);
+        const atmoMat = earth.atmosphereMesh?.material as THREE.ShaderMaterial;
+        expect(atmoMat).toBeInstanceOf(THREE.ShaderMaterial);
+        expect(atmoMat.vertexShader).toContain('#include <logdepthbuf_vertex>');
+        expect(atmoMat.fragmentShader).toContain('#include <logdepthbuf_fragment>');
+        expect(earth.auroraMaterial?.vertexShader).toContain('#include <logdepthbuf_vertex>');
+        expect(earth.auroraMaterial?.fragmentShader).toContain('#include <logdepthbuf_fragment>');
+
+        // Planet labels use depthTest: true so labels behind the Sun are properly occluded
+        expect(earth.labelSprite?.material.depthTest).toBe(true);
+        expect(earth.labelSprite?.material.depthWrite).toBe(false);
+    });
 });

@@ -228,7 +228,7 @@ export class Spacecraft {
         const spriteMat = new THREE.SpriteMaterial({
             map: Spacecraft.getSharedMarkerTexture(this.isActive),
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false,
             sizeAttenuation: false
         });

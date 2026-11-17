@@ -157,9 +157,11 @@ describe('Spacecraft', () => {
         expect(voyager.orbitLine).toBeNull();
         expect(voyager.escapeLine).not.toBeNull();
 
-        // Overview camera far from Voyager: markerSprite & escapeLine visible
+        // Overview camera far from Voyager: markerSprite & escapeLine visible, with depthTest enabled so Sun/planets occlude markers behind them
         voyager.updateLOD(new THREE.Vector3(0, 100, 400), false);
         expect(voyager.markerSprite?.visible).toBe(true);
+        expect(voyager.markerSprite?.material.depthTest).toBe(true);
+        expect(voyager.markerSprite?.material.depthWrite).toBe(false);
         expect(voyager.escapeLine?.visible).toBe(true);
 
         // Close-up focused camera: 3D model built & visible, markerSprite cross-fades out, beacon stays visible while paused

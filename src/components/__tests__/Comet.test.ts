@@ -109,5 +109,12 @@ describe('Comet', () => {
         expect(comet.realisticDistances).toBe(true);
         expect(removeSpy).toHaveBeenCalled();
         expect(comet.orbitLine).toBeDefined(); // Should have recreated it
+
+        const comaMat = comet.mesh!.material as THREE.ShaderMaterial;
+        const tailMat = comet.tailParticles!.material as THREE.ShaderMaterial;
+        expect(comaMat.vertexShader).toContain('#include <logdepthbuf_vertex>');
+        expect(comaMat.fragmentShader).toContain('#include <logdepthbuf_fragment>');
+        expect(tailMat.vertexShader).toContain('#include <logdepthbuf_vertex>');
+        expect(tailMat.fragmentShader).toContain('#include <logdepthbuf_fragment>');
     });
 });

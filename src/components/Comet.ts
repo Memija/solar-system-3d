@@ -89,6 +89,8 @@ export class Comet {
                 color: { value: new THREE.Color(this.data.color) },
             },
             vertexShader: `
+                #include <common>
+                #include <logdepthbuf_pars_vertex>
                 varying vec3 vNormal;
                 varying vec3 vViewPosition;
                 void main() {
@@ -96,13 +98,16 @@ export class Comet {
                     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                     vViewPosition = -mvPosition.xyz;
                     gl_Position = projectionMatrix * mvPosition;
+                    #include <logdepthbuf_vertex>
                 }
             `,
             fragmentShader: `
+                #include <logdepthbuf_pars_fragment>
                 uniform vec3 color;
                 varying vec3 vNormal;
                 varying vec3 vViewPosition;
                 void main() {
+                    #include <logdepthbuf_fragment>
                     vec3 normal = normalize(vNormal);
                     vec3 viewDir = normalize(vViewPosition);
                     float intensity = pow(max(dot(normal, viewDir), 0.0), 1.5);
@@ -191,6 +196,8 @@ export class Comet {
                 tailVisibility: { value: 1 }
             },
             vertexShader: `
+                #include <common>
+                #include <logdepthbuf_pars_vertex>
                 uniform vec3 sunDirection;
                 uniform vec3 orbitLateral;
                 uniform float nucleusRadius;
@@ -223,9 +230,11 @@ export class Comet {
                     float size = mix(305.0, 405.0, tailKind) * vAlpha;
                     gl_PointSize = max(1.5, size / max(0.1, -mvPosition.z));
                     gl_Position = projectionMatrix * mvPosition;
+                    #include <logdepthbuf_vertex>
                 }
             `,
             fragmentShader: `
+                #include <logdepthbuf_pars_fragment>
                 uniform vec3 color;
                 uniform vec3 dustColor;
                 uniform float tailVisibility;
@@ -236,6 +245,7 @@ export class Comet {
                     vec2 coord = gl_PointCoord - vec2(0.5);
                     float r = length(coord);
                     if (r > 0.5) discard;
+                    #include <logdepthbuf_fragment>
 
                     float intensity = pow(1.0 - (r * 2.0), 1.35);
                     vec3 particleColor = mix(color, dustColor, vKind);

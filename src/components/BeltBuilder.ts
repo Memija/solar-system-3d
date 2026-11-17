@@ -139,15 +139,19 @@ export function buildHabitableZone(scene: THREE.Scene, visible: boolean): THREE.
             time: { value: 0 }
         },
         vertexShader: `
+            #include <common>
+            #include <logdepthbuf_pars_vertex>
             varying vec2 vUv;
             varying vec3 vPosition;
             void main() {
                 vUv = uv;
                 vPosition = position;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                #include <logdepthbuf_vertex>
             }
         `,
         fragmentShader: `
+            #include <logdepthbuf_pars_fragment>
             uniform float innerRadius;
             uniform float outerRadius;
             uniform vec3 color;
@@ -155,6 +159,7 @@ export function buildHabitableZone(scene: THREE.Scene, visible: boolean): THREE.
             varying vec3 vPosition;
 
             void main() {
+                #include <logdepthbuf_fragment>
                 float dist = length(vPosition.xy);
                 float alpha = smoothstep(innerRadius, innerRadius + 10.0, dist) *
                               (1.0 - smoothstep(outerRadius - 10.0, outerRadius, dist));
@@ -291,6 +296,8 @@ export function buildStarfield(scene: THREE.Scene, _renderer: THREE.WebGLRendere
             time: { value: 0 }
         },
         vertexShader: `
+            #include <common>
+            #include <logdepthbuf_pars_vertex>
             attribute vec3 color;
             attribute float aSize;
             attribute float aPhase;
@@ -303,25 +310,30 @@ export function buildStarfield(scene: THREE.Scene, _renderer: THREE.WebGLRendere
                 vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                 gl_PointSize = clamp(aSize * (3000.0 / max(1.0, -mvPosition.z)), 1.4, 5.5);
                 gl_Position = projectionMatrix * mvPosition;
+                #include <logdepthbuf_vertex>
             }
         `,
         fragmentShader: `
+            #include <logdepthbuf_pars_fragment>
             varying vec3 vColor;
             varying float vTwinkle;
             void main() {
                 vec2 coord = gl_PointCoord - vec2(0.5);
                 float d = length(coord) * 2.0;
                 if (d > 1.0) discard;
+                #include <logdepthbuf_fragment>
                 float core = exp(-d * d * 4.2);
                 gl_FragColor = vec4(vColor, core * 0.92 * vTwinkle);
             }
         `,
         transparent: true,
         depthWrite: false,
+        depthTest: true,
         blending: THREE.AdditiveBlending
     });
 
     const starPoints = new THREE.Points(starGeometry, starMaterial);
+    starPoints.renderOrder = -9;
     starPoints.matrixAutoUpdate = false;
     starPoints.updateMatrix();
     scene.add(starPoints);

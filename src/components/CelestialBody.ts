@@ -16,6 +16,8 @@ import { i18n } from '../i18n';
 
 
 const auroraVertexShader = `
+#include <common>
+#include <logdepthbuf_pars_vertex>
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vWorldNormal;
@@ -40,10 +42,12 @@ void main() {
 
     vWorldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    #include <logdepthbuf_vertex>
 }
 `;
 
 const auroraFragmentShader = `
+#include <logdepthbuf_pars_fragment>
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vWorldNormal;
@@ -55,6 +59,7 @@ uniform vec3 colorTop;
 uniform float opacity;
 
 void main() {
+    #include <logdepthbuf_fragment>
     float verticalFade = smoothstep(0.0, 0.25, vUv.y) * smoothstep(1.0, 0.65, vUv.y);
 
     float rays = sin(vUv.x * 45.0 + time * 2.0) * 0.5 + 0.5;
@@ -326,7 +331,10 @@ export class CelestialBody {
                 },
                 vertexShader: sunVertexShader,
                 fragmentShader: sunFragmentShader,
-                side: THREE.FrontSide
+                side: THREE.FrontSide,
+                transparent: false,
+                depthWrite: true,
+                depthTest: true
             });
             material = sunMaterial;
             this.shaderMaterial = sunMaterial;
@@ -513,6 +521,8 @@ export class CelestialBody {
                 innerColor: { value: new THREE.Color(1.0, 0.88, 0.45) }
             },
             vertexShader: `
+                #include <common>
+                #include <logdepthbuf_pars_vertex>
                 varying vec3 vNormal;
                 varying vec3 vViewPos;
                 void main() {
@@ -520,14 +530,17 @@ export class CelestialBody {
                     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                     vViewPos = -mvPosition.xyz;
                     gl_Position = projectionMatrix * mvPosition;
+                    #include <logdepthbuf_vertex>
                 }
             `,
             fragmentShader: `
+                #include <logdepthbuf_pars_fragment>
                 uniform vec3 glowColor;
                 uniform vec3 innerColor;
                 varying vec3 vNormal;
                 varying vec3 vViewPos;
                 void main() {
+                    #include <logdepthbuf_fragment>
                     // BackSide normal faces inward; dot(-vNormal, viewDir) peaks toward center and fades smoothly to 0 at outer corona edge
                     vec3 viewDir = normalize(vViewPos);
                     float radial = clamp(dot(-normalize(vNormal), viewDir), 0.0, 1.0);
@@ -604,12 +617,13 @@ export class CelestialBody {
         const material = new THREE.SpriteMaterial({
             map: CelestialBody.getSharedPlaceholderSpriteTex(),
             transparent: true,
-            depthTest: false,
+            depthTest: true,
+            depthWrite: false,
             sizeAttenuation: false
         });
         this.labelSprite = new THREE.Sprite(material);
         this.labelSprite.scale.set(0.05, 0.05, 1);
-        this.labelSprite.position.set(0, this.data.radius * 1.2, 0);
+        this.labelSprite.position.set(0, this.data.radius * 1.35, 0);
         this.labelSprite.visible = this.showLabel;
         this.labelSprite.matrixAutoUpdate = false;
         this.labelSprite.updateMatrix?.();
@@ -672,6 +686,8 @@ export class CelestialBody {
                 power: { value: config.power }
             },
             vertexShader: `
+                #include <common>
+                #include <logdepthbuf_pars_vertex>
                 varying vec3 vNormal;
                 varying vec3 vPosition;
                 varying vec3 vWorldNormal;
@@ -683,9 +699,11 @@ export class CelestialBody {
                     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                     vPosition = mvPosition.xyz;
                     gl_Position = projectionMatrix * mvPosition;
+                    #include <logdepthbuf_vertex>
                 }
             `,
             fragmentShader: `
+                #include <logdepthbuf_pars_fragment>
                 uniform vec3 glowColor;
                 uniform float coefficient;
                 uniform float power;
@@ -694,6 +712,7 @@ export class CelestialBody {
                 varying vec3 vWorldNormal;
                 varying vec3 vWorldPos;
                 void main() {
+                    #include <logdepthbuf_fragment>
                     vec3 viewDir = normalize(-vPosition);
                     float fresnel = 1.0 - max(0.0, dot(normalize(vNormal), viewDir));
 
@@ -1238,7 +1257,7 @@ export class CelestialBody {
 
         if (this.labelSprite) {
             const currentRadius = realistic ? realisticRadius : this.data.radius;
-            this.labelSprite.position.set(0, currentRadius * 1.2, 0);
+            this.labelSprite.position.set(0, currentRadius * 1.35, 0);
             this.labelSprite.updateMatrix?.();
         }
 

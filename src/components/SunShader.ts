@@ -1,4 +1,6 @@
 export const vertexShader = `
+#include <common>
+#include <logdepthbuf_pars_vertex>
 varying vec2 vUv;
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -11,10 +13,12 @@ void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     vViewPosition = -mvPosition.xyz;
     gl_Position = projectionMatrix * mvPosition;
+    #include <logdepthbuf_vertex>
 }
 `;
 
 export const fragmentShader = `
+#include <logdepthbuf_pars_fragment>
 uniform float time;
 varying vec2 vUv;
 varying vec3 vPosition;
@@ -86,6 +90,7 @@ float snoise(vec3 v){
 }
 
 void main() {
+    #include <logdepthbuf_fragment>
     // Normalize local sphere direction so noise frequency is scale-invariant
     vec3 dir = normalize(vPosition);
     float viewDist = length(vViewPosition);
