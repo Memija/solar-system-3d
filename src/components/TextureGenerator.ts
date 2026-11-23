@@ -1213,6 +1213,160 @@ export class TextureGenerator {
         ctx.putImageData(imgData, 0, 0);
     }
 
+    /**
+     * Major world metropolitan regions & population corridors [latDeg, lonDeg, radiusDeg, weight]
+     * used to synthesize geographically accurate nighttime city lights on Earth's unlit hemisphere.
+     * In Three.js SphereGeometry + CanvasTexture (flipY = true), lonDeg in [-180, 180] maps to
+     * u = (lonDeg + 180) / 360 and latDeg in [-90, 90] maps to canvas y = ((90 - latDeg) / 180) * h.
+     */
+    private static readonly EARTH_CITY_CLUSTERS: ReadonlyArray<readonly [number, number, number, number]> = [
+        // Europe & Mediterranean
+        [51.5, -0.1, 2.4, 1.0], [53.4, -2.2, 1.8, 0.85], [48.85, 2.35, 2.5, 1.0],
+        [50.9, 6.9, 3.0, 1.0], [52.3, 4.9, 2.0, 0.95], [52.5, 13.4, 2.3, 0.9],
+        [48.1, 11.6, 2.0, 0.82], [47.4, 8.5, 1.7, 0.8], [45.5, 9.2, 2.8, 0.98],
+        [41.9, 12.5, 2.1, 0.9], [40.8, 14.3, 1.8, 0.85], [40.4, -3.7, 2.2, 0.92],
+        [41.4, 2.2, 1.9, 0.88], [38.7, -9.1, 1.7, 0.82], [48.2, 16.4, 2.0, 0.85],
+        [50.1, 14.4, 1.8, 0.8], [52.2, 21.0, 2.3, 0.88], [47.5, 19.0, 1.9, 0.82],
+        [44.4, 26.1, 1.8, 0.78], [38.0, 23.7, 1.8, 0.85], [41.0, 29.0, 2.4, 0.98],
+        [59.3, 18.1, 1.8, 0.78], [55.7, 12.6, 1.7, 0.78], [59.9, 10.7, 1.5, 0.72],
+        [55.75, 37.6, 3.0, 1.0], [59.9, 30.3, 2.1, 0.88], [50.45, 30.5, 2.1, 0.82],
+        // Middle East & Africa
+        [30.05, 31.25, 2.4, 1.0], [31.2, 29.9, 1.8, 0.9], [26.2, 32.7, 1.8, 0.82],
+        [32.1, 34.8, 1.7, 0.9], [33.9, 35.5, 1.4, 0.78], [35.7, 51.4, 2.4, 0.95],
+        [25.2, 55.3, 2.0, 0.95], [24.7, 46.7, 2.0, 0.9], [21.5, 39.2, 1.7, 0.82],
+        [33.3, 44.4, 1.9, 0.82], [33.6, -7.6, 1.9, 0.82], [36.75, 3.05, 1.8, 0.8],
+        [36.8, 10.2, 1.6, 0.78], [6.5, 3.4, 2.3, 0.92], [5.6, -0.2, 1.6, 0.75],
+        [-1.3, 36.8, 1.6, 0.72], [-26.2, 28.0, 2.3, 0.9], [-33.9, 18.4, 1.6, 0.78],
+        // South, Southeast & East Asia
+        [28.6, 77.2, 3.4, 1.0], [26.8, 80.9, 3.0, 0.95], [22.6, 88.36, 2.8, 0.95],
+        [19.1, 72.9, 2.6, 1.0], [18.5, 73.85, 2.0, 0.86], [13.0, 77.6, 2.2, 0.9],
+        [13.1, 80.3, 2.0, 0.88], [17.4, 78.5, 2.0, 0.86], [23.0, 72.6, 2.0, 0.86],
+        [24.86, 67.0, 2.2, 0.9], [31.5, 74.3, 2.4, 0.92], [23.8, 90.4, 2.4, 0.9],
+        [13.75, 100.5, 2.3, 0.94], [3.14, 101.7, 1.8, 0.86], [1.35, 103.8, 1.6, 0.95],
+        [-6.2, 106.85, 2.5, 0.98], [-7.25, 112.75, 2.3, 0.9], [14.6, 121.0, 2.0, 0.9],
+        [10.8, 106.7, 2.0, 0.88], [21.0, 105.85, 1.9, 0.85], [22.3, 114.17, 2.8, 1.0],
+        [23.1, 113.26, 2.6, 1.0], [31.23, 121.47, 3.4, 1.0], [32.06, 118.8, 2.5, 0.92],
+        [39.9, 116.4, 3.3, 1.0], [39.1, 117.2, 2.5, 0.95], [36.65, 117.0, 2.8, 0.9],
+        [34.75, 113.65, 2.8, 0.9], [30.6, 114.3, 2.4, 0.9], [30.6, 104.06, 2.5, 0.92],
+        [29.56, 106.55, 2.2, 0.88], [34.26, 108.95, 2.1, 0.85], [41.8, 123.4, 2.2, 0.85],
+        [25.03, 121.56, 1.8, 0.94], [37.56, 126.97, 2.4, 1.0], [35.18, 129.07, 1.8, 0.9],
+        [35.68, 139.76, 2.8, 1.0], [34.69, 135.5, 2.4, 0.98], [35.18, 136.9, 2.0, 0.92],
+        [33.59, 130.4, 1.7, 0.85],
+        // Oceania
+        [-33.87, 151.2, 1.9, 0.92], [-37.8, 144.96, 1.9, 0.9], [-27.47, 153.02, 1.6, 0.82],
+        [-31.95, 115.86, 1.5, 0.78], [-36.85, 174.76, 1.4, 0.75],
+        // North America
+        [40.71, -74.0, 3.2, 1.0], [42.36, -71.06, 2.3, 0.92], [39.95, -75.16, 2.4, 0.95],
+        [38.9, -77.04, 2.4, 0.94], [43.65, -79.38, 2.4, 0.94], [45.5, -73.57, 2.0, 0.88],
+        [41.88, -87.63, 3.0, 1.0], [42.33, -83.05, 2.4, 0.9], [39.1, -84.5, 2.4, 0.85],
+        [33.75, -84.39, 2.5, 0.92], [25.76, -80.19, 2.1, 0.92], [28.54, -81.38, 2.0, 0.88],
+        [29.76, -95.37, 2.5, 0.95], [32.78, -96.8, 2.5, 0.95], [39.74, -104.99, 1.9, 0.84],
+        [33.45, -112.07, 2.0, 0.88], [36.17, -115.14, 1.6, 0.88], [34.05, -118.24, 2.8, 1.0],
+        [32.72, -117.16, 1.9, 0.88], [37.77, -122.42, 2.4, 0.95], [47.6, -122.33, 2.0, 0.88],
+        [49.28, -123.12, 1.8, 0.84], [44.98, -93.26, 2.0, 0.84], [38.63, -90.2, 2.0, 0.82],
+        [19.43, -99.13, 2.6, 1.0], [20.67, -103.35, 2.0, 0.86], [25.68, -100.31, 1.8, 0.84],
+        // Central & South America
+        [4.71, -74.07, 2.0, 0.86], [10.48, -66.9, 1.7, 0.8], [-12.05, -77.04, 1.9, 0.85],
+        [-33.45, -70.66, 2.0, 0.88], [-34.6, -58.38, 2.6, 0.96], [-23.55, -46.63, 2.8, 1.0],
+        [-22.9, -43.17, 2.3, 0.94], [-19.92, -43.94, 2.0, 0.85], [-15.79, -47.88, 1.8, 0.8],
+        [-8.05, -34.88, 1.8, 0.8], [-12.97, -38.5, 1.8, 0.8]
+    ];
+
+    /**
+     * Generate and cache a 2:1 equirectangular human settlement night-lights intensity texture.
+     * Combined in Earth's fragment shader with the 2048x1024 land/coastline roughness mask so
+     * city clusters follow exact continental shorelines without extra network assets or GPU readbacks.
+     */
+    static getEarthNightLightsMap(): THREE.CanvasTexture {
+        const key = 'Earth_NightLights';
+        if (this.cache.has(key)) {
+            return this.cache.get(key)!;
+        }
+
+        const isMobile = this.isSmallViewport();
+        const w = isMobile ? 512 : 1024;
+        const h = isMobile ? 256 : 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        const imgData = ctx ? this.safeCreateImageData(ctx, w, h) : null;
+
+        if (ctx && imgData) {
+            const data = imgData.data;
+            const u32 = this.getUint32View(data, w * h);
+            const density = new Float32Array(w * h);
+            const fineNoise = this.createNoise(w, h, 5, 0.62, 90821);
+
+            for (let c = 0; c < this.EARTH_CITY_CLUSTERS.length; c++) {
+                const [latDeg, lonDeg, radiusDeg, weight] = this.EARTH_CITY_CLUSTERS[c];
+                const cx = ((lonDeg + 180) / 360) * w;
+                const cy = ((90 - latDeg) / 180) * h;
+                const cosLat = Math.max(0.28, Math.cos((latDeg * Math.PI) / 180));
+                const rx = (radiusDeg / 360) * w / cosLat;
+                const ry = (radiusDeg / 180) * h;
+                const reachScale = 2.55;
+                const minY = Math.max(0, Math.floor(cy - ry * reachScale));
+                const maxY = Math.min(h - 1, Math.ceil(cy + ry * reachScale));
+                const spanX = Math.ceil(rx * reachScale);
+                const invRx2 = 1 / Math.max(1e-4, rx * rx);
+                const invRy2 = 1 / Math.max(1e-4, ry * ry);
+
+                for (let y = minY; y <= maxY; y++) {
+                    const dy = y - cy;
+                    const dyTerm = dy * dy * invRy2;
+                    const rowOffset = y * w;
+                    for (let dx = -spanX; dx <= spanX; dx++) {
+                        const dist2 = dx * dx * invRx2 + dyTerm;
+                        if (dist2 > 6.5) continue;
+                        const x = ((Math.round(cx) + dx) % w + w) % w;
+                        // Bright pinpoint urban core + wider suburban/highway corridor halo
+                        const core = Math.exp(-dist2 * 2.4);
+                        const sprawl = Math.exp(-dist2 * 0.52) * 0.48;
+                        const val = weight * (core + sprawl);
+                        const idx = rowOffset + x;
+                        density[idx] = Math.min(1.35, density[idx] + val * (1.0 - density[idx] * 0.42));
+                    }
+                }
+            }
+
+            for (let i = 0; i < w * h; i++) {
+                const env = density[i];
+                let out = 0;
+                if (env > 0.015) {
+                    const n = fineNoise[i];
+                    // High-frequency town/road network sparkle with solid bright metropolitan centers
+                    const hash = (((i * 2654435761) >>> 16) & 255) / 255;
+                    const web = Math.max(0, (n - 0.34) * 1.52);
+                    const pinpoint = hash > 0.78 ? (hash - 0.78) * 2.6 * env : 0;
+                    const coreLock = Math.max(0, env - 0.58) * 1.35;
+                    out = Math.min(255, Math.round(Math.min(1, env * web * 1.28 + coreLock + pinpoint) * 255));
+                }
+
+                if (u32) {
+                    u32[i] = (255 << 24) | (out << 16) | (out << 8) | out;
+                } else {
+                    const p = i * 4;
+                    data[p] = out;
+                    data[p + 1] = out;
+                    data[p + 2] = out;
+                    data[p + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.anisotropy = TextureGenerator.maxAnisotropy;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.generateMipmaps = true;
+        texture.needsUpdate = true;
+        this.cache.set(key, texture);
+        return texture;
+    }
+
     private static drawEarthClouds(ctx: CanvasRenderingContext2D, w: number, h: number) {
         const imgData = this.safeCreateImageData(ctx, w, h);
         if (!imgData) return;

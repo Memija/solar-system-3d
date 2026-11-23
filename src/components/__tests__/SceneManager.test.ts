@@ -465,5 +465,19 @@ describe('SceneManager', () => {
             manager.updateMeasurement();
             expect(manager.currentMeasureDistance!.distanceAUVal).toBeCloseTo(nonRealHalleyEarth, 8);
         });
+
+        it('maintains strong day-to-night solar vs ambient lighting contrast in both realistic and soft lighting modes', () => {
+            const manager = new SceneManager(container);
+
+            manager.toggleRealisticLighting(true);
+            expect(manager.pointLight!.intensity).toBeGreaterThan(3.0);
+            expect(manager.ambientLight!.intensity).toBeLessThanOrEqual(0.05);
+            expect(manager.pointLight!.intensity / manager.ambientLight!.intensity).toBeGreaterThan(80);
+
+            manager.toggleRealisticLighting(false);
+            expect(manager.pointLight!.intensity).toBeGreaterThan(2.8);
+            expect(manager.ambientLight!.intensity).toBeLessThanOrEqual(0.18);
+            expect(manager.pointLight!.intensity / manager.ambientLight!.intensity).toBeGreaterThan(18);
+        });
     });
 });

@@ -877,14 +877,14 @@ export class SceneManager {
         this.setupSurfaceLookControls();
 
         // Lighting (Sun)
-        this.ambientLight = new THREE.AmbientLight(0xffffff, this.realisticLighting ? 0.05 : 0.36);
+        this.ambientLight = new THREE.AmbientLight(0xffffff, this.realisticLighting ? 0.03 : 0.14);
         this.ambientLight.matrixAutoUpdate = false;
         this.ambientLight.updateMatrix?.();
         this.scene.add(this.ambientLight);
         this.ambientLight.updateMatrixWorld?.(true);
         this.ambientLight.matrixWorldAutoUpdate = false;
 
-        this.pointLight = new THREE.PointLight(0xfffcf5, this.realisticLighting ? 2.8 : 2.1, 0, 0);
+        this.pointLight = new THREE.PointLight(0xfffcf5, this.realisticLighting ? 3.45 : 3.1, 0, 0);
         this.pointLight.castShadow = true;
 
         // Point-light shadows are packed into a 4x2 atlas of cube faces, so the backing texture is
@@ -1707,10 +1707,10 @@ export class SceneManager {
         this.renderDirty = true;
         PreferencesManager.set('realisticLighting', visible);
         if (this.ambientLight) {
-            this.ambientLight.intensity = visible ? 0.05 : 0.36;
+            this.ambientLight.intensity = visible ? 0.03 : 0.14;
         }
         if (this.pointLight) {
-            this.pointLight.intensity = visible ? 2.8 : 2.1;
+            this.pointLight.intensity = visible ? 3.45 : 3.1;
         }
     }
 
@@ -1874,8 +1874,8 @@ export class SceneManager {
                 const invLen = 1 / Math.sqrt(planarDistSq);
                 const toSunX = -SceneManager._vPos.x * invLen;
                 const toSunZ = -SceneManager._vPos.z * invLen;
-                // Rotate 34 deg in azimuth from sub-solar line for dramatic 3/4 terminator relief
-                const angle = 0.59;
+                // Rotate 41 deg in azimuth from sub-solar line so sunlit day side, golden terminator, and city-lit night crescent are all clearly visible
+                const angle = 0.72;
                 const cosA = Math.cos(angle);
                 const sinA = Math.sin(angle);
                 const dirX = toSunX * cosA - toSunZ * sinA;

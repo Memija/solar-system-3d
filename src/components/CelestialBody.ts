@@ -368,13 +368,95 @@ export class CelestialBody {
                 });
             }
 
-            material = new THREE.MeshStandardMaterial({
+            const nightLightsMap = typeof TextureGenerator.getEarthNightLightsMap === 'function'
+                ? TextureGenerator.getEarthNightLightsMap()
+                : new THREE.Texture();
+
+            const earthMaterial = new THREE.MeshStandardMaterial({
                 map: texture,
                 roughnessMap: roughnessMap,
                 roughness: 0.9,
                 metalness: 0.05,
                 color: 0xffffff
             });
+            earthMaterial.customProgramCacheKey = () => 'earth-day-night-v1';
+            earthMaterial.onBeforeCompile = (shader) => {
+                shader.uniforms.tNightLights = { value: nightLightsMap };
+                shader.vertexShader = shader.vertexShader
+                    .replace(
+                        '#include <common>',
+                        `#include <common>
+                        varying vec2 vEarthUv;
+                        varying vec3 vEarthWorldPos;
+                        varying vec3 vEarthWorldNormal;`
+                    )
+                    .replace(
+                        '#include <project_vertex>',
+                        `#include <project_vertex>
+                        vEarthUv = uv;
+                        vEarthWorldPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
+                        vEarthWorldNormal = normalize( mat3( modelMatrix ) * objectNormal );`
+                    );
+
+                shader.fragmentShader = shader.fragmentShader
+                    .replace(
+                        '#include <common>',
+                        `#include <common>
+                        uniform sampler2D tNightLights;
+                        varying vec2 vEarthUv;
+                        varying vec3 vEarthWorldPos;
+                        varying vec3 vEarthWorldNormal;`
+                    )
+                    .replace(
+                        '#include <opaque_fragment>',
+                        `vec3 earthSunDir = length( vEarthWorldPos ) > 0.0001 ? normalize( -vEarthWorldPos ) : vec3( 1.0, 0.0, 0.0 );
+                        float earthSunDot = dot( normalize( vEarthWorldNormal ), earthSunDir );
+                        float dayMask = smoothstep( -0.02, 0.14, earthSunDot );
+
+                        // Minnaert / Rayleigh planetary daylight curve so mid/high-latitude daytime (e.g. winter Europe)
+                        // and deep-blue oceans stay unmistakably sunlit right up to civil sunset without blowing out snow/ice
+                        float minnaertGain = earthSunDot > 0.001
+                            ? ( pow( earthSunDot, 0.56 ) / max( earthSunDot, 0.08 ) )
+                            : 0.0;
+                        float iceGuard = 1.0 - smoothstep( 0.36, 0.72, max3( diffuseColor.rgb ) );
+                        vec3 boostedDayDiffuse = reflectedLight.directDiffuse * mix( 1.0, min( 2.15, minnaertGain * 1.18 ), iceGuard );
+
+                        float oceanMask = 1.0 - smoothstep( 0.18, 0.42, roughnessFactor );
+                        float dayInsolation = pow( max( earthSunDot, 0.0 ), 0.58 );
+                        vec3 oceanDayScatter = vec3( 0.015, 0.052, 0.135 ) * oceanMask * dayInsolation;
+                        vec3 skyDayScatter = vec3( 0.008, 0.020, 0.044 ) * dayMask * ( 0.35 + 0.65 * dayInsolation ) * iceGuard;
+
+                        // Suppress flat ambient wash on the night hemisphere while preserving subtle moonlit/airglow silhouette
+                        float nightAmbientScale = mix( 0.12, 1.0, smoothstep( -0.08, 0.08, earthSunDot ) );
+                        vec3 nightAirglow = ( diffuseColor.rgb * 0.22 + vec3( 0.0016, 0.0032, 0.0078 ) ) * ( 1.0 - dayMask );
+
+                        // Warm golden-amber atmospheric twilight ribbon along the solar terminator (0 deg horizon)
+                        float terminatorBand = exp( -pow( ( earthSunDot - 0.005 ) / 0.062, 2.0 ) );
+                        vec3 terminatorGlow = ( diffuseColor.rgb * 0.9 + vec3( 0.055, 0.032, 0.018 ) ) * vec3( 1.38, 0.52, 0.14 ) * terminatorBand * 0.58;
+
+                        // Geographically accurate nighttime city lights clipped to 2048x1024 land coastlines
+                        float cityNightMask = smoothstep( 0.04, -0.11, earthSunDot );
+                        float landMask = smoothstep( 0.50, 0.72, roughnessFactor );
+                        float minAlbedo = min( diffuseColor.r, min( diffuseColor.g, diffuseColor.b ) );
+                        float glacierMask = 1.0 - smoothstep( 0.28, 0.50, minAlbedo );
+                        float cityDensity = texture2D( tNightLights, vEarthUv ).r * landMask * glacierMask * cityNightMask;
+                        float cityCore = smoothstep( 0.35, 0.85, cityDensity );
+                        vec3 cityColor = mix( vec3( 1.0, 0.54, 0.14 ), vec3( 1.0, 0.88, 0.58 ), cityCore );
+                        vec3 cityEmission = cityColor * pow( cityDensity, 0.88 ) * 0.64;
+
+                        outgoingLight = boostedDayDiffuse
+                            + reflectedLight.indirectDiffuse * nightAmbientScale
+                            + totalSpecular * dayMask
+                            + oceanDayScatter
+                            + skyDayScatter
+                            + nightAirglow
+                            + terminatorGlow
+                            + cityEmission
+                            + totalEmissiveRadiance;
+                        #include <opaque_fragment>`
+                    );
+            };
+            material = earthMaterial;
         } else if (this.data.name === 'Moon') {
             // Defer Lunar Reconnaissance Orbiter equirectangular map (~414 KB) behind shared 8x4 placeholder
             // at boot (Moon.mesh is distance-culled in the wide overview) and decode off-thread on approach/focus
@@ -448,17 +530,64 @@ export class CelestialBody {
         if (this.data.name === 'Earth') {
             // Earth Cloud Sphere - seamless 2:1 equirectangular crisp white cloud deck (deferred until close/focus)
             const cloudGeometry = new THREE.SphereGeometry(this.data.radius * 1.008, 32, 32);
-            const buildCloudMaterial = (cloudTexture: THREE.Texture) => new THREE.MeshStandardMaterial({
-                map: cloudTexture,
-                transparent: true,
-                opacity: 0.88,
-                roughness: 0.35,
-                metalness: 0.0,
-                color: 0xffffff,
-                side: THREE.FrontSide,
-                blending: THREE.NormalBlending,
-                depthWrite: false
-            });
+            const buildCloudMaterial = (cloudTexture: THREE.Texture) => {
+                const cloudMat = new THREE.MeshStandardMaterial({
+                    map: cloudTexture,
+                    transparent: true,
+                    opacity: 0.88,
+                    roughness: 0.35,
+                    metalness: 0.0,
+                    color: 0xffffff,
+                    side: THREE.FrontSide,
+                    blending: THREE.NormalBlending,
+                    depthWrite: false
+                });
+                cloudMat.customProgramCacheKey = () => 'earth-clouds-day-night-v1';
+                cloudMat.onBeforeCompile = (shader) => {
+                    shader.vertexShader = shader.vertexShader
+                        .replace(
+                            '#include <common>',
+                            `#include <common>
+                            varying vec3 vCloudWorldPos;
+                            varying vec3 vCloudWorldNormal;`
+                        )
+                        .replace(
+                            '#include <project_vertex>',
+                            `#include <project_vertex>
+                            vCloudWorldPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
+                            vCloudWorldNormal = normalize( mat3( modelMatrix ) * objectNormal );`
+                        );
+                    shader.fragmentShader = shader.fragmentShader
+                        .replace(
+                            '#include <common>',
+                            `#include <common>
+                            varying vec3 vCloudWorldPos;
+                            varying vec3 vCloudWorldNormal;`
+                        )
+                        .replace(
+                            '#include <opaque_fragment>',
+                            `vec3 cloudSunDir = length( vCloudWorldPos ) > 0.0001 ? normalize( -vCloudWorldPos ) : vec3( 1.0, 0.0, 0.0 );
+                            float cloudSunDot = dot( normalize( vCloudWorldNormal ), cloudSunDir );
+                            float cloudDayMask = smoothstep( -0.05, 0.10, cloudSunDot );
+                            float cloudGain = cloudSunDot > 0.001
+                                ? min( 1.55, pow( cloudSunDot, 0.62 ) / max( cloudSunDot, 0.12 ) )
+                                : 0.0;
+                            float cloudTwilight = exp( -pow( ( cloudSunDot - 0.008 ) / 0.068, 2.0 ) );
+                            vec3 cloudSunsetTint = vec3( 1.0, 0.56, 0.24 ) * cloudTwilight * 0.46;
+
+                            // Keep sunlit clouds crisp white up to sunset, tint warm coral along the terminator,
+                            // and prevent ambient light from turning night-side clouds into a grey blanket
+                            outgoingLight = reflectedLight.directDiffuse * cloudGain
+                                + reflectedLight.indirectDiffuse * mix( 0.04, 1.0, cloudDayMask )
+                                + totalSpecular * cloudDayMask
+                                + cloudSunsetTint
+                                + totalEmissiveRadiance;
+                            diffuseColor.a *= mix( 0.28, 1.0, smoothstep( -0.08, 0.06, cloudSunDot ) );
+                            #include <opaque_fragment>`
+                        );
+                };
+                return cloudMat;
+            };
             const cloudMaterial = typeof TextureGenerator.getOrDeferPlanetSurface === 'function'
                 ? TextureGenerator.getOrDeferPlanetSurface('EarthClouds', 0xffffff, buildCloudMaterial)
                 : buildCloudMaterial(TextureGenerator.getPlanetTexture('EarthClouds'));
@@ -665,7 +794,7 @@ export class CelestialBody {
 
     createAtmosphere() {
         const atmosphereConfigs: Record<string, { color: number; scale: number; coefficient: number; power: number }> = {
-            'Earth': { color: 0x38bdf8, scale: 1.018, coefficient: 0.42, power: 4.2 },
+            'Earth': { color: 0x38bdf8, scale: 1.018, coefficient: 0.52, power: 3.9 },
             'Venus': { color: 0xf59e0b, scale: 1.022, coefficient: 0.44, power: 3.6 },
             'Mars': { color: 0xf97316, scale: 1.012, coefficient: 0.28, power: 4.8 },
             'Jupiter': { color: 0xfde68a, scale: 1.012, coefficient: 0.28, power: 4.4 },
@@ -720,12 +849,13 @@ export class CelestialBody {
                     vec3 sunDir = length(vWorldPos) > 0.0001 ? normalize(-vWorldPos) : vec3(0.0, 1.0, 0.0);
                     float sunDot = dot(normalize(vWorldNormal), sunDir);
 
-                    // Day-side Rayleigh scattering + twilight terminator band, fading to 6% subtle airglow on night side
-                    float dayScatter = mix(0.06, 1.0, smoothstep(-0.32, 0.42, sunDot));
-                    float twilightBand = exp(-pow((sunDot + 0.04) * 3.6, 2.0)) * 0.32;
-                    vec3 scatteredColor = mix(glowColor, glowColor * vec3(1.22, 0.86, 0.68), twilightBand);
+                    // Crisp day-side Rayleigh scattering + warm sunset terminator rim, dropping to 2% airglow on night side
+                    float dayScatter = mix(0.02, 1.0, smoothstep(-0.09, 0.20, sunDot));
+                    float twilightBand = exp(-pow((sunDot - 0.01) * 9.5, 2.0));
+                    vec3 scatteredColor = mix(glowColor, vec3(1.0, 0.48, 0.16), twilightBand * 0.72);
+                    float terminatorBoost = 1.0 + twilightBand * 0.45;
 
-                    float intensity = pow(fresnel, power) * coefficient * dayScatter;
+                    float intensity = pow(fresnel, power) * coefficient * dayScatter * terminatorBoost;
                     gl_FragColor = vec4(scatteredColor, intensity);
                 }
             `,
@@ -1531,7 +1661,7 @@ export class CelestialBody {
         }
 
         if (this.atmosphereMesh) {
-            const atmoMaxDist = effectiveRadius * 55;
+            const atmoMaxDist = effectiveRadius * 95;
             const showAtmo = isFocused || distSq <= atmoMaxDist * atmoMaxDist;
             this.atmosphereMesh.visible = showAtmo;
             if (showAtmo) {

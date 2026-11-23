@@ -360,4 +360,39 @@ describe('CelestialBody', () => {
         expect(earth.labelSprite?.material.depthTest).toBe(true);
         expect(earth.labelSprite?.material.depthWrite).toBe(false);
     });
+
+    it('enhances Earth surface and cloud shaders with crisp day-night terminator, Minnaert daylight lift, and nighttime city lights', () => {
+        const earthData = SolarSystemData.find(b => b.name === 'Earth')!;
+        const earth = new CelestialBody(earthData, parentGroup);
+
+        const earthMat = earth.mesh?.material as THREE.MeshStandardMaterial;
+        expect(earthMat).toBeInstanceOf(THREE.MeshStandardMaterial);
+        expect(earthMat.customProgramCacheKey?.()).toBe('earth-day-night-v1');
+
+        const mockEarthShader: any = {
+            uniforms: {},
+            vertexShader: THREE.ShaderLib.standard.vertexShader,
+            fragmentShader: THREE.ShaderLib.standard.fragmentShader
+        };
+        earthMat.onBeforeCompile(mockEarthShader, {} as any);
+
+        expect(mockEarthShader.uniforms.tNightLights?.value).toBeInstanceOf(THREE.Texture);
+        expect(mockEarthShader.vertexShader).toContain('vEarthWorldNormal');
+        expect(mockEarthShader.fragmentShader).toContain('terminatorGlow');
+        expect(mockEarthShader.fragmentShader).toContain('cityEmission');
+        expect(mockEarthShader.fragmentShader).toContain('oceanDayScatter');
+
+        const cloudMat = earth.cloudMesh?.material as THREE.MeshStandardMaterial;
+        expect(cloudMat).toBeInstanceOf(THREE.MeshStandardMaterial);
+        expect(cloudMat.customProgramCacheKey?.()).toBe('earth-clouds-day-night-v1');
+
+        const mockCloudShader: any = {
+            uniforms: {},
+            vertexShader: THREE.ShaderLib.standard.vertexShader,
+            fragmentShader: THREE.ShaderLib.standard.fragmentShader
+        };
+        cloudMat.onBeforeCompile(mockCloudShader, {} as any);
+        expect(mockCloudShader.fragmentShader).toContain('cloudSunsetTint');
+        expect(mockCloudShader.fragmentShader).toContain('cloudDayMask');
+    });
 });
