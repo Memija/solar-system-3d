@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solar-system-v9';
+const CACHE_NAME = 'solar-system-v10';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -12,6 +12,7 @@ self.addEventListener('install', (event) => {
         './icon-192.png',
         './textures/earth_equirectangular.webp',
         './textures/earth_roughness.webp',
+        './textures/earth_lights.webp',
         './textures/milky_way.webp',
         './textures/planets/Mercury_bump.webp',
         './textures/planets/Mars_bump.webp',

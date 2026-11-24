@@ -339,12 +339,14 @@ export class CelestialBody {
             material = sunMaterial;
             this.shaderMaterial = sunMaterial;
         } else if (this.data.name === 'Earth') {
-            // High-resolution NASA Blue Marble WebP satellite map + pre-baked static ocean/ice/land roughness map
-            // (both decoded off-thread via createImageBitmap, eliminating synchronous 2D canvas getImageData readback)
+            // High-resolution NASA Blue Marble WebP satellite map + NASA Black Marble night-lights map +
+            // pre-baked static ocean/ice/land roughness map (all decoded off-thread via createImageBitmap)
             const textureUrl = `${import.meta.env.BASE_URL}textures/earth_equirectangular.webp`;
             const roughnessUrl = `${import.meta.env.BASE_URL}textures/earth_roughness.webp`;
+            const lightsUrl = `${import.meta.env.BASE_URL}textures/earth_lights.webp`;
             let texture: THREE.Texture;
             let roughnessMap: THREE.Texture;
+            let nightLightsMap: THREE.Texture;
 
             if (typeof TextureGenerator.loadStaticImageTexture === 'function') {
                 texture = TextureGenerator.loadStaticImageTexture(textureUrl, {
@@ -359,6 +361,13 @@ export class CelestialBody {
                     wrapS: THREE.RepeatWrapping,
                     wrapT: THREE.ClampToEdgeWrapping
                 });
+                nightLightsMap = TextureGenerator.loadStaticImageTexture(lightsUrl, {
+                    colorSpace: THREE.SRGBColorSpace,
+                    anisotropy: TextureGenerator.maxAnisotropy,
+                    minFilter: THREE.LinearMipmapLinearFilter,
+                    wrapS: THREE.RepeatWrapping,
+                    wrapT: THREE.ClampToEdgeWrapping
+                });
             } else {
                 roughnessMap = TextureGenerator.getPlanetRoughnessMap('Earth');
                 texture = new THREE.TextureLoader().load(textureUrl, (loadedTex) => {
@@ -366,11 +375,11 @@ export class CelestialBody {
                         TextureGenerator.updateEarthRoughnessFromImage(loadedTex.image);
                     }
                 });
+                nightLightsMap = new THREE.TextureLoader().load(lightsUrl);
+                nightLightsMap.colorSpace = THREE.SRGBColorSpace;
+                nightLightsMap.wrapS = THREE.RepeatWrapping;
+                nightLightsMap.wrapT = THREE.ClampToEdgeWrapping;
             }
-
-            const nightLightsMap = typeof TextureGenerator.getEarthNightLightsMap === 'function'
-                ? TextureGenerator.getEarthNightLightsMap()
-                : new THREE.Texture();
 
             const earthMaterial = new THREE.MeshStandardMaterial({
                 map: texture,
@@ -379,7 +388,7 @@ export class CelestialBody {
                 metalness: 0.05,
                 color: 0xffffff
             });
-            earthMaterial.customProgramCacheKey = () => 'earth-day-night-v1';
+            earthMaterial.customProgramCacheKey = () => 'earth-day-night-v2';
             earthMaterial.onBeforeCompile = (shader) => {
                 shader.uniforms.tNightLights = { value: nightLightsMap };
                 shader.vertexShader = shader.vertexShader
@@ -426,27 +435,29 @@ export class CelestialBody {
                         vec3 oceanDayScatter = vec3( 0.015, 0.052, 0.135 ) * oceanMask * dayInsolation;
                         vec3 skyDayScatter = vec3( 0.008, 0.020, 0.044 ) * dayMask * ( 0.35 + 0.65 * dayInsolation ) * iceGuard;
 
-                        // Suppress flat ambient wash on the night hemisphere while preserving subtle moonlit/airglow silhouette
-                        float nightAmbientScale = mix( 0.12, 1.0, smoothstep( -0.08, 0.08, earthSunDot ) );
-                        vec3 nightAirglow = ( diffuseColor.rgb * 0.22 + vec3( 0.0016, 0.0032, 0.0078 ) ) * ( 1.0 - dayMask );
+                        // Suppress flat ambient wash on the night hemisphere while preserving subtle moonlit silhouette
+                        float nightAmbientScale = mix( 0.03, 1.0, smoothstep( -0.06, 0.10, earthSunDot ) );
+                        vec3 nightAirglow = ( diffuseColor.rgb * vec3( 0.008, 0.011, 0.018 ) + vec3( 0.0006, 0.0013, 0.0036 ) ) * ( 1.0 - dayMask );
+                        float specDayMask = smoothstep( 0.03, 0.26, earthSunDot );
 
                         // Warm golden-amber atmospheric twilight ribbon along the solar terminator (0 deg horizon)
-                        float terminatorBand = exp( -pow( ( earthSunDot - 0.005 ) / 0.062, 2.0 ) );
-                        vec3 terminatorGlow = ( diffuseColor.rgb * 0.9 + vec3( 0.055, 0.032, 0.018 ) ) * vec3( 1.38, 0.52, 0.14 ) * terminatorBand * 0.58;
+                        float terminatorBand = exp( -pow( ( earthSunDot - 0.012 ) / 0.055, 2.0 ) );
+                        vec3 terminatorGlow = ( diffuseColor.rgb * 0.75 + vec3( 0.038, 0.022, 0.012 ) ) * vec3( 1.32, 0.48, 0.12 ) * terminatorBand * 0.52;
 
-                        // Geographically accurate nighttime city lights clipped to 2048x1024 land coastlines
-                        float cityNightMask = smoothstep( 0.04, -0.11, earthSunDot );
-                        float landMask = smoothstep( 0.50, 0.72, roughnessFactor );
-                        float minAlbedo = min( diffuseColor.r, min( diffuseColor.g, diffuseColor.b ) );
-                        float glacierMask = 1.0 - smoothstep( 0.28, 0.50, minAlbedo );
-                        float cityDensity = texture2D( tNightLights, vEarthUv ).r * landMask * glacierMask * cityNightMask;
-                        float cityCore = smoothstep( 0.35, 0.85, cityDensity );
-                        vec3 cityColor = mix( vec3( 1.0, 0.54, 0.14 ), vec3( 1.0, 0.88, 0.58 ), cityCore );
-                        vec3 cityEmission = cityColor * pow( cityDensity, 0.88 ) * 0.64;
+                        // Authentic 2048x1024 NASA Black Marble satellite city lights:
+                        // pinpoint street/highway filaments + mip-scattered warm sodium atmospheric halo
+                        float cityNightMask = smoothstep( 0.02, -0.09, earthSunDot );
+                        float limbTransmit = mix( 0.48, 1.0, clamp( dot( normalize( normal ), normalize( vViewPosition ) ), 0.0, 1.0 ) );
+                        vec3 nightLightsSample = texture2D( tNightLights, vEarthUv ).rgb;
+                        vec3 nightLightsHalo = texture2D( tNightLights, vEarthUv, 2.4 ).rgb;
+                        float cityLum = max( nightLightsSample.r, nightLightsSample.g );
+                        vec3 crispCityLights = mix( vec3( 1.0, 0.48, 0.12 ), vec3( 1.0, 0.86, 0.56 ), smoothstep( 0.10, 0.72, cityLum ) ) * pow( cityLum, 0.85 ) * 1.12;
+                        vec3 haloCityLights = vec3( 1.0, 0.42, 0.09 ) * nightLightsHalo.r * 0.40;
+                        vec3 cityEmission = ( crispCityLights + haloCityLights ) * cityNightMask * limbTransmit;
 
                         outgoingLight = boostedDayDiffuse
                             + reflectedLight.indirectDiffuse * nightAmbientScale
-                            + totalSpecular * dayMask
+                            + totalSpecular * specDayMask
                             + oceanDayScatter
                             + skyDayScatter
                             + nightAirglow
@@ -582,7 +593,7 @@ export class CelestialBody {
                                 + totalSpecular * cloudDayMask
                                 + cloudSunsetTint
                                 + totalEmissiveRadiance;
-                            diffuseColor.a *= mix( 0.28, 1.0, smoothstep( -0.08, 0.06, cloudSunDot ) );
+                            diffuseColor.a *= mix( 0.16, 1.0, smoothstep( -0.08, 0.06, cloudSunDot ) );
                             #include <opaque_fragment>`
                         );
                 };

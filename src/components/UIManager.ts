@@ -826,7 +826,47 @@ export class UIManager {
         bodySelect.setAttribute('aria-label', bodySelect.title);
         this.headerBodySelect = bodySelect;
 
+        let reselectArmedOpen = false;
+        let handledByPointerDown = false;
+        let lastHandledInTickValue: string | null = null;
+
+        const cleanupBodyReselectMirror = () => {
+            reselectArmedOpen = false;
+            const mirror = bodySelect.querySelector('option[data-reselect-mirror]') as HTMLOptionElement | null;
+            if (!mirror) return;
+            const selectedOpt = bodySelect.options[bodySelect.selectedIndex];
+            const targetVal = selectedOpt ? selectedOpt.value : mirror.value;
+            mirror.remove();
+            const match = Array.from(bodySelect.options).find(o => o.value === targetVal);
+            if (match) {
+                bodySelect.selectedIndex = match.index;
+            }
+        };
+
+        const armBodyReselectMirror = () => {
+            if (bodySelect.querySelector('option[data-reselect-mirror]')) {
+                if (reselectArmedOpen) {
+                    cleanupBodyReselectMirror();
+                }
+                return;
+            }
+            const cur = bodySelect.options[bodySelect.selectedIndex];
+            if (!cur) return;
+            const mirror = document.createElement('option');
+            mirror.value = cur.value;
+            mirror.textContent = cur.textContent;
+            mirror.hidden = true;
+            mirror.style.display = 'none';
+            mirror.setAttribute('data-reselect-mirror', 'true');
+            cur.after(mirror);
+            bodySelect.selectedIndex = mirror.index;
+            reselectArmedOpen = false;
+        };
+
+        let triggerBodySelection: (fromFallback?: boolean) => void = () => {};
+
         const updateBodyOptions = () => {
+            cleanupBodyReselectMirror();
             const currentVal = bodySelect.value;
             bodySelect.innerHTML = '';
             const selectedType = typeSelect.value || 'Planet';
@@ -835,6 +875,11 @@ export class UIManager {
                 const option = document.createElement('option');
                 option.value = val;
                 option.textContent = text;
+                option.addEventListener('click', () => {
+                    cleanupBodyReselectMirror();
+                    bodySelect.value = val;
+                    triggerBodySelection(true);
+                });
                 bodySelect.appendChild(option);
             };
 
@@ -902,9 +947,18 @@ export class UIManager {
             }
         });
 
-        bodySelect.addEventListener('change', () => {
+        triggerBodySelection = (fromFallback: boolean = false) => {
+            cleanupBodyReselectMirror();
             if (this.ignoreNextBodyChange) return;
+
             const selectedName = bodySelect.value;
+            if (!selectedName) return;
+            if (fromFallback && lastHandledInTickValue === selectedName) return;
+            lastHandledInTickValue = selectedName;
+            queueMicrotask(() => {
+                lastHandledInTickValue = null;
+            });
+
             this.cameraTarget = selectedName;
             const selectedType = typeSelect.value;
 
@@ -977,6 +1031,42 @@ export class UIManager {
                     this.showModal(foundData);
                 }
             }
+        };
+
+        bodySelect.addEventListener('pointerdown', () => {
+            handledByPointerDown = true;
+            armBodyReselectMirror();
+        });
+        bodySelect.addEventListener('mousedown', () => {
+            if (handledByPointerDown) return;
+            armBodyReselectMirror();
+        });
+        bodySelect.addEventListener('mouseup', () => {
+            handledByPointerDown = false;
+        });
+        bodySelect.addEventListener('click', (e: MouseEvent) => {
+            handledByPointerDown = false;
+            if (e.detail === 0) {
+                cleanupBodyReselectMirror();
+                triggerBodySelection(true);
+            } else if (bodySelect.querySelector('option[data-reselect-mirror]')) {
+                reselectArmedOpen = true;
+            }
+        });
+        bodySelect.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                cleanupBodyReselectMirror();
+            } else if (e.key === 'Enter') {
+                cleanupBodyReselectMirror();
+                triggerBodySelection(true);
+            }
+        });
+        bodySelect.addEventListener('blur', () => {
+            handledByPointerDown = false;
+            cleanupBodyReselectMirror();
+        });
+        bodySelect.addEventListener('change', () => {
+            triggerBodySelection(false);
         });
 
         // Initialize the Unified Control Center
@@ -1552,6 +1642,8 @@ export class UIManager {
         if (typeSelect && bodySelect) {
             this.ignoreNextBodyChange = true;
             try {
+                const strayMirror = bodySelect.querySelector('option[data-reselect-mirror]');
+                if (strayMirror) strayMirror.remove();
                 if (typeSelect.value !== determinedType) {
                     typeSelect.value = determinedType;
                     typeSelect.dispatchEvent(new Event('change'));

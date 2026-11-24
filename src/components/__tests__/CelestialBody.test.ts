@@ -367,7 +367,7 @@ describe('CelestialBody', () => {
 
         const earthMat = earth.mesh?.material as THREE.MeshStandardMaterial;
         expect(earthMat).toBeInstanceOf(THREE.MeshStandardMaterial);
-        expect(earthMat.customProgramCacheKey?.()).toBe('earth-day-night-v1');
+        expect(earthMat.customProgramCacheKey?.()).toBe('earth-day-night-v2');
 
         const mockEarthShader: any = {
             uniforms: {},
@@ -379,6 +379,8 @@ describe('CelestialBody', () => {
         expect(mockEarthShader.uniforms.tNightLights?.value).toBeInstanceOf(THREE.Texture);
         expect(mockEarthShader.vertexShader).toContain('vEarthWorldNormal');
         expect(mockEarthShader.fragmentShader).toContain('terminatorGlow');
+        expect(mockEarthShader.fragmentShader).toContain('nightLightsSample');
+        expect(mockEarthShader.fragmentShader).toContain('limbTransmit');
         expect(mockEarthShader.fragmentShader).toContain('cityEmission');
         expect(mockEarthShader.fragmentShader).toContain('oceanDayScatter');
 

@@ -1370,4 +1370,57 @@ describe('UIManager', () => {
         expect(uiManager.eventModal.titleElement?.textContent).toBe('Cassini-Huygens Launch');
         expect(uiManager.eventModal.contentElement.textContent).toContain('Titan');
     });
+
+    it('brings Earth into view when clicking already-selected Earth in bodySelect on startup without firing on cancel', () => {
+        uiManager.dispose();
+        uiContainer.innerHTML = '';
+
+        sceneManager.measureMode = false;
+        sceneManager.focusedBody = null;
+        sceneManager.focusOnBody = vi.fn((name: string) => {
+            sceneManager.focusedBody = sceneManager.planets.find((p: any) => p.data.name === name) || null;
+        });
+        sceneManager.planets = [
+            { data: { name: 'Mercury', description: 'Innermost planet' }, moons: [] },
+            { data: { name: 'Venus', description: 'Second planet' }, moons: [] },
+            { data: { name: 'Earth', description: 'Blue marble' }, moons: [] },
+            { data: { name: 'Mars', description: 'Red planet' }, moons: [] }
+        ];
+
+        uiManager = new UIManager(sceneManager);
+        const showModalSpy = vi.spyOn(uiManager, 'showModal');
+        const bodySelect = uiContainer.querySelector('#bodySelect') as HTMLSelectElement;
+
+        // On startup, Earth is already selected in the dropdown, while camera is still at Solar System overview
+        expect(bodySelect.value).toBe('Earth');
+        expect(sceneManager.focusedBody).toBeNull();
+        expect(sceneManager.focusOnBody).not.toHaveBeenCalled();
+
+        // 1. Opening dropdown and dismissing via blur (clicking outside) must NOT focus Earth or leave mirror options behind
+        bodySelect.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        expect(bodySelect.value).toBe('Earth');
+        expect(bodySelect.querySelectorAll('option[data-reselect-mirror]').length).toBe(1);
+
+        bodySelect.dispatchEvent(new FocusEvent('blur'));
+        expect(bodySelect.querySelectorAll('option[data-reselect-mirror]').length).toBe(0);
+        expect(bodySelect.value).toBe('Earth');
+        expect(sceneManager.focusOnBody).not.toHaveBeenCalled();
+
+        // 2. Opening dropdown and clicking the already-selected Earth option switches from hidden mirror -> real Earth option, firing change
+        bodySelect.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        const realEarthOption = Array.from(bodySelect.options).find(
+            o => o.value === 'Earth' && !o.hasAttribute('data-reselect-mirror')
+        )!;
+        expect(realEarthOption).toBeDefined();
+        expect(bodySelect.selectedIndex).not.toBe(realEarthOption.index);
+
+        bodySelect.selectedIndex = realEarthOption.index;
+        bodySelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        expect(bodySelect.querySelectorAll('option[data-reselect-mirror]').length).toBe(0);
+        expect(bodySelect.value).toBe('Earth');
+        expect(sceneManager.focusOnBody).toHaveBeenCalledTimes(1);
+        expect(sceneManager.focusOnBody).toHaveBeenCalledWith('Earth');
+        expect(showModalSpy).toHaveBeenCalledWith(expect.objectContaining({ name: 'Earth' }));
+    });
 });

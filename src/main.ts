@@ -78,6 +78,7 @@ if (hasWebGL2Api) {
   TextureGenerator.preloadStaticImageBitmap(`${baseUrl}textures/milky_way.webp`);
   TextureGenerator.preloadStaticImageBitmap(`${baseUrl}textures/earth_equirectangular.webp`);
   TextureGenerator.preloadStaticImageBitmap(`${baseUrl}textures/earth_roughness.webp`);
+  TextureGenerator.preloadStaticImageBitmap(`${baseUrl}textures/earth_lights.webp`);
   prewarmPromise = TextureGenerator.prewarmTexturesAsync(PREWARM_WORLD_TEXTURES, (done, total) => {
     earlyPrewarmProgress?.(done, total);
   });
