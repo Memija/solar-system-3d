@@ -19,7 +19,9 @@ export function buildAsteroidBelt(scene: THREE.Scene, visible: boolean): THREE.I
     // TetrahedronGeometry(0.55, 0) uses 4 triangles/rock instead of 36 (DodecahedronGeometry),
     // paired with Lambert diffuse solar lighting to eliminate GGX/PMREM PBR overhead across 2,000 sub-pixel rocks.
     const geometry = new THREE.TetrahedronGeometry(0.55, 0);
-    const material = new THREE.MeshLambertMaterial();
+    const material = new THREE.MeshLambertMaterial({
+        emissive: 0x0d1018
+    });
 
     const asteroidBelt = new THREE.InstancedMesh(geometry, material, numAsteroids);
     asteroidBelt.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 260);
@@ -77,7 +79,9 @@ export function buildKuiperBelt(scene: THREE.Scene, visible: boolean): THREE.Ins
     // TetrahedronGeometry(0.88, 0) uses 4 triangles/rock instead of 36 (DodecahedronGeometry),
     // paired with Lambert diffuse solar lighting across 2,500 sub-pixel Kuiper belt bodies.
     const geometry = new THREE.TetrahedronGeometry(0.88, 0);
-    const material = new THREE.MeshLambertMaterial();
+    const material = new THREE.MeshLambertMaterial({
+        emissive: 0x0e131d
+    });
 
     const kuiperBelt = new THREE.InstancedMesh(geometry, material, numObjects);
     kuiperBelt.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 860);

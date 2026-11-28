@@ -397,4 +397,53 @@ describe('CelestialBody', () => {
         expect(mockCloudShader.fragmentShader).toContain('cloudSunsetTint');
         expect(mockCloudShader.fragmentShader).toContain('cloudDayMask');
     });
+
+    it('adds Earthshine and bump-shaded dark-side relief to the Moon material so lunar craters remain visible in shadow', () => {
+        const earthData = SolarSystemData.find(b => b.name === 'Earth')!;
+        const earth = new CelestialBody(earthData, parentGroup);
+        const moon = earth.moons.find(m => m.data.name === 'Moon')!;
+        expect(moon).toBeDefined();
+
+        const moonMat = moon.mesh?.material as THREE.MeshStandardMaterial;
+        expect(moonMat).toBeInstanceOf(THREE.MeshStandardMaterial);
+        expect(moonMat.customProgramCacheKey?.()).toBe('moon-earthshine-v1');
+
+        const mockMoonShader: any = {
+            uniforms: {},
+            vertexShader: THREE.ShaderLib.standard.vertexShader,
+            fragmentShader: THREE.ShaderLib.standard.fragmentShader
+        };
+        moonMat.onBeforeCompile(mockMoonShader, {} as any);
+
+        expect(mockMoonShader.vertexShader).toContain('vMoonEarthDirView');
+        expect(mockMoonShader.fragmentShader).toContain('earthshineColor');
+        expect(mockMoonShader.fragmentShader).toContain('starlightFill');
+        expect(mockMoonShader.fragmentShader).toContain('lunarDarkSideFill');
+    });
+
+    it('keeps all other planets, moons, and planetary rings legible when observed from their dark side toward the Sun', () => {
+        for (const name of ['Mercury', 'Mars', 'Jupiter', 'Saturn', 'Neptune', 'Pluto']) {
+            const raw = SolarSystemData.find(b => b.name === name)!;
+            const body = new CelestialBody({ ...raw, moons: [] }, parentGroup);
+            const mat = body.mesh?.material as THREE.MeshStandardMaterial;
+            expect(mat).toBeInstanceOf(THREE.MeshStandardMaterial);
+            expect(mat.customProgramCacheKey?.()).toBe('celestial-darkside-v1');
+
+            const mockShader: any = {
+                uniforms: {},
+                vertexShader: THREE.ShaderLib.standard.vertexShader,
+                fragmentShader: THREE.ShaderLib.standard.fragmentShader
+            };
+            mat.onBeforeCompile(mockShader, {} as any);
+            expect(mockShader.vertexShader).toContain('vBodyWorldNormal');
+            expect(mockShader.fragmentShader).toContain('bodyStarlight');
+            expect(mockShader.fragmentShader).toContain('darkSideFill');
+
+            if (name === 'Saturn') {
+                expect(body.ringMeshes.length).toBeGreaterThan(0);
+                const ringMat = body.ringMeshes[0].material as THREE.MeshStandardMaterial;
+                expect(ringMat.emissiveIntensity).toBeGreaterThan(0.05);
+            }
+        }
+    });
 });

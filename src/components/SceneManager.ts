@@ -877,7 +877,7 @@ export class SceneManager {
         this.setupSurfaceLookControls();
 
         // Lighting (Sun)
-        this.ambientLight = new THREE.AmbientLight(0xffffff, this.realisticLighting ? 0.03 : 0.14);
+        this.ambientLight = new THREE.AmbientLight(0xffffff, this.realisticLighting ? 0.04 : 0.16);
         this.ambientLight.matrixAutoUpdate = false;
         this.ambientLight.updateMatrix?.();
         this.scene.add(this.ambientLight);
@@ -1707,7 +1707,7 @@ export class SceneManager {
         this.renderDirty = true;
         PreferencesManager.set('realisticLighting', visible);
         if (this.ambientLight) {
-            this.ambientLight.intensity = visible ? 0.03 : 0.14;
+            this.ambientLight.intensity = visible ? 0.04 : 0.16;
         }
         if (this.pointLight) {
             this.pointLight.intensity = visible ? 3.45 : 3.1;

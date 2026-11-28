@@ -435,9 +435,18 @@ export class CelestialBody {
                         vec3 oceanDayScatter = vec3( 0.015, 0.052, 0.135 ) * oceanMask * dayInsolation;
                         vec3 skyDayScatter = vec3( 0.008, 0.020, 0.044 ) * dayMask * ( 0.35 + 0.65 * dayInsolation ) * iceGuard;
 
-                        // Suppress flat ambient wash on the night hemisphere while preserving subtle moonlit silhouette
+                        // Suppress flat ambient wash on the night hemisphere while preserving subtle moonlit continent/ocean legibility
+                        // when observed directly from the dark side toward the Sun
+                        vec3 earthSurfN = normalize( normal );
+                        vec3 earthViewDir = normalize( vViewPosition );
                         float nightAmbientScale = mix( 0.03, 1.0, smoothstep( -0.06, 0.10, earthSunDot ) );
-                        vec3 nightAirglow = ( diffuseColor.rgb * vec3( 0.008, 0.011, 0.018 ) + vec3( 0.0006, 0.0013, 0.0036 ) ) * ( 1.0 - dayMask );
+                        float earthNightRelief = 0.50 + 0.50 * max( 0.0, dot( earthSurfN, normalize( vec3( 0.42, 0.50, 0.76 ) ) ) );
+                        float earthDarkRim = pow( 1.0 - clamp( dot( earthSurfN, earthViewDir ), 0.0, 1.0 ), 2.6 );
+                        vec3 nightAirglow = (
+                            diffuseColor.rgb * vec3( 0.042, 0.056, 0.084 ) * earthNightRelief
+                            + vec3( 0.0022, 0.0046, 0.0105 ) * earthNightRelief
+                            + vec3( 0.024, 0.068, 0.145 ) * earthDarkRim
+                        ) * ( 1.0 - dayMask );
                         float specDayMask = smoothstep( 0.03, 0.26, earthSunDot );
 
                         // Warm golden-amber atmospheric twilight ribbon along the solar terminator (0 deg horizon)
@@ -471,14 +480,68 @@ export class CelestialBody {
         } else if (this.data.name === 'Moon') {
             // Defer Lunar Reconnaissance Orbiter equirectangular map (~414 KB) behind shared 8x4 placeholder
             // at boot (Moon.mesh is distance-culled in the wide overview) and decode off-thread on approach/focus
-            const buildMoonMaterial = (texture: THREE.Texture, bumpMap: THREE.Texture | null) => new THREE.MeshStandardMaterial({
-                map: texture,
-                bumpMap: bumpMap ?? texture,
-                bumpScale: 0.018,
-                roughness: 0.92,
-                metalness: 0.02,
-                color: 0xffffff
-            });
+            const buildMoonMaterial = (texture: THREE.Texture, bumpMap: THREE.Texture | null) => {
+                const moonMat = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    bumpMap: bumpMap ?? texture,
+                    bumpScale: 0.028,
+                    roughness: 0.92,
+                    metalness: 0.02,
+                    color: 0xffffff
+                });
+                moonMat.customProgramCacheKey = () => 'moon-earthshine-v1';
+                moonMat.onBeforeCompile = (shader) => {
+                    shader.vertexShader = shader.vertexShader
+                        .replace(
+                            '#include <common>',
+                            `#include <common>
+                            varying vec3 vMoonWorldPos;
+                            varying vec3 vMoonWorldNormal;
+                            varying vec3 vMoonEarthDirView;`
+                        )
+                        .replace(
+                            '#include <project_vertex>',
+                            `#include <project_vertex>
+                            vMoonWorldPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
+                            vMoonWorldNormal = normalize( mat3( modelMatrix ) * objectNormal );
+                            // Moon is tidally locked so local +X always faces Earth (Earthshine source)
+                            vMoonEarthDirView = normalize( normalMatrix * vec3( 1.0, 0.0, 0.0 ) );`
+                        );
+
+                    shader.fragmentShader = shader.fragmentShader
+                        .replace(
+                            '#include <common>',
+                            `#include <common>
+                            varying vec3 vMoonWorldPos;
+                            varying vec3 vMoonWorldNormal;
+                            varying vec3 vMoonEarthDirView;`
+                        )
+                        .replace(
+                            '#include <opaque_fragment>',
+                            `vec3 moonSunDir = length( vMoonWorldPos ) > 0.0001 ? normalize( -vMoonWorldPos ) : vec3( 1.0, 0.0, 0.0 );
+                            float moonSunDot = dot( normalize( vMoonWorldNormal ), moonSunDir );
+                            float moonNightMask = 1.0 - smoothstep( -0.05, 0.16, moonSunDot );
+
+                            // Cool blue-silver Earthshine (ashen glow) + oblique starlight relief fill using bump-mapped normal
+                            // so lunar maria, craters, and far-side basins remain legible in 3D on the unlit hemisphere
+                            vec3 moonN = normalize( normal );
+                            vec3 moonV = normalize( vViewPosition );
+                            float earthFacing = max( 0.0, dot( moonN, normalize( vMoonEarthDirView ) ) );
+                            vec3 starKeyDir = normalize( vec3( 0.42, 0.50, 0.76 ) );
+                            float starRelief = 0.44 + 0.56 * max( 0.0, dot( moonN, starKeyDir ) );
+                            float darkRim = pow( 1.0 - clamp( dot( moonN, moonV ), 0.0, 1.0 ), 2.6 );
+
+                            vec3 earthshineColor = vec3( 0.68, 0.82, 1.05 ) * ( 0.058 * pow( earthFacing, 0.78 ) );
+                            vec3 starlightFill = vec3( 0.78, 0.84, 0.96 ) * ( 0.125 * starRelief );
+                            vec3 darkLimbLift = vec3( 0.028, 0.036, 0.052 ) * darkRim;
+
+                            vec3 lunarDarkSideFill = diffuseColor.rgb * ( earthshineColor + starlightFill + darkLimbLift ) * moonNightMask;
+                            outgoingLight += lunarDarkSideFill;
+                            #include <opaque_fragment>`
+                        );
+                };
+                return moonMat;
+            };
 
             if (typeof TextureGenerator.getOrDeferPlanetSurface === 'function' && typeof createImageBitmap === 'function') {
                 material = TextureGenerator.getOrDeferPlanetSurface('Moon', this.data.color, buildMoonMaterial);
@@ -502,13 +565,60 @@ export class CelestialBody {
             const isGasOrCloud = ['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Venus', 'Titan'].includes(this.data.name);
             const metalness = ['Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(this.data.name) ? 0.0 : 0.05;
             const roughness = isGasOrCloud ? 0.95 : 0.82;
-            const buildMaterial = (texture: THREE.Texture, bumpMap: THREE.Texture | null) => new THREE.MeshStandardMaterial({
-                map: texture,
-                ...(bumpMap ? { bumpMap, bumpScale: 0.02 } : {}),
-                roughness,
-                metalness,
-                color: 0xffffff
-            });
+            const buildMaterial = (texture: THREE.Texture, bumpMap: THREE.Texture | null) => {
+                const bodyMat = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    ...(bumpMap ? { bumpMap, bumpScale: 0.025 } : {}),
+                    roughness,
+                    metalness,
+                    color: 0xffffff
+                });
+                bodyMat.customProgramCacheKey = () => 'celestial-darkside-v1';
+                bodyMat.onBeforeCompile = (shader) => {
+                    shader.vertexShader = shader.vertexShader
+                        .replace(
+                            '#include <common>',
+                            `#include <common>
+                            varying vec3 vBodyWorldPos;
+                            varying vec3 vBodyWorldNormal;`
+                        )
+                        .replace(
+                            '#include <project_vertex>',
+                            `#include <project_vertex>
+                            vBodyWorldPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
+                            vBodyWorldNormal = normalize( mat3( modelMatrix ) * objectNormal );`
+                        );
+
+                    shader.fragmentShader = shader.fragmentShader
+                        .replace(
+                            '#include <common>',
+                            `#include <common>
+                            varying vec3 vBodyWorldPos;
+                            varying vec3 vBodyWorldNormal;`
+                        )
+                        .replace(
+                            '#include <opaque_fragment>',
+                            `vec3 bodySunDir = length( vBodyWorldPos ) > 0.0001 ? normalize( -vBodyWorldPos ) : vec3( 1.0, 0.0, 0.0 );
+                            float bodySunDot = dot( normalize( vBodyWorldNormal ), bodySunDir );
+                            float bodyNightMask = 1.0 - smoothstep( -0.05, 0.16, bodySunDot );
+
+                            // Subtle cosmic starlight & backlit rim relief on the unlit hemisphere so planets,
+                            // dwarf planets, and moons remain clearly readable in 3D when viewed toward the Sun
+                            vec3 bodyN = normalize( normal );
+                            vec3 bodyV = normalize( vViewPosition );
+                            float bodyRelief = 0.45 + 0.55 * max( 0.0, dot( bodyN, normalize( vec3( 0.42, 0.50, 0.76 ) ) ) );
+                            float bodyDarkRim = pow( 1.0 - clamp( dot( bodyN, bodyV ), 0.0, 1.0 ), 2.5 );
+                            float albedoAdapt = mix( 0.155, 0.105, smoothstep( 0.12, 0.50, max3( diffuseColor.rgb ) ) );
+
+                            vec3 bodyStarlight = vec3( 0.80, 0.86, 0.98 ) * ( albedoAdapt * bodyRelief );
+                            vec3 bodyLimbLift = vec3( 0.036, 0.044, 0.062 ) * bodyDarkRim;
+                            vec3 darkSideFill = ( diffuseColor.rgb * ( bodyStarlight + bodyLimbLift ) + vec3( 0.0014, 0.0018, 0.0028 ) * bodyRelief ) * bodyNightMask;
+                            outgoingLight += darkSideFill;
+                            #include <opaque_fragment>`
+                        );
+                };
+                return bodyMat;
+            };
 
             if (typeof TextureGenerator.getOrDeferPlanetSurface === 'function') {
                 material = TextureGenerator.getOrDeferPlanetSurface(this.data.name, this.data.color, buildMaterial);
@@ -860,8 +970,8 @@ export class CelestialBody {
                     vec3 sunDir = length(vWorldPos) > 0.0001 ? normalize(-vWorldPos) : vec3(0.0, 1.0, 0.0);
                     float sunDot = dot(normalize(vWorldNormal), sunDir);
 
-                    // Crisp day-side Rayleigh scattering + warm sunset terminator rim, dropping to 2% airglow on night side
-                    float dayScatter = mix(0.02, 1.0, smoothstep(-0.09, 0.20, sunDot));
+                    // Crisp day-side Rayleigh scattering + warm sunset terminator rim, leaving subtle backlit airglow on night limb
+                    float dayScatter = mix(0.06, 1.0, smoothstep(-0.09, 0.20, sunDot));
                     float twilightBand = exp(-pow((sunDot - 0.01) * 9.5, 2.0));
                     vec3 scatteredColor = mix(glowColor, vec3(1.0, 0.48, 0.16), twilightBand * 0.72);
                     float terminatorBoost = 1.0 + twilightBand * 0.45;
@@ -985,6 +1095,9 @@ export class CelestialBody {
 
         const material = new THREE.MeshStandardMaterial({
             map: ringTexture,
+            emissiveMap: ringTexture,
+            emissive: new THREE.Color(0x9ab2d4),
+            emissiveIntensity: 0.11,
             side: THREE.DoubleSide,
             transparent: true,
             alphaTest: 0.04,
